@@ -1071,6 +1071,11 @@ export function transition(
       return { ...state, settings: { ...state.settings, noiseOn: event.on } };
     }
 
+    case 'MARK_NOTIF_ASKED': {
+      if (state.settings.notifAsked) return state;
+      return { ...state, settings: { ...state.settings, notifAsked: true } };
+    }
+
     case 'REST_END': {
       if (state.phase !== 'rest') return state;
       const exited = exitRest(state, data, rng);

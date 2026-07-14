@@ -3,6 +3,8 @@ import { appStore, dispatch, now, t, tf, useGame } from './store/appStore';
 import { gameData } from './store/gameStore';
 import { isRockPresent } from './game/stateMachine';
 import { SYS, UI } from './game/text';
+import { bootRestore, flushSave, startAutosave } from './persistence/persist';
+import { notify, requestNotifyPermission } from './notifications';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
 import { NarratorLog } from './components/NarratorLog';
@@ -18,7 +20,58 @@ export function App() {
   const state = useGame((s) => s.state);
   const [nowMs, setNowMs] = useState(() => now());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [booted, setBooted] = useState(false);
   const lastRef = useRef(now());
+  const bootedRef = useRef(false);
+  const workerRef = useRef<Worker | null>(null);
+
+  // 부트: 세이브 복원 → 알림 권한(첫 진입 1회) → 자동저장 시작 → 종료 감시 워커
+  useEffect(() => {
+    if (bootedRef.current) return; // StrictMode 이중 실행 가드
+    bootedRef.current = true;
+    let stopAutosave = () => {};
+    void (async () => {
+      await bootRestore(Date.now());
+      lastRef.current = Date.now();
+      setNowMs(Date.now());
+      if (!appStore.getState().state.settings.notifAsked) {
+        await requestNotifyPermission();
+        dispatch({ type: 'MARK_NOTIF_ASKED' });
+      }
+      stopAutosave = startAutosave();
+      setBooted(true);
+    })();
+
+    const worker = new Worker(
+      new URL('./workers/restTimer.worker.ts', import.meta.url),
+      { type: 'module' },
+    );
+    worker.onmessage = () => notify(t(SYS.notification.restEnd));
+    workerRef.current = worker;
+
+    // 탭 이탈·종료 직전 즉시 저장 (마지막 상태 유실 방지)
+    const onHide = () => {
+      if (document.hidden) void flushSave();
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      stopAutosave();
+      document.removeEventListener('visibilitychange', onHide);
+      worker.terminate();
+      workerRef.current = null;
+    };
+  }, []);
+
+  // 휴식 종료 감시 — 미래 시각일 때만 워커에 위임(백그라운드 알림). 만료된 채 로드되면 재알림 없음.
+  useEffect(() => {
+    const w = workerRef.current;
+    if (!w) return;
+    if (state.phase === 'rest' && state.rest.endsAt > Date.now()) {
+      w.postMessage({ type: 'watch', endsAt: state.rest.endsAt });
+    } else {
+      w.postMessage({ type: 'clear' });
+    }
+  }, [state.phase, state.rest.endsAt, booted]);
 
   // 시간 진행: 집중 세션만 카운트업. 휴식은 종료 시각 타임스탬프 기준(M3에서 워커로 강화).
   useEffect(() => {

@@ -866,6 +866,14 @@ describe('설정', () => {
     expect(s.settings.noiseOn).toBe(true);
     expect(run(s, [{ type: 'SET_NOISE', on: false }]).settings.noiseOn).toBe(false);
   });
+
+  it('MARK_NOTIF_ASKED: 알림 권한 요청 1회성 플래그', () => {
+    expect(init().settings.notifAsked).toBe(false);
+    const s = run(init(), [{ type: 'MARK_NOTIF_ASKED' }]);
+    expect(s.settings.notifAsked).toBe(true);
+    // 멱등 — 다시 호출해도 동일 참조 유지
+    expect(run(s, [{ type: 'MARK_NOTIF_ASKED' }])).toBe(s);
+  });
 });
 
 describe('달력일 정산 이벤트', () => {

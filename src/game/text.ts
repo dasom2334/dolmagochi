@@ -57,6 +57,8 @@ export const SYS = {
     absenceStart: 'sys.toasts.absenceStart',
     importOk: 'sys.toasts.importOk',
     importFail: 'sys.toasts.importFail',
+    importVersion: 'sys.toasts.importVersion',
+    exportOk: 'sys.toasts.exportOk',
   },
   captions: {
     restRoom: 'sys.captions.restRoom',
@@ -91,6 +93,8 @@ export const UI = {
     epilogueDone: 'ui.buttons.epilogueDone',
     startAnyway: 'ui.buttons.startAnyway',
     keepResting: 'ui.buttons.keepResting',
+    exportSave: 'ui.buttons.exportSave',
+    importSave: 'ui.buttons.importSave',
   },
   debug: {
     fastForward: 'ui.debug.fastForward',
