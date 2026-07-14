@@ -41,6 +41,8 @@ export interface ActionData {
 export interface DialogueLine {
   textId: TextId;
   intimacy: number;
+  /** 이 조건을 만족할 때만 후보 (없으면 항상). 예: 특정 소품을 언급하는 줄은 그 소품이 방에 있을 때만 */
+  when?: Condition;
   choice?: { yesId: TextId; noId: TextId };
 }
 

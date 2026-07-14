@@ -3,7 +3,7 @@
     { "textId": "dlg.stage1.0", "intimacy": 1 },
     { "textId": "dlg.stage1.1", "intimacy": 1 },
     { "textId": "dlg.stage1.2", "intimacy": 1 },
-    { "textId": "dlg.stage1.3", "intimacy": 1 },
+    { "textId": "dlg.stage1.3", "intimacy": 1, "when": { "placedItems": ["soda"] } },
     { "textId": "dlg.stage1.4", "intimacy": 1 }
   ],
   "stage2": [

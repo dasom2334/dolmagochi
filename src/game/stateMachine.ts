@@ -17,7 +17,7 @@ import type {
 } from '../data/schema';
 import { accrueCare, formatElapsed, restMinutesFor } from './timer';
 import { drawMemory, remember, resolveReflection } from './memory';
-import { drawNonReplacing, selectDialoguePool } from './dialogue';
+import { drawEligibleLine, selectDialoguePool } from './dialogue';
 import { pickFreeAction } from './freeAction';
 import { clampStat, dateKey, initialStats, needsLevelOf, settleCalendar } from './stats';
 import { intimacyOutcome } from './security';
@@ -266,7 +266,7 @@ function exitRest(
   };
 }
 
-/** 대화 풀 1건 서빙 (비복원) — apart 방문/빈자리·잠수 중 부재 풀이 공유 */
+/** 대화 풀 1건 서빙 (비복원, when 조건 필터) — apart 방문/빈자리·잠수 중 부재 풀이 공유 */
 function serveTalkPool(
   state: GameState,
   data: GameData,
@@ -274,9 +274,10 @@ function serveTalkPool(
   poolId: string,
   lines: DialogueLine[],
 ): GameState {
-  const draw = drawNonReplacing(
-    lines.length,
+  const draw = drawEligibleLine(
+    lines,
     state.dialogue.usedByPool[poolId] ?? [],
+    state,
     rng,
   );
   if (!draw) return { ...state, rest: { ...state.rest, talkPressed: true } };
@@ -968,9 +969,11 @@ export function transition(
       );
       if (!pool)
         return { ...state, rest: { ...state.rest, talkPressed: true } };
-      const draw = drawNonReplacing(
-        pool.lines.length,
+      // when 조건 필터 — 소품 언급 줄은 그 소품이 방에 있을 때만 후보
+      const draw = drawEligibleLine(
+        pool.lines,
         state.dialogue.usedByPool[pool.poolId] ?? [],
+        state,
         rng,
       );
       if (!draw)
