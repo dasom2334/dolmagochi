@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { appStore, dispatch, now, t, tf } from './store/appStore';
-import { useGame } from './store/appStore';
+import { appStore, dispatch, now, t, tf, useGame } from './store/appStore';
 import { gameData } from './store/gameStore';
+import { isRockPresent } from './game/stateMachine';
 import { SYS, UI } from './game/text';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
@@ -25,13 +25,12 @@ export function App() {
       const n = Date.now();
       const dt = (n - lastRef.current) / 1000;
       lastRef.current = n;
-      setNowMs(n);
       const st = appStore.getState();
-      if (
-        st.state.phase === 'focus' &&
-        !st.state.session.paused &&
-        !document.hidden
-      ) {
+      const phase = st.state.phase;
+      // nowMs는 휴식 카운트다운·만료 체크에만 쓰인다 — 그 외 phase에서는
+      // 매 틱 리렌더를 유발하지 않도록 rest일 때만 갱신한다.
+      if (phase === 'rest') setNowMs(n);
+      if (phase === 'focus' && !st.state.session.paused && !document.hidden) {
         st.tick(dt);
       }
     }, 250);
@@ -60,7 +59,7 @@ export function App() {
   }, [state.phase, state.rest.endsAt, nowMs]);
 
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
-  const present = state.presence.state === 'present';
+  const present = isRockPresent(state);
 
   return (
     <div

@@ -318,7 +318,7 @@ function RestShop({ state }: { state: GameState }) {
         }}
       >
         <button
-          className="hv"
+          className={p === 0 ? undefined : 'hv'}
           disabled={p === 0}
           style={{
             ...btnSmall,
@@ -334,7 +334,7 @@ function RestShop({ state }: { state: GameState }) {
           {p + 1} / {pages}
         </span>
         <button
-          className="hv"
+          className={p >= pages - 1 ? undefined : 'hv'}
           disabled={p >= pages - 1}
           style={{
             ...btnSmall,

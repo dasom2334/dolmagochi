@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 /** 디자인 원본의 공용 버튼 스타일 (값 그대로) */
 export const btnOutline: CSSProperties = {
@@ -50,15 +50,30 @@ export function PagesView({
   children?: ReactNode;
   fontSize?: number;
 }) {
+  // 페이지 내용이 바뀌면 key로 remount → idx가 자연히 0으로 초기화된다
+  // (effect 리셋 시 이전 idx로 한 프레임 렌더되는 깜빡임 없음)
+  return (
+    <PagesInner key={pages.join('\f')} pages={pages} fontSize={fontSize}>
+      {children}
+    </PagesInner>
+  );
+}
+
+function PagesInner({
+  pages,
+  children,
+  fontSize,
+}: {
+  pages: string[];
+  children?: ReactNode;
+  fontSize: number;
+}) {
   const [idx, setIdx] = useState(0);
-  // 페이지 내용이 바뀌면 처음부터
-  const key = pages.join('\f');
-  useEffect(() => setIdx(0), [key]);
   const last = idx >= pages.length - 1;
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div
-        key={`${key}:${idx}`}
+        key={idx}
         className="pre-line"
         style={{
           flex: 1,

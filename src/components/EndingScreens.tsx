@@ -1,5 +1,6 @@
 import { gameData } from '../store/gameStore';
 import { dispatch, t } from '../store/appStore';
+import { UI } from '../game/text';
 import { btnDashed, btnOutline, card, PagesView } from './ui';
 
 function pagesOf(id: string): string[] {
@@ -68,7 +69,7 @@ export function EpilogueScreen() {
           style={{ ...btnDashed, marginTop: 12 }}
           onClick={() => dispatch({ type: 'EPILOGUE_DONE' })}
         >
-          {t('ui.buttons.epilogueDone')}
+          {t(UI.buttons.epilogueDone)}
         </button>
       </PagesView>
     </div>
