@@ -43,6 +43,7 @@ export const SYS = {
   absentAmbient: 'sys.absentAmbient',
   choiceRecall: 'sys.choiceRecall',
   focusEnd: 'sys.focusEnd',
+  focusEndAbsent: 'sys.focusEndAbsent',
   restSummary: 'sys.restSummary',
   talkSpent: 'sys.talkSpent',
   nextActionNote: 'sys.nextActionNote',

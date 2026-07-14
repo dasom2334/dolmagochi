@@ -273,6 +273,18 @@ describe('휴식 대화', () => {
     expect(s.pendingEvent).toBeNull();
   });
 
+  it('실내 소재 포섀도(새·영수증)는 전부 notActions:walk 게이트', () => {
+    // 데이터 무결성: 실내 포섀도가 산책에서 예약되지 않는다
+    for (const f of gameData.events.foreshadow) {
+      expect(f.event.when?.notActions).toContain('walk');
+    }
+    // 산책 다음 세션에는 어떤 포섀도도 예약되지 않고 풀로 폴백
+    const rest: GameState = { ...toRest(), selectedAction: 'walk', foreUsed: [] };
+    const s = run(rest, [{ type: 'TALK' }], seq([0.1, 0.0, 0.0]));
+    expect(s.rest.talkState?.kind).toBe('pool');
+    expect(s.pendingEvent).toBeNull();
+  });
+
   it('TALK_CHOICE: 예/아니오 응답 페이지로 교체', () => {
     const withChoice: GameData = structuredClone(gameData);
     withChoice.dialogues.stage1 = [
@@ -403,6 +415,28 @@ describe('잠수(부재) 분기', () => {
       s.rest.talkState!.pages.join('\n'),
     );
     expect(s.milestonesFired).toHaveLength(0); // 없는 돌이 마일스톤을 발화하지 않는다
+  });
+
+  it('잠수 세션 종료 문구는 부재 변형 — "돌은 옆에 있었다"가 새지 않는다', () => {
+    const data = riskyData();
+    const s = run(
+      init(),
+      [
+        { type: 'START_FOCUS', nowMs: T0 },
+        ...ticks(100),
+        { type: 'END_FOCUS', nowMs: T0 + 100_000 },
+      ],
+      seq([0.1, 0.0]),
+      data,
+    );
+    expect(s.presence.state).toBe('absent');
+    const mins = '2';
+    expect(s.session.narratorLine).toBe(
+      T('sys.focusEndAbsent').replaceAll('{mins}', mins),
+    );
+    expect(s.session.narratorLine).not.toBe(
+      T('sys.focusEnd').replaceAll('{mins}', mins),
+    );
   });
 
   it('잠수 중 반추는 부재 전용 문장만 — 재석 전제 문장이 새지 않는다', () => {

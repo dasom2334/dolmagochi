@@ -622,6 +622,8 @@ export function transition(
       const care = accrueCare(state.care, mins);
       const earned = care.points - state.care.points;
       const restMin = restMinutesFor(mins);
+      // 세션 동안 돌이 곁에 있었는가 — 없었으면 '옆에 있었다' 대신 부재 마무리
+      const sessionHadRock = isRockPresent(state);
 
       // 행동 결과 적용
       let next = applyOutcome(state, action.outcome, event.nowMs);
@@ -705,9 +707,14 @@ export function transition(
           ...state.session,
           journal,
           narratorLine: joinPages(
-            fillPages(pickText(data.text, SYS.focusEnd, rng), {
-              mins: displayMins,
-            }),
+            fillPages(
+              pickText(
+                data.text,
+                sessionHadRock ? SYS.focusEnd : SYS.focusEndAbsent,
+                rng,
+              ),
+              { mins: displayMins },
+            ),
           ),
         },
         rest: {

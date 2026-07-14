@@ -12,7 +12,6 @@
     "variants": [
       { "when": { "action": "free" }, "textId": "refl.walk.during-free" },
       { "when": { "action": "cook" }, "textId": "refl.walk.during-cook" },
-      { "when": { "era": "apart", "action": "walk" }, "textId": "refl.walk.apart-walk" },
       { "textId": "refl.walk.base" }
     ]
   },
@@ -28,13 +27,13 @@
     "token": "chore",
     "variants": [{ "textId": "refl.chore.base" }]
   },
-  { "token": "buy-fan", "variants": [{ "textId": "refl.buy-fan.base" }] },
-  { "token": "buy-plant", "variants": [{ "textId": "refl.buy-plant.base" }] },
-  { "token": "buy-soda", "variants": [{ "textId": "refl.buy-soda.base" }] },
-  { "token": "buy-cup", "variants": [{ "textId": "refl.buy-cup.base" }] },
-  { "token": "buy-moss", "variants": [{ "textId": "refl.buy-moss.base" }] },
-  { "token": "buy-book2", "variants": [{ "textId": "refl.buy-book2.base" }] },
-  { "token": "buy-lamp", "variants": [{ "textId": "refl.buy-lamp.base" }] },
+  { "token": "buy-fan", "variants": [{ "when": { "placedItems": ["fan"] }, "textId": "refl.buy-fan.base" }] },
+  { "token": "buy-plant", "variants": [{ "when": { "placedItems": ["plant"] }, "textId": "refl.buy-plant.base" }] },
+  { "token": "buy-soda", "variants": [{ "when": { "placedItems": ["soda"] }, "textId": "refl.buy-soda.base" }] },
+  { "token": "buy-cup", "variants": [{ "when": { "placedItems": ["cup"] }, "textId": "refl.buy-cup.base" }] },
+  { "token": "buy-moss", "variants": [{ "when": { "placedItems": ["moss"] }, "textId": "refl.buy-moss.base" }] },
+  { "token": "buy-book2", "variants": [{ "when": { "placedItems": ["book2"] }, "textId": "refl.buy-book2.base" }] },
+  { "token": "buy-lamp", "variants": [{ "when": { "placedItems": ["lamp"] }, "textId": "refl.buy-lamp.base" }] },
   { "token": "choice", "variants": [{ "textId": "refl.choice.base" }] },
   {
     "token": "selfCare-physiological",
