@@ -1,0 +1,14 @@
+{
+  "focus": [
+    { "minSec": 1500, "textId": "timeMark.focus.25m" },
+    { "minSec": 1800, "textId": "timeMark.focus.30m" },
+    { "minSec": 2400, "textId": "timeMark.focus.40m" },
+    { "minSec": 3600, "textId": "timeMark.focus.1h" },
+    { "minSec": 7200, "textId": "timeMark.focus.2h" }
+  ],
+  "rest": [
+    { "minSec": 600, "textId": "timeMark.rest.10m" },
+    { "minSec": 1200, "textId": "timeMark.rest.20m" },
+    { "minSec": 1800, "textId": "timeMark.rest.30m" }
+  ]
+}

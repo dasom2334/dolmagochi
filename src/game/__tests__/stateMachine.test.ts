@@ -157,6 +157,55 @@ describe('작은 행동 — 집중 세션이 끝난 뒤 1회', () => {
     const again = run(s, [{ type: 'REST_ACT', key: 'water' }]);
     expect(again.session.journal).toHaveLength(before + 1);
   });
+
+  it('돌이 없을 때(잠수)는 부재 전용 문구를 쓴다', () => {
+    const data: GameData = structuredClone(gameData);
+    data.actions.find((a) => a.id === 'read')!.intimacy = 4; // 잠수 유발
+    // 잠수 발동 → 세션 종료 → 휴식에서 작은 행동
+    let s = run(
+      init(),
+      [{ type: 'START_FOCUS', nowMs: T0 }, { type: 'END_FOCUS', nowMs: T0 }],
+      seq([0.1, 0.0]),
+      data,
+    );
+    expect(s.presence.state).toBe('absent');
+    s = run(s, [{ type: 'REST_ACT', key: 'glance' }], mulberry32(1), data);
+    const line = s.session.journal[s.session.journal.length - 1].text;
+    expect(variantsOf('restAct.glance.absent')).toContain(line);
+    expect(variantsOf('restAct.glance.lines')).not.toContain(line);
+  });
+});
+
+describe('시간 문턱 발화 (timeMarks)', () => {
+  it('집중 경과가 문턱을 넘으면 세션당 문턱별 1회 발화', () => {
+    const marks = gameData.timeMarks.focus;
+    const first = marks[0]; // 25분(1500초)
+    // 문턱 직전에는 발화 없음
+    let s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(first.minSec - 10),
+    ]);
+    expect(s.session.timeMarksFired).not.toContain(0);
+    // 문턱을 넘으면 발화 + 인덱스 기록
+    s = run(s, ticks(20));
+    expect(s.session.timeMarksFired).toContain(0);
+    expect(s.session.journal.map((j) => j.text)).toContain(T(first.textId));
+    // 같은 문턱은 다시 발화하지 않음
+    const firedCount = s.session.timeMarksFired.filter((i) => i === 0).length;
+    expect(firedCount).toBe(1);
+  });
+
+  it('END_FOCUS: 배정된 휴식 길이 문턱 발화가 일지에 남는다', () => {
+    // 60분 집중 → 20분 휴식 → rest 문턱 20m(1200초) 발화
+    const s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(3600),
+      { type: 'END_FOCUS', nowMs: T0 + 3_600_000 },
+    ]);
+    expect(s.rest.totalSec).toBe(20 * 60);
+    const restMark = gameData.timeMarks.rest.filter((m) => 20 * 60 >= m.minSec).pop()!;
+    expect(s.session.journal.map((j) => j.text)).toContain(T(restMark.textId));
+  });
 });
 
 describe('휴식 대화', () => {
@@ -323,7 +372,7 @@ describe('잠수(부재) 분기', () => {
     expect(s.milestonesFired).toHaveLength(0); // 없는 돌이 마일스톤을 발화하지 않는다
   });
 
-  it('잠수 중에는 반추 틱이 재석 전제 문장을 일지에 남기지 않는다', () => {
+  it('잠수 중 반추는 부재 전용 문장만 — 재석 전제 문장이 새지 않는다', () => {
     const data = riskyData();
     const s = run(
       init(),
@@ -335,7 +384,14 @@ describe('잠수(부재) 분기', () => {
       data,
     );
     expect(s.presence.state).toBe('absent');
-    expect(s.session.journal).toHaveLength(1); // 시작 서술뿐 — 반추 기록 없음
+    // 반추가 남더라도 refl.absent 변형만 — read 반추(refl.read.*)는 절대 없음
+    const absentTexts = variantsOf('refl.absent');
+    const readTexts = variantsOf('refl.read.base');
+    const reflections = s.session.journal.slice(1).map((j) => j.text);
+    for (const line of reflections) {
+      expect(readTexts).not.toContain(line);
+      expect(absentTexts).toContain(line);
+    }
   });
 
   it('저친밀 누적으로만 복귀 — 호감도 삭감 없음, first-return 1회성', () => {

@@ -1,6 +1,6 @@
 [
-  { "key": "glance", "labelId": "restAct.glance.label", "linesId": "restAct.glance.lines" },
-  { "key": "water", "labelId": "restAct.water.label", "linesId": "restAct.water.lines" },
-  { "key": "breath", "labelId": "restAct.breath.label", "linesId": "restAct.breath.lines" },
-  { "key": "posture", "labelId": "restAct.posture.label", "linesId": "restAct.posture.lines" }
+  { "key": "glance", "labelId": "restAct.glance.label", "linesId": "restAct.glance.lines", "absentLinesId": "restAct.glance.absent" },
+  { "key": "water", "labelId": "restAct.water.label", "linesId": "restAct.water.lines", "absentLinesId": "restAct.water.absent" },
+  { "key": "breath", "labelId": "restAct.breath.label", "linesId": "restAct.breath.lines", "absentLinesId": "restAct.breath.absent" },
+  { "key": "posture", "labelId": "restAct.posture.label", "linesId": "restAct.posture.lines", "absentLinesId": "restAct.posture.absent" }
 ]

@@ -16,7 +16,7 @@ import type {
   ShopItemData,
 } from '../data/schema';
 import { accrueCare, formatElapsed, restMinutesFor } from './timer';
-import { drawMemory, remember } from './memory';
+import { drawMemory, remember, resolveReflection } from './memory';
 import { drawNonReplacing, selectDialoguePool } from './dialogue';
 import { pickFreeAction } from './freeAction';
 import { clampStat, dateKey, initialStats, needsLevelOf, settleCalendar } from './stats';
@@ -96,6 +96,7 @@ function emptySession(): GameState['session'] {
     ambIdx: 0,
     narratorLine: '',
     lastReflectAtSec: 0,
+    timeMarksFired: [],
   };
 }
 
@@ -221,6 +222,18 @@ function recallRemembrance(
     ],
     recalled: [...recalled, picked.id],
   };
+}
+
+/** 돌 부재 시 반추 — 돌을 언급하지 않는 부재 전용 문장 */
+function absentReflectionLine(
+  state: GameState,
+  data: GameData,
+  rng: Rng,
+): string {
+  const def = data.reflections.find((d) => d.token === 'absent');
+  if (!def) return '';
+  const textId = resolveReflection(def, state, rng);
+  return textId ? joinPages(pickText(data.text, textId, rng)) : '';
 }
 
 /** 엔딩 이벤트 진입 조건: 자아실현 완성 + 엔딩 전 대화 소진 (육성 시대) */
@@ -473,17 +486,14 @@ export function transition(
         let recalled = next.remembrancesRecalled;
 
         if (next.era === 'apart' && !next.apart.visiting) {
-          // 빈자리: 추억 회상 — 당시 미표시 정보(reveal)가 드러난다
+          // 빈자리: 추억 회상 — 당시 미표시 정보(reveal)가 드러난다.
+          // 회상할 추억이 없으면 돌 반추 대신 부재 전용 반추 (돌 언급 누출 방지)
           const recall = recallRemembrance(next, data, rng);
           if (recall) {
             line = joinPages(recall.pages);
             recalled = recall.recalled;
           } else {
-            const draw = drawMemory(memory, data.reflections, next, rng);
-            if (draw) {
-              line = joinPages(pickText(data.text, draw.textId, rng));
-              memory = draw.memory;
-            }
+            line = absentReflectionLine(next, data, rng);
           }
         } else if (action.id === 'free' && present) {
           const result = pickFreeAction(
@@ -527,8 +537,10 @@ export function transition(
               ? joinPages(pickText(data.text, baseVariant.textId, rng))
               : '';
           }
+        } else {
+          // 돌 부재(육성 잠수 등) — 부재 전용 반추, 돌을 언급하지 않는다
+          line = absentReflectionLine(next, data, rng);
         }
-        // 잠수 중(육성)에는 반추 없음 — 돌 없는 방의 일지가 돌을 관찰하지 않는다
 
         const showAsNarrator =
           action.id === 'free' && !next.session.choiceState && present;
@@ -546,6 +558,24 @@ export function transition(
           },
         };
       }
+
+      // 5) 시간 문턱 발화 — 집중이 길어질수록 문턱별 1회 (기획서 요청)
+      data.timeMarks.focus.forEach((mark, i) => {
+        if (el >= mark.minSec && !next.session.timeMarksFired.includes(i)) {
+          const markLine = joinPages(pickText(data.text, mark.textId, rng));
+          next = {
+            ...next,
+            session: {
+              ...next.session,
+              timeMarksFired: [...next.session.timeMarksFired, i],
+              journal: markLine
+                ? addJournal(next.session.journal, el, markLine)
+                : next.session.journal,
+              narratorLine: markLine || next.session.narratorLine,
+            },
+          };
+        }
+      });
 
       return next;
     }
@@ -641,6 +671,16 @@ export function transition(
         event.nowMs,
       );
 
+      // 휴식 길이 문턱 발화 — 배정된 휴식이 길수록 (긴 집중의 결과) 진입 시 1회
+      const restSec = restMin * 60;
+      const restMark = [...data.timeMarks.rest]
+        .filter((m) => restSec >= m.minSec)
+        .pop();
+      if (restMark) {
+        const markLine = joinPages(pickText(data.text, restMark.textId, rng));
+        if (markLine) journal = addJournal(journal, state.session.elapsedSec, markLine);
+      }
+
       const displayMins = Math.max(1, Math.round(mins));
       return {
         ...next,
@@ -686,7 +726,9 @@ export function transition(
       if (state.phase !== 'rest' || state.rest.actUsed) return state;
       const act = data.restActs.find((a) => a.key === event.key);
       if (!act) return state;
-      const line = joinPages(pickText(data.text, act.linesId, rng));
+      // 돌이 없으면(잠수/빈자리) 부재 전용 문구 — 돌 언급 누출 방지
+      const linesId = isRockPresent(state) ? act.linesId : act.absentLinesId;
+      const line = joinPages(pickText(data.text, linesId, rng));
       return {
         ...state,
         rest: { ...state.rest, actUsed: true },

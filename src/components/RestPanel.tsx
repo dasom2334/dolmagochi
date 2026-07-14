@@ -9,8 +9,23 @@ import { ActionGrid } from './ActionGrid';
 
 const STEPS: RestStep[] = ['journal', 'talk', 'select', 'shop'];
 
-export function RestPanel({ state }: { state: GameState }) {
+export function RestPanel({
+  state,
+  nowMs,
+}: {
+  state: GameState;
+  nowMs: number;
+}) {
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
+  // 휴식 타이머가 아직 다 흐르지 않았으면(권장 휴식 미완료) 시작 전 되묻는다
+  const restIncomplete = state.rest.endsAt > 0 && nowMs < state.rest.endsAt;
+  const [confirming, setConfirming] = useState(false);
+
+  const startFocus = () => {
+    if (restIncomplete) setConfirming(true);
+    else dispatch({ type: 'START_FOCUS', nowMs: now() });
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
       <p
@@ -72,13 +87,49 @@ export function RestPanel({ state }: { state: GameState }) {
         )}
         {state.restStep === 'shop' && <RestShop state={state} />}
       </div>
-      <button
-        className="hv"
-        style={btnDashed}
-        onClick={() => dispatch({ type: 'START_FOCUS', nowMs: now() })}
-      >
-        {tf(UI.buttons.startFocus, { action: t(action?.nameId ?? '') })}
-      </button>
+      {confirming ? (
+        <div
+          style={{
+            ...card,
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 9,
+          }}
+        >
+          <p
+            className="pre-line"
+            style={{ margin: 0, fontSize: 12, color: '#f2ead8', lineHeight: 1.6 }}
+          >
+            * {t(SYS.restIncomplete)}
+          </p>
+          <div
+            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}
+          >
+            <button
+              className="hv"
+              style={{ ...btnOutline, minHeight: 44 }}
+              onClick={() => {
+                setConfirming(false);
+                dispatch({ type: 'START_FOCUS', nowMs: now() });
+              }}
+            >
+              {t(UI.buttons.startAnyway)}
+            </button>
+            <button
+              className="hv"
+              style={{ ...btnOutline, minHeight: 44 }}
+              onClick={() => setConfirming(false)}
+            >
+              {t(UI.buttons.keepResting)}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="hv" style={btnDashed} onClick={startFocus}>
+          {tf(UI.buttons.startFocus, { action: t(action?.nameId ?? '') })}
+        </button>
+      )}
     </div>
   );
 }

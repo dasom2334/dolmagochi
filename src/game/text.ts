@@ -71,6 +71,8 @@ export const SYS = {
     farewellLocked: 'sys.settings.farewellLocked',
   },
   trustLadder: ['sys.trust.0', 'sys.trust.1', 'sys.trust.2', 'sys.trust.3'],
+  trustAbsent: 'sys.trustAbsent',
+  restIncomplete: 'sys.restIncomplete.prompt',
 } as const;
 
 /** 순수 UI 단문 id 상수 (M2에서 사용) */
@@ -86,6 +88,13 @@ export const UI = {
     noiseOn: 'ui.buttons.noiseOn',
     noiseOff: 'ui.buttons.noiseOff',
     epilogueDone: 'ui.buttons.epilogueDone',
+    startAnyway: 'ui.buttons.startAnyway',
+    keepResting: 'ui.buttons.keepResting',
+  },
+  debug: {
+    fastForward: 'ui.debug.fastForward',
+    triggerAbsence: 'ui.debug.triggerAbsence',
+    endAbsence: 'ui.debug.endAbsence',
   },
   labels: {
     locked: 'ui.labels.locked',

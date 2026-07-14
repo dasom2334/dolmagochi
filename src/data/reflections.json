@@ -47,5 +47,6 @@
   },
   { "token": "selfCare-esteem", "variants": [{ "textId": "refl.selfCare-esteem" }] },
   { "token": "personalWork", "variants": [{ "textId": "refl.personalWork" }] },
-  { "token": "default", "variants": [{ "textId": "refl.default" }] }
+  { "token": "default", "variants": [{ "textId": "refl.default" }] },
+  { "token": "absent", "variants": [{ "textId": "refl.absent" }] }
 ]

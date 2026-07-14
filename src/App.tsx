@@ -11,6 +11,7 @@ import { ActionGrid } from './components/ActionGrid';
 import { RestPanel } from './components/RestPanel';
 import { EndingScreen, EpilogueScreen } from './components/EndingScreens';
 import { SettingsModal } from './components/SettingsModal';
+import { DebugBar } from './components/DebugBar';
 import { btnDashed } from './components/ui';
 
 export function App() {
@@ -47,19 +48,12 @@ export function App() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
-  // 휴식 만료 → REST_END (알림은 M3)
-  useEffect(() => {
-    if (
-      state.phase === 'rest' &&
-      state.rest.endsAt > 0 &&
-      nowMs >= state.rest.endsAt
-    ) {
-      dispatch({ type: 'REST_END' });
-    }
-  }, [state.phase, state.rest.endsAt, nowMs]);
+  // 타이머 만료는 자동으로 다음 세션으로 넘어가지 않는다 — 시작은 사용자가 정한다.
+  // (휴식 종료 알림은 M3, 여기서는 카운트다운만 0에서 멈춘다)
 
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
   const present = isRockPresent(state);
+  const debug = new URLSearchParams(window.location.search).get('debug') === '1';
 
   return (
     <div
@@ -85,6 +79,7 @@ export function App() {
           nowMs={nowMs}
           onOpenSettings={() => setSettingsOpen(true)}
         />
+        {debug && <DebugBar state={state} nowMs={nowMs} />}
         <SceneView state={state} />
 
         {state.phase === 'ending' ? (
@@ -115,7 +110,9 @@ export function App() {
               </div>
             )}
 
-            {state.phase === 'rest' && <RestPanel state={state} />}
+            {state.phase === 'rest' && (
+              <RestPanel state={state} nowMs={nowMs} />
+            )}
 
             {state.phase === 'actionSelect' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -145,7 +142,11 @@ export function App() {
         )}
 
         {settingsOpen && (
-          <SettingsModal state={state} onClose={() => setSettingsOpen(false)} />
+          <SettingsModal
+            state={state}
+            debug={debug}
+            onClose={() => setSettingsOpen(false)}
+          />
         )}
       </div>
     </div>

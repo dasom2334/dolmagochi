@@ -180,6 +180,8 @@ export interface GameState {
     narratorLine: string;
     /** 마지막 반추 추출 시점(초) */
     lastReflectAtSec: number;
+    /** 이번 집중에서 발화된 시간 문턱 인덱스 (timeMarks.focus) */
+    timeMarksFired: number[];
   };
   rest: {
     endsAt: number;
