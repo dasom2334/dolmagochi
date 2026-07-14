@@ -43,6 +43,7 @@ export const SYS = {
   absentAmbient: 'sys.absentAmbient',
   choiceRecall: 'sys.choiceRecall',
   focusEnd: 'sys.focusEnd',
+  focusEndAbsent: 'sys.focusEndAbsent',
   restSummary: 'sys.restSummary',
   talkSpent: 'sys.talkSpent',
   nextActionNote: 'sys.nextActionNote',
@@ -63,6 +64,7 @@ export const SYS = {
     apartRoom: 'sys.captions.apartRoom',
   },
   notification: { restEnd: 'sys.notification.restEnd' },
+  placement: { prompt: 'sys.placement.prompt' },
   hints: { flowtime: 'sys.hints.flowtime' },
   settings: {
     noiseOn: 'sys.settings.noiseOn',
@@ -70,6 +72,8 @@ export const SYS = {
     farewellLocked: 'sys.settings.farewellLocked',
   },
   trustLadder: ['sys.trust.0', 'sys.trust.1', 'sys.trust.2', 'sys.trust.3'],
+  trustAbsent: 'sys.trustAbsent',
+  restIncomplete: 'sys.restIncomplete.prompt',
 } as const;
 
 /** 순수 UI 단문 id 상수 (M2에서 사용) */
@@ -80,7 +84,32 @@ export const UI = {
     talk: 'ui.buttons.talk',
     yes: 'ui.buttons.yes',
     no: 'ui.buttons.no',
+    settings: 'ui.buttons.settings',
+    close: 'ui.buttons.close',
+    noiseOn: 'ui.buttons.noiseOn',
+    noiseOff: 'ui.buttons.noiseOff',
+    epilogueDone: 'ui.buttons.epilogueDone',
+    startAnyway: 'ui.buttons.startAnyway',
+    keepResting: 'ui.buttons.keepResting',
   },
-  labels: { locked: 'ui.labels.locked' },
+  debug: {
+    fastForward: 'ui.debug.fastForward',
+    triggerAbsence: 'ui.debug.triggerAbsence',
+    endAbsence: 'ui.debug.endAbsence',
+  },
+  labels: {
+    locked: 'ui.labels.locked',
+    modeFocus: 'ui.labels.modeFocus',
+    modeRest: 'ui.labels.modeRest',
+    care: 'ui.labels.care', // {points}
+    noiseSetting: 'ui.labels.noiseSetting',
+  },
+  shop: {
+    owned: 'ui.shop.owned',
+    poor: 'ui.shop.poor',
+    price: 'ui.shop.price', // {price}
+    place: 'ui.shop.place',
+    stash: 'ui.shop.stash',
+  },
   tabs: ['ui.tabs.journal', 'ui.tabs.talk', 'ui.tabs.select', 'ui.tabs.shop'],
 } as const;

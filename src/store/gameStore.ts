@@ -15,6 +15,7 @@ import events from '../data/events.json';
 import shop from '../data/shop.json';
 import reflections from '../data/reflections.json';
 import restActs from '../data/restActs.json';
+import timeMarks from '../data/timeMarks.json';
 import endings from '../data/endings.json';
 import ko from '../data/locales/ko.json';
 
@@ -32,6 +33,7 @@ export function buildGameData(locale = 'ko'): GameData {
     shop,
     reflections,
     restActs,
+    timeMarks,
     endings,
     text: catalogs[locale] ?? catalogs['ko'],
   } as unknown as GameData;

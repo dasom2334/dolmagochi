@@ -157,6 +157,55 @@ describe('작은 행동 — 집중 세션이 끝난 뒤 1회', () => {
     const again = run(s, [{ type: 'REST_ACT', key: 'water' }]);
     expect(again.session.journal).toHaveLength(before + 1);
   });
+
+  it('돌이 없을 때(잠수)는 부재 전용 문구를 쓴다', () => {
+    const data: GameData = structuredClone(gameData);
+    data.actions.find((a) => a.id === 'read')!.intimacy = 4; // 잠수 유발
+    // 잠수 발동 → 세션 종료 → 휴식에서 작은 행동
+    let s = run(
+      init(),
+      [{ type: 'START_FOCUS', nowMs: T0 }, { type: 'END_FOCUS', nowMs: T0 }],
+      seq([0.1, 0.0]),
+      data,
+    );
+    expect(s.presence.state).toBe('absent');
+    s = run(s, [{ type: 'REST_ACT', key: 'glance' }], mulberry32(1), data);
+    const line = s.session.journal[s.session.journal.length - 1].text;
+    expect(variantsOf('restAct.glance.absent')).toContain(line);
+    expect(variantsOf('restAct.glance.lines')).not.toContain(line);
+  });
+});
+
+describe('시간 문턱 발화 (timeMarks)', () => {
+  it('집중 경과가 문턱을 넘으면 세션당 문턱별 1회 발화', () => {
+    const marks = gameData.timeMarks.focus;
+    const first = marks[0]; // 25분(1500초)
+    // 문턱 직전에는 발화 없음
+    let s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(first.minSec - 10),
+    ]);
+    expect(s.session.timeMarksFired).not.toContain(0);
+    // 문턱을 넘으면 발화 + 인덱스 기록
+    s = run(s, ticks(20));
+    expect(s.session.timeMarksFired).toContain(0);
+    expect(s.session.journal.map((j) => j.text)).toContain(T(first.textId));
+    // 같은 문턱은 다시 발화하지 않음
+    const firedCount = s.session.timeMarksFired.filter((i) => i === 0).length;
+    expect(firedCount).toBe(1);
+  });
+
+  it('END_FOCUS: 배정된 휴식 길이 문턱 발화가 일지에 남는다', () => {
+    // 60분 집중 → 20분 휴식 → rest 문턱 20m(1200초) 발화
+    const s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(3600),
+      { type: 'END_FOCUS', nowMs: T0 + 3_600_000 },
+    ]);
+    expect(s.rest.totalSec).toBe(20 * 60);
+    const restMark = gameData.timeMarks.rest.filter((m) => 20 * 60 >= m.minSec).pop()!;
+    expect(s.session.journal.map((j) => j.text)).toContain(T(restMark.textId));
+  });
 });
 
 describe('휴식 대화', () => {
@@ -189,6 +238,51 @@ describe('휴식 대화', () => {
     s = run(s, [{ type: 'CHOICE_PICKED', optionIndex: 0, nowMs: T0 }]);
     expect(s.pendingEvent).toBeNull();
     expect(s.flags).toContain('promised-walk'); // Outcome 트리거
+  });
+
+  it('행동 조건 포섀도: 예약된 뒤 산책 세션에선 등장하지 않고 대기, 이후 적합 세션에 등장', () => {
+    // read 세션 → 휴식 → 문(door) 포섀도 예약 (when.notActions=['walk'])
+    let s = run(toRest(), [{ type: 'TALK' }], seq([0.1, 0.34]));
+    expect(s.rest.talkState?.pages.join('\n')).toBe(T('fore.door.line'));
+    expect(s.pendingEvent?.when?.notActions).toContain('walk');
+
+    // 다음 세션을 산책으로 바꾸면 포섀도는 등장하지 않는다 (pendingEvent 유지)
+    s = run(s, [
+      { type: 'SELECT_ACTION', actionId: 'walk' },
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(BALANCE.CHOICE_FIRST_AT_SEC + 10),
+    ]);
+    expect(s.session.choiceState?.source).not.toBe('foreshadow');
+    expect(s.pendingEvent).not.toBeNull();
+
+    // 산책이 아닌 세션에서는 정상 등장
+    s = run(s, [
+      { type: 'END_FOCUS', nowMs: T0 },
+      { type: 'SELECT_ACTION', actionId: 'read' },
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(BALANCE.CHOICE_FIRST_AT_SEC),
+    ]);
+    expect(s.session.choiceState?.source).toBe('foreshadow');
+  });
+
+  it('행동 조건 포섀도: 예약 시점에도 부적합하면 후보에서 제외되고 폴백', () => {
+    // 산책이 다음 행동이고 다른 포섀도(0,2)는 소진 → 남은 건 door(1)뿐인데 산책이라 제외
+    const rest: GameState = { ...toRest(), selectedAction: 'walk', foreUsed: [0, 2] };
+    const s = run(rest, [{ type: 'TALK' }], seq([0.1, 0.9, 0.0]));
+    expect(s.rest.talkState?.kind).toBe('pool'); // 포섀도 대신 단계 풀로 폴백
+    expect(s.pendingEvent).toBeNull();
+  });
+
+  it('실내 소재 포섀도(새·영수증)는 전부 notActions:walk 게이트', () => {
+    // 데이터 무결성: 실내 포섀도가 산책에서 예약되지 않는다
+    for (const f of gameData.events.foreshadow) {
+      expect(f.event.when?.notActions).toContain('walk');
+    }
+    // 산책 다음 세션에는 어떤 포섀도도 예약되지 않고 풀로 폴백
+    const rest: GameState = { ...toRest(), selectedAction: 'walk', foreUsed: [] };
+    const s = run(rest, [{ type: 'TALK' }], seq([0.1, 0.0, 0.0]));
+    expect(s.rest.talkState?.kind).toBe('pool');
+    expect(s.pendingEvent).toBeNull();
   });
 
   it('TALK_CHOICE: 예/아니오 응답 페이지로 교체', () => {
@@ -323,7 +417,29 @@ describe('잠수(부재) 분기', () => {
     expect(s.milestonesFired).toHaveLength(0); // 없는 돌이 마일스톤을 발화하지 않는다
   });
 
-  it('잠수 중에는 반추 틱이 재석 전제 문장을 일지에 남기지 않는다', () => {
+  it('잠수 세션 종료 문구는 부재 변형 — "돌은 옆에 있었다"가 새지 않는다', () => {
+    const data = riskyData();
+    const s = run(
+      init(),
+      [
+        { type: 'START_FOCUS', nowMs: T0 },
+        ...ticks(100),
+        { type: 'END_FOCUS', nowMs: T0 + 100_000 },
+      ],
+      seq([0.1, 0.0]),
+      data,
+    );
+    expect(s.presence.state).toBe('absent');
+    const mins = '2';
+    expect(s.session.narratorLine).toBe(
+      T('sys.focusEndAbsent').replaceAll('{mins}', mins),
+    );
+    expect(s.session.narratorLine).not.toBe(
+      T('sys.focusEnd').replaceAll('{mins}', mins),
+    );
+  });
+
+  it('잠수 중 반추는 부재 전용 문장만 — 재석 전제 문장이 새지 않는다', () => {
     const data = riskyData();
     const s = run(
       init(),
@@ -335,7 +451,14 @@ describe('잠수(부재) 분기', () => {
       data,
     );
     expect(s.presence.state).toBe('absent');
-    expect(s.session.journal).toHaveLength(1); // 시작 서술뿐 — 반추 기록 없음
+    // 반추가 남더라도 refl.absent 변형만 — read 반추(refl.read.*)는 절대 없음
+    const absentTexts = variantsOf('refl.absent');
+    const readTexts = variantsOf('refl.read.base');
+    const reflections = s.session.journal.slice(1).map((j) => j.text);
+    for (const line of reflections) {
+      expect(readTexts).not.toContain(line);
+      expect(absentTexts).toContain(line);
+    }
   });
 
   it('저친밀 누적으로만 복귀 — 호감도 삭감 없음, first-return 1회성', () => {
@@ -400,6 +523,22 @@ describe('상점 — 구매 ≠ 배치', () => {
 
     s = run(s, [{ type: 'SET_PLACEMENT', itemId: 'plant', placed: false }]);
     expect(s.items['plant']).toEqual({ placed: false });
+  });
+
+  it('배치 결정 전에는 다음 구매가 막힌다 (pendingPlacement 덮어쓰기 방지)', () => {
+    let s = run(richRest(), [{ type: 'BUY', itemId: 'plant', nowMs: T0 }]);
+    expect(s.pendingPlacement).toBe('plant');
+    // 배치 결정 전 두 번째 구매 시도 → 무시 (plant 결정이 유지됨)
+    const blocked = run(s, [{ type: 'BUY', itemId: 'soda', nowMs: T0 }]);
+    expect(blocked.pendingPlacement).toBe('plant');
+    expect('soda' in blocked.items).toBe(false);
+    // plant 배치 결정 후에는 다음 구매 가능
+    s = run(s, [
+      { type: 'SET_PLACEMENT', itemId: 'plant', placed: true },
+      { type: 'BUY', itemId: 'soda', nowMs: T0 },
+    ]);
+    expect(s.pendingPlacement).toBe('soda');
+    expect(s.items['plant']).toEqual({ placed: true });
   });
 
   it('중복·잔액 부족·미해금은 무시', () => {
@@ -718,6 +857,14 @@ describe('apart(빈자리) 시대', () => {
     expect(s.session.journal.map((j) => j.text)).toContain(
       `${T('rem.walk-pause.summary')}\n${T('rem.walk-pause.reveal')}`,
     );
+  });
+});
+
+describe('설정', () => {
+  it('SET_NOISE: 소음 토글 (오디오 자체는 M6)', () => {
+    const s = run(init(), [{ type: 'SET_NOISE', on: true }]);
+    expect(s.settings.noiseOn).toBe(true);
+    expect(run(s, [{ type: 'SET_NOISE', on: false }]).settings.noiseOn).toBe(false);
   });
 });
 

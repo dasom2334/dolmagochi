@@ -48,6 +48,41 @@ describe('resolveReflection — 문맥 변형 우선', () => {
   });
 });
 
+describe('drawMemory — 소품 미배치 토큰은 후보 제외', () => {
+  const DEFS_ITEM: ReflectionDef[] = [
+    {
+      token: 'buy-soda',
+      variants: [{ when: { placedItems: ['soda'] }, textId: 'soda.base' }],
+    },
+    { token: 'read', variants: [{ textId: 'read.base' }] },
+  ];
+
+  it('소다 보관 중(미배치)이면 buy-soda 토큰이 뽑히지 않고 read가 반추된다', () => {
+    const s: GameState = {
+      ...stateWith('read'),
+      items: { soda: { placed: false } },
+    };
+    let mem = remember({}, 'buy-soda', 9, 0); // 무거운 가중치라도
+    mem = remember(mem, 'read', 1, 0);
+    for (let i = 0; i < 30; i++) {
+      const draw = drawMemory(mem, DEFS_ITEM, s, mulberry32(i))!;
+      expect(draw).not.toBeNull();
+      expect(draw.tokenKind).toBe('read'); // buy-soda는 절대 안 뽑힘
+    }
+  });
+
+  it('소다 배치 시에는 buy-soda 토큰도 반추된다', () => {
+    const s: GameState = {
+      ...stateWith('read'),
+      items: { soda: { placed: true } },
+    };
+    const mem = remember({}, 'buy-soda', 9, 0);
+    const draw = drawMemory(mem, DEFS_ITEM, s, mulberry32(1))!;
+    expect(draw.tokenKind).toBe('buy-soda');
+    expect(draw.textId).toBe('soda.base');
+  });
+});
+
 describe('drawMemory — 가중 추출·감쇠 바닥', () => {
   it('빈 풀 → null, 반추 정의 없는 종류 제외', () => {
     const s = stateWith('read');

@@ -61,9 +61,16 @@ export function drawMemory(
   state: GameState,
   rng: Rng,
 ): MemoryDraw | null {
-  const candidates = Object.entries(memory).filter(([k]) =>
-    defs.some((d) => d.token === k && d.variants.length > 0),
-  );
+  // 반추 정의가 있고, 현재 상태에서 조건을 통과하는 변형이 하나라도 있는 종류만 후보.
+  // (예: 보관 중인 소품의 buy-토큰은 placedItems 조건에 걸려 후보에서 빠진다 →
+  //  다른 토큰이 반추될 수 있고, 그 틱이 조용히 비지 않는다)
+  const candidates = Object.entries(memory).filter(([k]) => {
+    const def = defs.find((d) => d.token === k);
+    return (
+      !!def &&
+      def.variants.some((v) => v.when === undefined || checkCondition(v.when, state))
+    );
+  });
   if (candidates.length === 0) return null;
 
   const total = candidates.reduce((a, [, e]) => a + e.w, 0);

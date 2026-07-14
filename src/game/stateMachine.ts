@@ -16,8 +16,8 @@ import type {
   ShopItemData,
 } from '../data/schema';
 import { accrueCare, formatElapsed, restMinutesFor } from './timer';
-import { drawMemory, remember } from './memory';
-import { drawNonReplacing, selectDialoguePool } from './dialogue';
+import { drawMemory, remember, resolveReflection } from './memory';
+import { drawEligibleLine, selectDialoguePool } from './dialogue';
 import { pickFreeAction } from './freeAction';
 import { clampStat, dateKey, initialStats, needsLevelOf, settleCalendar } from './stats';
 import { intimacyOutcome } from './security';
@@ -96,6 +96,7 @@ function emptySession(): GameState['session'] {
     ambIdx: 0,
     narratorLine: '',
     lastReflectAtSec: 0,
+    timeMarksFired: [],
   };
 }
 
@@ -223,6 +224,18 @@ function recallRemembrance(
   };
 }
 
+/** 돌 부재 시 반추 — 돌을 언급하지 않는 부재 전용 문장 */
+function absentReflectionLine(
+  state: GameState,
+  data: GameData,
+  rng: Rng,
+): string {
+  const def = data.reflections.find((d) => d.token === 'absent');
+  if (!def) return '';
+  const textId = resolveReflection(def, state, rng);
+  return textId ? joinPages(pickText(data.text, textId, rng)) : '';
+}
+
 /** 엔딩 이벤트 진입 조건: 자아실현 완성 + 엔딩 전 대화 소진 (육성 시대) */
 function isEndingDue(state: GameState, data: GameData): boolean {
   return (
@@ -253,7 +266,7 @@ function exitRest(
   };
 }
 
-/** 대화 풀 1건 서빙 (비복원) — apart 방문/빈자리·잠수 중 부재 풀이 공유 */
+/** 대화 풀 1건 서빙 (비복원, when 조건 필터) — apart 방문/빈자리·잠수 중 부재 풀이 공유 */
 function serveTalkPool(
   state: GameState,
   data: GameData,
@@ -261,9 +274,10 @@ function serveTalkPool(
   poolId: string,
   lines: DialogueLine[],
 ): GameState {
-  const draw = drawNonReplacing(
-    lines.length,
+  const draw = drawEligibleLine(
+    lines,
     state.dialogue.usedByPool[poolId] ?? [],
+    state,
     rng,
   );
   if (!draw) return { ...state, rest: { ...state.rest, talkPressed: true } };
@@ -411,8 +425,12 @@ export function transition(
       }
 
       // 2) 조용한 선택지 등장 (돌이 곁에 있을 때만)
+      // 발화 시점 게이트: 예약 후 행동이 바뀌었어도 현재 행동에 부적합한
+      // 포섀도는 이번 세션에 등장하지 않는다 (pendingEvent는 유지 → 다음 적합 세션에 등장)
+      const foreshadowFits =
+        !!next.pendingEvent && checkCondition(next.pendingEvent.when, next);
       if (present && !next.session.choiceState) {
-        if (next.pendingEvent && el >= BALANCE.CHOICE_FIRST_AT_SEC) {
+        if (foreshadowFits && el >= BALANCE.CHOICE_FIRST_AT_SEC) {
           next = {
             ...next,
             session: {
@@ -473,17 +491,14 @@ export function transition(
         let recalled = next.remembrancesRecalled;
 
         if (next.era === 'apart' && !next.apart.visiting) {
-          // 빈자리: 추억 회상 — 당시 미표시 정보(reveal)가 드러난다
+          // 빈자리: 추억 회상 — 당시 미표시 정보(reveal)가 드러난다.
+          // 회상할 추억이 없으면 돌 반추 대신 부재 전용 반추 (돌 언급 누출 방지)
           const recall = recallRemembrance(next, data, rng);
           if (recall) {
             line = joinPages(recall.pages);
             recalled = recall.recalled;
           } else {
-            const draw = drawMemory(memory, data.reflections, next, rng);
-            if (draw) {
-              line = joinPages(pickText(data.text, draw.textId, rng));
-              memory = draw.memory;
-            }
+            line = absentReflectionLine(next, data, rng);
           }
         } else if (action.id === 'free' && present) {
           const result = pickFreeAction(
@@ -527,8 +542,10 @@ export function transition(
               ? joinPages(pickText(data.text, baseVariant.textId, rng))
               : '';
           }
+        } else {
+          // 돌 부재(육성 잠수 등) — 부재 전용 반추, 돌을 언급하지 않는다
+          line = absentReflectionLine(next, data, rng);
         }
-        // 잠수 중(육성)에는 반추 없음 — 돌 없는 방의 일지가 돌을 관찰하지 않는다
 
         const showAsNarrator =
           action.id === 'free' && !next.session.choiceState && present;
@@ -546,6 +563,24 @@ export function transition(
           },
         };
       }
+
+      // 5) 시간 문턱 발화 — 집중이 길어질수록 문턱별 1회 (기획서 요청)
+      data.timeMarks.focus.forEach((mark, i) => {
+        if (el >= mark.minSec && !next.session.timeMarksFired.includes(i)) {
+          const markLine = joinPages(pickText(data.text, mark.textId, rng));
+          next = {
+            ...next,
+            session: {
+              ...next.session,
+              timeMarksFired: [...next.session.timeMarksFired, i],
+              journal: markLine
+                ? addJournal(next.session.journal, el, markLine)
+                : next.session.journal,
+              narratorLine: markLine || next.session.narratorLine,
+            },
+          };
+        }
+      });
 
       return next;
     }
@@ -587,6 +622,8 @@ export function transition(
       const care = accrueCare(state.care, mins);
       const earned = care.points - state.care.points;
       const restMin = restMinutesFor(mins);
+      // 세션 동안 돌이 곁에 있었는가 — 없었으면 '옆에 있었다' 대신 부재 마무리
+      const sessionHadRock = isRockPresent(state);
 
       // 행동 결과 적용
       let next = applyOutcome(state, action.outcome, event.nowMs);
@@ -641,6 +678,16 @@ export function transition(
         event.nowMs,
       );
 
+      // 휴식 길이 문턱 발화 — 배정된 휴식이 길수록 (긴 집중의 결과) 진입 시 1회
+      const restSec = restMin * 60;
+      const restMark = [...data.timeMarks.rest]
+        .filter((m) => restSec >= m.minSec)
+        .pop();
+      if (restMark) {
+        const markLine = joinPages(pickText(data.text, restMark.textId, rng));
+        if (markLine) journal = addJournal(journal, state.session.elapsedSec, markLine);
+      }
+
       const displayMins = Math.max(1, Math.round(mins));
       return {
         ...next,
@@ -660,9 +707,14 @@ export function transition(
           ...state.session,
           journal,
           narratorLine: joinPages(
-            fillPages(pickText(data.text, SYS.focusEnd, rng), {
-              mins: displayMins,
-            }),
+            fillPages(
+              pickText(
+                data.text,
+                sessionHadRock ? SYS.focusEnd : SYS.focusEndAbsent,
+                rng,
+              ),
+              { mins: displayMins },
+            ),
           ),
         },
         rest: {
@@ -686,7 +738,9 @@ export function transition(
       if (state.phase !== 'rest' || state.rest.actUsed) return state;
       const act = data.restActs.find((a) => a.key === event.key);
       if (!act) return state;
-      const line = joinPages(pickText(data.text, act.linesId, rng));
+      // 돌이 없으면(잠수/빈자리) 부재 전용 문구 — 돌 언급 누출 방지
+      const linesId = isRockPresent(state) ? act.linesId : act.absentLinesId;
+      const line = joinPages(pickText(data.text, linesId, rng));
       return {
         ...state,
         rest: { ...state.rest, actUsed: true },
@@ -882,26 +936,35 @@ export function transition(
       ) {
         let used = state.foreUsed;
         if (used.length >= data.events.foreshadow.length) used = [];
+        // 예약 시점 게이트: 현재 예정 행동에 부적합한 포섀도는 후보 제외
+        // (예: 다음 세션이 산책이면 '산책 약속' 포섀도를 예약하지 않는다)
         const avail = data.events.foreshadow
           .map((_, i) => i)
-          .filter((i) => !used.includes(i));
-        const fi = avail[Math.floor(rng() * avail.length)];
-        const fore = data.events.foreshadow[fi];
-        return {
-          ...state,
-          pendingEvent: fore.event,
-          foreUsed: [...used, fi],
-          rest: {
-            ...state.rest,
-            talkPressed: true,
-            talkState: {
-              kind: 'foreshadow',
-              pages: pickText(data.text, fore.lineId, rng),
-              hasChoice: false,
-              done: false,
+          .filter(
+            (i) =>
+              !used.includes(i) &&
+              checkCondition(data.events.foreshadow[i].event.when, state),
+          );
+        if (avail.length > 0) {
+          const fi = avail[Math.floor(rng() * avail.length)];
+          const fore = data.events.foreshadow[fi];
+          return {
+            ...state,
+            pendingEvent: fore.event,
+            foreUsed: [...used, fi],
+            rest: {
+              ...state.rest,
+              talkPressed: true,
+              talkState: {
+                kind: 'foreshadow',
+                pages: pickText(data.text, fore.lineId, rng),
+                hasChoice: false,
+                done: false,
+              },
             },
-          },
-        };
+          };
+        }
+        // 적합한 포섀도가 없으면 아래 단계 풀 대화로 폴백
       }
 
       // 7) 시대·단계별 풀 비복원 추출
@@ -913,9 +976,11 @@ export function transition(
       );
       if (!pool)
         return { ...state, rest: { ...state.rest, talkPressed: true } };
-      const draw = drawNonReplacing(
-        pool.lines.length,
+      // when 조건 필터 — 소품 언급 줄은 그 소품이 방에 있을 때만 후보
+      const draw = drawEligibleLine(
+        pool.lines,
         state.dialogue.usedByPool[pool.poolId] ?? [],
+        state,
         rng,
       );
       if (!draw)
@@ -962,6 +1027,9 @@ export function transition(
 
     case 'BUY': {
       if (state.phase !== 'rest') return state;
+      // 직전 구매의 배치 결정이 남아 있으면 그걸 먼저 처리해야 한다 —
+      // 새 구매가 pendingPlacement를 덮어 이전 배치 결정이 사라지는 것을 막는다
+      if (state.pendingPlacement !== null) return state;
       const item = data.shop.find((i) => i.id === event.itemId);
       if (
         !item ||
@@ -997,6 +1065,10 @@ export function transition(
             ? null
             : state.pendingPlacement,
       };
+    }
+
+    case 'SET_NOISE': {
+      return { ...state, settings: { ...state.settings, noiseOn: event.on } };
     }
 
     case 'REST_END': {

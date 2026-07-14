@@ -1,0 +1,85 @@
+import type { GameState } from '../../game/types';
+import { isRockPresent } from '../../game/stateMachine';
+import { gameData } from '../../store/gameStore';
+import { t } from '../../store/appStore';
+import { SYS } from '../../game/text';
+import { Floor } from './Floor';
+import { WindowSprite } from './WindowSprite';
+import { DaySun } from './DaySun';
+import { SunPatch } from './SunPatch';
+import { GrassTufts } from './GrassTufts';
+import { RockSprite, RockShadow } from './RockSprite';
+import { PlantProp } from './props/PlantProp';
+import { SodaProp } from './props/SodaProp';
+import { CupProp } from './props/CupProp';
+import { FanProp } from './props/FanProp';
+import { LampProp } from './props/LampProp';
+import { BookProp } from './props/BookProp';
+
+/** 행동별 풍경 색 (디자인 원본 값 그대로 — cook/chore 씬은 디자인 미정, 방 색으로 폴백) */
+const SCENE_COLORS: Record<string, { bg: string; floor: string; line: string }> = {
+  walk: { bg: '#2e3d49', floor: '#2e4430', line: '#3a5440' },
+  sun: { bg: '#3d3446', floor: '#4a4053', line: '#5a4e66' },
+  read: { bg: '#2b2436', floor: '#3a3145', line: '#453a56' },
+};
+const ROOM_COLORS = { bg: '#262031', floor: '#332b40', line: '#453a56' };
+
+export function SceneView({ state }: { state: GameState }) {
+  const isFocus = state.phase === 'focus';
+  const action = gameData.actions.find((a) => a.id === state.selectedAction);
+  const sceneId = isFocus ? (action?.sceneId ?? 'free') : 'room';
+  const colors = (isFocus && SCENE_COLORS[sceneId]) || ROOM_COLORS;
+  const present = isRockPresent(state);
+
+  const placed = (id: string) => !!state.items[id]?.placed;
+  const showWindow = !(isFocus && sceneId === 'walk');
+  const glassColor = isFocus && sceneId === 'sun' ? '#ffd878' : '#c9a86a';
+  const showBook = (isFocus && sceneId === 'read') || placed('book2');
+
+  const caption = isFocus
+    ? t(action?.captionId ?? '')
+    : state.era === 'apart' && !state.apart.visiting
+      ? t(SYS.captions.apartRoom)
+      : present
+        ? t(SYS.captions.restRoom)
+        : t(SYS.captions.restRoomAbsent);
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: 480,
+        maxWidth: '100%',
+        aspectRatio: '320/180',
+        background: colors.bg,
+        border: '3px solid #f2ead8',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+      }}
+    >
+      {showWindow && <WindowSprite glassColor={glassColor} />}
+      {isFocus && sceneId === 'walk' && <DaySun />}
+      <Floor bg={colors.floor} line={colors.line} />
+      {isFocus && sceneId === 'sun' && <SunPatch />}
+      {isFocus && sceneId === 'walk' && <GrassTufts />}
+      {present ? <RockSprite moss={placed('moss')} /> : <RockShadow />}
+      {placed('cup') && <CupProp />}
+      {showBook && <BookProp />}
+      {placed('plant') && <PlantProp />}
+      {placed('soda') && <SodaProp />}
+      {placed('fan') && <FanProp />}
+      {placed('lamp') && <LampProp />}
+      <div
+        style={{
+          position: 'absolute',
+          left: 10,
+          bottom: 8,
+          fontSize: 10,
+          color: '#55556e',
+        }}
+      >
+        {caption}
+      </div>
+    </div>
+  );
+}

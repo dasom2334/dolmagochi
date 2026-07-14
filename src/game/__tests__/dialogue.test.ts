@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { drawNonReplacing, selectDialoguePool } from '../dialogue';
+import {
+  drawEligibleLine,
+  drawNonReplacing,
+  selectDialoguePool,
+} from '../dialogue';
 import { mulberry32 } from '../rng';
 import { gameData } from '../../store/gameStore';
+import { createInitialState } from '../stateMachine';
+import type { DialogueLine } from '../../data/schema';
 
 describe('selectDialoguePool — 시대·단계·의존도 풀 게이트', () => {
   const d = gameData.dialogues;
@@ -45,5 +51,54 @@ describe('drawNonReplacing — 비복원 추출', () => {
 
   it('빈 풀 → null', () => {
     expect(drawNonReplacing(0, [], mulberry32(1))).toBeNull();
+  });
+});
+
+describe('drawEligibleLine — when 조건 필터', () => {
+  const T0 = new Date(2026, 0, 10, 12, 0, 0).getTime();
+  const lines: DialogueLine[] = [
+    { textId: 'a', intimacy: 1 },
+    { textId: 'soda', intimacy: 1, when: { placedItems: ['soda'] } },
+    { textId: 'c', intimacy: 1 },
+  ];
+
+  it('소품 미배치 시 그 줄은 후보에서 제외된다', () => {
+    const state = createInitialState(T0, 'read'); // items 비어 있음
+    const seen = new Set<string>();
+    let used: number[] = [];
+    for (let i = 0; i < 20; i++) {
+      const draw = drawEligibleLine(lines, used, state, mulberry32(i))!;
+      seen.add(lines[draw.index].textId);
+      used = draw.used;
+    }
+    expect(seen.has('soda')).toBe(false); // 소다 미배치 → 절대 안 나옴
+    expect(seen.has('a')).toBe(true);
+    expect(seen.has('c')).toBe(true);
+  });
+
+  it('소품 배치 시에는 후보에 포함된다', () => {
+    const state = {
+      ...createInitialState(T0, 'read'),
+      items: { soda: { placed: true } },
+    };
+    const seen = new Set<string>();
+    let used: number[] = [];
+    for (let i = 0; i < 30; i++) {
+      const draw = drawEligibleLine(lines, used, state, mulberry32(i))!;
+      seen.add(lines[draw.index].textId);
+      used = draw.used;
+    }
+    expect(seen.has('soda')).toBe(true);
+  });
+
+  it('소품을 보관만(placed:false) 하면 여전히 제외', () => {
+    const state = {
+      ...createInitialState(T0, 'read'),
+      items: { soda: { placed: false } },
+    };
+    for (let i = 0; i < 20; i++) {
+      const draw = drawEligibleLine(lines, [], state, mulberry32(i))!;
+      expect(lines[draw.index].textId).not.toBe('soda');
+    }
   });
 });

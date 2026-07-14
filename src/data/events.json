@@ -11,6 +11,7 @@
       "lineId": "fore.bird.line",
       "event": {
         "promptId": "fore.bird.prompt",
+        "when": { "notActions": ["walk"] },
         "options": [
           {
             "labelId": "fore.bird.o0.label",
@@ -38,6 +39,7 @@
       "lineId": "fore.door.line",
       "event": {
         "promptId": "fore.door.prompt",
+        "when": { "notActions": ["walk"] },
         "options": [
           {
             "labelId": "fore.door.o0.label",
@@ -58,6 +60,7 @@
       "lineId": "fore.receipt.line",
       "event": {
         "promptId": "fore.receipt.prompt",
+        "when": { "notActions": ["walk"] },
         "options": [
           {
             "labelId": "fore.receipt.o0.label",

@@ -41,6 +41,8 @@ export interface ActionData {
 export interface DialogueLine {
   textId: TextId;
   intimacy: number;
+  /** 이 조건을 만족할 때만 후보 (없으면 항상). 예: 특정 소품을 언급하는 줄은 그 소품이 방에 있을 때만 */
+  when?: Condition;
   choice?: { yesId: TextId; noId: TextId };
 }
 
@@ -135,6 +137,22 @@ export interface RestActData {
   labelId: TextId;
   /** 결과 서술 — 카탈로그 변형에서 추첨 */
   linesId: TextId;
+  /** 돌이 없을 때(잠수/빈자리)의 부재 전용 결과 서술 */
+  absentLinesId: TextId;
+}
+
+// ── timeMarks.json — 타이머 길이 문턱 발화 ────────────────────
+export interface TimeMark {
+  /** 이 경과 초를 넘으면 발화 (오름차순) */
+  minSec: number;
+  textId: TextId;
+}
+
+export interface TimeMarksData {
+  /** 집중 경과 시간 문턱 — 세션당 문턱별 1회 */
+  focus: TimeMark[];
+  /** 휴식 길이 문턱 — 배정된 휴식 길이 기준, 진입 시 1회 */
+  rest: TimeMark[];
 }
 
 // ── endings.json ──────────────────────────────────────────────
@@ -168,6 +186,7 @@ export interface GameData {
   shop: ShopItemData[];
   reflections: ReflectionsData;
   restActs: RestActData[];
+  timeMarks: TimeMarksData;
   endings: EndingsData;
   /** 현재 로케일로 해석된 텍스트 카탈로그 */
   text: TextCatalog;

@@ -30,6 +30,8 @@ export interface Condition {
   notFlags?: string[];
   /** 현재 세션의 행동 (문맥형 반추 등) */
   action?: ActionId;
+  /** 이 행동들에서는 통과하지 않음 (예: 산책 약속 포섀도는 산책 중 부적합) */
+  notActions?: ActionId[];
   minNeeds?: Partial<Record<NeedId, number>>;
   minSecurity?: number;
   minMood?: number;
@@ -84,6 +86,8 @@ export interface ChoiceOptionData {
 /** 포섀도(대화 복선)로 예약되는 세션 이벤트 */
 export interface ForeshadowEventData {
   promptId: TextId;
+  /** 이 조건을 만족하는 세션에서만 등장 (없으면 항상). 예약·발화 시점 모두에서 검사 */
+  when?: Condition;
   options: ChoiceOptionData[];
 }
 
@@ -180,6 +184,8 @@ export interface GameState {
     narratorLine: string;
     /** 마지막 반추 추출 시점(초) */
     lastReflectAtSec: number;
+    /** 이번 집중에서 발화된 시간 문턱 인덱스 (timeMarks.focus) */
+    timeMarksFired: number[];
   };
   rest: {
     endsAt: number;
@@ -238,6 +244,7 @@ export type GameEvent =
   | { type: 'BUY'; itemId: ItemId; nowMs: number }
   | { type: 'SET_PLACEMENT'; itemId: ItemId; placed: boolean }
   | { type: 'VISIT_HOLD'; hold: boolean }
+  | { type: 'SET_NOISE'; on: boolean }
   | { type: 'REST_END' }
   | { type: 'CHOOSE_FAREWELL' }
   | { type: 'CHOOSE_COHABIT' }
