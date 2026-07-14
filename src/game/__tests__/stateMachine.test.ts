@@ -240,6 +240,39 @@ describe('휴식 대화', () => {
     expect(s.flags).toContain('promised-walk'); // Outcome 트리거
   });
 
+  it('행동 조건 포섀도: 예약된 뒤 산책 세션에선 등장하지 않고 대기, 이후 적합 세션에 등장', () => {
+    // read 세션 → 휴식 → 문(door) 포섀도 예약 (when.notActions=['walk'])
+    let s = run(toRest(), [{ type: 'TALK' }], seq([0.1, 0.34]));
+    expect(s.rest.talkState?.pages.join('\n')).toBe(T('fore.door.line'));
+    expect(s.pendingEvent?.when?.notActions).toContain('walk');
+
+    // 다음 세션을 산책으로 바꾸면 포섀도는 등장하지 않는다 (pendingEvent 유지)
+    s = run(s, [
+      { type: 'SELECT_ACTION', actionId: 'walk' },
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(BALANCE.CHOICE_FIRST_AT_SEC + 10),
+    ]);
+    expect(s.session.choiceState?.source).not.toBe('foreshadow');
+    expect(s.pendingEvent).not.toBeNull();
+
+    // 산책이 아닌 세션에서는 정상 등장
+    s = run(s, [
+      { type: 'END_FOCUS', nowMs: T0 },
+      { type: 'SELECT_ACTION', actionId: 'read' },
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(BALANCE.CHOICE_FIRST_AT_SEC),
+    ]);
+    expect(s.session.choiceState?.source).toBe('foreshadow');
+  });
+
+  it('행동 조건 포섀도: 예약 시점에도 부적합하면 후보에서 제외되고 폴백', () => {
+    // 산책이 다음 행동이고 다른 포섀도(0,2)는 소진 → 남은 건 door(1)뿐인데 산책이라 제외
+    const rest: GameState = { ...toRest(), selectedAction: 'walk', foreUsed: [0, 2] };
+    const s = run(rest, [{ type: 'TALK' }], seq([0.1, 0.9, 0.0]));
+    expect(s.rest.talkState?.kind).toBe('pool'); // 포섀도 대신 단계 풀로 폴백
+    expect(s.pendingEvent).toBeNull();
+  });
+
   it('TALK_CHOICE: 예/아니오 응답 페이지로 교체', () => {
     const withChoice: GameData = structuredClone(gameData);
     withChoice.dialogues.stage1 = [
@@ -456,6 +489,22 @@ describe('상점 — 구매 ≠ 배치', () => {
 
     s = run(s, [{ type: 'SET_PLACEMENT', itemId: 'plant', placed: false }]);
     expect(s.items['plant']).toEqual({ placed: false });
+  });
+
+  it('배치 결정 전에는 다음 구매가 막힌다 (pendingPlacement 덮어쓰기 방지)', () => {
+    let s = run(richRest(), [{ type: 'BUY', itemId: 'plant', nowMs: T0 }]);
+    expect(s.pendingPlacement).toBe('plant');
+    // 배치 결정 전 두 번째 구매 시도 → 무시 (plant 결정이 유지됨)
+    const blocked = run(s, [{ type: 'BUY', itemId: 'soda', nowMs: T0 }]);
+    expect(blocked.pendingPlacement).toBe('plant');
+    expect('soda' in blocked.items).toBe(false);
+    // plant 배치 결정 후에는 다음 구매 가능
+    s = run(s, [
+      { type: 'SET_PLACEMENT', itemId: 'plant', placed: true },
+      { type: 'BUY', itemId: 'soda', nowMs: T0 },
+    ]);
+    expect(s.pendingPlacement).toBe('soda');
+    expect(s.items['plant']).toEqual({ placed: true });
   });
 
   it('중복·잔액 부족·미해금은 무시', () => {

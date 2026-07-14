@@ -268,26 +268,32 @@ function RestShop({ state }: { state: GameState }) {
   const items = gameData.shop.slice(p * 3, p * 3 + 3);
   const pending = state.pendingPlacement;
 
-  return (
-    <>
-      {pending && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 8,
-          }}
+  // 구매 직후 배치 결정은 상점을 덮는다 — 결정 전에는 다음 물건을 살 수 없다
+  // (pendingPlacement가 한 칸뿐이라, 덮지 않으면 연속 구매 시 이전 결정이 사라진다)
+  if (pending) {
+    const item = gameData.shop.find((i) => i.id === pending);
+    return (
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 14,
+          textAlign: 'center',
+        }}
+      >
+        <p
+          className="pre-line"
+          style={{ margin: 0, fontSize: 13, color: '#f2ead8', lineHeight: 1.7 }}
         >
-          <span
-            className="pre-line"
-            style={{ flex: 1, fontSize: 12, color: '#f2ead8', lineHeight: 1.5 }}
-          >
-            * {t(SYS.placement.prompt)}
-          </span>
+          * {tf(SYS.placement.prompt, { item: t(item?.nameId ?? '') })}
+        </p>
+        <div style={{ display: 'flex', gap: 10 }}>
           <button
             className="hv"
-            style={{ ...btnSmall, color: '#e0d6c4' }}
+            style={{ ...btnOutline, minHeight: 44, minWidth: 110 }}
             onClick={() =>
               dispatch({ type: 'SET_PLACEMENT', itemId: pending, placed: true })
             }
@@ -296,7 +302,7 @@ function RestShop({ state }: { state: GameState }) {
           </button>
           <button
             className="hv"
-            style={btnSmall}
+            style={{ ...btnOutline, minHeight: 44, minWidth: 110 }}
             onClick={() =>
               dispatch({ type: 'SET_PLACEMENT', itemId: pending, placed: false })
             }
@@ -304,7 +310,12 @@ function RestShop({ state }: { state: GameState }) {
             {t(UI.shop.stash)}
           </button>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {items.map((it) => {
           const owned = it.id in state.items;

@@ -30,6 +30,8 @@ export interface Condition {
   notFlags?: string[];
   /** 현재 세션의 행동 (문맥형 반추 등) */
   action?: ActionId;
+  /** 이 행동들에서는 통과하지 않음 (예: 산책 약속 포섀도는 산책 중 부적합) */
+  notActions?: ActionId[];
   minNeeds?: Partial<Record<NeedId, number>>;
   minSecurity?: number;
   minMood?: number;
@@ -84,6 +86,8 @@ export interface ChoiceOptionData {
 /** 포섀도(대화 복선)로 예약되는 세션 이벤트 */
 export interface ForeshadowEventData {
   promptId: TextId;
+  /** 이 조건을 만족하는 세션에서만 등장 (없으면 항상). 예약·발화 시점 모두에서 검사 */
+  when?: Condition;
   options: ChoiceOptionData[];
 }
 

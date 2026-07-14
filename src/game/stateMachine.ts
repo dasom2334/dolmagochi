@@ -424,8 +424,12 @@ export function transition(
       }
 
       // 2) 조용한 선택지 등장 (돌이 곁에 있을 때만)
+      // 발화 시점 게이트: 예약 후 행동이 바뀌었어도 현재 행동에 부적합한
+      // 포섀도는 이번 세션에 등장하지 않는다 (pendingEvent는 유지 → 다음 적합 세션에 등장)
+      const foreshadowFits =
+        !!next.pendingEvent && checkCondition(next.pendingEvent.when, next);
       if (present && !next.session.choiceState) {
-        if (next.pendingEvent && el >= BALANCE.CHOICE_FIRST_AT_SEC) {
+        if (foreshadowFits && el >= BALANCE.CHOICE_FIRST_AT_SEC) {
           next = {
             ...next,
             session: {
@@ -924,26 +928,35 @@ export function transition(
       ) {
         let used = state.foreUsed;
         if (used.length >= data.events.foreshadow.length) used = [];
+        // 예약 시점 게이트: 현재 예정 행동에 부적합한 포섀도는 후보 제외
+        // (예: 다음 세션이 산책이면 '산책 약속' 포섀도를 예약하지 않는다)
         const avail = data.events.foreshadow
           .map((_, i) => i)
-          .filter((i) => !used.includes(i));
-        const fi = avail[Math.floor(rng() * avail.length)];
-        const fore = data.events.foreshadow[fi];
-        return {
-          ...state,
-          pendingEvent: fore.event,
-          foreUsed: [...used, fi],
-          rest: {
-            ...state.rest,
-            talkPressed: true,
-            talkState: {
-              kind: 'foreshadow',
-              pages: pickText(data.text, fore.lineId, rng),
-              hasChoice: false,
-              done: false,
+          .filter(
+            (i) =>
+              !used.includes(i) &&
+              checkCondition(data.events.foreshadow[i].event.when, state),
+          );
+        if (avail.length > 0) {
+          const fi = avail[Math.floor(rng() * avail.length)];
+          const fore = data.events.foreshadow[fi];
+          return {
+            ...state,
+            pendingEvent: fore.event,
+            foreUsed: [...used, fi],
+            rest: {
+              ...state.rest,
+              talkPressed: true,
+              talkState: {
+                kind: 'foreshadow',
+                pages: pickText(data.text, fore.lineId, rng),
+                hasChoice: false,
+                done: false,
+              },
             },
-          },
-        };
+          };
+        }
+        // 적합한 포섀도가 없으면 아래 단계 풀 대화로 폴백
       }
 
       // 7) 시대·단계별 풀 비복원 추출
@@ -1004,6 +1017,9 @@ export function transition(
 
     case 'BUY': {
       if (state.phase !== 'rest') return state;
+      // 직전 구매의 배치 결정이 남아 있으면 그걸 먼저 처리해야 한다 —
+      // 새 구매가 pendingPlacement를 덮어 이전 배치 결정이 사라지는 것을 막는다
+      if (state.pendingPlacement !== null) return state;
       const item = data.shop.find((i) => i.id === event.itemId);
       if (
         !item ||

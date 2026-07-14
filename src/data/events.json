@@ -38,6 +38,7 @@
       "lineId": "fore.door.line",
       "event": {
         "promptId": "fore.door.prompt",
+        "when": { "notActions": ["walk"] },
         "options": [
           {
             "labelId": "fore.door.o0.label",
