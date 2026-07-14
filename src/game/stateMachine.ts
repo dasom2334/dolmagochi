@@ -999,6 +999,10 @@ export function transition(
       };
     }
 
+    case 'SET_NOISE': {
+      return { ...state, settings: { ...state.settings, noiseOn: event.on } };
+    }
+
     case 'REST_END': {
       if (state.phase !== 'rest') return state;
       const exited = exitRest(state, data, rng);

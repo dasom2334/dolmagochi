@@ -238,6 +238,7 @@ export type GameEvent =
   | { type: 'BUY'; itemId: ItemId; nowMs: number }
   | { type: 'SET_PLACEMENT'; itemId: ItemId; placed: boolean }
   | { type: 'VISIT_HOLD'; hold: boolean }
+  | { type: 'SET_NOISE'; on: boolean }
   | { type: 'REST_END' }
   | { type: 'CHOOSE_FAREWELL' }
   | { type: 'CHOOSE_COHABIT' }

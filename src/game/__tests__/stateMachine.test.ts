@@ -721,6 +721,14 @@ describe('apart(빈자리) 시대', () => {
   });
 });
 
+describe('설정', () => {
+  it('SET_NOISE: 소음 토글 (오디오 자체는 M6)', () => {
+    const s = run(init(), [{ type: 'SET_NOISE', on: true }]);
+    expect(s.settings.noiseOn).toBe(true);
+    expect(run(s, [{ type: 'SET_NOISE', on: false }]).settings.noiseOn).toBe(false);
+  });
+});
+
 describe('달력일 정산 이벤트', () => {
   it('SETTLE: 경과일 감쇠가 상태에 반영', () => {
     const DAY = 86_400_000;

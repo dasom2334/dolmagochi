@@ -1,0 +1,63 @@
+/** 돌 본체 — 애니메이션 없음 (돌은 절대 움직이지 않는다). moss = 이끼 배치 시 */
+export function RockSprite({ moss }: { moss: boolean }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: '50%',
+        bottom: '24%',
+        transform: 'translateX(-50%)',
+      }}
+    >
+      <div
+        style={{
+          width: 8,
+          height: 8,
+          background: '#8f8fa0',
+          boxShadow:
+            '16px -24px 0 #a5a5b4,24px -24px 0 #a5a5b4,32px -24px 0 #a5a5b4,40px -24px 0 #9a9aaa,8px -16px 0 #a5a5b4,16px -16px 0 #b4b4c2,24px -16px 0 #b4b4c2,32px -16px 0 #a5a5b4,40px -16px 0 #9a9aaa,48px -16px 0 #8f8fa0,0 -8px 0 #9a9aaa,8px -8px 0 #b4b4c2,16px -8px 0 #b4b4c2,24px -8px 0 #a5a5b4,32px -8px 0 #a5a5b4,40px -8px 0 #8f8fa0,48px -8px 0 #8f8fa0,56px -8px 0 #7c7c8c,8px 0 0 #8f8fa0,16px 0 0 #9a9aaa,24px 0 0 #9a9aaa,32px 0 0 #8f8fa0,40px 0 0 #7c7c8c,48px 0 0 #7c7c8c',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: -8,
+          top: 8,
+          width: 80,
+          height: 5,
+          background: '#0d0d16',
+        }}
+      />
+      {moss && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 16,
+            top: -32,
+            width: 8,
+            height: 8,
+            background: '#6f8f5a',
+            boxShadow: '8px 0 0 #7fa066,16px 0 0 #6f8f5a,24px 0 0 #5f7f4d',
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** 돌의 빈자리 — 그림자만 남은 자리 */
+export function RockShadow() {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: '50%',
+        bottom: '24%',
+        transform: 'translateX(-50%)',
+        width: 80,
+        height: 5,
+        background: '#0d0d16',
+      }}
+    />
+  );
+}

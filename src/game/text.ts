@@ -63,6 +63,7 @@ export const SYS = {
     apartRoom: 'sys.captions.apartRoom',
   },
   notification: { restEnd: 'sys.notification.restEnd' },
+  placement: { prompt: 'sys.placement.prompt' },
   hints: { flowtime: 'sys.hints.flowtime' },
   settings: {
     noiseOn: 'sys.settings.noiseOn',
@@ -80,7 +81,25 @@ export const UI = {
     talk: 'ui.buttons.talk',
     yes: 'ui.buttons.yes',
     no: 'ui.buttons.no',
+    settings: 'ui.buttons.settings',
+    close: 'ui.buttons.close',
+    noiseOn: 'ui.buttons.noiseOn',
+    noiseOff: 'ui.buttons.noiseOff',
+    epilogueDone: 'ui.buttons.epilogueDone',
   },
-  labels: { locked: 'ui.labels.locked' },
+  labels: {
+    locked: 'ui.labels.locked',
+    modeFocus: 'ui.labels.modeFocus',
+    modeRest: 'ui.labels.modeRest',
+    care: 'ui.labels.care', // {points}
+    noiseSetting: 'ui.labels.noiseSetting',
+  },
+  shop: {
+    owned: 'ui.shop.owned',
+    poor: 'ui.shop.poor',
+    price: 'ui.shop.price', // {price}
+    place: 'ui.shop.place',
+    stash: 'ui.shop.stash',
+  },
   tabs: ['ui.tabs.journal', 'ui.tabs.talk', 'ui.tabs.select', 'ui.tabs.shop'],
 } as const;
