@@ -265,7 +265,7 @@
   "sys.hints.flowtime": [["끊기면 멈추면 된다. 완주 같은 건 없다."]],
   "sys.settings.noiseOn": [["켜져 있다. 바람 소리 같은 것이다. 아마."]],
   "sys.settings.noiseOff": [["꺼져 있다."]],
-  "sys.settings.farewellLocked": [["작별 — 아직은 아니다."]],
+  "sys.settings.farewell": [["[TODO: 설정 안 작별 버튼 라벨 - 동거 중 작별하기 (누적 시간 언급은 에필로그 end.farewellHours에서)]"]],
   "sys.trust.0": [["돌은 아직 당신을 관찰하는 중이다. 돌의 방식으로."]],
   "sys.trust.1": [["돌은 당신을 신뢰하는 것 같다 (아마도)"]],
   "sys.trust.2": [["돌은 당신 곁이 편한 눈치다. 표정은 없지만."]],

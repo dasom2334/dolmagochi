@@ -71,7 +71,7 @@ export const SYS = {
   settings: {
     noiseOn: 'sys.settings.noiseOn',
     noiseOff: 'sys.settings.noiseOff',
-    farewellLocked: 'sys.settings.farewellLocked',
+    farewell: 'sys.settings.farewell',
   },
   trustLadder: ['sys.trust.0', 'sys.trust.1', 'sys.trust.2', 'sys.trust.3'],
   trustAbsent: 'sys.trustAbsent',

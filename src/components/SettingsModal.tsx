@@ -179,9 +179,21 @@ export function SettingsModal({
             alignItems: 'center',
           }}
         >
-          <span style={{ fontSize: 11, color: '#8a7f96' }}>
-            {t(SYS.settings.farewellLocked)}
-          </span>
+          {/* 작별은 엔딩에서 '남기'를 택한 동거 상태에서만 — 설정 안쪽에 조용히 */}
+          {state.era === 'cohabit' ? (
+            <button
+              className="hv-text"
+              style={{ ...settingBtn, color: '#8a7f96', fontSize: 11 }}
+              onClick={() => {
+                dispatch({ type: 'FAREWELL_FROM_COHABIT' });
+                onClose();
+              }}
+            >
+              {t(SYS.settings.farewell)}
+            </button>
+          ) : (
+            <span />
+          )}
           <button
             className="hv"
             style={{
