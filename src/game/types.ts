@@ -229,7 +229,7 @@ export type GameEvent =
   | { type: 'START_FOCUS'; nowMs: number }
   | { type: 'TICK'; dtSec: number }
   | { type: 'SET_PAUSED'; paused: boolean }
-  | { type: 'CHOICE_PICKED'; optionIndex: number }
+  | { type: 'CHOICE_PICKED'; optionIndex: number; nowMs: number }
   | { type: 'END_FOCUS'; nowMs: number }
   | { type: 'REST_STEP'; step: RestStep }
   | { type: 'REST_ACT'; key: string }

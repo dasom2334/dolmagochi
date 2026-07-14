@@ -116,7 +116,7 @@ describe('집중 중 조용한 선택지', () => {
     const s = run(init(), [
       { type: 'START_FOCUS', nowMs: T0 },
       ...ticks(BALANCE.CHOICE_FIRST_AT_SEC),
-      { type: 'CHOICE_PICKED', optionIndex: 1 },
+      { type: 'CHOICE_PICKED', optionIndex: 1, nowMs: T0 },
     ]);
     const expected = T('act.read.c0.o1.r0');
     expect(s.session.choiceState).toBeNull();
@@ -130,9 +130,12 @@ describe('집중 중 조용한 선택지', () => {
       { type: 'SELECT_ACTION', actionId: 'walk' },
       { type: 'START_FOCUS', nowMs: T0 },
       ...ticks(BALANCE.CHOICE_FIRST_AT_SEC),
-      { type: 'CHOICE_PICKED', optionIndex: 0 }, // 잠깐 멈춰 선다 → walk-pause
+      { type: 'CHOICE_PICKED', optionIndex: 0, nowMs: T0 }, // 잠깐 멈춰 선다 → walk-pause
     ]);
     expect(s.remembrances.map((r) => r.id)).toContain('walk-pause');
+    // 시각은 에폭 ms로 기록된다 (세션 경과 초와 섞이지 않음)
+    expect(s.remembrances[0].at).toBe(T0);
+    expect(s.memory['choice'].lastAt).toBe(T0);
   });
 });
 
@@ -183,7 +186,7 @@ describe('휴식 대화', () => {
       ...ticks(BALANCE.CHOICE_FIRST_AT_SEC),
     ]);
     expect(s.session.choiceState?.source).toBe('foreshadow');
-    s = run(s, [{ type: 'CHOICE_PICKED', optionIndex: 0 }]);
+    s = run(s, [{ type: 'CHOICE_PICKED', optionIndex: 0, nowMs: T0 }]);
     expect(s.pendingEvent).toBeNull();
     expect(s.flags).toContain('promised-walk'); // Outcome 트리거
   });
@@ -202,6 +205,17 @@ describe('휴식 대화', () => {
     s = run(s, [{ type: 'TALK_CHOICE', yes: false }], seq([0]), withChoice);
     expect(s.rest.talkState?.pages.join('\n')).toBe(T('dlg.return.no'));
     expect(s.rest.talkState?.done).toBe(true);
+  });
+
+  it('고정 마일스톤: 행동을 골라두기만 해서는 발화하지 않는다 (수행 완료 기준)', () => {
+    // read 세션 완료 → 휴식에서 다음 세션용으로 walk를 골라두고 말 걸기
+    const s = run(
+      toRest(),
+      [{ type: 'SELECT_ACTION', actionId: 'walk' }, { type: 'TALK' }],
+      seq([0.9, 0.0, 0.0]), // 포섀도 회피 → 풀 추첨
+    );
+    expect(s.rest.talkState?.kind).toBe('pool'); // 산책을 아직 안 했으므로 first-walk 아님
+    expect(s.milestonesFired).not.toContain('first-walk');
   });
 
   it('고정 마일스톤: 첫 산책 후 1회 발화', () => {
@@ -287,6 +301,41 @@ describe('잠수(부재) 분기', () => {
     expect(s.session.choiceState).toBeNull();
     s = run(s, [{ type: 'END_FOCUS', nowMs: T0 }], seq([0.5]), data);
     expect(s.phase).toBe('rest');
+  });
+
+  it('잠수 중 휴식 대화는 부재 풀만 — 마일스톤·단계 풀은 복귀 후로', () => {
+    const data = riskyData();
+    // 잠수 발동 후 세션 종료 → 휴식
+    const s = run(
+      init(),
+      [
+        { type: 'START_FOCUS', nowMs: T0 },
+        { type: 'END_FOCUS', nowMs: T0 },
+        { type: 'TALK' },
+      ],
+      seq([0.1, 0.0, 0.0]),
+      data,
+    );
+    expect(s.presence.state).toBe('absent');
+    expect(gameData.dialogues.absent.map((l) => T(l.textId))).toContain(
+      s.rest.talkState!.pages.join('\n'),
+    );
+    expect(s.milestonesFired).toHaveLength(0); // 없는 돌이 마일스톤을 발화하지 않는다
+  });
+
+  it('잠수 중에는 반추 틱이 재석 전제 문장을 일지에 남기지 않는다', () => {
+    const data = riskyData();
+    const s = run(
+      init(),
+      [
+        { type: 'START_FOCUS', nowMs: T0 },
+        ...ticks(BALANCE.REFLECT_INTERVAL_SEC),
+      ],
+      seq([0.1, 0.0, 0.5]),
+      data,
+    );
+    expect(s.presence.state).toBe('absent');
+    expect(s.session.journal).toHaveLength(1); // 시작 서술뿐 — 반추 기록 없음
   });
 
   it('저친밀 누적으로만 복귀 — 호감도 삭감 없음, first-return 1회성', () => {
@@ -405,6 +454,13 @@ describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () =
     expect(s.phase).toBe('ending');
   });
 
+  it('휴식→집중 직행(정상 루프)에서도 엔딩이 가로챈다', () => {
+    // 엔딩 준비 완료 상태의 휴식에서 '집중 시작'을 눌러도 엔딩 이벤트로 진입
+    const ready: GameState = { ...selfActDone(), endingTalksSeen: TALKS };
+    const s = run(ready, [{ type: 'START_FOCUS', nowMs: T0 }]);
+    expect(s.phase).toBe('ending');
+  });
+
   function endingPhase(): GameState {
     return { ...selfActDone(), endingTalksSeen: TALKS, phase: 'ending' as const };
   }
@@ -457,6 +513,22 @@ describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () =
     expect(
       gameData.dialogues.cohabitStages[2].lines.map((l) => T(l.textId)),
     ).toContain(late.rest.talkState!.pages.join('\n'));
+  });
+
+  it('잠수 중 동거 선택 시 돌이 재석으로 돌아온다 (영구 부재 방지)', () => {
+    const absentEnding: GameState = {
+      ...endingPhase(),
+      presence: {
+        state: 'absent',
+        plannedSessions: 3,
+        lowIntimacyProgress: 0,
+        returnPending: false,
+      },
+    };
+    const s = run(absentEnding, [{ type: 'CHOOSE_COHABIT' }]);
+    expect(s.era).toBe('cohabit');
+    expect(s.presence.state).toBe('present');
+    expect(isRockPresent(s)).toBe(true);
   });
 
   it('동거 중 작별 → 에필로그 → apart', () => {
@@ -525,6 +597,22 @@ describe('apart(빈자리) 시대', () => {
     const stay = run(apartState(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.9]));
     expect(stay.apart.visiting).toBe(false);
     expect(isRockPresent(stay)).toBe(false);
+  });
+
+  it('떠나려는 기색을 두고 휴식→집중 직행해도 visitEnd 기록이 보존된다', () => {
+    // 방문(1세션) → 세션 종료 → leavePending 상태에서 응답 없이 바로 집중 시작
+    let s = run(
+      apartState(),
+      [{ type: 'START_FOCUS', nowMs: T0 }, { type: 'END_FOCUS', nowMs: T0 }],
+      seq([0.1, 0.0, 0.0]),
+    );
+    expect(s.apart.leavePending).toBe(true);
+
+    s = run(s, [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.0, 0.9, 0.0]));
+    expect(s.apart).toMatchObject({ visiting: false, leavePending: false });
+    expect(s.session.journal.map((j) => j.text)).toContain(
+      T('sys.journal.visitEnd'), // 새 세션 일지에 '돌이 떠났다'가 남는다
+    );
   });
 
   it('붙잡기: 기간 연장 + 죄책감, 붙잡을수록 문구가 무거워진다', () => {

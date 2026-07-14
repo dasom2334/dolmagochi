@@ -45,6 +45,10 @@
       ]
     }
   ],
+  "absent": [
+    { "textId": "dlg.absent.0", "intimacy": 1 },
+    { "textId": "dlg.absent.1", "intimacy": 1 }
+  ],
   "apartVisit": [
     { "textId": "dlg.apartVisit.0", "intimacy": 2 },
     { "textId": "dlg.apartVisit.1", "intimacy": 2 }

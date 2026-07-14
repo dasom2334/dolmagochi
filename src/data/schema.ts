@@ -56,6 +56,8 @@ export interface DialoguesData {
   stage3: DialogueLine[];
   stage4: DialogueLine[];
   stage5: DialogueLine[];
+  /** 육성 — 잠수(부재) 중 휴식 대화: 돌 없는 방의 화자. 마일스톤·복선·단계 풀은 복귀 후로 미뤄진다 */
+  absent: DialogueLine[];
   /** 동거 — 의존도 구간별 (깨달음 심화) */
   cohabitStages: CohabitStage[];
   /** apart — 돌이 놀러와 머무는 동안의 대화 */
@@ -136,9 +138,18 @@ export interface RestActData {
 }
 
 // ── endings.json ──────────────────────────────────────────────
+/**
+ * 엔딩 전 대화 — 일반 DialogueLine과 달리 intimacy가 없다:
+ * 엔딩 시퀀스는 의도적으로 안정감/잠수 판정을 우회한다 (시퀀스 보호).
+ */
+export interface EndingTalk {
+  textId: TextId;
+  choice?: { yesId: TextId; noId: TextId };
+}
+
 export interface EndingsData {
   /** 자아실현 완성 후, 엔딩 이벤트 전에 휴식 대화 슬롯에서 순차 소진 */
-  preEndingTalks: DialogueLine[];
+  preEndingTalks: EndingTalk[];
   endingEvent: {
     textId: TextId;
     stayLabelId: TextId;

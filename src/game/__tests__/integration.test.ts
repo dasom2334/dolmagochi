@@ -74,7 +74,7 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
     dispatch({ type: 'START_FOCUS', nowMs: now });
     focusFor(300);
     expect(get().session.choiceState?.source).toBe('foreshadow');
-    dispatch({ type: 'CHOICE_PICKED', optionIndex: 0 });
+    dispatch({ type: 'CHOICE_PICKED', optionIndex: 0, nowMs: now });
     expect(get().pendingEvent).toBeNull();
     expect(get().remembrances.map((r) => r.id)).toContain('fore-bird');
 

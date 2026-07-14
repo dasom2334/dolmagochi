@@ -1,8 +1,8 @@
 {
   "preEndingTalks": [
-    { "textId": "end.preTalk0", "intimacy": 5 },
-    { "textId": "end.preTalk1", "intimacy": 5 },
-    { "textId": "end.preTalk2", "intimacy": 5 }
+    { "textId": "end.preTalk0" },
+    { "textId": "end.preTalk1" },
+    { "textId": "end.preTalk2" }
   ],
   "endingEvent": {
     "textId": "end.event",

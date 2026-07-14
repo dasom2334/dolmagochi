@@ -8,7 +8,13 @@ import type {
   TalkState,
 } from './types';
 import type { Rng } from './rng';
-import type { ActionData, GameData, MilestoneData, ShopItemData } from '../data/schema';
+import type {
+  ActionData,
+  DialogueLine,
+  GameData,
+  MilestoneData,
+  ShopItemData,
+} from '../data/schema';
 import { accrueCare, formatElapsed, restMinutesFor } from './timer';
 import { drawMemory, remember } from './memory';
 import { drawNonReplacing, selectDialoguePool } from './dialogue';
@@ -155,7 +161,8 @@ function milestoneDue(m: MilestoneData, state: GameState): boolean {
   if (state.milestonesFired.includes(m.id)) return false;
   switch (m.trigger.type) {
     case 'firstAction':
-      return state.selectedAction === m.trigger.action;
+      // 해당 행동의 세션을 실제로 완료했는가 — END_FOCUS가 남긴 기억 항목으로 판정
+      return m.trigger.action in state.memory;
     case 'stageUp':
       return needsLevelOf(state.stats.needs) >= m.trigger.level;
     case 'totalHours':
@@ -172,11 +179,12 @@ function resolveOption(
   option: ChoiceOptionData,
   data: GameData,
   rng: Rng,
+  nowMs: number,
 ): GameState {
   const picked = pickChoiceOutcome(option.outcomes, state, rng);
   let next = applyIntimacy(state, option.intimacy, rng);
-  next = applyOutcome(next, picked.outcome, next.session.elapsedSec);
-  next = recordRemembrance(next, picked.remembrance, next.session.elapsedSec);
+  next = applyOutcome(next, picked.outcome, nowMs);
+  next = recordRemembrance(next, picked.remembrance, nowMs);
   const text = joinPages(pickText(data.text, picked.resultId, rng));
   return {
     ...next,
@@ -184,7 +192,7 @@ function resolveOption(
       next.memory,
       'choice',
       BALANCE.MEMORY_WEIGHT_CHOICE,
-      next.session.elapsedSec,
+      nowMs,
     ),
     session: {
       ...next.session,
@@ -215,23 +223,67 @@ function recallRemembrance(
   };
 }
 
-/** apart: 미결 상태로 남은 떠나려는 기색을 '보내주기'로 정리 */
-function resolveLeavePending(
+/** 엔딩 이벤트 진입 조건: 자아실현 완성 + 엔딩 전 대화 소진 (육성 시대) */
+function isEndingDue(state: GameState, data: GameData): boolean {
+  return (
+    state.era === 'raising' &&
+    state.stats.selfActualization >= BALANCE.SELF_ACT_COMPLETE &&
+    state.endingTalksSeen >= data.endings.preEndingTalks.length
+  );
+}
+
+/**
+ * rest 탈출 공통 퍼널 — REST_END와 rest→START_FOCUS 직행이 공유한다.
+ * 응답 없이 남은 떠나려는 기색은 '보내주기'로 정리하고,
+ * 일지 문구(visitEnd)는 호출부가 알맞은 저널에 싣는다.
+ */
+function exitRest(
   state: GameState,
   data: GameData,
   rng: Rng,
+): { state: GameState; visitEndLine: string | null } {
+  if (state.era !== 'apart' || !state.apart.leavePending)
+    return { state, visitEndLine: null };
+  return {
+    state: {
+      ...state,
+      apart: { ...state.apart, visiting: false, leavePending: false },
+    },
+    visitEndLine: joinPages(pickText(data.text, SYS.journal.visitEnd, rng)),
+  };
+}
+
+/** 대화 풀 1건 서빙 (비복원) — apart 방문/빈자리·잠수 중 부재 풀이 공유 */
+function serveTalkPool(
+  state: GameState,
+  data: GameData,
+  rng: Rng,
+  poolId: string,
+  lines: DialogueLine[],
 ): GameState {
-  if (state.era !== 'apart' || !state.apart.leavePending) return state;
+  const draw = drawNonReplacing(
+    lines.length,
+    state.dialogue.usedByPool[poolId] ?? [],
+    rng,
+  );
+  if (!draw) return { ...state, rest: { ...state.rest, talkPressed: true } };
+  const entry = lines[draw.index];
   return {
     ...state,
-    apart: { ...state.apart, visiting: false, leavePending: false },
-    session: {
-      ...state.session,
-      journal: addJournal(
-        state.session.journal,
-        state.session.elapsedSec,
-        joinPages(pickText(data.text, SYS.journal.visitEnd, rng)),
-      ),
+    dialogue: {
+      usedByPool: { ...state.dialogue.usedByPool, [poolId]: draw.used },
+    },
+    rest: {
+      ...state.rest,
+      talkPressed: true,
+      talkState: {
+        kind: 'pool',
+        pages: pickText(data.text, entry.textId, rng),
+        hasChoice: !!entry.choice,
+        done: false,
+        yesId: entry.choice?.yesId,
+        noId: entry.choice?.noId,
+      },
     },
   };
 }
@@ -270,9 +322,15 @@ export function transition(
       const action = actionOf(data, state.selectedAction);
       if (!action) return state;
 
-      // 응답 없이 넘어온 떠나려는 기색은 보내주기로 정리
-      let next = resolveLeavePending(state, data, rng);
-      next = applyIntimacy(next, action.intimacy, rng);
+      // rest 탈출 공통 정리 (응답 없는 떠나려는 기색 = 보내주기)
+      const exited = exitRest(state, data, rng);
+
+      // 휴식을 떠나는 시점에 엔딩이 준비되어 있으면 집중 대신 엔딩 이벤트로
+      if (state.phase === 'rest' && isEndingDue(exited.state, data)) {
+        return { ...exited.state, phase: 'ending' };
+      }
+
+      let next = applyIntimacy(exited.state, action.intimacy, rng);
       let visitJournal: string | null = null;
 
       // apart: 돌이 놀러올 확률 — 오면 며칠(1~N세션) 머문다
@@ -300,7 +358,10 @@ export function transition(
       const startLine = present
         ? joinPages(pickText(data.text, action.startLineId, rng))
         : joinPages(pickText(data.text, SYS.journal.sessionStartAbsent, rng));
-      let journal = addJournal([], 0, startLine);
+      let journal: JournalEntry[] = [];
+      // '돌이 떠났다' 기록은 새 세션 일지 맨 앞에 보존한다
+      if (exited.visitEndLine) journal = addJournal(journal, 0, exited.visitEndLine);
+      journal = addJournal(journal, 0, startLine);
       if (visitJournal) journal = addJournal(journal, 0, visitJournal);
       const absentAmb = data.text[SYS.absentAmbient]?.[0];
       return {
@@ -454,7 +515,7 @@ export function transition(
               ),
             };
           }
-        } else {
+        } else if (present) {
           const draw = drawMemory(memory, data.reflections, next, rng);
           if (draw) {
             line = joinPages(pickText(data.text, draw.textId, rng));
@@ -467,6 +528,7 @@ export function transition(
               : '';
           }
         }
+        // 잠수 중(육성)에는 반추 없음 — 돌 없는 방의 일지가 돌을 관찰하지 않는다
 
         const showAsNarrator =
           action.id === 'free' && !next.session.choiceState && present;
@@ -500,7 +562,7 @@ export function transition(
           : action.choices[cs.index]?.options[event.optionIndex];
       if (!option) return state;
 
-      let next = resolveOption(state, option, data, rng);
+      let next = resolveOption(state, option, data, rng, event.nowMs);
       next = {
         ...next,
         pendingEvent: cs.source === 'foreshadow' ? null : next.pendingEvent,
@@ -731,38 +793,22 @@ export function transition(
         };
       }
 
-      // 2) apart: 방문 중이면 방문 대화, 아니면 추억 회상
+      // 2) 육성 시대 잠수 중: 돌이 없다 — 부재 풀만.
+      //    마일스톤·복선·단계 풀은 복귀 후로 미뤄진다 (없는 돌이 말을 걸지 않는다)
+      if (state.era === 'raising' && state.presence.state === 'absent') {
+        return serveTalkPool(state, data, rng, 'absent', data.dialogues.absent);
+      }
+
+      // 3) apart: 방문 중이면 방문 대화, 아니면 추억 회상
       if (state.era === 'apart') {
-        const servePool = (poolId: 'apartVisit' | 'apart'): GameState => {
-          const pool = data.dialogues[poolId];
-          const draw = drawNonReplacing(
-            pool.length,
-            state.dialogue.usedByPool[poolId] ?? [],
+        if (state.apart.visiting)
+          return serveTalkPool(
+            state,
+            data,
             rng,
+            'apartVisit',
+            data.dialogues.apartVisit,
           );
-          if (!draw)
-            return { ...state, rest: { ...state.rest, talkPressed: true } };
-          const entry = pool[draw.index];
-          return {
-            ...state,
-            dialogue: {
-              usedByPool: { ...state.dialogue.usedByPool, [poolId]: draw.used },
-            },
-            rest: {
-              ...state.rest,
-              talkPressed: true,
-              talkState: {
-                kind: 'pool',
-                pages: pickText(data.text, entry.textId, rng),
-                hasChoice: !!entry.choice,
-                done: false,
-                yesId: entry.choice?.yesId,
-                noId: entry.choice?.noId,
-              },
-            },
-          };
-        };
-        if (state.apart.visiting) return servePool('apartVisit');
         const recall = recallRemembrance(state, data, rng);
         if (recall) {
           return {
@@ -780,10 +826,11 @@ export function transition(
             },
           };
         }
-        return servePool('apart');
+        return serveTalkPool(state, data, rng, 'apart', data.dialogues.apart);
       }
 
-      // 3) 엔딩 전 대화 (자아실현 완성 후, 순차 소진 — 기획서 v3-7)
+      // 4) 엔딩 전 대화 (자아실현 완성 후, 순차 소진 — 기획서 v3-7)
+      //    의도적으로 안정감/잠수 판정을 우회한다 (EndingTalk에는 intimacy가 없다)
       if (
         state.era === 'raising' &&
         state.stats.selfActualization >= BALANCE.SELF_ACT_COMPLETE &&
@@ -808,7 +855,7 @@ export function transition(
         };
       }
 
-      // 4) 고정 마일스톤 대화
+      // 5) 고정 마일스톤 대화
       const due = data.events.milestones.find((m) => milestoneDue(m, state));
       if (due) {
         return {
@@ -827,7 +874,7 @@ export function transition(
         };
       }
 
-      // 5) 대화 복선 (다음 집중 세션의 이벤트 예약)
+      // 6) 대화 복선 (다음 집중 세션의 이벤트 예약)
       if (
         !state.pendingEvent &&
         data.events.foreshadow.length > 0 &&
@@ -857,7 +904,7 @@ export function transition(
         };
       }
 
-      // 6) 시대·단계별 풀 비복원 추출
+      // 7) 시대·단계별 풀 비복원 추출
       const pool = selectDialoguePool(
         data.dialogues,
         state.era,
@@ -954,13 +1001,22 @@ export function transition(
 
     case 'REST_END': {
       if (state.phase !== 'rest') return state;
-      // 응답 없이 넘어가면 보내주기
-      const resolved = resolveLeavePending(state, data, rng);
-      const endingDue =
-        resolved.era === 'raising' &&
-        resolved.stats.selfActualization >= BALANCE.SELF_ACT_COMPLETE &&
-        resolved.endingTalksSeen >= data.endings.preEndingTalks.length;
-      return { ...resolved, phase: endingDue ? 'ending' : 'actionSelect' };
+      const exited = exitRest(state, data, rng);
+      let next = exited.state;
+      if (exited.visitEndLine) {
+        next = {
+          ...next,
+          session: {
+            ...next.session,
+            journal: addJournal(
+              next.session.journal,
+              next.session.elapsedSec,
+              exited.visitEndLine,
+            ),
+          },
+        };
+      }
+      return { ...next, phase: isEndingDue(next, data) ? 'ending' : 'actionSelect' };
     }
 
     case 'CHOOSE_FAREWELL': {
@@ -970,7 +1026,14 @@ export function transition(
 
     case 'CHOOSE_COHABIT': {
       if (state.phase !== 'ending') return state;
-      return { ...state, era: 'cohabit', phase: 'actionSelect' };
+      // 동거 = 돌이 곁에 남는 선택 — 잠수 중이었더라도 재석으로 정리
+      // (동거·apart에서는 복귀 로직이 돌지 않으므로 여기서 리셋하지 않으면 영구 부재가 된다)
+      return {
+        ...state,
+        era: 'cohabit',
+        phase: 'actionSelect',
+        presence: presentState(),
+      };
     }
 
     case 'FAREWELL_FROM_COHABIT': {
