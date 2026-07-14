@@ -1,0 +1,68 @@
+{
+  "stage1": [
+    { "textId": "dlg.stage1.0", "intimacy": 1 },
+    { "textId": "dlg.stage1.1", "intimacy": 1 },
+    { "textId": "dlg.stage1.2", "intimacy": 1 },
+    { "textId": "dlg.stage1.3", "intimacy": 1 },
+    { "textId": "dlg.stage1.4", "intimacy": 1 }
+  ],
+  "stage2": [
+    { "textId": "dlg.stage2.0", "intimacy": 2 },
+    { "textId": "dlg.stage2.1", "intimacy": 2 }
+  ],
+  "stage3": [
+    { "textId": "dlg.stage3.0", "intimacy": 3 },
+    { "textId": "dlg.stage3.1", "intimacy": 3 }
+  ],
+  "stage4": [
+    { "textId": "dlg.stage4.0", "intimacy": 4 },
+    { "textId": "dlg.stage4.1", "intimacy": 4 }
+  ],
+  "stage5": [
+    { "textId": "dlg.stage5.0", "intimacy": 5 },
+    { "textId": "dlg.stage5.1", "intimacy": 5 }
+  ],
+  "cohabitStages": [
+    {
+      "minDependence": 0,
+      "lines": [
+        { "textId": "dlg.cohabit0.0", "intimacy": 3 },
+        { "textId": "dlg.cohabit0.1", "intimacy": 3 }
+      ]
+    },
+    {
+      "minDependence": 40,
+      "lines": [
+        { "textId": "dlg.cohabit1.0", "intimacy": 3 },
+        { "textId": "dlg.cohabit1.1", "intimacy": 3 }
+      ]
+    },
+    {
+      "minDependence": 70,
+      "lines": [
+        { "textId": "dlg.cohabit2.0", "intimacy": 3 },
+        { "textId": "dlg.cohabit2.1", "intimacy": 3 }
+      ]
+    }
+  ],
+  "apartVisit": [
+    { "textId": "dlg.apartVisit.0", "intimacy": 2 },
+    { "textId": "dlg.apartVisit.1", "intimacy": 2 }
+  ],
+  "apart": [
+    { "textId": "dlg.apart.0", "intimacy": 1 },
+    { "textId": "dlg.apart.1", "intimacy": 1 }
+  ],
+  "absentReturn": {
+    "lineId": "dlg.return.line",
+    "yesId": "dlg.return.yes",
+    "noId": "dlg.return.no"
+  },
+  "visitLeave": {
+    "promptId": "dlg.visitLeave.prompt",
+    "holdLabelId": "dlg.visitLeave.holdLabel",
+    "letGoLabelId": "dlg.visitLeave.letGoLabel",
+    "holdResultId": "dlg.visitLeave.holdResult",
+    "letGoResultId": "dlg.visitLeave.letGoResult"
+  }
+}

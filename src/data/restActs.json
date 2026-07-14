@@ -1,0 +1,6 @@
+[
+  { "key": "glance", "labelId": "restAct.glance.label", "linesId": "restAct.glance.lines" },
+  { "key": "water", "labelId": "restAct.water.label", "linesId": "restAct.water.lines" },
+  { "key": "breath", "labelId": "restAct.breath.label", "linesId": "restAct.breath.lines" },
+  { "key": "posture", "labelId": "restAct.posture.label", "linesId": "restAct.posture.lines" }
+]

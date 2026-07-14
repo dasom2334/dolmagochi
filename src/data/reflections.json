@@ -1,0 +1,51 @@
+[
+  {
+    "token": "read",
+    "variants": [{ "textId": "refl.read.base" }]
+  },
+  {
+    "token": "sun",
+    "variants": [{ "textId": "refl.sun.base" }]
+  },
+  {
+    "token": "walk",
+    "variants": [
+      { "when": { "action": "free" }, "textId": "refl.walk.during-free" },
+      { "when": { "action": "cook" }, "textId": "refl.walk.during-cook" },
+      { "when": { "era": "apart", "action": "walk" }, "textId": "refl.walk.apart-walk" },
+      { "textId": "refl.walk.base" }
+    ]
+  },
+  {
+    "token": "free",
+    "variants": [{ "textId": "refl.free.base" }]
+  },
+  {
+    "token": "cook",
+    "variants": [{ "textId": "refl.cook.base" }]
+  },
+  {
+    "token": "chore",
+    "variants": [{ "textId": "refl.chore.base" }]
+  },
+  { "token": "buy-fan", "variants": [{ "textId": "refl.buy-fan.base" }] },
+  { "token": "buy-plant", "variants": [{ "textId": "refl.buy-plant.base" }] },
+  { "token": "buy-soda", "variants": [{ "textId": "refl.buy-soda.base" }] },
+  { "token": "buy-cup", "variants": [{ "textId": "refl.buy-cup.base" }] },
+  { "token": "buy-moss", "variants": [{ "textId": "refl.buy-moss.base" }] },
+  { "token": "buy-book2", "variants": [{ "textId": "refl.buy-book2.base" }] },
+  { "token": "buy-lamp", "variants": [{ "textId": "refl.buy-lamp.base" }] },
+  { "token": "choice", "variants": [{ "textId": "refl.choice.base" }] },
+  {
+    "token": "selfCare-physiological",
+    "variants": [{ "textId": "refl.selfCare-physiological" }]
+  },
+  { "token": "selfCare-safety", "variants": [{ "textId": "refl.selfCare-safety" }] },
+  {
+    "token": "selfCare-belonging",
+    "variants": [{ "textId": "refl.selfCare-belonging" }]
+  },
+  { "token": "selfCare-esteem", "variants": [{ "textId": "refl.selfCare-esteem" }] },
+  { "token": "personalWork", "variants": [{ "textId": "refl.personalWork" }] },
+  { "token": "default", "variants": [{ "textId": "refl.default" }] }
+]

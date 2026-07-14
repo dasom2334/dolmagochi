@@ -1,0 +1,8 @@
+# .gitignore
+docs/
+design/
+CLAUDE.local.md
+node_modules/
+dist/
+.DS_Store
+tsconfig.tsbuildinfo
