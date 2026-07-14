@@ -1,0 +1,15 @@
+{
+  "preEndingTalks": [
+    { "textId": "end.preTalk0" },
+    { "textId": "end.preTalk1" },
+    { "textId": "end.preTalk2" }
+  ],
+  "endingEvent": {
+    "textId": "end.event",
+    "stayLabelId": "end.event.stay",
+    "farewellLabelId": "end.event.farewell"
+  },
+  "farewellEpilogueId": "end.epilogue",
+  "cohabitTransitionId": "end.cohabit",
+  "farewellFromCohabitId": "end.farewellHours"
+}
