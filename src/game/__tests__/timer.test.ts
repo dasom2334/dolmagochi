@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { accrueCare, formatElapsed, restMinutesFor } from '../timer';
+import {
+  accrueCare,
+  cloneFlowtime,
+  DEFAULT_FLOWTIME,
+  formatElapsed,
+  restMinutesFor,
+} from '../timer';
 
-describe('restMinutesFor — 휴식 길이 경계값', () => {
+describe('restMinutesFor — 휴식 길이 경계값 (기본 배정표)', () => {
   it('25분 미만 → 5분', () => {
     expect(restMinutesFor(0)).toBe(5);
     expect(restMinutesFor(24.9)).toBe(5);
@@ -17,6 +23,27 @@ describe('restMinutesFor — 휴식 길이 경계값', () => {
   it('90분 이상 → 30분', () => {
     expect(restMinutesFor(90)).toBe(30);
     expect(restMinutesFor(240)).toBe(30);
+  });
+  it('기본 배정표는 기획서 규칙과 일치', () => {
+    expect(DEFAULT_FLOWTIME).toEqual({ bounds: [25, 50, 90], rests: [5, 10, 20, 30] });
+  });
+});
+
+describe('restMinutesFor — 사용자 지정 배정표', () => {
+  it('사용자가 수정한 표를 그대로 적용', () => {
+    const custom = { bounds: [30, 60], rests: [3, 8, 15] };
+    expect(restMinutesFor(29, custom)).toBe(3);
+    expect(restMinutesFor(30, custom)).toBe(8);
+    expect(restMinutesFor(59, custom)).toBe(8);
+    expect(restMinutesFor(60, custom)).toBe(15);
+    expect(restMinutesFor(999, custom)).toBe(15);
+  });
+  it('cloneFlowtime는 기본값의 새 배열 사본을 만든다', () => {
+    const c = cloneFlowtime();
+    expect(c).toEqual(DEFAULT_FLOWTIME);
+    expect(c.bounds).not.toBe(DEFAULT_FLOWTIME.bounds);
+    c.bounds[0] = 999;
+    expect(DEFAULT_FLOWTIME.bounds[0]).toBe(25); // 원본 불변
   });
 });
 

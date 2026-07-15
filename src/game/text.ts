@@ -105,6 +105,7 @@ export const UI = {
     keepResting: 'ui.buttons.keepResting',
     exportSave: 'ui.buttons.exportSave',
     importSave: 'ui.buttons.importSave',
+    resetFlowtime: 'ui.buttons.resetFlowtime',
   },
   labels: {
     locked: 'ui.labels.locked',
@@ -118,6 +119,12 @@ export const UI = {
       focus25: 'ui.labels.notifyFocus25',
       focus50: 'ui.labels.notifyFocus50',
       focus90: 'ui.labels.notifyFocus90',
+    },
+    flowtime: {
+      title: 'ui.labels.flowtimeTitle',
+      hint: 'ui.labels.flowtimeHint',
+      bounds: 'ui.labels.flowtimeBounds',
+      rests: 'ui.labels.flowtimeRests',
     },
   },
   shop: {

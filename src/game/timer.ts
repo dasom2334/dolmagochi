@@ -1,11 +1,30 @@
 import { BALANCE } from './balance';
+import type { FlowtimeSettings } from './types';
 
-/** Flowtime 휴식 길이 산정: <25→5, 25–50→10, 50–90→20, ≥90→30 (분). */
-export function restMinutesFor(focusMinutes: number): number {
-  for (const [maxExclusive, restMin] of BALANCE.REST_TABLE) {
-    if (focusMinutes < maxExclusive) return restMin;
+/** 기본 Flowtime 배정표 — 기획서 규칙(REST_TABLE)에서 파생. bounds=[25,50,90], rests=[5,10,20,30]. */
+export const DEFAULT_FLOWTIME: FlowtimeSettings = {
+  bounds: BALANCE.REST_TABLE.slice(0, -1).map(([b]) => b),
+  rests: BALANCE.REST_TABLE.map(([, r]) => r),
+};
+
+/** 방어 복제 — 상태에 넣을 새 인스턴스(기본 배열을 공유·변형하지 않도록). */
+export function cloneFlowtime(f: FlowtimeSettings = DEFAULT_FLOWTIME): FlowtimeSettings {
+  return { bounds: [...f.bounds], rests: [...f.rests] };
+}
+
+/**
+ * Flowtime 휴식 길이 산정(분). 기본 배정표는 기획서 규칙(<25→5·25~50→10·50~90→20·90+→30),
+ * 사용자가 설정에서 수정하면 그 표(flowtime)를 쓴다.
+ */
+export function restMinutesFor(
+  focusMinutes: number,
+  flowtime: FlowtimeSettings = DEFAULT_FLOWTIME,
+): number {
+  const { bounds, rests } = flowtime;
+  for (let i = 0; i < bounds.length; i++) {
+    if (focusMinutes < bounds[i]) return rests[i];
   }
-  return BALANCE.REST_TABLE[BALANCE.REST_TABLE.length - 1][1];
+  return rests[rests.length - 1];
 }
 
 export interface Care {

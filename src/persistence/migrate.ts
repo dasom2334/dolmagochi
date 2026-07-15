@@ -1,5 +1,6 @@
 import type { GameState } from '../game/types';
 import { DEFAULT_NOTIFY_SETTINGS, SCHEMA_VERSION } from '../game/stateMachine';
+import { cloneFlowtime } from '../game/timer';
 
 /**
  * 상태 스키마 버전 마이그레이션 체인.
@@ -19,6 +20,17 @@ export function migrateState(state: GameState): GameState | null {
       settings: {
         ...s.settings,
         notify: s.settings.notify ?? { ...DEFAULT_NOTIFY_SETTINGS },
+      },
+    };
+  }
+  // v4 → v5: settings.flowtime(휴식 배정표) 추가. 구 세이브엔 없으므로 기본값을 채운다.
+  if (s.schemaVersion === 4) {
+    s = {
+      ...s,
+      schemaVersion: 5,
+      settings: {
+        ...s.settings,
+        flowtime: s.settings.flowtime ?? cloneFlowtime(),
       },
     };
   }

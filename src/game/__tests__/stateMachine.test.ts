@@ -575,6 +575,34 @@ describe('SET_NOTIFY — 알림 설정 토글', () => {
   });
 });
 
+describe('SET_FLOWTIME — 휴식 배정표 사용자 수정', () => {
+  it('기본값은 기획서 규칙, 수정하면 그 표로 휴식이 배정된다', () => {
+    let s = init();
+    expect(s.settings.flowtime).toEqual({ bounds: [25, 50, 90], rests: [5, 10, 20, 30] });
+
+    // 30분 미만은 3분 쉬도록 사용자가 수정
+    s = run(s, [
+      { type: 'SET_FLOWTIME', flowtime: { bounds: [30], rests: [3, 12] } },
+    ]);
+    expect(s.settings.flowtime).toEqual({ bounds: [30], rests: [3, 12] });
+
+    // 25분 집중 → 수정 전이면 10분이지만, 이제 30분 미만이라 3분
+    const rested = run(s, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(1500), // 25분
+      { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
+    ]);
+    expect(rested.rest.totalSec).toBe(3 * 60);
+  });
+
+  it('잘못된 값(0·음수·소수)은 양의 정수로 정규화', () => {
+    const s = run(init(), [
+      { type: 'SET_FLOWTIME', flowtime: { bounds: [0, 55.6], rests: [-3, 10.2, 20] } },
+    ]);
+    expect(s.settings.flowtime).toEqual({ bounds: [1, 56], rests: [1, 10, 20] });
+  });
+});
+
 describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () => {
   const TALKS = gameData.endings.preEndingTalks.length;
 

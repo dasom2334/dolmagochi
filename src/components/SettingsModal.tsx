@@ -4,7 +4,19 @@ import { appStore, dispatch, now, t } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { exportSaveJson, importSaveJson } from '../persistence/exportImport';
 import { requestNotifyPermission } from '../notifications';
+import { cloneFlowtime } from '../game/timer';
 import type { NotifySettings } from '../game/types';
+
+const numInput = {
+  width: 42,
+  background: '#241d30',
+  border: '2px solid #6b6178',
+  color: '#f2ead8',
+  fontFamily: 'inherit',
+  fontSize: 12,
+  padding: '3px 4px',
+  textAlign: 'center' as const,
+};
 
 const settingBtn = {
   textAlign: 'left' as const,
@@ -42,6 +54,22 @@ export function SettingsModal({
     ['focus50', UI.labels.notify.focus50],
     ['focus90', UI.labels.notify.focus90],
   ];
+
+  const ft = state.settings.flowtime;
+  const setBound = (i: number, v: number) => {
+    const bounds = ft.bounds.slice();
+    bounds[i] = v;
+    dispatch({ type: 'SET_FLOWTIME', flowtime: { bounds, rests: ft.rests } });
+  };
+  const setRest = (i: number, v: number) => {
+    const rests = ft.rests.slice();
+    rests[i] = v;
+    dispatch({ type: 'SET_FLOWTIME', flowtime: { bounds: ft.bounds, rests } });
+  };
+  const commit = (fn: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseInt(e.target.value, 10);
+    if (!Number.isNaN(v)) fn(v);
+  };
 
   const doExport = () => {
     const json = exportSaveJson(appStore.getState().state, now());
@@ -148,6 +176,71 @@ export function SettingsModal({
             ))}
           </div>
         )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ fontSize: 13, color: '#e0d6c4' }}>
+            * {t(UI.labels.flowtime.title)}
+          </div>
+          <div style={{ fontSize: 11, color: '#8a7f96' }}>
+            {t(UI.labels.flowtime.hint)}
+          </div>
+          {ft.rests.map((rest, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 12,
+                color: '#c8bdd0',
+                paddingLeft: 12,
+              }}
+            >
+              <span
+                style={{
+                  minWidth: 92,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                {i < ft.bounds.length ? (
+                  <>
+                    <input
+                      type="number"
+                      min={1}
+                      style={numInput}
+                      value={ft.bounds[i]}
+                      onChange={commit((v) => setBound(i, v))}
+                    />
+                    분 미만
+                  </>
+                ) : (
+                  '그 이상'
+                )}
+              </span>
+              <span>→</span>
+              <input
+                type="number"
+                min={1}
+                style={numInput}
+                value={rest}
+                onChange={commit((v) => setRest(i, v))}
+              />
+              분 휴식
+            </div>
+          ))}
+          <button
+            className="hv-text"
+            style={{ ...settingBtn, fontSize: 12, color: '#a8c491', paddingLeft: 12 }}
+            onClick={() =>
+              dispatch({ type: 'SET_FLOWTIME', flowtime: cloneFlowtime() })
+            }
+          >
+            - {t(UI.buttons.resetFlowtime)}
+          </button>
+        </div>
+
         <button className="hv-text" style={settingBtn} onClick={doExport}>
           * {t(UI.buttons.exportSave)}
         </button>

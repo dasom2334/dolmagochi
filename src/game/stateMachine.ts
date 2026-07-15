@@ -15,7 +15,7 @@ import type {
   MilestoneData,
   ShopItemData,
 } from '../data/schema';
-import { accrueCare, formatElapsed, restMinutesFor } from './timer';
+import { accrueCare, cloneFlowtime, formatElapsed, restMinutesFor } from './timer';
 import { drawMemory, remember, resolveReflection } from './memory';
 import { drawEligibleLine, selectDialoguePool } from './dialogue';
 import { pickFreeAction } from './freeAction';
@@ -36,7 +36,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -99,6 +99,7 @@ export function createInitialState(
       notifAsked: false,
       locale: 'ko',
       notify: { ...DEFAULT_NOTIFY_SETTINGS },
+      flowtime: cloneFlowtime(),
     },
   };
 }
@@ -638,7 +639,7 @@ export function transition(
       const mins = state.session.elapsedSec / 60;
       const care = accrueCare(state.care, mins);
       const earned = care.points - state.care.points;
-      const restMin = restMinutesFor(mins);
+      const restMin = restMinutesFor(mins, state.settings.flowtime);
       // 세션 동안 돌이 곁에 있었는가 — 없었으면 '옆에 있었다' 대신 부재 마무리
       const sessionHadRock = isRockPresent(state);
 
@@ -1096,6 +1097,15 @@ export function transition(
           notify: { ...state.settings.notify, [event.key]: event.on },
         },
       };
+    }
+    case 'SET_FLOWTIME': {
+      // 양의 정수로 정규화 — 잘못된 입력이 배정표를 깨지 않게
+      const clamp = (n: number) => Math.max(1, Math.round(n) || 1);
+      const flowtime = {
+        bounds: event.flowtime.bounds.map(clamp),
+        rests: event.flowtime.rests.map(clamp),
+      };
+      return { ...state, settings: { ...state.settings, flowtime } };
     }
     case 'MARK_NOTIF_ASKED': {
       if (state.settings.notifAsked) return state;

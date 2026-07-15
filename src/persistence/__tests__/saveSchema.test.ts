@@ -64,17 +64,33 @@ describe('saveSchema — 봉투·검증·마이그레이션', () => {
     ).toEqual({ ok: false, reason: 'version' });
   });
 
-  it('v3 세이브(알림 설정 없음) → v4로 마이그레이션, notify 기본값 주입', () => {
-    // 구 세이브: settings에 notify가 없는 상태
+  it('v3 세이브(알림·Flowtime 설정 없음) → 최신으로 체인 마이그레이션, 기본값 주입', () => {
+    // 구 세이브: settings에 notify·flowtime이 없는 상태
     const v3settings = { noiseOn: true, notifAsked: true, locale: 'ko' };
     const v3 = { ...state, schemaVersion: 3, settings: v3settings };
     const res = readSave({ format: SAVE_FORMAT, savedAt: T0, state: v3 });
     expect(res.ok).toBe(true);
     if (res.ok) {
       expect(res.state.schemaVersion).toBe(SCHEMA_VERSION);
-      expect(res.state.settings.notify.enabled).toBe(true);
-      expect(res.state.settings.notify.focus25).toBe(false);
+      expect(res.state.settings.notify.enabled).toBe(true); // v3→v4
+      expect(res.state.settings.flowtime).toEqual({
+        bounds: [25, 50, 90],
+        rests: [5, 10, 20, 30],
+      }); // v4→v5
       expect(res.state.settings.noiseOn).toBe(true); // 기존 필드 보존
+    }
+  });
+
+  it('v4 세이브(Flowtime 없음) → v5로 마이그레이션, flowtime 기본값 주입', () => {
+    const { flowtime, ...v4settings } = state.settings;
+    void flowtime;
+    const v4 = { ...state, schemaVersion: 4, settings: v4settings };
+    const res = readSave({ format: SAVE_FORMAT, savedAt: T0, state: v4 });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.state.schemaVersion).toBe(SCHEMA_VERSION);
+      expect(res.state.settings.flowtime.bounds).toEqual([25, 50, 90]);
+      expect(res.state.settings.notify.enabled).toBe(true); // v4 필드 보존
     }
   });
 });
