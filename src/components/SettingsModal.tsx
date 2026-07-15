@@ -196,6 +196,16 @@ export function SettingsModal({
           className="hv-text"
           style={settingBtn}
           onClick={() =>
+            dispatch({ type: 'SET_SOUND', on: !state.settings.soundOn })
+          }
+        >
+          * {t(UI.labels.soundSetting)} — {onOff(state.settings.soundOn)}
+        </button>
+
+        <button
+          className="hv-text"
+          style={settingBtn}
+          onClick={() =>
             dispatch({
               type: 'SET_PAUSE_ON_HIDE',
               on: !state.settings.pauseOnHide,

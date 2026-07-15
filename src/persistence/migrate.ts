@@ -45,6 +45,17 @@ export function migrateState(state: GameState): GameState | null {
       },
     };
   }
+  // v6 → v7: settings.soundOn(UI 효과음) 추가. 기본값 켜짐.
+  if (s.schemaVersion === 6) {
+    s = {
+      ...s,
+      schemaVersion: 7,
+      settings: {
+        ...s.settings,
+        soundOn: s.settings.soundOn ?? true,
+      },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

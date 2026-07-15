@@ -236,6 +236,8 @@ export interface GameState {
     flowtime: FlowtimeSettings;
     /** 탭 이탈 시 집중 타이머 일시정지(기획서 기본 동작). false면 탭을 옮겨도 집중 시간이 계속 흐른다. */
     pauseOnHide: boolean;
+    /** UI 효과음(클릭·토글·집중 시작·휴식 종료 등) on/off. */
+    soundOn: boolean;
   };
 }
 
@@ -279,6 +281,7 @@ export type GameEvent =
   | { type: 'SET_NOTIFY'; key: keyof NotifySettings; on: boolean }
   | { type: 'SET_FLOWTIME'; flowtime: FlowtimeSettings }
   | { type: 'SET_PAUSE_ON_HIDE'; on: boolean }
+  | { type: 'SET_SOUND'; on: boolean }
   | { type: 'MARK_NOTIF_ASKED' }
   | { type: 'REST_END' }
   | { type: 'CHOOSE_FAREWELL' }

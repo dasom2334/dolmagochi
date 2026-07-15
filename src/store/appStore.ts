@@ -1,6 +1,7 @@
 import { useStore } from 'zustand';
 import { createGameStore, gameData, type GameStore } from './gameStore';
 import type { GameEvent } from '../game/types';
+import { playSound, setSoundEnabled, type SoundName } from '../sound';
 
 /** 앱 전역 스토어 싱글턴 (테스트는 createGameStore를 직접 사용) */
 export const appStore = createGameStore();
@@ -9,7 +10,54 @@ export function useGame<T>(selector: (s: GameStore) => T): T {
   return useStore(appStore, selector);
 }
 
+/**
+ * 사용자 조작 이벤트 → 효과음. 여기 없는 이벤트(TICK·SET_PAUSED·SETTLE 등)는 무음.
+ * TICK은 스토어 내부 dispatch를 타 이 래퍼를 거치지 않으므로 매 틱 소음이 없다.
+ */
+function soundForEvent(event: GameEvent): SoundName | null {
+  switch (event.type) {
+    case 'START_FOCUS':
+    case 'BUY':
+    case 'CHOOSE_COHABIT':
+    case 'CHOOSE_FAREWELL':
+    case 'FAREWELL_FROM_COHABIT':
+      return 'confirm';
+    case 'TALK':
+      return 'talk';
+    case 'SET_NOISE':
+    case 'SET_NOTIFY':
+    case 'SET_PAUSE_ON_HIDE':
+      return event.on ? 'toggleOn' : 'toggleOff';
+    case 'SELECT_ACTION':
+    case 'END_FOCUS':
+    case 'REST_STEP':
+    case 'REST_ACT':
+    case 'TALK_CHOICE':
+    case 'CHOICE_PICKED':
+    case 'SET_PLACEMENT':
+    case 'VISIT_HOLD':
+    case 'EPILOGUE_DONE':
+      return 'click';
+    default:
+      return null;
+  }
+}
+
 export function dispatch(event: GameEvent): void {
+  // 효과음은 클릭(사용자 제스처)에서 나므로 여기서 AudioContext가 깨어난다.
+  if (event.type === 'SET_SOUND') {
+    // '켜는' 순간 피드백은 아직 enabled=false일 수 있어 force로 낸다.
+    if (event.on) {
+      setSoundEnabled(true);
+      playSound('toggleOn', true);
+    } else {
+      playSound('toggleOff');
+      setSoundEnabled(false);
+    }
+  } else {
+    const s = soundForEvent(event);
+    if (s) playSound(s);
+  }
   appStore.getState().dispatch(event);
 }
 

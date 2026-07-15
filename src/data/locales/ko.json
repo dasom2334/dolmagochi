@@ -363,6 +363,7 @@
   "ui.labels.modeRest": [["휴식"]],
   "ui.labels.care": [["정성 {points}"]],
   "ui.labels.noiseSetting": [["화이트노이즈"]],
+  "ui.labels.soundSetting": [["효과음"]],
   "ui.labels.notifyAll": [["알림"]],
   "ui.labels.notifyRest": [["휴식 종료 알림"]],
   "ui.labels.notifyFocus25": [["집중 25분 알림"]],
