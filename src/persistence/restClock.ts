@@ -14,12 +14,17 @@ export function isRestOver(endsAt: number, nowMs: number): boolean {
   return endsAt > 0 && nowMs >= endsAt;
 }
 
-/** 진행률 % (UI 바) */
+/**
+ * 진행률 % (UI 바) — 0~100으로 클램프.
+ * 휴식 시작 순간엔 nowMs가 아직 갱신 전(낡은 과거 값)이라 잔여가 totalSec를
+ * 넘을 수 있다 → 클램프하지 않으면 게이지가 상한을 뚫는다.
+ */
 export function restProgressPct(
   endsAt: number,
   totalSec: number,
   nowMs: number,
 ): number {
   if (totalSec <= 0) return 0;
-  return Math.round((restRemainingSec(endsAt, nowMs) / totalSec) * 100);
+  const pct = Math.round((restRemainingSec(endsAt, nowMs) / totalSec) * 100);
+  return Math.min(100, Math.max(0, pct));
 }
