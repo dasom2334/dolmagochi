@@ -62,18 +62,6 @@ export function TimerCard({
           <span style={{ fontSize: 12, color: '#ffd866' }}>
             {tf(UI.labels.care, { points: state.care.points })}
           </span>
-          <button
-            className="hv"
-            style={{
-              ...btnSmall,
-              color: state.settings.noiseOn ? '#ffd866' : '#a89cb4',
-            }}
-            onClick={() =>
-              dispatch({ type: 'SET_NOISE', on: !state.settings.noiseOn })
-            }
-          >
-            {t(state.settings.noiseOn ? UI.buttons.noiseOn : UI.buttons.noiseOff)}
-          </button>
           <button className="hv" style={btnSmall} onClick={onOpenSettings}>
             {t(UI.buttons.settings)}
           </button>

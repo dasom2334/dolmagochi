@@ -72,6 +72,70 @@ const settingBtn = {
   cursor: 'pointer',
 };
 
+const overlayStyle = (zIndex: number) =>
+  ({
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(20,16,26,.72)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex,
+  }) as const;
+
+const panelStyle = {
+  width: 400,
+  maxWidth: '88vw',
+  background: '#332b3d',
+  border: '3px solid #f2ead8',
+  padding: 22,
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: 11,
+};
+
+const closeBtn = {
+  border: '2px solid #f2ead8',
+  background: 'transparent',
+  color: '#f2ead8',
+  fontFamily: 'inherit',
+  fontSize: 13,
+  padding: '6px 18px',
+  cursor: 'pointer',
+};
+
+/** 하위 설정 모달(뎁스 +1) — 사운드/알림을 각각 별도 시트로. */
+function SubSheet({
+  titleId,
+  onBack,
+  children,
+}: {
+  titleId: string;
+  onBack: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={overlayStyle(11)}>
+      <div style={panelStyle}>
+        <div style={{ fontSize: 17, color: '#fdf8ec' }}>* {t(titleId)}</div>
+        {children}
+        <div
+          style={{
+            borderTop: '2px solid #4a4156',
+            paddingTop: 11,
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <button className="hv" style={closeBtn} onClick={onBack}>
+            {t(UI.buttons.back)}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** 설정 — 작별 버튼은 설정 메뉴 안쪽에만 (M5에서 동거 시 활성화) */
 export function SettingsModal({
   state,
@@ -82,6 +146,7 @@ export function SettingsModal({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState('');
+  const [sub, setSub] = useState<'sound' | 'notify' | null>(null);
 
   const nf = state.settings.notify;
   const onOff = (v: boolean) => t(v ? SYS.settings.on : SYS.settings.off);
@@ -146,60 +211,26 @@ export function SettingsModal({
     reader.readAsText(file);
   };
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(20,16,26,.72)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10,
-      }}
-    >
-      <div
-        style={{
-          width: 400,
-          maxWidth: '88vw',
-          background: '#332b3d',
-          border: '3px solid #f2ead8',
-          padding: 22,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 11,
-        }}
-      >
+    <>
+    <div style={overlayStyle(10)}>
+      <div style={panelStyle}>
         <div style={{ fontSize: 17, color: '#fdf8ec' }}>
           * {t(UI.buttons.settings)}
         </div>
-        <button
-          className="hv-text"
-          style={{
-            textAlign: 'left',
-            border: 'none',
-            background: 'none',
-            color: '#e0d6c4',
-            fontFamily: 'inherit',
-            fontSize: 13,
-            padding: '4px 0',
-            cursor: 'pointer',
-          }}
-          onClick={() =>
-            dispatch({ type: 'SET_NOISE', on: !state.settings.noiseOn })
-          }
-        >
-          * {t(UI.labels.noiseSetting)} —{' '}
-          {t(state.settings.noiseOn ? SYS.settings.noiseOn : SYS.settings.noiseOff)}
-        </button>
 
         <button
           className="hv-text"
           style={settingBtn}
-          onClick={() =>
-            dispatch({ type: 'SET_SOUND', on: !state.settings.soundOn })
-          }
+          onClick={() => setSub('sound')}
         >
-          * {t(UI.labels.soundSetting)} — {onOff(state.settings.soundOn)}
+          * {t(UI.labels.soundGroup)} ▸
+        </button>
+        <button
+          className="hv-text"
+          style={settingBtn}
+          onClick={() => setSub('notify')}
+        >
+          * {t(UI.labels.notifyGroup)} ▸
         </button>
 
         <button
@@ -214,30 +245,6 @@ export function SettingsModal({
         >
           * {t(UI.labels.pauseOnHide)} — {onOff(state.settings.pauseOnHide)}
         </button>
-
-        <button
-          className="hv-text"
-          style={settingBtn}
-          onClick={() => toggleNotify('enabled')}
-        >
-          * {t(UI.labels.notifyAll)} — {onOff(nf.enabled)}
-        </button>
-        {nf.enabled && (
-          <div
-            style={{ display: 'flex', flexDirection: 'column', paddingLeft: 12 }}
-          >
-            {focusToggles.map(([key, labelId]) => (
-              <button
-                key={key}
-                className="hv-text"
-                style={{ ...settingBtn, fontSize: 12, color: '#c8bdd0' }}
-                onClick={() => toggleNotify(key)}
-              >
-                - {t(labelId)} — {onOff(nf[key])}
-              </button>
-            ))}
-          </div>
-        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           <div style={{ fontSize: 13, color: '#e0d6c4' }}>
@@ -361,5 +368,62 @@ export function SettingsModal({
         </div>
       </div>
     </div>
+
+    {sub === 'sound' && (
+      <SubSheet titleId={UI.labels.soundGroup} onBack={() => setSub(null)}>
+        <button
+          className="hv-text"
+          style={settingBtn}
+          onClick={() =>
+            dispatch({ type: 'SET_SOUND', on: !state.settings.soundOn })
+          }
+        >
+          * {t(UI.labels.soundSetting)} — {onOff(state.settings.soundOn)}
+        </button>
+        <button
+          className="hv-text"
+          style={settingBtn}
+          onClick={() =>
+            dispatch({ type: 'SET_NOISE', on: !state.settings.noiseOn })
+          }
+        >
+          * {t(UI.labels.noiseSetting)} —{' '}
+          {t(
+            state.settings.noiseOn
+              ? SYS.settings.noiseOn
+              : SYS.settings.noiseOff,
+          )}
+        </button>
+      </SubSheet>
+    )}
+
+    {sub === 'notify' && (
+      <SubSheet titleId={UI.labels.notifyGroup} onBack={() => setSub(null)}>
+        <button
+          className="hv-text"
+          style={settingBtn}
+          onClick={() => toggleNotify('enabled')}
+        >
+          * {t(UI.labels.notifyAll)} — {onOff(nf.enabled)}
+        </button>
+        {nf.enabled && (
+          <div
+            style={{ display: 'flex', flexDirection: 'column', paddingLeft: 12 }}
+          >
+            {focusToggles.map(([key, labelId]) => (
+              <button
+                key={key}
+                className="hv-text"
+                style={{ ...settingBtn, fontSize: 12, color: '#c8bdd0' }}
+                onClick={() => toggleNotify(key)}
+              >
+                - {t(labelId)} — {onOff(nf[key])}
+              </button>
+            ))}
+          </div>
+        )}
+      </SubSheet>
+    )}
+    </>
   );
 }

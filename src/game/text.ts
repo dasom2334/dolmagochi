@@ -98,14 +98,13 @@ export const UI = {
     no: 'ui.buttons.no',
     settings: 'ui.buttons.settings',
     close: 'ui.buttons.close',
-    noiseOn: 'ui.buttons.noiseOn',
-    noiseOff: 'ui.buttons.noiseOff',
     epilogueDone: 'ui.buttons.epilogueDone',
     startAnyway: 'ui.buttons.startAnyway',
     keepResting: 'ui.buttons.keepResting',
     exportSave: 'ui.buttons.exportSave',
     importSave: 'ui.buttons.importSave',
     resetFlowtime: 'ui.buttons.resetFlowtime',
+    back: 'ui.buttons.back',
   },
   labels: {
     locked: 'ui.labels.locked',
@@ -114,6 +113,8 @@ export const UI = {
     care: 'ui.labels.care', // {points}
     noiseSetting: 'ui.labels.noiseSetting',
     soundSetting: 'ui.labels.soundSetting',
+    soundGroup: 'ui.labels.soundGroup',
+    notifyGroup: 'ui.labels.notifyGroup',
     notifyAll: 'ui.labels.notifyAll',
     notify: {
       restEnd: 'ui.labels.notifyRest',
