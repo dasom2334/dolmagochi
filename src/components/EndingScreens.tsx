@@ -1,7 +1,7 @@
 import type { GameState } from '../game/types';
 import { gameData } from '../store/gameStore';
 import { dispatch, t } from '../store/appStore';
-import { UI } from '../game/text';
+import { fillPages, UI } from '../game/text';
 import { btnDashed, btnOutline, card, PagesView } from './ui';
 
 function pagesOf(id: string): string[] {
@@ -62,7 +62,7 @@ export function EpilogueScreen({ state }: { state: GameState }) {
   const id = fromCohabit
     ? gameData.endings.farewellFromCohabitId
     : gameData.endings.farewellEpilogueId;
-  const pages = pagesOf(id).map((p) => p.replace(/\{hours\}/g, String(hours)));
+  const pages = fillPages(pagesOf(id), { hours });
   return (
     <div
       style={{

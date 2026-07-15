@@ -8,6 +8,10 @@ import type { SproutStage } from '../../game/sprout';
  * - 'thriving'(빈자리): 곧게 선 무성한 초록 새싹.
  * - 시듦 단계(동거): 의존도 단계가 오를수록 색이 바래고 잎이 처진다.
  *   0 싱싱한 초록 → 1 누렇게 뜬 잎 → 2 갈색으로 시든 채 늘어짐.
+ *
+ * ⚠ WITHER 항목 수는 dialogues.cohabitStages 수(현재 3)와 1:1로 맞물린다.
+ *   동거 단계를 늘리면 여기 시듦 그림도 그만큼 늘려야 한다 — 부족하면 상위 단계가
+ *   전부 마지막(가장 시든) 그림으로 뭉개지고, DEV 빌드에서 아래 경고가 뜬다.
  */
 const WITHER: { core: string; shadow: string }[] = [
   {
@@ -37,6 +41,16 @@ const THRIVING = {
 };
 
 export function Sprout({ stage }: { stage: SproutStage }) {
+  if (
+    import.meta.env.DEV &&
+    typeof stage === 'number' &&
+    stage > WITHER.length - 1
+  ) {
+    // 조용한 뭉갬 방지 — 동거 단계가 준비된 시듦 그림 수를 넘으면 개발 중 눈치채게 한다
+    console.warn(
+      `[Sprout] 시듦 단계 ${stage}가 준비된 새싹 그림 수(${WITHER.length})를 초과 — 마지막 단계로 대체됨. WITHER를 cohabitStages 수에 맞춰 확장하세요.`,
+    );
+  }
   const look =
     stage === 'thriving' ? THRIVING : WITHER[Math.min(stage, WITHER.length - 1)];
   return (
