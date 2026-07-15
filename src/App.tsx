@@ -4,6 +4,8 @@ import { gameData } from './store/gameStore';
 import { isRockPresent } from './game/stateMachine';
 import { SYS, UI } from './game/text';
 import { bootRestore, flushSave, startAutosave } from './persistence/persist';
+import { claimSingleTab } from './persistence/singleTab';
+import { OccupiedScreen } from './components/OccupiedScreen';
 import { notify, requestNotifyPermission } from './notifications';
 import { pushToast } from './toast';
 import { dueFocusMarks } from './game/notify';
@@ -31,32 +33,54 @@ export function App() {
   const [nowMs, setNowMs] = useState(() => now());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [booted, setBooted] = useState(false);
+  // 'claiming': 활성 탭 락 판정 중 · 'active': 이 탭이 활성 · 'occupied': 다른 탭이 이미 활성(읽기전용)
+  const [tabRole, setTabRole] = useState<'claiming' | 'active' | 'occupied'>(
+    'claiming',
+  );
   const lastRef = useRef(now());
   const bootedRef = useRef(false);
   const workerRef = useRef<Worker | null>(null);
 
-  // 1회성 부트: 세이브 복원 → 실제 가시성으로 일시정지 재설정 → 알림 권한(첫 진입 1회).
-  // 리소스를 만들지 않으므로 가드로 감싸도 대칭 문제 없음(StrictMode 이중 실행 방지).
+  // 1회성 부트 — 단, 활성 탭 락을 먼저 잡는다(두 창이 세이브를 서로 덮지 않게).
+  // 활성 탭만 세이브 복원·자동저장. 둘째 탭은 읽기전용(복원 안 함 → bootComplete 게이트로 저장도 차단).
   useEffect(() => {
     if (bootedRef.current) return;
     bootedRef.current = true;
-    void (async () => {
-      await bootRestore(Date.now());
-      lastRef.current = Date.now();
-      setNowMs(Date.now());
-      // 복원 시 visibilitychange가 안 뜨므로 현재 실제 가시성으로 paused를 맞춘다
-      // (숨김-집중 상태로 저장→포그라운드 로드 시 타이머가 얼어붙지 않도록).
-      // paused는 집중 세션에만 의미가 있으므로 focus일 때만 던진다.
-      if (appStore.getState().state.phase === 'focus') {
-        const pauseOnHide = appStore.getState().state.settings.pauseOnHide;
-        dispatch({ type: 'SET_PAUSED', paused: pauseOnHide && document.hidden });
-      }
-      if (!appStore.getState().state.settings.notifAsked) {
-        await requestNotifyPermission();
-        dispatch({ type: 'MARK_NOTIF_ASKED' });
-      }
-      setBooted(true);
-    })();
+    claimSingleTab({
+      onActive: () => {
+        setTabRole('active');
+        void (async () => {
+          await bootRestore(Date.now());
+          lastRef.current = Date.now();
+          setNowMs(Date.now());
+          // 복원 시 visibilitychange가 안 뜨므로 현재 실제 가시성으로 paused를 맞춘다
+          // (숨김-집중 상태로 저장→포그라운드 로드 시 타이머가 얼어붙지 않도록).
+          if (appStore.getState().state.phase === 'focus') {
+            const pauseOnHide = appStore.getState().state.settings.pauseOnHide;
+            dispatch({
+              type: 'SET_PAUSED',
+              paused: pauseOnHide && document.hidden,
+            });
+          }
+          if (!appStore.getState().state.settings.notifAsked) {
+            await requestNotifyPermission();
+            dispatch({ type: 'MARK_NOTIF_ASKED' });
+          }
+          // 다른 창이 닫혀 이 탭이 승격·재로드된 경우 안내 문구
+          if (sessionStorage.getItem('dol-promoted') === '1') {
+            sessionStorage.removeItem('dol-promoted');
+            pushToast(t(SYS.singleTab.promoted));
+          }
+          setBooted(true);
+        })();
+      },
+      onOccupied: () => setTabRole('occupied'),
+      onPromoted: () => {
+        // 앞 창이 닫혀 락 획득 — 최신 세이브로 새로 로드하며 안내를 띄운다
+        sessionStorage.setItem('dol-promoted', '1');
+        window.location.reload();
+      },
+    });
   }, []);
 
   // 워커 · 탭이탈 flush 리스너 · 자동저장 — 매 마운트 대칭 생성/해제.
@@ -185,6 +209,10 @@ export function App() {
 
   // 타이머 만료는 자동으로 다음 세션으로 넘어가지 않는다 — 시작은 사용자가 정한다.
   // (휴식 종료 알림은 M3, 여기서는 카운트다운만 0에서 멈춘다)
+
+  // 둘째 탭(읽기전용) — 조작 불가 안내 화면. 락 판정 중에는 잠깐 빈 화면.
+  if (tabRole === 'occupied') return <OccupiedScreen />;
+  if (tabRole === 'claiming') return null;
 
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
   const present = isRockPresent(state);

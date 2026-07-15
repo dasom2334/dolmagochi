@@ -69,6 +69,11 @@ export const SYS = {
     restEnd: 'sys.notification.restEnd',
     focusMark: 'sys.notification.focusMark', // {min}
   },
+  singleTab: {
+    occupied: 'sys.singleTab.occupied',
+    occupiedHint: 'sys.singleTab.occupiedHint',
+    promoted: 'sys.singleTab.promoted',
+  },
   placement: { prompt: 'sys.placement.prompt' },
   hints: { flowtime: 'sys.hints.flowtime' },
   settings: {
