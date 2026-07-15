@@ -49,7 +49,14 @@ export interface Condition {
 
 /** 상태에 남기는 영향 — 선택지·행동완료·구매가 공유하는 명시적 타입 */
 export interface Outcome {
-  stats?: { mood?: number; affection?: number; security?: number };
+  stats?: {
+    mood?: number;
+    affection?: number;
+    security?: number;
+    /** 애착 2축 태그 (대사·선택지가 명시적으로 조절) */
+    abandonment?: number;
+    intimacyThreat?: number;
+  };
   needs?: Partial<Record<NeedId, number>>;
   selfActualization?: number;
   /** 기억 토큰 적립 */
@@ -134,7 +141,11 @@ export interface Stats {
   affection: number;
   /** 명명된 욕구 게이지 0–100 */
   needs: Record<NeedId, number>;
-  /** 안정감 0–100 (숨은 값) */
+  /** 유기불안 0–100 (숨은 값, 애착 2축) */
+  abandonment: number;
+  /** 친밀위협 0–100 (숨은 값, 애착 2축) */
+  intimacyThreat: number;
+  /** 안정감 0–100 — 두 애착 축의 파생 캐시 (= 100 − |유기불안−친밀위협|) */
   security: number;
   /** 자아실현 게이지 0–100 → 엔딩 트리거 */
   selfActualization: number;

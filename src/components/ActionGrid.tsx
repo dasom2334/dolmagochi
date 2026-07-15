@@ -4,6 +4,14 @@ import { isActionAvailable } from '../game/stateMachine';
 import { dispatch, t } from '../store/appStore';
 import { UI } from '../game/text';
 
+/** 자유행동(돌의 시간)을 맨 앞에 두는 표시 순서 — 나머지는 데이터 순서 유지 */
+function displayActions() {
+  const acts = gameData.actions;
+  const free = acts.filter((a) => a.id === 'free');
+  const rest = acts.filter((a) => a.id !== 'free');
+  return [...free, ...rest];
+}
+
 /** 행동 카드 그리드 — 잠긴 행동은 자물쇠 대신 (잠김) 라벨 (디자인 데모 방식) */
 export function ActionGrid({ state }: { state: GameState }) {
   return (
@@ -16,7 +24,7 @@ export function ActionGrid({ state }: { state: GameState }) {
         alignContent: 'start',
       }}
     >
-      {gameData.actions.map((a) => {
+      {displayActions().map((a) => {
         const locked = !isActionAvailable(a, state);
         const selected = a.id === state.selectedAction;
         return (

@@ -98,7 +98,12 @@ describe('엔딩 플로우 (ending)', () => {
     expect(s.session.narratorLine).toBe(T('end.cohabit'));
 
     const esteem0 = 50;
-    s = { ...s, stats: { ...s.stats, needs: { ...s.stats.needs, esteem: esteem0 } } };
+    s = {
+      ...s,
+      // 존경을 건드리지 않는 행동(자유행동)으로 고정 — 동거 잠식만 검증
+      selectedAction: 'free',
+      stats: { ...s.stats, needs: { ...s.stats.needs, esteem: esteem0 } },
+    };
     const affection0 = s.stats.affection;
     s = run(s, [
       { type: 'START_FOCUS', nowMs: T0 },

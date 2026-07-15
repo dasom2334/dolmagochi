@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
-import { personalWorkProb, pickFreeAction } from '../freeAction';
+import { personalWorkProb, pickFreeAction, selfCareProb } from '../freeAction';
 import { remember } from '../memory';
 import { createInitialState } from '../stateMachine';
 import type { Rng } from '../rng';
@@ -48,6 +48,36 @@ describe('personalWorkProb — 욕구 평균 비례', () => {
   });
 });
 
+describe('selfCareProb — B4/B4-1 자가 충족 확률', () => {
+  const N = (o: Partial<Record<NeedId, number>>) => ({
+    physiological: 0, safety: 0, belonging: 0, esteem: 0, ...o,
+  });
+
+  it('최우선 욕구(생리)가 절반 미만이면 무조건 1.0', () => {
+    expect(selfCareProb(N({ physiological: 49 }), 'physiological')).toBe(1);
+    expect(selfCareProb(N({ physiological: 0 }), 'physiological')).toBe(1);
+  });
+
+  it('생리가 절반 이상이면 바닥 확률 (전단계 없음)', () => {
+    expect(selfCareProb(N({ physiological: 50 }), 'physiological')).toBe(
+      BALANCE.FREE_SELF_CARE_PROB,
+    );
+  });
+
+  it('상위 욕구: 전단계 평균에 비례, 바닥값 아래로 안 내려감', () => {
+    // 안전 대상, 전단계=[생리]=100 → 1.0
+    expect(selfCareProb(N({ physiological: 100 }), 'safety')).toBe(1);
+    // 소속 대상, 전단계=[생리100, 안전40] 평균 70 → 0.7
+    expect(
+      selfCareProb(N({ physiological: 100, safety: 40 }), 'belonging'),
+    ).toBeCloseTo(0.7);
+    // 전단계 평균 20 → 바닥 0.5
+    expect(
+      selfCareProb(N({ physiological: 20, safety: 20 }), 'belonging'),
+    ).toBe(BALANCE.FREE_SELF_CARE_PROB);
+  });
+});
+
 describe('pickFreeAction — 순차 자가 충족과 개인작업 게이트', () => {
   it('미충족이 있으면 개인작업은 절대 나오지 않는다', () => {
     const r = pickFreeAction(stateWith({}), DEFS, seq([0.0, 0.0]));
@@ -67,10 +97,12 @@ describe('pickFreeAction — 순차 자가 충족과 개인작업 게이트', ()
   });
 
   it('자가 충족 판정 실패 → 기억 반추', () => {
+    // 생리 충족 → 첫 미충족=안전, 전단계 평균=60 → selfCare 확률 0.6.
+    // rng 0.61 ≥ 0.6 이면 자가 충족 실패 → 기억 반추로 폴백.
     const r = pickFreeAction(
-      stateWith({}),
+      stateWith({ physiological: F }),
       DEFS,
-      seq([BALANCE.FREE_SELF_CARE_PROB + 0.01, 0.0]),
+      seq([0.61, 0.0]),
     );
     expect(r.type).toBe('reflection');
     expect(r).toMatchObject({ textId: 'read.base' });

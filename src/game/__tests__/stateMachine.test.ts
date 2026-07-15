@@ -89,9 +89,19 @@ describe('기본 사이클: 행동선택 → 집중 → 휴식 → 행동선택'
     expect(s.care).toEqual({ points: 1, carryMinutes: 5 });
     expect(s.rest.totalSec).toBe(10 * 60);
     expect(s.rest.summary).toEqual({ mins: 30, earned: 1 });
-    expect(s.stats.needs.belonging).toBeGreaterThan(0); // read → 소속/애정만
+    expect(s.stats.needs.esteem).toBeGreaterThan(0); // read → 존경
     expect(s.stats.needs.physiological).toBe(0);
     expect(s.totals.sessions).toBe(1);
+  });
+
+  it('90분 상한: 초과 집중은 정성이 더 오르지 않는다', () => {
+    const s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(6000), // 100분
+      { type: 'END_FOCUS', nowMs: T0 + 6_000_000 },
+    ]);
+    // 90분까지만 환산: floor(90/25)=3, 이월 90-75=15 (100분이 아니라 90분 기준)
+    expect(s.care).toEqual({ points: 3, carryMinutes: 15 });
   });
 
   it('REST_END: 평시에는 행동선택으로 복귀', () => {
@@ -733,6 +743,8 @@ describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () =
     expect(s.era).toBe('cohabit');
     s = {
       ...s,
+      // 존경을 건드리지 않는 행동(자유행동)으로 고정 — 동거 잠식만 검증
+      selectedAction: 'free',
       stats: { ...s.stats, needs: { ...s.stats.needs, esteem: 50 } },
     };
     const affectionBefore = s.stats.affection;

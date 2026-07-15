@@ -32,8 +32,20 @@ export const BALANCE = {
   MEMORY_WEIGHT_PURCHASE: 3,
   MEMORY_WEIGHT_CHOICE: 2,
 
-  // 안정감 (숨은 값, 0–100)
-  SECURITY_START: 25,
+  // 애착 2축 (숨은 값, 0–100) — 안정감은 두 축의 파생값
+  //   안정감 = 100 − |유기불안 − 친밀위협|,  변동성 = (유기불안 + 친밀위협) / 2
+  ABANDONMENT_START: 0, // 유기불안 시작 (회피형 시작 → 안정감 25 재현)
+  INTIMACY_THREAT_START: 75, // 친밀위협 시작
+  ATTACH_BALANCED_GAP: 20, // |유기불안−친밀위협| 이 값 미만이면 '균형'(안정/혼란 구분)
+  ATTACH_CHAOTIC_SUM: 120, // 균형이면서 합산이 이 값 이상이면 '혼란'
+  ATTACH_SOOTHE: 3, // 적정/거리 존중 접근 시 두 축 동시 진정량
+  ATTACH_THREAT_UP: 5, // 과한 접근 시 친밀위협 상승량
+  RETREAT_VOL_SCALE: 1.0, // 잠수 확률 = RETREAT_PROB × (1 + SCALE × 변동성/100)
+  CONVERGE_STEP: 25, // 위기 루프(병간호/잠수) 매 턴 균형점으로 이동량 (상한 25%)
+  ATTACH_RETURN_GAP: 20, // 위기 루프에서 |유기불안−친밀위협| 이 값 미만이면 복귀
+  ABANDONMENT_SICK_CEILING: 85, // 유기불안이 이 값 초과면 돌이 아파짐 → 강제 병간호
+
+  SECURITY_START: 25, // (파생 초기값 참고용 — 실제 값은 위 두 축에서 계산)
   RETREAT_GAP: 2, // 허용치 대비 이만큼 이상 초과하면 잠수 판정 (기획서 명시)
   RETREAT_PROB: 0.35,
   SECURITY_GAIN_MATCHED: 3,
@@ -57,8 +69,15 @@ export const BALANCE = {
   NEED_FILLED_THRESHOLD: 60, // 이 값 이상이면 해당 욕구 '충족' — 단계 파생 기준
   NEED_REGRESS_AMOUNT: 30, // 방치 퇴행 1스텝당 최상위 충족 욕구 하락량
 
+  // 세션당 상한 — 90분 초과 집중은 "잠수했거나 타이머를 잊은 것"으로 취급,
+  // 게이지·정성 모두 이 시점 이후로는 오르지 않는다. (휴식표 90+→30분과 정합)
+  SESSION_CAP_MINUTES: 90,
+
   // 자유행동 (순차 자가 충족 · 개인작업)
-  FREE_SELF_CARE_PROB: 0.5, // 첫 미충족 욕구를 스스로 채우는 행동 확률
+  // selfCare 확률: 최우선 욕구(생리)가 절반 미만이면 무조건, 아니면 전단계 평균 비례.
+  //   p = 첫욕구<50 ? 1 : max(FLOOR, avg(전단계)/100)  — 전단계 없으면 FLOOR.
+  FREE_SELF_CARE_PROB: 0.5, // 확률 바닥값 (전단계 평균 50% 미만 구간)
+  FREE_URGENT_THRESHOLD: 50, // 최우선 욕구가 이 값 미만이면 돌이 무조건 스스로 채운다
   FREE_SELF_CARE_GAIN: 5, // 자가 충족 1회당 게이지 상승
   PERSONAL_WORK_BASE: 0.05,
   PERSONAL_WORK_SCALE: 0.25, // + SCALE × (욕구 4종 평균/100) — 단, 4종 전부 충족 시에만 판정

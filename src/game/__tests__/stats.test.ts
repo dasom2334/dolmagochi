@@ -118,19 +118,31 @@ describe('settleCalendar — 달력일 정산', () => {
 });
 
 describe('applyStatOutcome', () => {
-  it('기분/호감도/안정감/욕구/자아실현 반영과 클램프', () => {
-    const r = applyStatOutcome(initialStats(), {
-      stats: { mood: 100, affection: 2, security: -100 },
+  it('기분/호감도/욕구/자아실현 반영과 클램프', () => {
+    // 안정 상태(안정감 100)에서 호감도가 온전히 오르도록
+    const base = { ...initialStats(), abandonment: 40, intimacyThreat: 40, security: 100 };
+    const r = applyStatOutcome(base, {
+      stats: { mood: 100, affection: 2 },
       needs: { belonging: 30, esteem: 500 },
       selfActualization: 15,
     });
     expect(r.mood).toBe(100);
-    expect(r.affection).toBe(2);
-    expect(r.security).toBe(0);
+    expect(r.affection).toBe(2); // 안정감 100 → 비례 래칫 온전 상승
     expect(r.needs.belonging).toBe(30);
     expect(r.needs.esteem).toBe(100);
     expect(r.needs.physiological).toBe(0); // 명시된 게이지만 찬다
     expect(r.selfActualization).toBe(15);
+  });
+
+  it('B13 호감도 비례 래칫: 안정감이 낮으면 상승분이 준다', () => {
+    const r = applyStatOutcome(initialStats(), { stats: { affection: 4 } }); // 안정감 25
+    expect(r.affection).toBeCloseTo(4 * 0.25); // 1
+  });
+
+  it('애착 태그: 친밀위협 상승 → 안정감(파생) 하락', () => {
+    const r = applyStatOutcome(initialStats(), { stats: { intimacyThreat: 10 } });
+    expect(r.intimacyThreat).toBe(85); // 75 + 10
+    expect(r.security).toBe(15); // 100 − |0 − 85|
   });
 });
 

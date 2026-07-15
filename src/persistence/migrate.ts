@@ -1,6 +1,8 @@
 import type { GameState } from '../game/types';
 import { DEFAULT_NOTIFY_SETTINGS, SCHEMA_VERSION } from '../game/stateMachine';
 import { cloneFlowtime } from '../game/timer';
+import { BALANCE } from '../game/balance';
+import { derivedSecurity } from '../game/security';
 
 /**
  * 상태 스키마 버전 마이그레이션 체인.
@@ -75,6 +77,24 @@ export function migrateState(state: GameState): GameState | null {
       settings: {
         ...s.settings,
         notify: { enabled: s.settings.notify.enabled, restEnd: s.settings.notify.restEnd, focusMarks },
+      },
+    };
+  }
+  // v8 → v9: 애착 2축(유기불안·친밀위협) 도입. 구 단일 security는 버리고
+  // 두 축을 시작값으로 주입(안정감은 파생). 나머지 진행(욕구·정성·해금)은 보존.
+  // (아이템 기반 해금 리셋은 M8 상점과 함께 별도 마이그레이션에서 처리)
+  if (s.schemaVersion === 8) {
+    s = {
+      ...s,
+      schemaVersion: 9,
+      stats: {
+        ...s.stats,
+        abandonment: BALANCE.ABANDONMENT_START,
+        intimacyThreat: BALANCE.INTIMACY_THREAT_START,
+        security: derivedSecurity(
+          BALANCE.ABANDONMENT_START,
+          BALANCE.INTIMACY_THREAT_START,
+        ),
       },
     };
   }

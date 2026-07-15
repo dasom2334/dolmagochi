@@ -27,7 +27,7 @@ import { drawMemory, remember, resolveReflection } from './memory';
 import { drawEligibleLine, selectDialoguePool } from './dialogue';
 import { pickFreeAction } from './freeAction';
 import { clampStat, dateKey, initialStats, needsLevelOf, settleCalendar } from './stats';
-import { intimacyOutcome } from './security';
+import { derivedSecurity, intimacyOutcome } from './security';
 import { absenceSessionEnd, presentState, startAbsence } from './absence';
 import {
   applyOutcome,
@@ -43,7 +43,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -170,15 +170,20 @@ function addJournal(
  */
 function applyIntimacy(state: GameState, intimacy: number, rng: Rng): GameState {
   if (state.era !== 'raising' || state.presence.state === 'absent') return state;
-  const outcome = intimacyOutcome(state.stats.security, intimacy, rng);
+  const { abandonment, intimacyThreat } = state.stats;
+  const oc = intimacyOutcome(abandonment, intimacyThreat, intimacy, rng);
+  const ab = clampStat(abandonment + oc.abandonmentDelta);
+  const it = clampStat(intimacyThreat + oc.intimacyThreatDelta);
   let next: GameState = {
     ...state,
     stats: {
       ...state.stats,
-      security: clampStat(state.stats.security + outcome.securityDelta),
+      abandonment: ab,
+      intimacyThreat: it,
+      security: derivedSecurity(ab, it),
     },
   };
-  if (outcome.retreat) {
+  if (oc.retreat) {
     next = { ...next, presence: startAbsence(rng) };
   }
   return next;
@@ -528,7 +533,9 @@ export function transition(
             ? joinPages(pickText(data.text, result.textId, rng))
             : '';
           if (result.type === 'reflection') memory = result.memory;
-          if (result.type === 'selfCare') {
+          // 90분 상한: 초과 후엔 자유행동 게이지·자아실현 상승 정지 (서술 줄은 계속)
+          const withinCap = el <= BALANCE.SESSION_CAP_MINUTES * 60;
+          if (result.type === 'selfCare' && withinCap) {
             stats = {
               ...stats,
               needs: {
@@ -539,7 +546,7 @@ export function transition(
               },
             };
           }
-          if (result.type === 'personalWork') {
+          if (result.type === 'personalWork' && withinCap) {
             stats = {
               ...stats,
               selfActualization: clampStat(
@@ -640,7 +647,8 @@ export function transition(
       if (!action) return state;
 
       const mins = state.session.elapsedSec / 60;
-      const care = accrueCare(state.care, mins);
+      // 90분 상한: 정성은 상한까지만 환산 (초과분은 보상 없음)
+      const care = accrueCare(state.care, Math.min(mins, BALANCE.SESSION_CAP_MINUTES));
       const earned = care.points - state.care.points;
       const restMin = restMinutesFor(mins, state.settings.flowtime);
       // 세션 동안 돌이 곁에 있었는가 — 없었으면 '옆에 있었다' 대신 부재 마무리
