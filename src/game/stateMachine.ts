@@ -1110,6 +1110,14 @@ export function transition(
         era: 'cohabit',
         phase: 'actionSelect',
         presence: presentState(),
+        // 엔딩 플로우의 세션 잔재(journal/elapsedSec/choiceState)를 끌고 오지 않도록
+        // START_FOCUS처럼 세션을 새로 만들고, 동거 전환 문구만 화자 서술로 한 번 띄운다
+        session: {
+          ...emptySession(),
+          narratorLine: joinPages(
+            pickText(data.text, data.endings.cohabitTransitionId, rng),
+          ),
+        },
       };
     }
 

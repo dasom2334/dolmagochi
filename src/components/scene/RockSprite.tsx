@@ -1,5 +1,17 @@
-/** 돌 본체 — 애니메이션 없음 (돌은 절대 움직이지 않는다). moss = 이끼 배치 시 */
-export function RockSprite({ moss }: { moss: boolean }) {
+import type { SproutStage } from '../../game/sprout';
+import { Sprout } from './Sprout';
+
+/**
+ * 돌 본체 — 애니메이션 없음 (돌은 절대 움직이지 않는다). moss = 이끼 배치 시.
+ * sprout = 엔딩 분기 이후 돌 위에 돋은 나무 새싹(빈자리=무성 / 동거=의존도 단계별 시듦). null이면 없음.
+ */
+export function RockSprite({
+  moss,
+  sprout,
+}: {
+  moss: boolean;
+  sprout: SproutStage | null;
+}) {
   return (
     <div
       style={{
@@ -41,6 +53,7 @@ export function RockSprite({ moss }: { moss: boolean }) {
           }}
         />
       )}
+      {sprout !== null && <Sprout stage={sprout} />}
     </div>
   );
 }

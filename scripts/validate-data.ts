@@ -196,6 +196,10 @@ export function validateGameData(
   d.absent.forEach((l, i) => checkLine(l, `dialogues.absent[${i}]`));
   d.apart.forEach((l, i) => checkLine(l, `dialogues.apart[${i}]`));
   d.apartVisit.forEach((l, i) => checkLine(l, `dialogues.apartVisit[${i}]`));
+  // selectDialoguePool은 dependence가 임계 미만이면 stage0로 하한 처리하므로,
+  // 첫 단계 임계는 0이어야 한다(그래야 동거 시작=stage0가 정확히 맞물린다).
+  if (d.cohabitStages.length > 0 && d.cohabitStages[0].minDependence !== 0)
+    errors.push('cohabitStages[0].minDependence는 0이어야 함');
   let prevDep = -Infinity;
   d.cohabitStages.forEach((s, i) => {
     if (s.minDependence < prevDep)

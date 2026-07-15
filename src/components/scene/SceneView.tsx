@@ -9,6 +9,7 @@ import { DaySun } from './DaySun';
 import { SunPatch } from './SunPatch';
 import { GrassTufts } from './GrassTufts';
 import { RockSprite, RockShadow } from './RockSprite';
+import { sproutStageOf } from '../../game/sprout';
 import { PlantProp } from './props/PlantProp';
 import { SodaProp } from './props/SodaProp';
 import { CupProp } from './props/CupProp';
@@ -62,7 +63,14 @@ export function SceneView({ state }: { state: GameState }) {
       <Floor bg={colors.floor} line={colors.line} />
       {isFocus && sceneId === 'sun' && <SunPatch />}
       {isFocus && sceneId === 'walk' && <GrassTufts />}
-      {present ? <RockSprite moss={placed('moss')} /> : <RockShadow />}
+      {present ? (
+        <RockSprite
+          moss={placed('moss')}
+          sprout={sproutStageOf(state, gameData.dialogues)}
+        />
+      ) : (
+        <RockShadow />
+      )}
       {placed('cup') && <CupProp />}
       {showBook && <BookProp />}
       {placed('plant') && <PlantProp />}

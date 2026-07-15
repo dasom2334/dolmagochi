@@ -14,10 +14,12 @@ const hasErr = (errs: string[], needle: string) =>
   errs.some((e) => e.includes(needle));
 
 describe('validateGameData — 실데이터', () => {
-  it('현행 데이터는 에러 0으로 통과 (TODO·수량 경고는 허용)', () => {
+  it('현행 데이터는 에러 0으로 통과', () => {
+    // todos(미작성 [TODO] 슬롯)는 검증하지 않는다 — [TODO] 플레이스홀더는
+    // 절대 규칙상 허용되는 상태이고 CLI도 정보성으로만 출력(exit 0)하므로,
+    // 전체 스위트를 "미작성 0" 불변식에 묶지 않는다.
     const r = validateGameData(gameData, gameData.text);
     expect(r.errors).toEqual([]);
-    expect(r.todos.length).toBeGreaterThan(0); // 미작성 슬롯이 리포트됨
   });
 });
 
@@ -72,6 +74,14 @@ describe('validateGameData — 불량 픽스처 검출', () => {
     const d = clone();
     d.dialogues.cohabitStages[0].minDependence = 999;
     expect(hasErr(validateGameData(d, d.text).errors, 'minDependence 오름차순')).toBe(true);
+  });
+
+  it('cohabitStages[0].minDependence가 0이 아님', () => {
+    const d = clone();
+    d.dialogues.cohabitStages[0].minDependence = 10;
+    expect(
+      hasErr(validateGameData(d, d.text).errors, 'cohabitStages[0].minDependence는 0이어야 함'),
+    ).toBe(true);
   });
 
   it('알 수 없는 reflection token', () => {
