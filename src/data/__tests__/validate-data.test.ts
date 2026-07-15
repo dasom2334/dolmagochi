@@ -14,10 +14,10 @@ const hasErr = (errs: string[], needle: string) =>
   errs.some((e) => e.includes(needle));
 
 describe('validateGameData — 실데이터', () => {
-  it('현행 데이터는 에러 0으로 통과 (TODO·수량 경고는 허용)', () => {
+  it('현행 데이터는 에러 0으로 통과, 모든 슬롯이 채워짐(TODO 0)', () => {
     const r = validateGameData(gameData, gameData.text);
     expect(r.errors).toEqual([]);
-    expect(r.todos.length).toBeGreaterThan(0); // 미작성 슬롯이 리포트됨
+    expect(r.todos).toEqual([]); // 대사 집필 완료 — 미작성 슬롯 없음
   });
 });
 
