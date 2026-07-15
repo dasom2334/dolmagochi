@@ -40,4 +40,10 @@ describe('dueFocusMarks — 집중 구간 알림(= Flowtime 경계)', () => {
   it('기본 설정에서는 집중 구간 알림이 없다(전부 off)', () => {
     expect(dueFocusMarks(0, 9999, DEFAULT_NOTIFY_SETTINGS, FT)).toEqual([]);
   });
+
+  it('기본 focusMarks 길이는 기본 경계 개수와 일치한다 (암묵 커플링 방지)', () => {
+    expect(DEFAULT_NOTIFY_SETTINGS.focusMarks).toHaveLength(
+      DEFAULT_FLOWTIME.bounds.length,
+    );
+  });
 });

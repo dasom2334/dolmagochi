@@ -66,16 +66,14 @@ export function App() {
       new URL('./workers/restTimer.worker.ts', import.meta.url),
       { type: 'module' },
     );
-    // 휴식 종료 알림 — 설정(전체·휴식)이 켜져 있고 백그라운드일 때만 OS 알림.
-    // (화면을 보고 있으면 UI가 이미 종료를 보여주므로 굳이 안 띄운다)
+    // 휴식 종료 알림 — 워커가 endsAt 도달 시 통지. '휴식 종료 알림'이 켜진 경우에만,
+    // 포그라운드=인앱 종소리(효과음 설정과 무관한 알림 채널이라 force), 백그라운드=OS 알림.
+    // (앱은 REST_END를 UI에서 쓰지 않고 rest→START_FOCUS 직행이므로 종료 신호는 워커가 담당)
     worker.onmessage = () => {
-      const st = appStore.getState().state;
-      // 휴식 종료 종소리(포그라운드). 백그라운드는 오디오가 스로틀될 수 있어 OS 알림이 담당.
-      playSound('rest');
-      const nf = st.settings.notify;
-      if (nf.enabled && nf.restEnd && document.hidden) {
-        notify(t(SYS.notification.restEnd));
-      }
+      const nf = appStore.getState().state.settings.notify;
+      if (!nf.enabled || !nf.restEnd) return;
+      if (document.hidden) notify(t(SYS.notification.restEnd));
+      else playSound('rest', true);
     };
     workerRef.current = worker;
 

@@ -18,6 +18,7 @@ import type {
 import {
   accrueCare,
   cloneFlowtime,
+  DEFAULT_FLOWTIME,
   formatElapsed,
   normalizeFlowtime,
   restMinutesFor,
@@ -51,8 +52,8 @@ export const SCHEMA_VERSION = 8;
 export const DEFAULT_NOTIFY_SETTINGS: GameState['settings']['notify'] = {
   enabled: true,
   restEnd: true,
-  // 기본 Flowtime 경계 3개(25/50/90)에 대응 — 전부 off
-  focusMarks: [false, false, false],
+  // 기본 Flowtime 경계 개수에 맞춰 — 전부 off (경계 수가 바뀌어도 자동 정합)
+  focusMarks: Array.from({ length: DEFAULT_FLOWTIME.bounds.length }, () => false),
 };
 
 export function createInitialState(
