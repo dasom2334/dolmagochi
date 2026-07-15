@@ -27,6 +27,7 @@ function soundForEvent(event: GameEvent): SoundName | null {
     case 'SET_NOISE':
     case 'SET_NOTIFY':
     case 'SET_PAUSE_ON_HIDE':
+    case 'SET_FOCUS_NOTIFY':
       return event.on ? 'toggleOn' : 'toggleOff';
     case 'SELECT_ACTION':
     case 'END_FOCUS':

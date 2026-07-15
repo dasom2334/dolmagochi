@@ -6,7 +6,7 @@
   font-stretch: normal;
   font-weight: 400;
   font-display: swap;
-  src: local('Galmuri11 Regular'), url('/fonts/Galmuri11.woff2') format('woff2');
+  src: local('Galmuri11 Regular'), url('./fonts/Galmuri11.woff2') format('woff2');
 }
 @font-face {
   font-family: Galmuri11;
@@ -14,7 +14,7 @@
   font-stretch: normal;
   font-weight: 700;
   font-display: swap;
-  src: local('Galmuri11 Bold'), url('/fonts/Galmuri11-Bold.woff2') format('woff2');
+  src: local('Galmuri11 Bold'), url('./fonts/Galmuri11-Bold.woff2') format('woff2');
 }
 
 body {

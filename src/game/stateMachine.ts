@@ -18,6 +18,7 @@ import type {
 import {
   accrueCare,
   cloneFlowtime,
+  DEFAULT_FLOWTIME,
   formatElapsed,
   normalizeFlowtime,
   restMinutesFor,
@@ -42,7 +43,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -51,9 +52,8 @@ export const SCHEMA_VERSION = 7;
 export const DEFAULT_NOTIFY_SETTINGS: GameState['settings']['notify'] = {
   enabled: true,
   restEnd: true,
-  focus25: false,
-  focus50: false,
-  focus90: false,
+  // 기본 Flowtime 경계 개수에 맞춰 — 전부 off (경계 수가 바뀌어도 자동 정합)
+  focusMarks: Array.from({ length: DEFAULT_FLOWTIME.bounds.length }, () => false),
 };
 
 export function createInitialState(
@@ -433,9 +433,10 @@ export function transition(
       let next: GameState = { ...state, session: { ...s, elapsedSec: el } };
 
       // 1) 화자 관찰 로테이션 — 카탈로그 변형을 순서대로 순환
+      // 선택지가 떠 있어도 서술은 계속 흐른다(선택지는 아래 별도 박스로 남는다)
       const ambientVariants =
         data.text[present ? action.ambientId : SYS.absentAmbient] ?? [];
-      if (ambientVariants.length > 0 && !next.session.choiceState) {
+      if (ambientVariants.length > 0) {
         const wantIdx =
           Math.floor(el / BALANCE.AMBIENT_ROTATE_SEC) % ambientVariants.length;
         if (wantIdx !== next.session.ambIdx) {
@@ -487,23 +488,13 @@ export function transition(
         }
       }
 
-      // 3) 선택지 무시 → 조용히 회수
-      const cs = next.session.choiceState;
-      if (cs && el - cs.shownAtSec > BALANCE.CHOICE_RECALL_SEC) {
-        next = {
-          ...next,
-          pendingEvent: cs.source === 'foreshadow' ? null : next.pendingEvent,
-          session: {
-            ...next.session,
-            choiceState: null,
-            choicesFired:
-              cs.source === 'action'
-                ? next.session.choicesFired + 1
-                : next.session.choicesFired,
-            narratorLine: joinPages(pickText(data.text, SYS.choiceRecall, rng)),
-          },
-        };
-      }
+      // 3) 선택지는 무시해도 회수되지 않고 아래에 남는다 (선택하거나 세션이 끝날 때까지)
+
+      // 이번 틱에 시간 문턱이 발화하면(반추 간격과 자주 겹친다), 문턱 대사가 묻히지 않도록
+      // 반추의 서술(일지·내레이터)만 억제한다 — 수치(자가충족·개인작업)는 그대로 적용.
+      const timeMarkFiring = data.timeMarks.focus.some(
+        (mark, i) => el >= mark.minSec && !next.session.timeMarksFired.includes(i),
+      );
 
       // 4) 반추/자유행동/회상 틱
       const interval =
@@ -573,8 +564,9 @@ export function transition(
           line = absentReflectionLine(next, data, rng);
         }
 
-        const showAsNarrator =
-          action.id === 'free' && !next.session.choiceState && present;
+        // 선택지가 떠 있어도 자유행동 반추 서술은 계속 흐른다(선택지는 아래 별도 박스).
+        // 단, 이번 틱에 시간 문턱이 발화하면 반추 서술은 억제(수치는 위에서 이미 적용).
+        const showAsNarrator = action.id === 'free' && present && !timeMarkFiring;
         next = {
           ...next,
           memory,
@@ -583,7 +575,10 @@ export function transition(
           session: {
             ...next.session,
             lastReflectAtSec: el,
-            journal: addJournal(next.session.journal, el, line),
+            journal:
+              line && !timeMarkFiring
+                ? addJournal(next.session.journal, el, line)
+                : next.session.journal,
             narratorLine:
               showAsNarrator && line ? line : next.session.narratorLine,
           },
@@ -1103,6 +1098,19 @@ export function transition(
         settings: {
           ...state.settings,
           notify: { ...state.settings.notify, [event.key]: event.on },
+        },
+      };
+    }
+    case 'SET_FOCUS_NOTIFY': {
+      const focusMarks = state.settings.notify.focusMarks.slice();
+      // 경계 개수만큼 자리를 채워 두고(부족하면 false) 해당 인덱스를 설정
+      while (focusMarks.length <= event.index) focusMarks.push(false);
+      focusMarks[event.index] = event.on;
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          notify: { ...state.settings.notify, focusMarks },
         },
       };
     }

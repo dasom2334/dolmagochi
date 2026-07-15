@@ -4,10 +4,13 @@ import { gameData } from './store/gameStore';
 import { isRockPresent } from './game/stateMachine';
 import { SYS, UI } from './game/text';
 import { bootRestore, flushSave, startAutosave } from './persistence/persist';
+import { claimSingleTab } from './persistence/singleTab';
+import { OccupiedScreen } from './components/OccupiedScreen';
 import { notify, requestNotifyPermission } from './notifications';
 import { pushToast } from './toast';
 import { dueFocusMarks } from './game/notify';
-import { playSound, setSoundEnabled } from './sound';
+import { ensureAudioContext, playSound, setSoundEnabled } from './sound';
+import { startWhiteNoise, stopWhiteNoise } from './audio/whiteNoise';
 import { ToastHost } from './components/ToastHost';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
@@ -30,32 +33,54 @@ export function App() {
   const [nowMs, setNowMs] = useState(() => now());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [booted, setBooted] = useState(false);
+  // 'claiming': 활성 탭 락 판정 중 · 'active': 이 탭이 활성 · 'occupied': 다른 탭이 이미 활성(읽기전용)
+  const [tabRole, setTabRole] = useState<'claiming' | 'active' | 'occupied'>(
+    'claiming',
+  );
   const lastRef = useRef(now());
   const bootedRef = useRef(false);
   const workerRef = useRef<Worker | null>(null);
 
-  // 1회성 부트: 세이브 복원 → 실제 가시성으로 일시정지 재설정 → 알림 권한(첫 진입 1회).
-  // 리소스를 만들지 않으므로 가드로 감싸도 대칭 문제 없음(StrictMode 이중 실행 방지).
+  // 1회성 부트 — 단, 활성 탭 락을 먼저 잡는다(두 창이 세이브를 서로 덮지 않게).
+  // 활성 탭만 세이브 복원·자동저장. 둘째 탭은 읽기전용(복원 안 함 → bootComplete 게이트로 저장도 차단).
   useEffect(() => {
     if (bootedRef.current) return;
     bootedRef.current = true;
-    void (async () => {
-      await bootRestore(Date.now());
-      lastRef.current = Date.now();
-      setNowMs(Date.now());
-      // 복원 시 visibilitychange가 안 뜨므로 현재 실제 가시성으로 paused를 맞춘다
-      // (숨김-집중 상태로 저장→포그라운드 로드 시 타이머가 얼어붙지 않도록).
-      // paused는 집중 세션에만 의미가 있으므로 focus일 때만 던진다.
-      if (appStore.getState().state.phase === 'focus') {
-        const pauseOnHide = appStore.getState().state.settings.pauseOnHide;
-        dispatch({ type: 'SET_PAUSED', paused: pauseOnHide && document.hidden });
-      }
-      if (!appStore.getState().state.settings.notifAsked) {
-        await requestNotifyPermission();
-        dispatch({ type: 'MARK_NOTIF_ASKED' });
-      }
-      setBooted(true);
-    })();
+    claimSingleTab({
+      onActive: () => {
+        setTabRole('active');
+        void (async () => {
+          await bootRestore(Date.now());
+          lastRef.current = Date.now();
+          setNowMs(Date.now());
+          // 복원 시 visibilitychange가 안 뜨므로 현재 실제 가시성으로 paused를 맞춘다
+          // (숨김-집중 상태로 저장→포그라운드 로드 시 타이머가 얼어붙지 않도록).
+          if (appStore.getState().state.phase === 'focus') {
+            const pauseOnHide = appStore.getState().state.settings.pauseOnHide;
+            dispatch({
+              type: 'SET_PAUSED',
+              paused: pauseOnHide && document.hidden,
+            });
+          }
+          if (!appStore.getState().state.settings.notifAsked) {
+            await requestNotifyPermission();
+            dispatch({ type: 'MARK_NOTIF_ASKED' });
+          }
+          // 다른 창이 닫혀 이 탭이 승격·재로드된 경우 안내 문구
+          if (sessionStorage.getItem('dol-promoted') === '1') {
+            sessionStorage.removeItem('dol-promoted');
+            pushToast(t(SYS.singleTab.promoted));
+          }
+          setBooted(true);
+        })();
+      },
+      onOccupied: () => setTabRole('occupied'),
+      onPromoted: () => {
+        // 앞 창이 닫혀 락 획득 — 최신 세이브로 새로 로드하며 안내를 띄운다
+        sessionStorage.setItem('dol-promoted', '1');
+        window.location.reload();
+      },
+    });
   }, []);
 
   // 워커 · 탭이탈 flush 리스너 · 자동저장 — 매 마운트 대칭 생성/해제.
@@ -65,16 +90,14 @@ export function App() {
       new URL('./workers/restTimer.worker.ts', import.meta.url),
       { type: 'module' },
     );
-    // 휴식 종료 알림 — 설정(전체·휴식)이 켜져 있고 백그라운드일 때만 OS 알림.
-    // (화면을 보고 있으면 UI가 이미 종료를 보여주므로 굳이 안 띄운다)
+    // 휴식 종료 알림 — 워커가 endsAt 도달 시 통지. '휴식 종료 알림'이 켜진 경우에만,
+    // 포그라운드=인앱 종소리(효과음 설정과 무관한 알림 채널이라 force), 백그라운드=OS 알림.
+    // (앱은 REST_END를 UI에서 쓰지 않고 rest→START_FOCUS 직행이므로 종료 신호는 워커가 담당)
     worker.onmessage = () => {
-      const st = appStore.getState().state;
-      // 휴식 종료 종소리(포그라운드). 백그라운드는 오디오가 스로틀될 수 있어 OS 알림이 담당.
-      playSound('rest');
-      const nf = st.settings.notify;
-      if (nf.enabled && nf.restEnd && document.hidden) {
-        notify(t(SYS.notification.restEnd));
-      }
+      const nf = appStore.getState().state.settings.notify;
+      if (!nf.enabled || !nf.restEnd) return;
+      if (document.hidden) notify(t(SYS.notification.restEnd));
+      else playSound('rest', true);
     };
     workerRef.current = worker;
 
@@ -128,6 +151,20 @@ export function App() {
     setSoundEnabled(state.settings.soundOn);
   }, [state.settings.soundOn]);
 
+  // 화이트노이즈 앰비언트 — noiseOn과 동기화. 언마운트 시 정지.
+  useEffect(() => {
+    if (state.settings.noiseOn) startWhiteNoise();
+    else stopWhiteNoise();
+  }, [state.settings.noiseOn]);
+  useEffect(() => stopWhiteNoise, []);
+
+  // iOS 등 오디오 언락 — 첫 사용자 제스처에서 AudioContext resume (1회성)
+  useEffect(() => {
+    const unlock = () => ensureAudioContext();
+    document.addEventListener('pointerdown', unlock, { once: true });
+    return () => document.removeEventListener('pointerdown', unlock);
+  }, []);
+
   // 집중 구간 알림(25/50/90분) — 문턱을 넘는 순간 1회.
   // 포그라운드=인앱 토스트, 백그라운드=OS 알림. 개별 토글이 켜진 문턱만.
   // (집중은 탭이 앞에 있을 때만 시간이 흐르므로 실제로는 대개 토스트로 뜬다)
@@ -139,13 +176,23 @@ export function App() {
     }
     const cur = state.session.elapsedSec;
     const prev = cur < focusMarkRef.current ? 0 : focusMarkRef.current;
-    for (const key of dueFocusMarks(prev, cur, state.settings.notify)) {
-      const body = t(SYS.notification.focus[key]);
+    for (const min of dueFocusMarks(
+      prev,
+      cur,
+      state.settings.notify,
+      state.settings.flowtime,
+    )) {
+      const body = tf(SYS.notification.focusMark, { min });
       if (document.hidden) notify(body);
       else pushToast(body);
     }
     focusMarkRef.current = cur;
-  }, [state.phase, state.session.elapsedSec, state.settings.notify]);
+  }, [
+    state.phase,
+    state.session.elapsedSec,
+    state.settings.notify,
+    state.settings.flowtime,
+  ]);
 
   // 탭 이탈 시 일시정지 — 설정(pauseOnHide)이 켜져 있을 때만. 집중 세션에만 의미(머신이 phase 가드).
   // pauseOnHide가 켜져 있을 때만 델타 기준점(lastRef)을 리셋해 숨김 시간이 집중에 안 더해지게 한다.
@@ -162,6 +209,10 @@ export function App() {
 
   // 타이머 만료는 자동으로 다음 세션으로 넘어가지 않는다 — 시작은 사용자가 정한다.
   // (휴식 종료 알림은 M3, 여기서는 카운트다운만 0에서 멈춘다)
+
+  // 둘째 탭(읽기전용) — 조작 불가 안내 화면. 락 판정 중에는 잠깐 빈 화면.
+  if (tabRole === 'occupied') return <OccupiedScreen />;
+  if (tabRole === 'claiming') return null;
 
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
   const present = isRockPresent(state);

@@ -1,4 +1,4 @@
-import type { GameState } from '../game/types';
+import type { GameState, NotifySettings } from '../game/types';
 import { SCHEMA_VERSION } from '../game/stateMachine';
 import { normalizeFlowtime } from '../game/timer';
 import { migrateState } from './migrate';
@@ -85,13 +85,28 @@ export function readSave(raw: unknown): ReadResult {
   return { ok: true, state: normalizeState(state) };
 }
 
-/** 로드 후 안전 정규화 — 현재는 flowtime 정합화. */
+/**
+ * 로드/임포트 후 안전 정규화 — 깨진 세이브가 런타임에서 크래시하지 않도록.
+ * flowtime은 배정표 정합화, notify는 유효한 NotifySettings로 보정(focusMarks는 경계 개수만큼).
+ */
 function normalizeState(state: GameState): GameState {
+  const flowtime = normalizeFlowtime(state.settings.flowtime);
   return {
     ...state,
     settings: {
       ...state.settings,
-      flowtime: normalizeFlowtime(state.settings.flowtime),
+      flowtime,
+      notify: normalizeNotify(state.settings.notify, flowtime.bounds.length),
     },
+  };
+}
+
+function normalizeNotify(input: unknown, boundCount: number): NotifySettings {
+  const o = input as Partial<NotifySettings> | null | undefined;
+  const src = Array.isArray(o?.focusMarks) ? o.focusMarks : [];
+  return {
+    enabled: typeof o?.enabled === 'boolean' ? o.enabled : true,
+    restEnd: typeof o?.restEnd === 'boolean' ? o.restEnd : true,
+    focusMarks: Array.from({ length: boundCount }, (_, i) => Boolean(src[i])),
   };
 }

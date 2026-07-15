@@ -18,15 +18,6 @@ export const BALANCE = {
   AMBIENT_ROTATE_SEC: 40,
   CHOICE_FIRST_AT_SEC: 300,
   CHOICE_SECOND_AT_SEC: 1500,
-  CHOICE_RECALL_SEC: 120,
-
-  // 집중 구간 알림 문턱 (휴식 티어 경계 25/50/90분과 동일). key = 설정 토글 키.
-  // 포그라운드=토스트 / 백그라운드=OS 알림. 문구는 카탈로그(SYS.notification.focus).
-  NOTIFY_FOCUS_MARKS: [
-    { sec: 1500, key: 'focus25' },
-    { sec: 3000, key: 'focus50' },
-    { sec: 5400, key: 'focus90' },
-  ] as const,
 
   // 대화
   FORESHADOW_PROB: 0.45,

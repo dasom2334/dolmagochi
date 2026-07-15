@@ -41,7 +41,6 @@ export const SYS = {
     visitEnd: 'sys.journal.visitEnd',
   },
   absentAmbient: 'sys.absentAmbient',
-  choiceRecall: 'sys.choiceRecall',
   focusEnd: 'sys.focusEnd',
   focusEndAbsent: 'sys.focusEndAbsent',
   restSummary: 'sys.restSummary',
@@ -68,11 +67,12 @@ export const SYS = {
   },
   notification: {
     restEnd: 'sys.notification.restEnd',
-    focus: {
-      focus25: 'sys.notification.focus.25m',
-      focus50: 'sys.notification.focus.50m',
-      focus90: 'sys.notification.focus.90m',
-    },
+    focusMark: 'sys.notification.focusMark', // {min}
+  },
+  singleTab: {
+    occupied: 'sys.singleTab.occupied',
+    occupiedHint: 'sys.singleTab.occupiedHint',
+    promoted: 'sys.singleTab.promoted',
   },
   placement: { prompt: 'sys.placement.prompt' },
   hints: { flowtime: 'sys.hints.flowtime' },
@@ -98,14 +98,13 @@ export const UI = {
     no: 'ui.buttons.no',
     settings: 'ui.buttons.settings',
     close: 'ui.buttons.close',
-    noiseOn: 'ui.buttons.noiseOn',
-    noiseOff: 'ui.buttons.noiseOff',
     epilogueDone: 'ui.buttons.epilogueDone',
     startAnyway: 'ui.buttons.startAnyway',
     keepResting: 'ui.buttons.keepResting',
     exportSave: 'ui.buttons.exportSave',
     importSave: 'ui.buttons.importSave',
     resetFlowtime: 'ui.buttons.resetFlowtime',
+    back: 'ui.buttons.back',
   },
   labels: {
     locked: 'ui.labels.locked',
@@ -114,13 +113,11 @@ export const UI = {
     care: 'ui.labels.care', // {points}
     noiseSetting: 'ui.labels.noiseSetting',
     soundSetting: 'ui.labels.soundSetting',
+    soundGroup: 'ui.labels.soundGroup',
+    timerGroup: 'ui.labels.timerGroup',
     notifyAll: 'ui.labels.notifyAll',
-    notify: {
-      restEnd: 'ui.labels.notifyRest',
-      focus25: 'ui.labels.notifyFocus25',
-      focus50: 'ui.labels.notifyFocus50',
-      focus90: 'ui.labels.notifyFocus90',
-    },
+    notifyRest: 'ui.labels.notifyRest',
+    tierNotify: 'ui.labels.tierNotify',
     flowtime: {
       title: 'ui.labels.flowtimeTitle',
       hint: 'ui.labels.flowtimeHint',

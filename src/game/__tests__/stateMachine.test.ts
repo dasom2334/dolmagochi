@@ -100,16 +100,31 @@ describe('기본 사이클: 행동선택 → 집중 → 휴식 → 행동선택'
 });
 
 describe('집중 중 조용한 선택지', () => {
-  it('등장 → 무시하면 조용히 회수', () => {
+  it('등장 → 무시해도 물러가지 않고 아래에 남는다', () => {
     let s = run(init(), [
       { type: 'START_FOCUS', nowMs: T0 },
       ...ticks(BALANCE.CHOICE_FIRST_AT_SEC),
     ]);
     expect(s.session.choiceState).toMatchObject({ source: 'action', index: 0 });
-    s = run(s, ticks(BALANCE.CHOICE_RECALL_SEC + 10));
-    expect(s.session.choiceState).toBeNull();
-    expect(s.session.choicesFired).toBe(1);
-    expect(s.session.narratorLine).toBe(T('sys.choiceRecall'));
+    // 오래 지나도 회수되지 않고 그대로 유지 — 선택 전까지는 소진되지 않는다
+    s = run(s, ticks(1200));
+    expect(s.session.choiceState).toMatchObject({ source: 'action', index: 0 });
+    expect(s.session.choicesFired).toBe(0);
+  });
+
+  it('선택지가 떠 있어도 서술(ambient)은 계속 흐른다 (별도 박스)', () => {
+    let s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(BALANCE.CHOICE_FIRST_AT_SEC),
+    ]);
+    expect(s.session.choiceState).not.toBeNull();
+    const seen = new Set<string>();
+    for (let k = 0; k < 4; k++) {
+      s = run(s, ticks(BALANCE.AMBIENT_ROTATE_SEC));
+      seen.add(s.session.narratorLine);
+      expect(s.session.choiceState).not.toBeNull(); // 선택지는 계속 남아있고
+    }
+    expect(seen.size).toBeGreaterThan(1); // 서술은 로테이션으로 갱신됨
   });
 
   it('CHOICE_PICKED: 추첨된 결과가 서술·일지·기억에 남는다', () => {
@@ -193,6 +208,21 @@ describe('시간 문턱 발화 (timeMarks)', () => {
     // 같은 문턱은 다시 발화하지 않음
     const firedCount = s.session.timeMarksFired.filter((i) => i === 0).length;
     expect(firedCount).toBe(1);
+  });
+
+  it('문턱 발화 틱엔 반추 서술을 억제해 문턱 대사가 묻히지 않는다 (수치는 유지)', () => {
+    // read(반추 간격 600s)가 30분 문턱(1800초)과 겹치는 틱
+    const s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 }, // 기본 selectedAction=read
+      ...ticks(1800),
+    ]);
+    const mark30 = gameData.timeMarks.focus.find((m) => m.minSec === 1800)!;
+    const at30 = s.session.journal.filter((j) => j.t === '30:00');
+    // 30:00엔 문턱 대사만 남는다 (반추 서술은 억제 — 없었다면 반추+문턱 2줄)
+    expect(at30).toHaveLength(1);
+    expect(at30[0].text).toBe(T(mark30.textId));
+    // 반추 블록 자체는 돌았다(간격 리셋) → 수치는 그대로 적용됨
+    expect(s.session.lastReflectAtSec).toBe(1800);
   });
 
   it('END_FOCUS: 배정된 휴식 길이 문턱 발화가 일지에 남는다', () => {
@@ -558,20 +588,27 @@ describe('상점 — 구매 ≠ 배치', () => {
   });
 });
 
-describe('SET_NOTIFY — 알림 설정 토글', () => {
-  it('개별 키를 켜고 끄며 다른 키는 보존한다', () => {
+describe('SET_NOTIFY / SET_FOCUS_NOTIFY — 알림 설정 토글', () => {
+  it('전체·휴식 키를 켜고 끄며 다른 키는 보존', () => {
     let s = init();
-    // 기본값: 전체·휴식 on, 집중 구간 off
+    // 기본값: 전체·휴식 on, 집중 구간(경계별) off
     expect(s.settings.notify.enabled).toBe(true);
-    expect(s.settings.notify.focus50).toBe(false);
+    expect(s.settings.notify.restEnd).toBe(true);
+    expect(s.settings.notify.focusMarks).toEqual([false, false, false]);
 
-    s = run(s, [{ type: 'SET_NOTIFY', key: 'focus50', on: true }]);
-    expect(s.settings.notify.focus50).toBe(true);
-    expect(s.settings.notify.restEnd).toBe(true); // 다른 키 보존
+    s = run(s, [{ type: 'SET_NOTIFY', key: 'restEnd', on: false }]);
+    expect(s.settings.notify.restEnd).toBe(false);
+    expect(s.settings.notify.enabled).toBe(true); // 다른 키 보존
+  });
 
-    s = run(s, [{ type: 'SET_NOTIFY', key: 'enabled', on: false }]);
-    expect(s.settings.notify.enabled).toBe(false);
-    expect(s.settings.notify.focus50).toBe(true); // 개별 상태는 유지(마스터만 꺼짐)
+  it('SET_FOCUS_NOTIFY는 경계 인덱스별로 켜고, 나머지는 보존', () => {
+    let s = init();
+    s = run(s, [{ type: 'SET_FOCUS_NOTIFY', index: 2, on: true }]);
+    expect(s.settings.notify.focusMarks).toEqual([false, false, true]);
+    s = run(s, [{ type: 'SET_FOCUS_NOTIFY', index: 0, on: true }]);
+    expect(s.settings.notify.focusMarks).toEqual([true, false, true]);
+    s = run(s, [{ type: 'SET_FOCUS_NOTIFY', index: 2, on: false }]);
+    expect(s.settings.notify.focusMarks).toEqual([true, false, false]);
   });
 });
 

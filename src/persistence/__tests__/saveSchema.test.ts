@@ -79,7 +79,59 @@ describe('saveSchema — 봉투·검증·마이그레이션', () => {
       }); // v4→v5
       expect(res.state.settings.pauseOnHide).toBe(true); // v5→v6
       expect(res.state.settings.soundOn).toBe(true); // v6→v7
+      expect(res.state.settings.notify.focusMarks).toEqual([false, false, false]); // v7→v8
       expect(res.state.settings.noiseOn).toBe(true); // 기존 필드 보존
+    }
+  });
+
+  it('깨진 notify(null·focusMarks 누락·비불리언)가 로드 시 크래시 없이 보정된다', () => {
+    // notify가 통째로 null
+    const nullNotify = {
+      ...state,
+      settings: { ...state.settings, notify: null },
+    };
+    const r1 = readSave({ format: SAVE_FORMAT, savedAt: T0, state: nullNotify });
+    expect(r1.ok).toBe(true);
+    if (r1.ok) {
+      const nf = r1.state.settings.notify;
+      expect(typeof nf.enabled).toBe('boolean');
+      expect(typeof nf.restEnd).toBe('boolean');
+      expect(nf.focusMarks).toHaveLength(r1.state.settings.flowtime.bounds.length);
+    }
+    // focusMarks 누락 + enabled가 비불리언
+    const badNotify = {
+      ...state,
+      settings: {
+        ...state.settings,
+        notify: { enabled: 'yes', restEnd: false },
+      },
+    };
+    const r2 = readSave({ format: SAVE_FORMAT, savedAt: T0, state: badNotify });
+    expect(r2.ok).toBe(true);
+    if (r2.ok) {
+      const nf = r2.state.settings.notify;
+      expect(nf.enabled).toBe(true); // 비불리언 → 기본 true
+      expect(nf.restEnd).toBe(false); // 유효값 보존
+      expect(nf.focusMarks.every((v) => typeof v === 'boolean')).toBe(true);
+    }
+  });
+
+  it('v7 세이브(집중 알림 focus25/50/90) → v8 focusMarks 배열로 이관', () => {
+    const v7settings = {
+      ...state.settings,
+      notify: { enabled: true, restEnd: true, focus25: false, focus50: true, focus90: true },
+    };
+    const v7 = { ...state, schemaVersion: 7, settings: v7settings };
+    const res = readSave({ format: SAVE_FORMAT, savedAt: T0, state: v7 });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.state.schemaVersion).toBe(SCHEMA_VERSION);
+      // 기본 경계 3개(25/50/90)에 대응해 [false, true, true]
+      expect(res.state.settings.notify.focusMarks).toEqual([false, true, true]);
+      expect(res.state.settings.notify.enabled).toBe(true); // 다른 알림 필드 보존
+      expect(
+        (res.state.settings.notify as unknown as { focus25?: boolean }).focus25,
+      ).toBeUndefined(); // 구 키 제거
     }
   });
 
