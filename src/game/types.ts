@@ -226,7 +226,24 @@ export interface GameState {
   lastSessionEndAt: number | null;
   /** 마지막 정산 달력일 "YYYY-MM-DD" */
   lastDecayDate: string;
-  settings: { noiseOn: boolean; notifAsked: boolean; locale: string };
+  settings: {
+    noiseOn: boolean;
+    notifAsked: boolean;
+    locale: string;
+    /** 알림 설정. enabled=전체 스위치, 나머지는 개별. 포그라운드=토스트 / 백그라운드=OS 알림. */
+    notify: NotifySettings;
+  };
+}
+
+/** 집중 구간 알림 키(개별 토글). 임계는 balance.NOTIFY_FOCUS_MARKS. */
+export type FocusNotifyKey = 'focus25' | 'focus50' | 'focus90';
+
+export interface NotifySettings {
+  enabled: boolean;
+  restEnd: boolean;
+  focus25: boolean;
+  focus50: boolean;
+  focus90: boolean;
 }
 
 export type GameEvent =
@@ -245,6 +262,7 @@ export type GameEvent =
   | { type: 'SET_PLACEMENT'; itemId: ItemId; placed: boolean }
   | { type: 'VISIT_HOLD'; hold: boolean }
   | { type: 'SET_NOISE'; on: boolean }
+  | { type: 'SET_NOTIFY'; key: keyof NotifySettings; on: boolean }
   | { type: 'MARK_NOTIF_ASKED' }
   | { type: 'REST_END' }
   | { type: 'CHOOSE_FAREWELL' }

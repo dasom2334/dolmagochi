@@ -5,6 +5,9 @@ import { isRockPresent } from './game/stateMachine';
 import { SYS, UI } from './game/text';
 import { bootRestore, flushSave, startAutosave } from './persistence/persist';
 import { notify, requestNotifyPermission } from './notifications';
+import { pushToast } from './toast';
+import { dueFocusMarks } from './game/notify';
+import { ToastHost } from './components/ToastHost';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
 import { NarratorLog } from './components/NarratorLog';
@@ -60,9 +63,13 @@ export function App() {
       new URL('./workers/restTimer.worker.ts', import.meta.url),
       { type: 'module' },
     );
-    // 백그라운드에서만 알림 — 화면을 보고 있으면 OS 알림을 띄우지 않는다
+    // 휴식 종료 알림 — 설정(전체·휴식)이 켜져 있고 백그라운드일 때만 OS 알림.
+    // (화면을 보고 있으면 UI가 이미 종료를 보여주므로 굳이 안 띄운다)
     worker.onmessage = () => {
-      if (document.hidden) notify(t(SYS.notification.restEnd));
+      const nf = appStore.getState().state.settings.notify;
+      if (nf.enabled && nf.restEnd && document.hidden) {
+        notify(t(SYS.notification.restEnd));
+      }
     };
     workerRef.current = worker;
 
@@ -108,6 +115,25 @@ export function App() {
     }, 250);
     return () => clearInterval(iv);
   }, []);
+
+  // 집중 구간 알림(25/50/90분) — 문턱을 넘는 순간 1회.
+  // 포그라운드=인앱 토스트, 백그라운드=OS 알림. 개별 토글이 켜진 문턱만.
+  // (집중은 탭이 앞에 있을 때만 시간이 흐르므로 실제로는 대개 토스트로 뜬다)
+  const focusMarkRef = useRef(0);
+  useEffect(() => {
+    if (state.phase !== 'focus') {
+      focusMarkRef.current = 0;
+      return;
+    }
+    const cur = state.session.elapsedSec;
+    const prev = cur < focusMarkRef.current ? 0 : focusMarkRef.current;
+    for (const key of dueFocusMarks(prev, cur, state.settings.notify)) {
+      const body = t(SYS.notification.focus[key]);
+      if (document.hidden) notify(body);
+      else pushToast(body);
+    }
+    focusMarkRef.current = cur;
+  }, [state.phase, state.session.elapsedSec, state.settings.notify]);
 
   // 탭 이탈 시 일시정지 — 집중 세션에만 적용 (머신이 phase를 가드한다)
   useEffect(() => {
@@ -222,6 +248,7 @@ export function App() {
           <SettingsModal state={state} onClose={() => setSettingsOpen(false)} />
         )}
       </div>
+      <ToastHost />
     </div>
   );
 }

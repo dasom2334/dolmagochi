@@ -3,6 +3,8 @@ import type { GameState } from '../game/types';
 import { appStore, dispatch, now, t } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { exportSaveJson, importSaveJson } from '../persistence/exportImport';
+import { requestNotifyPermission } from '../notifications';
+import type { NotifySettings } from '../game/types';
 
 const settingBtn = {
   textAlign: 'left' as const,
@@ -25,6 +27,21 @@ export function SettingsModal({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState('');
+
+  const nf = state.settings.notify;
+  const onOff = (v: boolean) => t(v ? SYS.settings.on : SYS.settings.off);
+  const toggleNotify = (key: keyof NotifySettings) => {
+    const on = !state.settings.notify[key];
+    dispatch({ type: 'SET_NOTIFY', key, on });
+    // 켤 때 권한이 아직 미결정이면 요청 (거부/미지원이면 알림만 조용히 빠진다)
+    if (on) void requestNotifyPermission();
+  };
+  const focusToggles: [keyof NotifySettings, string][] = [
+    ['restEnd', UI.labels.notify.restEnd],
+    ['focus25', UI.labels.notify.focus25],
+    ['focus50', UI.labels.notify.focus50],
+    ['focus90', UI.labels.notify.focus90],
+  ];
 
   const doExport = () => {
     const json = exportSaveJson(appStore.getState().state, now());
@@ -107,6 +124,30 @@ export function SettingsModal({
           * {t(UI.labels.noiseSetting)} —{' '}
           {t(state.settings.noiseOn ? SYS.settings.noiseOn : SYS.settings.noiseOff)}
         </button>
+
+        <button
+          className="hv-text"
+          style={settingBtn}
+          onClick={() => toggleNotify('enabled')}
+        >
+          * {t(UI.labels.notifyAll)} — {onOff(nf.enabled)}
+        </button>
+        {nf.enabled && (
+          <div
+            style={{ display: 'flex', flexDirection: 'column', paddingLeft: 12 }}
+          >
+            {focusToggles.map(([key, labelId]) => (
+              <button
+                key={key}
+                className="hv-text"
+                style={{ ...settingBtn, fontSize: 12, color: '#c8bdd0' }}
+                onClick={() => toggleNotify(key)}
+              >
+                - {t(labelId)} — {onOff(nf[key])}
+              </button>
+            ))}
+          </div>
+        )}
         <button className="hv-text" style={settingBtn} onClick={doExport}>
           * {t(UI.buttons.exportSave)}
         </button>

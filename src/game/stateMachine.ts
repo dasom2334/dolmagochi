@@ -36,7 +36,19 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
+
+/**
+ * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
+ * 전체·휴식 종료 알림은 기본 on.
+ */
+export const DEFAULT_NOTIFY_SETTINGS: GameState['settings']['notify'] = {
+  enabled: true,
+  restEnd: true,
+  focus25: false,
+  focus50: false,
+  focus90: false,
+};
 
 export function createInitialState(
   nowMs: number,
@@ -82,7 +94,12 @@ export function createInitialState(
     totals: { focusSeconds: 0, sessions: 0 },
     lastSessionEndAt: null,
     lastDecayDate: dateKey(nowMs),
-    settings: { noiseOn: false, notifAsked: false, locale: 'ko' },
+    settings: {
+      noiseOn: false,
+      notifAsked: false,
+      locale: 'ko',
+      notify: { ...DEFAULT_NOTIFY_SETTINGS },
+    },
   };
 }
 
@@ -1071,6 +1088,15 @@ export function transition(
       return { ...state, settings: { ...state.settings, noiseOn: event.on } };
     }
 
+    case 'SET_NOTIFY': {
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          notify: { ...state.settings.notify, [event.key]: event.on },
+        },
+      };
+    }
     case 'MARK_NOTIF_ASKED': {
       if (state.settings.notifAsked) return state;
       return { ...state, settings: { ...state.settings, notifAsked: true } };

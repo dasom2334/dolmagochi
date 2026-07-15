@@ -66,12 +66,21 @@ export const SYS = {
     restRoomAbsent: 'sys.captions.restRoomAbsent',
     apartRoom: 'sys.captions.apartRoom',
   },
-  notification: { restEnd: 'sys.notification.restEnd' },
+  notification: {
+    restEnd: 'sys.notification.restEnd',
+    focus: {
+      focus25: 'sys.notification.focus.25m',
+      focus50: 'sys.notification.focus.50m',
+      focus90: 'sys.notification.focus.90m',
+    },
+  },
   placement: { prompt: 'sys.placement.prompt' },
   hints: { flowtime: 'sys.hints.flowtime' },
   settings: {
     noiseOn: 'sys.settings.noiseOn',
     noiseOff: 'sys.settings.noiseOff',
+    on: 'sys.settings.on',
+    off: 'sys.settings.off',
     farewell: 'sys.settings.farewell',
   },
   trustLadder: ['sys.trust.0', 'sys.trust.1', 'sys.trust.2', 'sys.trust.3'],
@@ -103,6 +112,13 @@ export const UI = {
     modeRest: 'ui.labels.modeRest',
     care: 'ui.labels.care', // {points}
     noiseSetting: 'ui.labels.noiseSetting',
+    notifyAll: 'ui.labels.notifyAll',
+    notify: {
+      restEnd: 'ui.labels.notifyRest',
+      focus25: 'ui.labels.notifyFocus25',
+      focus50: 'ui.labels.notifyFocus50',
+      focus90: 'ui.labels.notifyFocus90',
+    },
   },
   shop: {
     owned: 'ui.shop.owned',

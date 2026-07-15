@@ -63,4 +63,18 @@ describe('saveSchema — 봉투·검증·마이그레이션', () => {
       readSave({ format: SAVE_FORMAT, savedAt: T0, state: oldState }),
     ).toEqual({ ok: false, reason: 'version' });
   });
+
+  it('v3 세이브(알림 설정 없음) → v4로 마이그레이션, notify 기본값 주입', () => {
+    // 구 세이브: settings에 notify가 없는 상태
+    const v3settings = { noiseOn: true, notifAsked: true, locale: 'ko' };
+    const v3 = { ...state, schemaVersion: 3, settings: v3settings };
+    const res = readSave({ format: SAVE_FORMAT, savedAt: T0, state: v3 });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.state.schemaVersion).toBe(SCHEMA_VERSION);
+      expect(res.state.settings.notify.enabled).toBe(true);
+      expect(res.state.settings.notify.focus25).toBe(false);
+      expect(res.state.settings.noiseOn).toBe(true); // 기존 필드 보존
+    }
+  });
 });
