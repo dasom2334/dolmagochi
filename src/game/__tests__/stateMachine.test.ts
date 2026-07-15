@@ -210,6 +210,21 @@ describe('시간 문턱 발화 (timeMarks)', () => {
     expect(firedCount).toBe(1);
   });
 
+  it('문턱 발화 틱엔 반추 서술을 억제해 문턱 대사가 묻히지 않는다 (수치는 유지)', () => {
+    // read(반추 간격 600s)가 30분 문턱(1800초)과 겹치는 틱
+    const s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 }, // 기본 selectedAction=read
+      ...ticks(1800),
+    ]);
+    const mark30 = gameData.timeMarks.focus.find((m) => m.minSec === 1800)!;
+    const at30 = s.session.journal.filter((j) => j.t === '30:00');
+    // 30:00엔 문턱 대사만 남는다 (반추 서술은 억제 — 없었다면 반추+문턱 2줄)
+    expect(at30).toHaveLength(1);
+    expect(at30[0].text).toBe(T(mark30.textId));
+    // 반추 블록 자체는 돌았다(간격 리셋) → 수치는 그대로 적용됨
+    expect(s.session.lastReflectAtSec).toBe(1800);
+  });
+
   it('END_FOCUS: 배정된 휴식 길이 문턱 발화가 일지에 남는다', () => {
     // 60분 집중 → 20분 휴식 → rest 문턱 20m(1200초) 발화
     const s = run(init(), [

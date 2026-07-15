@@ -490,6 +490,12 @@ export function transition(
 
       // 3) 선택지는 무시해도 회수되지 않고 아래에 남는다 (선택하거나 세션이 끝날 때까지)
 
+      // 이번 틱에 시간 문턱이 발화하면(반추 간격과 자주 겹친다), 문턱 대사가 묻히지 않도록
+      // 반추의 서술(일지·내레이터)만 억제한다 — 수치(자가충족·개인작업)는 그대로 적용.
+      const timeMarkFiring = data.timeMarks.focus.some(
+        (mark, i) => el >= mark.minSec && !next.session.timeMarksFired.includes(i),
+      );
+
       // 4) 반추/자유행동/회상 틱
       const interval =
         action.id === 'free'
@@ -558,8 +564,9 @@ export function transition(
           line = absentReflectionLine(next, data, rng);
         }
 
-        // 선택지가 떠 있어도 자유행동 반추 서술은 계속 흐른다(선택지는 아래 별도 박스)
-        const showAsNarrator = action.id === 'free' && present;
+        // 선택지가 떠 있어도 자유행동 반추 서술은 계속 흐른다(선택지는 아래 별도 박스).
+        // 단, 이번 틱에 시간 문턱이 발화하면 반추 서술은 억제(수치는 위에서 이미 적용).
+        const showAsNarrator = action.id === 'free' && present && !timeMarkFiring;
         next = {
           ...next,
           memory,
@@ -568,7 +575,10 @@ export function transition(
           session: {
             ...next.session,
             lastReflectAtSec: el,
-            journal: addJournal(next.session.journal, el, line),
+            journal:
+              line && !timeMarkFiring
+                ? addJournal(next.session.journal, el, line)
+                : next.session.journal,
             narratorLine:
               showAsNarrator && line ? line : next.session.narratorLine,
           },
