@@ -31,10 +31,21 @@ describe('saveSchema — 봉투·검증·마이그레이션', () => {
       reason: 'shape',
     });
     // stats는 있는데 needs가 없으면 이상
-    const broken = { ...state, stats: { mood: 1 } };
+    const badNeeds = { ...state, stats: { mood: 1 } };
     expect(
-      readSave({ format: SAVE_FORMAT, savedAt: T0, state: broken }),
+      readSave({ format: SAVE_FORMAT, savedAt: T0, state: badNeeds }),
     ).toEqual({ ok: false, reason: 'shape' });
+  });
+
+  it('키는 있지만 값이 객체가 아니면 → shape (주입 후 크래시 방지)', () => {
+    // 예: rest: null 이면 복원 후 state.rest.endsAt 접근에서 크래시 → 여기서 걸러야 함
+    for (const k of ['rest', 'session', 'care', 'presence', 'items', 'stats']) {
+      const broken = { ...state, [k]: null };
+      expect(
+        readSave({ format: SAVE_FORMAT, savedAt: T0, state: broken }),
+        `${k}: null 은 shape여야 함`,
+      ).toEqual({ ok: false, reason: 'shape' });
+    }
   });
 
   it('마이그레이션 불가한 버전 → version', () => {

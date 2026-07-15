@@ -41,9 +41,12 @@ function looksLikeState(x: unknown): x is GameState {
     'settings',
   ];
   if (!need.every((k) => k in x)) return false;
-  const stats = x.stats;
-  if (!isRecord(stats) || !isRecord(stats.needs)) return false;
   if (typeof x.schemaVersion !== 'number') return false;
+  // 존재만이 아니라 실제로 객체인지 — { ...키전부, rest: null } 같은 세이브가
+  // 주입 후 state.rest.endsAt 등에서 크래시하지 않도록 여기서 걸러낸다
+  const objectKeys = ['stats', 'care', 'session', 'rest', 'presence', 'items'];
+  if (!objectKeys.every((k) => isRecord(x[k]))) return false;
+  if (!isRecord((x.stats as Record<string, unknown>).needs)) return false;
   return true;
 }
 

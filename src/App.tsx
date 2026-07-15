@@ -25,40 +25,50 @@ export function App() {
   const bootedRef = useRef(false);
   const workerRef = useRef<Worker | null>(null);
 
-  // 부트: 세이브 복원 → 알림 권한(첫 진입 1회) → 자동저장 시작 → 종료 감시 워커
+  // 1회성 부트: 세이브 복원 → 실제 가시성으로 일시정지 재설정 → 알림 권한(첫 진입 1회).
+  // 리소스를 만들지 않으므로 가드로 감싸도 대칭 문제 없음(StrictMode 이중 실행 방지).
   useEffect(() => {
-    if (bootedRef.current) return; // StrictMode 이중 실행 가드
+    if (bootedRef.current) return;
     bootedRef.current = true;
-    let stopAutosave = () => {};
     void (async () => {
       await bootRestore(Date.now());
       lastRef.current = Date.now();
       setNowMs(Date.now());
+      // 복원 시 visibilitychange가 안 뜨므로 현재 실제 가시성으로 paused를 맞춘다
+      // (숨김-집중 상태로 저장→포그라운드 로드 시 타이머가 얼어붙지 않도록)
+      dispatch({ type: 'SET_PAUSED', paused: document.hidden });
       if (!appStore.getState().state.settings.notifAsked) {
         await requestNotifyPermission();
         dispatch({ type: 'MARK_NOTIF_ASKED' });
       }
-      stopAutosave = startAutosave();
       setBooted(true);
     })();
+  }, []);
 
+  // 워커 · 탭이탈 flush 리스너 · 자동저장 — 매 마운트 대칭 생성/해제.
+  // (자동저장은 싱글턴이라 이중 마운트에도 중복 구독되지 않는다)
+  useEffect(() => {
     const worker = new Worker(
       new URL('./workers/restTimer.worker.ts', import.meta.url),
       { type: 'module' },
     );
-    worker.onmessage = () => notify(t(SYS.notification.restEnd));
+    // 백그라운드에서만 알림 — 화면을 보고 있으면 OS 알림을 띄우지 않는다
+    worker.onmessage = () => {
+      if (document.hidden) notify(t(SYS.notification.restEnd));
+    };
     workerRef.current = worker;
 
-    // 탭 이탈·종료 직전 즉시 저장 (마지막 상태 유실 방지)
     const onHide = () => {
       if (document.hidden) void flushSave();
     };
     document.addEventListener('visibilitychange', onHide);
+
+    const stop = startAutosave();
     return () => {
-      stopAutosave();
-      document.removeEventListener('visibilitychange', onHide);
       worker.terminate();
       workerRef.current = null;
+      document.removeEventListener('visibilitychange', onHide);
+      stop();
     };
   }, []);
 

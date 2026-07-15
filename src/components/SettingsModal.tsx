@@ -42,7 +42,7 @@ export function SettingsModal({
   };
 
   const doExport = () => {
-    const json = exportSaveJson(appStore.getState().state, Date.now());
+    const json = exportSaveJson(appStore.getState().state, now());
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

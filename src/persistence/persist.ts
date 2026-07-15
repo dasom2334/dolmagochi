@@ -38,22 +38,34 @@ export async function flushSave(): Promise<void> {
   }
 }
 
+let autosave: { unsub: () => void; iv: ReturnType<typeof setInterval> } | null =
+  null;
+
 /**
  * 자동저장 시작: 상태 변경을 표시(dirty)하고 1초마다 flush.
- * (틱마다 IndexedDB에 쓰지 않도록 스로틀. 반환값으로 해제)
+ * (틱마다 IndexedDB에 쓰지 않도록 스로틀)
+ * 싱글턴 — 이미 켜져 있으면 중복 구독하지 않는다(StrictMode 이중 마운트 안전).
  * 반드시 bootRestore 이후에 호출 — 초기 상태가 세이브를 덮지 않도록.
+ * 반환값으로 해제.
  */
 export function startAutosave(intervalMs = 1000): () => void {
-  const unsub = appStore.subscribe(() => {
-    dirty = true;
-  });
-  const iv = setInterval(() => {
-    if (dirty) void flushSave();
-  }, intervalMs);
-  return () => {
-    unsub();
-    clearInterval(iv);
-  };
+  if (!autosave) {
+    const unsub = appStore.subscribe(() => {
+      dirty = true;
+    });
+    const iv = setInterval(() => {
+      if (dirty) void flushSave();
+    }, intervalMs);
+    autosave = { unsub, iv };
+  }
+  return stopAutosave;
+}
+
+export function stopAutosave(): void {
+  if (!autosave) return;
+  autosave.unsub();
+  clearInterval(autosave.iv);
+  autosave = null;
 }
 
 /** 세이브 삭제 (디버그/새 시작용) */
