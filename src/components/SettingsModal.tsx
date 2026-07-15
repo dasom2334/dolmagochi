@@ -2,7 +2,6 @@ import { useRef, useState } from 'react';
 import type { GameState } from '../game/types';
 import { appStore, dispatch, now, t } from '../store/appStore';
 import { SYS, UI } from '../game/text';
-import { startAbsence, presentState } from '../game/absence';
 import { exportSaveJson, importSaveJson } from '../persistence/exportImport';
 
 const settingBtn = {
@@ -19,27 +18,13 @@ const settingBtn = {
 /** 설정 — 작별 버튼은 설정 메뉴 안쪽에만 (M5에서 동거 시 활성화) */
 export function SettingsModal({
   state,
-  debug = false,
   onClose,
 }: {
   state: GameState;
-  debug?: boolean;
   onClose: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState('');
-
-  const toggleAbsence = () => {
-    appStore.setState((prev) => ({
-      state: {
-        ...prev.state,
-        presence:
-          prev.state.presence.state === 'absent'
-            ? presentState()
-            : startAbsence(() => Math.random()),
-      },
-    }));
-  };
 
   const doExport = () => {
     const json = exportSaveJson(appStore.getState().state, now());
@@ -122,29 +107,6 @@ export function SettingsModal({
           * {t(UI.labels.noiseSetting)} —{' '}
           {t(state.settings.noiseOn ? SYS.settings.noiseOn : SYS.settings.noiseOff)}
         </button>
-        {debug && (
-          <button
-            className="hv-text"
-            style={{
-              textAlign: 'left',
-              border: 'none',
-              background: 'none',
-              color: '#c2a06a',
-              fontFamily: 'inherit',
-              fontSize: 13,
-              padding: '4px 0',
-              cursor: 'pointer',
-            }}
-            onClick={toggleAbsence}
-          >
-            *{' '}
-            {t(
-              state.presence.state === 'absent'
-                ? UI.debug.endAbsence
-                : UI.debug.triggerAbsence,
-            )}
-          </button>
-        )}
         <button className="hv-text" style={settingBtn} onClick={doExport}>
           * {t(UI.buttons.exportSave)}
         </button>

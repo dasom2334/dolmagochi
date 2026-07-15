@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { appStore, dispatch, now, t, tf, useGame } from './store/appStore';
 import { gameData } from './store/gameStore';
 import { isRockPresent } from './game/stateMachine';
@@ -13,8 +13,13 @@ import { ActionGrid } from './components/ActionGrid';
 import { RestPanel } from './components/RestPanel';
 import { EndingScreen, EpilogueScreen } from './components/EndingScreens';
 import { SettingsModal } from './components/SettingsModal';
-import { DebugBar } from './components/DebugBar';
 import { btnDashed } from './components/ui';
+
+// 디버그 패널은 DEV 전용 — 프로덕션 빌드에서는 import.meta.env.DEV가 false로 치환되어
+// 아래 동적 import가 죽은 코드가 되고, 번들에서 완전히 제외된다.
+const DebugPanel = import.meta.env.DEV
+  ? lazy(() => import('./debug/DebugPanel'))
+  : null;
 
 export function App() {
   const state = useGame((s) => s.state);
@@ -119,7 +124,9 @@ export function App() {
 
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
   const present = isRockPresent(state);
-  const debug = new URLSearchParams(window.location.search).get('debug') === '1';
+  const debug =
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).get('debug') === '1';
 
   return (
     <div
@@ -145,7 +152,11 @@ export function App() {
           nowMs={nowMs}
           onOpenSettings={() => setSettingsOpen(true)}
         />
-        {debug && <DebugBar state={state} nowMs={nowMs} />}
+        {debug && DebugPanel && (
+          <Suspense fallback={null}>
+            <DebugPanel state={state} nowMs={nowMs} />
+          </Suspense>
+        )}
         <SceneView state={state} />
 
         {state.phase === 'ending' ? (
@@ -208,11 +219,7 @@ export function App() {
         )}
 
         {settingsOpen && (
-          <SettingsModal
-            state={state}
-            debug={debug}
-            onClose={() => setSettingsOpen(false)}
-          />
+          <SettingsModal state={state} onClose={() => setSettingsOpen(false)} />
         )}
       </div>
     </div>
