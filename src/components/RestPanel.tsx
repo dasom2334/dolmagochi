@@ -202,8 +202,6 @@ function RestJournal({ state }: { state: GameState }) {
 
 function RestTalk({ state }: { state: GameState }) {
   const ts = state.rest.talkState;
-  // 돌이 없을 때(잠수/빈자리)는 '과한 관심을 부담스러워한다'가 어울리지 않는다
-  const spentId = isRockPresent(state) ? SYS.talkSpent : SYS.talkSpentAbsent;
   if (!state.rest.talkPressed) {
     return (
       <div
@@ -224,6 +222,8 @@ function RestTalk({ state }: { state: GameState }) {
       </div>
     );
   }
+  // 돌이 없을 때(잠수/빈자리)는 '과한 관심을 부담스러워한다'가 어울리지 않는다
+  const spentId = isRockPresent(state) ? SYS.talkSpent : SYS.talkSpentAbsent;
   if (!ts) {
     return (
       <p style={{ margin: 0, fontSize: 11, color: '#8a7f96' }}>

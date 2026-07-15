@@ -35,8 +35,11 @@ export function App() {
       lastRef.current = Date.now();
       setNowMs(Date.now());
       // 복원 시 visibilitychange가 안 뜨므로 현재 실제 가시성으로 paused를 맞춘다
-      // (숨김-집중 상태로 저장→포그라운드 로드 시 타이머가 얼어붙지 않도록)
-      dispatch({ type: 'SET_PAUSED', paused: document.hidden });
+      // (숨김-집중 상태로 저장→포그라운드 로드 시 타이머가 얼어붙지 않도록).
+      // paused는 집중 세션에만 의미가 있으므로 focus일 때만 던진다.
+      if (appStore.getState().state.phase === 'focus') {
+        dispatch({ type: 'SET_PAUSED', paused: document.hidden });
+      }
       if (!appStore.getState().state.settings.notifAsked) {
         await requestNotifyPermission();
         dispatch({ type: 'MARK_NOTIF_ASKED' });

@@ -39,7 +39,16 @@ describe('saveSchema — 봉투·검증·마이그레이션', () => {
 
   it('키는 있지만 값이 객체가 아니면 → shape (주입 후 크래시 방지)', () => {
     // 예: rest: null 이면 복원 후 state.rest.endsAt 접근에서 크래시 → 여기서 걸러야 함
-    for (const k of ['rest', 'session', 'care', 'presence', 'items', 'stats']) {
+    for (const k of [
+      'rest',
+      'session',
+      'care',
+      'presence',
+      'items',
+      'stats',
+      'settings',
+      'memory',
+    ]) {
       const broken = { ...state, [k]: null };
       expect(
         readSave({ format: SAVE_FORMAT, savedAt: T0, state: broken }),
