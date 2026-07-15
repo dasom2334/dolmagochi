@@ -372,6 +372,7 @@
   "ui.labels.flowtimeHint": [["집중 시간(분) 구간마다 배정할 휴식(분)."]],
   "ui.labels.flowtimeBounds": [["구간 경계(분)"]],
   "ui.labels.flowtimeRests": [["휴식 길이(분)"]],
+  "ui.labels.pauseOnHide": [["탭 이탈 시 집중 일시정지"]],
   "ui.shop.owned": [["방에 있다"]],
   "ui.shop.poor": [["정성 부족"]],
   "ui.shop.price": [["정성 {price}"]],

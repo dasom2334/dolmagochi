@@ -77,6 +77,7 @@ describe('saveSchema — 봉투·검증·마이그레이션', () => {
         bounds: [25, 50, 90],
         rests: [5, 10, 20, 30],
       }); // v4→v5
+      expect(res.state.settings.pauseOnHide).toBe(true); // v5→v6
       expect(res.state.settings.noiseOn).toBe(true); // 기존 필드 보존
     }
   });

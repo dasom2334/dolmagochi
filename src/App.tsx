@@ -46,7 +46,8 @@ export function App() {
       // (숨김-집중 상태로 저장→포그라운드 로드 시 타이머가 얼어붙지 않도록).
       // paused는 집중 세션에만 의미가 있으므로 focus일 때만 던진다.
       if (appStore.getState().state.phase === 'focus') {
-        dispatch({ type: 'SET_PAUSED', paused: document.hidden });
+        const pauseOnHide = appStore.getState().state.settings.pauseOnHide;
+        dispatch({ type: 'SET_PAUSED', paused: pauseOnHide && document.hidden });
       }
       if (!appStore.getState().state.settings.notifAsked) {
         await requestNotifyPermission();
@@ -109,7 +110,9 @@ export function App() {
       // nowMs는 휴식 카운트다운·만료 체크에만 쓰인다 — 그 외 phase에서는
       // 매 틱 리렌더를 유발하지 않도록 rest일 때만 갱신한다.
       if (phase === 'rest') setNowMs(n);
-      if (phase === 'focus' && !st.state.session.paused && !document.hidden) {
+      // 탭이 숨겨졌을 때 멈출지는 설정(pauseOnHide)에 따른다. 끄면 백그라운드에서도 흐른다.
+      const blockedByHide = st.state.settings.pauseOnHide && document.hidden;
+      if (phase === 'focus' && !st.state.session.paused && !blockedByHide) {
         st.tick(dt);
       }
     }, 250);
@@ -135,11 +138,14 @@ export function App() {
     focusMarkRef.current = cur;
   }, [state.phase, state.session.elapsedSec, state.settings.notify]);
 
-  // 탭 이탈 시 일시정지 — 집중 세션에만 적용 (머신이 phase를 가드한다)
+  // 탭 이탈 시 일시정지 — 설정(pauseOnHide)이 켜져 있을 때만. 집중 세션에만 의미(머신이 phase 가드).
+  // pauseOnHide가 켜져 있을 때만 델타 기준점(lastRef)을 리셋해 숨김 시간이 집중에 안 더해지게 한다.
+  // 꺼져 있으면 리셋하지 않아, 포그라운드 복귀 시 그 사이 경과가 그대로 반영된다.
   useEffect(() => {
     const onVis = () => {
-      lastRef.current = Date.now();
-      dispatch({ type: 'SET_PAUSED', paused: document.hidden });
+      const pauseOnHide = appStore.getState().state.settings.pauseOnHide;
+      if (pauseOnHide) lastRef.current = Date.now();
+      dispatch({ type: 'SET_PAUSED', paused: pauseOnHide && document.hidden });
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);

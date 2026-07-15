@@ -603,6 +603,17 @@ describe('SET_FLOWTIME — 휴식 배정표 사용자 수정', () => {
   });
 });
 
+describe('SET_PAUSE_ON_HIDE — 탭 이탈 시 일시정지 토글', () => {
+  it('기본값은 켜짐(기획서 동작), 끄고 켤 수 있다', () => {
+    let s = init();
+    expect(s.settings.pauseOnHide).toBe(true);
+    s = run(s, [{ type: 'SET_PAUSE_ON_HIDE', on: false }]);
+    expect(s.settings.pauseOnHide).toBe(false);
+    s = run(s, [{ type: 'SET_PAUSE_ON_HIDE', on: true }]);
+    expect(s.settings.pauseOnHide).toBe(true);
+  });
+});
+
 describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () => {
   const TALKS = gameData.endings.preEndingTalks.length;
 

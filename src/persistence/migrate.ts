@@ -34,6 +34,17 @@ export function migrateState(state: GameState): GameState | null {
       },
     };
   }
+  // v5 → v6: settings.pauseOnHide(탭 이탈 시 일시정지) 추가. 기본값은 기존 동작(true).
+  if (s.schemaVersion === 5) {
+    s = {
+      ...s,
+      schemaVersion: 6,
+      settings: {
+        ...s.settings,
+        pauseOnHide: s.settings.pauseOnHide ?? true,
+      },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

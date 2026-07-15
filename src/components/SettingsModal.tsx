@@ -156,6 +156,19 @@ export function SettingsModal({
         <button
           className="hv-text"
           style={settingBtn}
+          onClick={() =>
+            dispatch({
+              type: 'SET_PAUSE_ON_HIDE',
+              on: !state.settings.pauseOnHide,
+            })
+          }
+        >
+          * {t(UI.labels.pauseOnHide)} — {onOff(state.settings.pauseOnHide)}
+        </button>
+
+        <button
+          className="hv-text"
+          style={settingBtn}
           onClick={() => toggleNotify('enabled')}
         >
           * {t(UI.labels.notifyAll)} — {onOff(nf.enabled)}

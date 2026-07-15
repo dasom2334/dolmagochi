@@ -126,6 +126,7 @@ export const UI = {
       bounds: 'ui.labels.flowtimeBounds',
       rests: 'ui.labels.flowtimeRests',
     },
+    pauseOnHide: 'ui.labels.pauseOnHide',
   },
   shop: {
     owned: 'ui.shop.owned',

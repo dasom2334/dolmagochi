@@ -234,6 +234,8 @@ export interface GameState {
     notify: NotifySettings;
     /** Flowtime 휴식 배정표 — 사용자가 수정 가능. 기본값은 기획서 규칙(<25→5·25~50→10·50~90→20·90+→30). */
     flowtime: FlowtimeSettings;
+    /** 탭 이탈 시 집중 타이머 일시정지(기획서 기본 동작). false면 탭을 옮겨도 집중 시간이 계속 흐른다. */
+    pauseOnHide: boolean;
   };
 }
 
@@ -276,6 +278,7 @@ export type GameEvent =
   | { type: 'SET_NOISE'; on: boolean }
   | { type: 'SET_NOTIFY'; key: keyof NotifySettings; on: boolean }
   | { type: 'SET_FLOWTIME'; flowtime: FlowtimeSettings }
+  | { type: 'SET_PAUSE_ON_HIDE'; on: boolean }
   | { type: 'MARK_NOTIF_ASKED' }
   | { type: 'REST_END' }
   | { type: 'CHOOSE_FAREWELL' }
