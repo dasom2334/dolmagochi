@@ -32,8 +32,20 @@ function run(
   return events.reduce((s, e) => transition(s, e, { rng, data }), state);
 }
 
+// 흐름 테스트 편의: 해금 아이템을 모두 보유한 시작 상태(행동 게이팅과 무관하게 검증).
+// 아이템 해금 게이트 자체는 아래 전용 테스트에서 맨 상태로 확인한다.
 function init(): GameState {
-  return createInitialState(T0, 'read');
+  const s = createInitialState(T0, 'read');
+  return {
+    ...s,
+    items: {
+      book: { placed: false },
+      cushion: { placed: false },
+      shoes: { placed: false },
+      pot: { placed: false },
+      broom: { placed: false },
+    },
+  };
 }
 
 /** dt초씩 total초만큼 TICK */
@@ -59,14 +71,18 @@ describe('기본 사이클: 행동선택 → 집중 → 휴식 → 행동선택'
     expect(isRockPresent(s)).toBe(true);
   });
 
-  it('SELECT_ACTION: 해금 조건 미달은 무시, Outcome 해금은 통과', () => {
-    const s = init();
-    expect(run(s, [{ type: 'SELECT_ACTION', actionId: 'cook' }]).selectedAction).toBe('read');
-    expect(run(s, [{ type: 'SELECT_ACTION', actionId: 'walk' }]).selectedAction).toBe('walk');
-    const unlocked: GameState = { ...s, unlockedActions: ['cook'] };
+  it('SELECT_ACTION: 아이템 없으면 잠김, 아이템/Outcome 해금은 통과', () => {
+    // 맨 시작 상태 — lie/free만 해금(read/sun/walk/cook/chore는 아이템 필요)
+    const bare = createInitialState(T0, 'lie');
+    expect(run(bare, [{ type: 'SELECT_ACTION', actionId: 'walk' }]).selectedAction).toBe('lie'); // 신발 없음 → 무시
+    const withShoes: GameState = { ...bare, items: { shoes: { placed: false } } };
+    expect(
+      run(withShoes, [{ type: 'SELECT_ACTION', actionId: 'walk' }]).selectedAction,
+    ).toBe('walk'); // 신발 보유 → 해금
+    const unlocked: GameState = { ...bare, unlockedActions: ['cook'] };
     expect(
       run(unlocked, [{ type: 'SELECT_ACTION', actionId: 'cook' }]).selectedAction,
-    ).toBe('cook');
+    ).toBe('cook'); // Outcome 명시 해금도 통과
   });
 
   it('START_FOCUS → 집중, 일지 첫 줄 = 행동 시작 서술 (카탈로그 경유)', () => {
@@ -596,6 +612,22 @@ describe('상점 — 구매 ≠ 배치', () => {
     const base = toRest();
     return { ...base, care: { points: 5, carryMinutes: 0 } };
   }
+
+  it('해금 루프: 신발 구매 → 산책 해금 (누워있기 시작 → 아이템으로 행동 확장)', () => {
+    const walk = gameData.actions.find((a) => a.id === 'walk')!;
+    const bare = createInitialState(T0, 'lie');
+    expect(isActionAvailable(walk, bare)).toBe(false); // 시작엔 잠김
+    const rest: GameState = {
+      ...bare,
+      phase: 'rest',
+      restStep: 'shop',
+      care: { points: 3, carryMinutes: 0 },
+    };
+    const s = run(rest, [{ type: 'BUY', itemId: 'shoes', nowMs: T0 }]);
+    expect(s.items['shoes']).toEqual({ placed: false });
+    expect(s.care.points).toBe(2); // 신발 가격 1
+    expect(isActionAvailable(walk, s)).toBe(true); // 구매(=소유) 후 해금
+  });
 
   it('구매 시 보관 상태 + 배치 선택 대기 → SET_PLACEMENT로 결정·토글', () => {
     let s = run(richRest(), [{ type: 'BUY', itemId: 'plant', nowMs: T0 }]);

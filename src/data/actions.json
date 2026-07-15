@@ -32,6 +32,7 @@
   {
     "id": "read",
     "nameId": "act.read.name",
+    "unlock": { "ownedItems": ["book"] },
     "intimacy": 2,
     "sceneId": "read",
     "captionId": "act.read.caption",
@@ -78,6 +79,7 @@
   {
     "id": "sun",
     "nameId": "act.sun.name",
+    "unlock": { "ownedItems": ["cushion"] },
     "intimacy": 1,
     "sceneId": "sun",
     "captionId": "act.sun.caption",
@@ -108,6 +110,7 @@
   {
     "id": "walk",
     "nameId": "act.walk.name",
+    "unlock": { "ownedItems": ["shoes"] },
     "intimacy": 2,
     "sceneId": "walk",
     "captionId": "act.walk.caption",
@@ -175,7 +178,7 @@
   {
     "id": "cook",
     "nameId": "act.cook.name",
-    "unlock": { "minLevel": 2 },
+    "unlock": { "ownedItems": ["pot"] },
     "intimacy": 3,
     "sceneId": "cook",
     "captionId": "act.cook.caption",
@@ -187,7 +190,7 @@
   {
     "id": "chore",
     "nameId": "act.chore.name",
-    "unlock": { "minLevel": 3 },
+    "unlock": { "ownedItems": ["broom"] },
     "intimacy": 2,
     "sceneId": "chore",
     "captionId": "act.chore.caption",
