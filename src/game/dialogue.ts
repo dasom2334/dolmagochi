@@ -14,6 +14,21 @@ export interface DialoguePool {
  * - 동거: 의존도 구간별 단계 풀 (화자의 깨달음이 강해진다)
  * - apart: 풀 대신 회상/방문 대화가 별도 처리되므로 null
  */
+/**
+ * 의존도가 도달한 동거 단계 인덱스(0-base). 임계는 cohabitStages[i].minDependence.
+ * stages[0].minDependence는 0이라 보통 항상 0 이상이 나오지만, 방어적으로 0으로 하한.
+ */
+export function cohabitStageIndex(
+  stages: readonly { minDependence: number }[],
+  dependence: number,
+): number {
+  let idx = 0;
+  for (let i = 0; i < stages.length; i++) {
+    if (dependence >= stages[i].minDependence) idx = i;
+  }
+  return idx;
+}
+
 export function selectDialoguePool(
   dialogues: DialoguesData,
   era: Era,
@@ -22,11 +37,9 @@ export function selectDialoguePool(
 ): DialoguePool | null {
   if (era === 'apart') return null;
   if (era === 'cohabit') {
-    let idx = -1;
-    for (let i = 0; i < dialogues.cohabitStages.length; i++) {
-      if (dependence >= dialogues.cohabitStages[i].minDependence) idx = i;
-    }
-    if (idx < 0) return { poolId: 'cohabit0', lines: [] };
+    if (dialogues.cohabitStages.length === 0)
+      return { poolId: 'cohabit0', lines: [] };
+    const idx = cohabitStageIndex(dialogues.cohabitStages, dependence);
     return { poolId: `cohabit${idx}`, lines: dialogues.cohabitStages[idx].lines };
   }
   const poolId = `stage${needsLevel}`;
