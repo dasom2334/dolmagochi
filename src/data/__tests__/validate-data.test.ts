@@ -97,6 +97,15 @@ describe('validateGameData — 불량 픽스처 검출', () => {
     d.endings.preEndingTalks = [];
     expect(hasErr(validateGameData(d, d.text).errors, 'preEndingTalks가 비어')).toBe(true);
   });
+
+  it('코드(SYS/UI)가 참조하는 textId가 카탈로그에 없으면 error', () => {
+    const d = clone();
+    // 코드에서만 참조하는 슬롯(구조 파일이 아닌 SYS가 가리킴)을 삭제
+    delete (d.text as Record<string, unknown>)['sys.notification.restEnd'];
+    expect(
+      hasErr(validateGameData(d, d.text).errors, 'missing textId "sys.notification.restEnd" (code SYS/UI)'),
+    ).toBe(true);
+  });
 });
 
 describe('findDuplicateKeys — 카탈로그 중복 키', () => {
@@ -106,5 +115,15 @@ describe('findDuplicateKeys — 카탈로그 중복 키', () => {
   });
   it('중복 없으면 빈 배열', () => {
     expect(findDuplicateKeys('{ "a": 1, "b": 2 }')).toEqual([]);
+  });
+
+  it('중첩 객체의 같은 하위 키는 오탐하지 않는다 (최상위만 비교)', () => {
+    const raw = '{ "x": { "k": 1 }, "y": { "k": 2 } }';
+    expect(findDuplicateKeys(raw)).toEqual([]);
+  });
+
+  it('문자열 안의 콜론/중괄호는 키로 오인하지 않는다', () => {
+    const raw = '{ "a": [["b: {c}"]], "d": [["e"]] }';
+    expect(findDuplicateKeys(raw)).toEqual([]);
   });
 });

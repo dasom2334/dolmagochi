@@ -97,11 +97,6 @@ export const UI = {
     exportSave: 'ui.buttons.exportSave',
     importSave: 'ui.buttons.importSave',
   },
-  debug: {
-    fastForward: 'ui.debug.fastForward',
-    triggerAbsence: 'ui.debug.triggerAbsence',
-    endAbsence: 'ui.debug.endAbsence',
-  },
   labels: {
     locked: 'ui.labels.locked',
     modeFocus: 'ui.labels.modeFocus',

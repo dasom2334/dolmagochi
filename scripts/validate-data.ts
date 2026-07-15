@@ -283,8 +283,14 @@ export function validateGameData(
   ref(e.cohabitTransitionId, 'endings.cohabitTransition');
   ref(e.farewellFromCohabitId, 'endings.farewellFromCohabit');
 
-  // ── 카탈로그 값 형태 · TODO · orphan ──
+  // ── 코드(SYS/UI)만 참조하는 textId도 카탈로그에 존재해야 함 ──
+  // (구조 파일이 아닌 코드가 쓰는 id: sys.notification.restEnd, ui.buttons.* 등이
+  //  삭제/오타나면 런타임에 '[MISSING TEXT]'가 뜨므로 여기서 잡는다)
   const codeRefs = collectCodeRefs();
+  for (const id of codeRefs)
+    if (!(id in catalog)) errors.push(`missing textId "${id}" (code SYS/UI)`);
+
+  // ── 카탈로그 값 형태 · TODO · orphan ──
   const todos: string[] = [];
   for (const [id, variants] of Object.entries(catalog)) {
     if (!Array.isArray(variants) || variants.length === 0) {
@@ -308,16 +314,45 @@ export function validateGameData(
   return { errors, warnings, todos: [...new Set(todos)].sort() };
 }
 
-/** 카탈로그 원문에서 중복 키 탐지 (JSON.parse는 조용히 덮으므로 원문 스캔) */
+/**
+ * 카탈로그 원문에서 **최상위** 중복 키 탐지 (JSON.parse는 조용히 덮으므로 원문 스캔).
+ * 중첩 깊이(brace/bracket)를 세어 depth===1(루트 객체 직속) 키만 비교 →
+ * 로케일이 중첩 객체를 갖게 돼도 서로 다른 하위 객체의 동일 키를 오탐하지 않는다.
+ * 문자열 리터럴 안의 `{`/`}`/`"`는 깊이 계산에서 제외한다.
+ */
 export function findDuplicateKeys(rawJson: string): string[] {
   const seen = new Set<string>();
   const dups = new Set<string>();
-  const re = /"((?:[^"\\]|\\.)*)"\s*:/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(rawJson)) !== null) {
-    const key = m[1];
-    if (seen.has(key)) dups.add(key);
-    seen.add(key);
+  let depth = 0;
+  let inStr = false;
+  let escaped = false;
+  let strStart = -1;
+
+  for (let i = 0; i < rawJson.length; i++) {
+    const c = rawJson[i];
+    if (inStr) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') {
+        inStr = false;
+        // 이 문자열이 최상위 객체의 키인지: 닫는 " 다음 non-space가 ':' 이고 depth===1
+        if (depth === 1) {
+          let j = i + 1;
+          while (j < rawJson.length && /\s/.test(rawJson[j])) j++;
+          if (rawJson[j] === ':') {
+            const key = rawJson.slice(strStart + 1, i);
+            if (seen.has(key)) dups.add(key);
+            seen.add(key);
+          }
+        }
+      }
+      continue;
+    }
+    if (c === '"') {
+      inStr = true;
+      strStart = i;
+    } else if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') depth--;
   }
   return [...dups];
 }

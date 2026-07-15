@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { GameState } from '../game/types';
-import { appStore, dispatch, t } from '../store/appStore';
+import { appStore, dispatch } from '../store/appStore';
 import { gameData } from '../store/gameStore';
-import { UI, pickText } from '../game/text';
+import { pickText } from '../game/text';
 import { needsLevelOf } from '../game/stats';
 import { allowedIntimacy } from '../game/security';
 import { startAbsence, presentState } from '../game/absence';
@@ -14,7 +14,7 @@ import { btnSmall } from '../components/ui';
  * 개발용 디버그 패널 — DEV 전용. App이 import.meta.env.DEV + ?debug=1 게이트로 동적 로드하므로
  * 프로덕션 번들에는 이 파일이 포함되지 않는다.
  * 숨은 수치·기억/추억 열람, 타이머 빨리감기, 잠수/엔딩 강제, 마일스톤 프리뷰, 세이브 삭제.
- * 필드 라벨은 게임 텍스트가 아닌 기술 명칭이라 카탈로그를 거치지 않는다.
+ * 모든 라벨은 게임 텍스트가 아닌 기술 명칭이라 카탈로그를 거치지 않고 인라인으로 둔다.
  */
 export default function DebugPanel({
   state,
@@ -55,7 +55,7 @@ export default function DebugPanel({
       >
         <span>debug</span>
         <button className="hv" style={btnSmall} onClick={fastForward}>
-          {t(UI.debug.fastForward)}
+          ≫ ff
         </button>
         <TabBtn label="stats" on={panel === 'stats'} onClick={() => toggle('stats')} />
         <TabBtn label="tools" on={panel === 'tools'} onClick={() => toggle('tools')} />
@@ -96,7 +96,8 @@ function DebugTools({ state }: { state: GameState }) {
       },
     }));
 
-  // 마일스톤 프리뷰: 휴식 대화 슬롯에 해당 마일스톤 텍스트를 띄운다 (텍스트 확인용)
+  // 마일스톤 프리뷰: 휴식 대화 슬롯에 해당 마일스톤 텍스트를 띄운다 (텍스트 확인용).
+  // endsAt=0으로 둬야 App의 휴식 만료 effect(endsAt>0 && now>=endsAt)에 즉시 튕기지 않는다.
   const previewMilestone = (textId: string) =>
     appStore.setState((prev) => ({
       state: {
@@ -105,6 +106,7 @@ function DebugTools({ state }: { state: GameState }) {
         restStep: 'talk',
         rest: {
           ...prev.state.rest,
+          endsAt: 0,
           talkPressed: true,
           talkState: {
             kind: 'milestone',
@@ -126,11 +128,7 @@ function DebugTools({ state }: { state: GameState }) {
       <Section label="force" />
       <div style={rowWrap}>
         <button className="hv" style={btnSmall} onClick={toggleAbsence}>
-          {t(
-            state.presence.state === 'absent'
-              ? UI.debug.endAbsence
-              : UI.debug.triggerAbsence,
-          )}
+          {state.presence.state === 'absent' ? 'absence off' : 'absence on'}
         </button>
         <button className="hv" style={btnSmall} onClick={forceEnding}>
           force ending

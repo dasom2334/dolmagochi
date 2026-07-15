@@ -275,9 +275,6 @@
   "sys.restIncomplete.prompt": [["당신은 휴식이 필요하다. 하지만 원한다면."]],
   "ui.buttons.startAnyway": [["그래도 시작"]],
   "ui.buttons.keepResting": [["더 쉰다"]],
-  "ui.debug.fastForward": [["≫ 빨리감기"]],
-  "ui.debug.triggerAbsence": [["[디버그] 잠수 발동"]],
-  "ui.debug.endAbsence": [["[디버그] 잠수 해제"]],
 
   "ui.buttons.endFocus": [["휴식하기 ▸"]],
   "ui.buttons.startFocus": [["▸ 집중 시작 — {action}"]],
