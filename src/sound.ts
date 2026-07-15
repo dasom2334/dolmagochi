@@ -44,6 +44,14 @@ function ensureCtx(): AudioContext | null {
   }
 }
 
+/**
+ * 공유 오디오 컨텍스트 접근자 — 효과음과 화이트노이즈가 같은 컨텍스트를 쓴다.
+ * iOS 등에서 첫 사용자 제스처에 호출해 resume되도록 한다.
+ */
+export function ensureAudioContext(): AudioContext | null {
+  return ensureCtx();
+}
+
 interface BlipOpts {
   freq: number;
   type?: OscillatorType;

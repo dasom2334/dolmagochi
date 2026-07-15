@@ -7,7 +7,8 @@ import { bootRestore, flushSave, startAutosave } from './persistence/persist';
 import { notify, requestNotifyPermission } from './notifications';
 import { pushToast } from './toast';
 import { dueFocusMarks } from './game/notify';
-import { playSound, setSoundEnabled } from './sound';
+import { ensureAudioContext, playSound, setSoundEnabled } from './sound';
+import { startWhiteNoise, stopWhiteNoise } from './audio/whiteNoise';
 import { ToastHost } from './components/ToastHost';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
@@ -127,6 +128,20 @@ export function App() {
   useEffect(() => {
     setSoundEnabled(state.settings.soundOn);
   }, [state.settings.soundOn]);
+
+  // 화이트노이즈 앰비언트 — noiseOn과 동기화. 언마운트 시 정지.
+  useEffect(() => {
+    if (state.settings.noiseOn) startWhiteNoise();
+    else stopWhiteNoise();
+  }, [state.settings.noiseOn]);
+  useEffect(() => stopWhiteNoise, []);
+
+  // iOS 등 오디오 언락 — 첫 사용자 제스처에서 AudioContext resume (1회성)
+  useEffect(() => {
+    const unlock = () => ensureAudioContext();
+    document.addEventListener('pointerdown', unlock, { once: true });
+    return () => document.removeEventListener('pointerdown', unlock);
+  }, []);
 
   // 집중 구간 알림(25/50/90분) — 문턱을 넘는 순간 1회.
   // 포그라운드=인앱 토스트, 백그라운드=OS 알림. 개별 토글이 켜진 문턱만.
