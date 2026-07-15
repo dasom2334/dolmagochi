@@ -162,7 +162,7 @@ export function App() {
         {state.phase === 'ending' ? (
           <EndingScreen />
         ) : state.phase === 'epilogue' ? (
-          <EpilogueScreen />
+          <EpilogueScreen state={state} />
         ) : (
           <>
             <NarratorLog state={state} />

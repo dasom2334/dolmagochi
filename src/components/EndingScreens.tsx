@@ -1,3 +1,4 @@
+import type { GameState } from '../game/types';
 import { gameData } from '../store/gameStore';
 import { dispatch, t } from '../store/appStore';
 import { UI } from '../game/text';
@@ -50,8 +51,18 @@ export function EndingScreen() {
   );
 }
 
-/** 떠나보내기 에필로그 → 빈자리(apart)의 방으로 */
-export function EpilogueScreen() {
+/**
+ * 에필로그 → 빈자리(apart)의 방으로.
+ * 엔딩에서 떠나보내기 = 개인작업 결과물 전달 에필로그.
+ * 동거 후 작별 = 누적 시간을 언급하는 작별 문구({hours}).
+ */
+export function EpilogueScreen({ state }: { state: GameState }) {
+  const fromCohabit = state.era === 'cohabit';
+  const hours = Math.floor(state.totals.focusSeconds / 3600);
+  const id = fromCohabit
+    ? gameData.endings.farewellFromCohabitId
+    : gameData.endings.farewellEpilogueId;
+  const pages = pagesOf(id).map((p) => p.replace(/\{hours\}/g, String(hours)));
   return (
     <div
       style={{
@@ -63,7 +74,7 @@ export function EpilogueScreen() {
         gap: 12,
       }}
     >
-      <PagesView pages={pagesOf(gameData.endings.farewellEpilogueId)}>
+      <PagesView pages={pages}>
         <button
           className="hv"
           style={{ ...btnDashed, marginTop: 12 }}

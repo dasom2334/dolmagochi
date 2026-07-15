@@ -1110,6 +1110,13 @@ export function transition(
         era: 'cohabit',
         phase: 'actionSelect',
         presence: presentState(),
+        // 동거 전환 문구를 화자 서술로 한 번 띄운다
+        session: {
+          ...state.session,
+          narratorLine: joinPages(
+            pickText(data.text, data.endings.cohabitTransitionId, rng),
+          ),
+        },
       };
     }
 
