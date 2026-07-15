@@ -195,5 +195,16 @@
     "ambientId": "act.chore.ambient",
     "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5, "esteem": 5 } },
     "choices": []
+  },
+  {
+    "id": "nurse",
+    "nameId": "act.nurse.name",
+    "intimacy": 1,
+    "sceneId": "nurse",
+    "captionId": "act.nurse.caption",
+    "startLineId": "act.nurse.start",
+    "ambientId": "act.nurse.ambient",
+    "outcome": { "stats": { "mood": 1 } },
+    "choices": []
   }
 ]

@@ -9,7 +9,7 @@ import {
   isBalanced,
   volatility,
 } from '../security';
-import { absenceSessionEnd, startAbsence } from '../absence';
+import { presentState, startAbsence } from '../absence';
 import { mulberry32, type Rng } from '../rng';
 
 const fixed = (v: number): Rng => () => v;
@@ -93,47 +93,20 @@ describe('intimacyOutcome — 친밀 접근 판정 (2축)', () => {
   });
 });
 
-describe('잠수 수명주기', () => {
-  it('부재 길이는 1~3세션', () => {
-    const rng = mulberry32(11);
-    for (let i = 0; i < 100; i++) {
-      const p = startAbsence(rng);
-      expect(p.state).toBe('absent');
-      expect(p.plannedSessions).toBeGreaterThanOrEqual(
-        BALANCE.ABSENCE_SESSIONS_MIN,
-      );
-      expect(p.plannedSessions).toBeLessThanOrEqual(
-        BALANCE.ABSENCE_SESSIONS_MAX,
-      );
-    }
-  });
-
-  it('저친밀 행동 세션만 복귀 누적에 카운트', () => {
-    const p0 = { ...startAbsence(fixed(0.9)) }; // planned 3
-    expect(p0.plannedSessions).toBe(3);
-    const high = absenceSessionEnd(p0, BALANCE.RETURN_LOW_INTIMACY_MAX + 1);
-    expect(high.lowIntimacyProgress).toBe(0);
-    const low = absenceSessionEnd(p0, BALANCE.RETURN_LOW_INTIMACY_MAX);
-    expect(low.lowIntimacyProgress).toBe(1);
-  });
-
-  it('누적이 예정 길이에 도달하면 복귀 (returnPending)', () => {
-    let p = startAbsence(fixed(0.5)); // planned 2
-    expect(p.plannedSessions).toBe(2);
-    p = absenceSessionEnd(p, 1);
+describe('잠수 수명주기 (항상성)', () => {
+  it('startAbsence → 부재 상태, 병간호 아님, 복귀 대기 아님', () => {
+    const p = startAbsence();
     expect(p.state).toBe('absent');
-    p = absenceSessionEnd(p, 1);
-    expect(p.state).toBe('present');
-    expect(p.returnPending).toBe(true);
+    expect(p.sick).toBe(false);
+    expect(p.returnPending).toBe(false);
   });
 
-  it('재석 중에는 아무 것도 하지 않는다', () => {
-    const present = {
-      state: 'present' as const,
-      plannedSessions: 0,
-      lowIntimacyProgress: 0,
-      returnPending: false,
-    };
-    expect(absenceSessionEnd(present, 1)).toBe(present);
+  it('presentState → 재석, 병간호 아님', () => {
+    const p = presentState();
+    expect(p.state).toBe('present');
+    expect(p.sick).toBe(false);
   });
+
+  // 복귀는 이제 두 축의 수렴(convergeStep→isBalanced)으로 결정된다 —
+  // 수렴 자체는 위 '애착 파생값·4분면·수렴' describe에서 검증.
 });

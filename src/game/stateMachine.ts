@@ -27,8 +27,13 @@ import { drawMemory, remember, resolveReflection } from './memory';
 import { drawEligibleLine, selectDialoguePool } from './dialogue';
 import { pickFreeAction } from './freeAction';
 import { clampStat, dateKey, initialStats, needsLevelOf, settleCalendar } from './stats';
-import { derivedSecurity, intimacyOutcome } from './security';
-import { absenceSessionEnd, presentState, startAbsence } from './absence';
+import {
+  convergeStep,
+  derivedSecurity,
+  intimacyOutcome,
+  isBalanced,
+} from './security';
+import { presentState, startAbsence } from './absence';
 import {
   applyOutcome,
   checkCondition,
@@ -132,6 +137,9 @@ function actionOf(data: GameData, id: ActionId): ActionData | undefined {
 
 /** 행동/물품 해금: unlock 조건 통과 OR Outcome으로 명시 해금 */
 export function isActionAvailable(action: ActionData, state: GameState): boolean {
+  // 병간호 상태: '병간호하기'만 가능 (돌이 아파 다른 행동을 받지 못한다)
+  if (state.presence.sick) return action.id === 'nurse';
+  if (action.id === 'nurse') return false; // 병간호는 평소엔 숨김
   return (
     state.unlockedActions.includes(action.id) ||
     checkCondition(action.unlock, state)
@@ -675,18 +683,49 @@ export function transition(
         };
       }
 
-      // 잠수 복귀 판정 (육성)
+      // 애착 위기 루프 (육성): 잠수(부재)·병간호(sick) 모두 두 축을 균형으로 수렴시켜
+      // 벗어난다(항상성 복귀). 균형이면 위기 종료 — 부재는 복귀, 병간호는 회복.
       let presence = next.presence;
       let journal = state.session.journal;
-      if (next.era === 'raising' && presence.state === 'absent') {
-        presence = absenceSessionEnd(presence, action.intimacy);
-        if (presence.returnPending) {
-          journal = addJournal(
-            journal,
-            state.session.elapsedSec,
-            joinPages(pickText(data.text, SYS.journal.rockReturned, rng)),
-          );
+      const elapsed = state.session.elapsedSec;
+      if (next.era === 'raising' && (presence.state === 'absent' || presence.sick)) {
+        const step = convergeStep(stats.abandonment, stats.intimacyThreat);
+        stats = {
+          ...stats,
+          abandonment: step.abandonment,
+          intimacyThreat: step.intimacyThreat,
+          security: derivedSecurity(step.abandonment, step.intimacyThreat),
+        };
+        if (isBalanced(step.abandonment, step.intimacyThreat)) {
+          if (presence.state === 'absent') {
+            presence = { ...presentState(), returnPending: true };
+            journal = addJournal(
+              journal,
+              elapsed,
+              joinPages(pickText(data.text, SYS.journal.rockReturned, rng)),
+            );
+          } else {
+            presence = { ...presence, sick: false };
+            journal = addJournal(
+              journal,
+              elapsed,
+              joinPages(pickText(data.text, SYS.journal.rockRecovered, rng)),
+            );
+          }
         }
+      } else if (
+        // 병간호 발동: 유기불안이 상한을 넘으면 돌이 아파진다 (재석 중, 육성)
+        next.era === 'raising' &&
+        presence.state === 'present' &&
+        !presence.sick &&
+        stats.abandonment > BALANCE.ABANDONMENT_SICK_CEILING
+      ) {
+        presence = { ...presence, sick: true };
+        journal = addJournal(
+          journal,
+          elapsed,
+          joinPages(pickText(data.text, SYS.journal.rockSick, rng)),
+        );
       }
 
       // apart: 방문 기간 소진 → 바로 떠나지 않고 떠나려는 기색 (붙잡기/보내주기)
@@ -722,6 +761,8 @@ export function transition(
         ...next,
         phase: 'rest',
         restStep: 'journal',
+        // 병간호 상태면 다음 세션 행동을 '병간호하기'로 강제
+        selectedAction: presence.sick ? 'nurse' : next.selectedAction,
         care,
         stats,
         presence,

@@ -85,6 +85,13 @@ export function settleCalendar(
         next.needs[topFilled] - BALANCE.NEED_REGRESS_AMOUNT,
       );
     }
+    // 방치는 유기불안을 키운다 (오래 안 오면 돌이 불안해진다) → 안정감 재계산
+    if (steps > 0) {
+      next.abandonment = clampStat(
+        next.abandonment + BALANCE.NEGLECT_ABANDONMENT_PER_STEP * steps,
+      );
+      next.security = derivedSecurity(next.abandonment, next.intimacyThreat);
+    }
   }
   return {
     stats: next,

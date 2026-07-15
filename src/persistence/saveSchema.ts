@@ -93,6 +93,11 @@ function normalizeState(state: GameState): GameState {
   const flowtime = normalizeFlowtime(state.settings.flowtime);
   return {
     ...state,
+    // 병간호 필드 방어 — 구 v9 세이브엔 없을 수 있어 기본값을 채운다(크래시 방지)
+    presence: {
+      ...state.presence,
+      sick: typeof state.presence?.sick === 'boolean' ? state.presence.sick : false,
+    },
     settings: {
       ...state.settings,
       flowtime,

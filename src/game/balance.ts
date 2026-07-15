@@ -59,6 +59,7 @@ export const BALANCE = {
   // 달력일 정산
   MOOD_DECAY_PER_DAY: 8,
   NEGLECT_DAYS_PER_REGRESS: 3, // 이 일수마다 욕구 1단계 퇴행 (하한 1, 죽지 않음)
+  NEGLECT_ABANDONMENT_PER_STEP: 20, // 방치 퇴행 1스텝당 유기불안 상승 (오래 안 오면 불안해진다)
 
   // 상태값 공통
   STAT_MIN: 0,

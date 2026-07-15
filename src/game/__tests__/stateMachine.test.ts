@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
-import { createInitialState, isRockPresent, transition } from '../stateMachine';
+import {
+  createInitialState,
+  isActionAvailable,
+  isRockPresent,
+  transition,
+} from '../stateMachine';
 import type { GameEvent, GameState } from '../types';
 import { mulberry32, type Rng } from '../rng';
 import { gameData } from '../../store/gameStore';
@@ -403,7 +408,6 @@ describe('잠수(부재) 분기', () => {
     const data = riskyData();
     const s = run(init(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.1, 0.0]), data);
     expect(s.presence.state).toBe('absent');
-    expect(s.presence.plannedSessions).toBe(1);
     expect(s.session.journal[0].text).toBe(T('sys.journal.sessionStartAbsent'));
 
     const miss = run(init(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.9]), data);
@@ -541,6 +545,49 @@ describe('잠수(부재) 분기', () => {
     };
     const after = run(again, [{ type: 'TALK' }], seq([0.9]), data);
     expect(after.milestonesFired.filter((id) => id === 'first-return')).toHaveLength(1);
+  });
+});
+
+describe('병간호 (애착 위기 — 유기불안 극단)', () => {
+  // 유기불안 상한 초과 상태를 만든다 (안정감 = 100 − |95−20| = 25)
+  function sickProneInit(): GameState {
+    const s = init();
+    return {
+      ...s,
+      stats: { ...s.stats, abandonment: 95, intimacyThreat: 20, security: 25 },
+    };
+  }
+
+  it('유기불안이 상한을 넘으면 병간호 발동 → 병간호만 가능', () => {
+    const s = run(sickProneInit(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      { type: 'END_FOCUS', nowMs: T0 },
+    ]);
+    expect(s.presence.sick).toBe(true);
+    expect(s.selectedAction).toBe('nurse');
+    const nurse = gameData.actions.find((a) => a.id === 'nurse')!;
+    const read = gameData.actions.find((a) => a.id === 'read')!;
+    expect(isActionAvailable(nurse, s)).toBe(true);
+    expect(isActionAvailable(read, s)).toBe(false); // 아플 땐 다른 행동 불가
+  });
+
+  it('병간호 세션을 반복하면 두 축이 수렴해 회복한다 (2~3턴)', () => {
+    let s: GameState = {
+      ...sickProneInit(),
+      presence: { ...init().presence, sick: true },
+      selectedAction: 'nurse',
+    };
+    let turns = 0;
+    while (s.presence.sick && turns < 6) {
+      s = run(s, [
+        { type: 'START_FOCUS', nowMs: T0 },
+        { type: 'END_FOCUS', nowMs: T0 },
+        { type: 'REST_END' },
+      ]);
+      turns++;
+    }
+    expect(s.presence.sick).toBe(false);
+    expect(turns).toBeLessThanOrEqual(3);
   });
 });
 
@@ -782,9 +829,10 @@ describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () =
       ...endingPhase(),
       presence: {
         state: 'absent',
-        plannedSessions: 3,
+        plannedSessions: 0,
         lowIntimacyProgress: 0,
         returnPending: false,
+        sick: false,
       },
     };
     const s = run(absentEnding, [{ type: 'CHOOSE_COHABIT' }]);
