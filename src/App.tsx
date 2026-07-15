@@ -3,6 +3,8 @@ import { appStore, dispatch, now, t, tf, useGame } from './store/appStore';
 import { gameData } from './store/gameStore';
 import { isRockPresent } from './game/stateMachine';
 import { SYS, UI } from './game/text';
+import { bootRestore, flushSave, startAutosave } from './persistence/persist';
+import { notify, requestNotifyPermission } from './notifications';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
 import { NarratorLog } from './components/NarratorLog';
@@ -18,7 +20,71 @@ export function App() {
   const state = useGame((s) => s.state);
   const [nowMs, setNowMs] = useState(() => now());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [booted, setBooted] = useState(false);
   const lastRef = useRef(now());
+  const bootedRef = useRef(false);
+  const workerRef = useRef<Worker | null>(null);
+
+  // 1회성 부트: 세이브 복원 → 실제 가시성으로 일시정지 재설정 → 알림 권한(첫 진입 1회).
+  // 리소스를 만들지 않으므로 가드로 감싸도 대칭 문제 없음(StrictMode 이중 실행 방지).
+  useEffect(() => {
+    if (bootedRef.current) return;
+    bootedRef.current = true;
+    void (async () => {
+      await bootRestore(Date.now());
+      lastRef.current = Date.now();
+      setNowMs(Date.now());
+      // 복원 시 visibilitychange가 안 뜨므로 현재 실제 가시성으로 paused를 맞춘다
+      // (숨김-집중 상태로 저장→포그라운드 로드 시 타이머가 얼어붙지 않도록).
+      // paused는 집중 세션에만 의미가 있으므로 focus일 때만 던진다.
+      if (appStore.getState().state.phase === 'focus') {
+        dispatch({ type: 'SET_PAUSED', paused: document.hidden });
+      }
+      if (!appStore.getState().state.settings.notifAsked) {
+        await requestNotifyPermission();
+        dispatch({ type: 'MARK_NOTIF_ASKED' });
+      }
+      setBooted(true);
+    })();
+  }, []);
+
+  // 워커 · 탭이탈 flush 리스너 · 자동저장 — 매 마운트 대칭 생성/해제.
+  // (자동저장은 싱글턴이라 이중 마운트에도 중복 구독되지 않는다)
+  useEffect(() => {
+    const worker = new Worker(
+      new URL('./workers/restTimer.worker.ts', import.meta.url),
+      { type: 'module' },
+    );
+    // 백그라운드에서만 알림 — 화면을 보고 있으면 OS 알림을 띄우지 않는다
+    worker.onmessage = () => {
+      if (document.hidden) notify(t(SYS.notification.restEnd));
+    };
+    workerRef.current = worker;
+
+    const onHide = () => {
+      if (document.hidden) void flushSave();
+    };
+    document.addEventListener('visibilitychange', onHide);
+
+    const stop = startAutosave();
+    return () => {
+      worker.terminate();
+      workerRef.current = null;
+      document.removeEventListener('visibilitychange', onHide);
+      stop();
+    };
+  }, []);
+
+  // 휴식 종료 감시 — 미래 시각일 때만 워커에 위임(백그라운드 알림). 만료된 채 로드되면 재알림 없음.
+  useEffect(() => {
+    const w = workerRef.current;
+    if (!w) return;
+    if (state.phase === 'rest' && state.rest.endsAt > Date.now()) {
+      w.postMessage({ type: 'watch', endsAt: state.rest.endsAt });
+    } else {
+      w.postMessage({ type: 'clear' });
+    }
+  }, [state.phase, state.rest.endsAt, booted]);
 
   // 시간 진행: 집중 세션만 카운트업. 휴식은 종료 시각 타임스탬프 기준(M3에서 워커로 강화).
   useEffect(() => {

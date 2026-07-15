@@ -245,6 +245,7 @@ export type GameEvent =
   | { type: 'SET_PLACEMENT'; itemId: ItemId; placed: boolean }
   | { type: 'VISIT_HOLD'; hold: boolean }
   | { type: 'SET_NOISE'; on: boolean }
+  | { type: 'MARK_NOTIF_ASKED' }
   | { type: 'REST_END' }
   | { type: 'CHOOSE_FAREWELL' }
   | { type: 'CHOOSE_COHABIT' }

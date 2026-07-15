@@ -46,6 +46,7 @@ export const SYS = {
   focusEndAbsent: 'sys.focusEndAbsent',
   restSummary: 'sys.restSummary',
   talkSpent: 'sys.talkSpent',
+  talkSpentAbsent: 'sys.talkSpent.absent',
   nextActionNote: 'sys.nextActionNote',
   status: {
     focus: 'sys.status.focus',
@@ -57,6 +58,8 @@ export const SYS = {
     absenceStart: 'sys.toasts.absenceStart',
     importOk: 'sys.toasts.importOk',
     importFail: 'sys.toasts.importFail',
+    importVersion: 'sys.toasts.importVersion',
+    exportOk: 'sys.toasts.exportOk',
   },
   captions: {
     restRoom: 'sys.captions.restRoom',
@@ -69,7 +72,7 @@ export const SYS = {
   settings: {
     noiseOn: 'sys.settings.noiseOn',
     noiseOff: 'sys.settings.noiseOff',
-    farewellLocked: 'sys.settings.farewellLocked',
+    farewell: 'sys.settings.farewell',
   },
   trustLadder: ['sys.trust.0', 'sys.trust.1', 'sys.trust.2', 'sys.trust.3'],
   trustAbsent: 'sys.trustAbsent',
@@ -91,6 +94,8 @@ export const UI = {
     epilogueDone: 'ui.buttons.epilogueDone',
     startAnyway: 'ui.buttons.startAnyway',
     keepResting: 'ui.buttons.keepResting',
+    exportSave: 'ui.buttons.exportSave',
+    importSave: 'ui.buttons.importSave',
   },
   debug: {
     fastForward: 'ui.debug.fastForward',
