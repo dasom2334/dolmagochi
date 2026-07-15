@@ -23,9 +23,14 @@ export function volatility(abandonment: number, intimacyThreat: number): number 
   return (abandonment + intimacyThreat) / 2;
 }
 
-/** 현재 안정감이 허용하는 친밀도 레벨 (1~5). */
+/**
+ * 현재 안정감이 허용하는 친밀도 레벨 (1~5) — 균등 20폭 5밴드.
+ * 0–19:1, 20–39:2, 40–59:3, 60–79:4, 80–100:5.
+ * (구 /25식은 최상위 5가 안정감 100 한 점에서만 나와 도달 불가 → 20폭으로 교체.
+ *  최상위 밴드 80–100은 두 축의 차이 ≤20, 즉 secure 판정과 맞물린다.)
+ */
 export function allowedIntimacy(security: number): number {
-  return Math.min(5, Math.max(1, 1 + Math.floor(security / 25)));
+  return Math.min(5, Math.max(1, 1 + Math.floor(security / 20)));
 }
 
 /** 애착 4분면 — 상태 대사·기분 스크립트 선별의 기준 */
@@ -47,6 +52,21 @@ export function attachQuadrant(
       : 'secure';
   }
   return diff > 0 ? 'clingy' : 'avoidant';
+}
+
+/**
+ * '급성' 4분면 — 상태 대사 풀 라우팅용. baseline(회피형 시작)은 급성이 아니므로 null.
+ * 실제로 흔들리는 상태(집착·회피·혼란 극단)일 때만 4분면 대사가 뜬다.
+ * 우선순위: 혼란(합산 과다) → 집착(유기불안 과다) → 회피(친밀위협 과다).
+ */
+export function acuteQuadrant(
+  abandonment: number,
+  intimacyThreat: number,
+): 'clingy' | 'avoidant' | 'chaotic' | null {
+  if (abandonment + intimacyThreat >= BALANCE.ATTACH_CHAOTIC_SUM) return 'chaotic';
+  if (abandonment >= BALANCE.ATTACH_CLINGY_ACUTE) return 'clingy';
+  if (intimacyThreat >= BALANCE.ATTACH_AVOIDANT_ACUTE) return 'avoidant';
+  return null;
 }
 
 export interface IntimacyOutcome {

@@ -34,13 +34,16 @@ export const BALANCE = {
 
   // 애착 2축 (숨은 값, 0–100) — 안정감은 두 축의 파생값
   //   안정감 = 100 − |유기불안 − 친밀위협|,  변동성 = (유기불안 + 친밀위협) / 2
-  ABANDONMENT_START: 0, // 유기불안 시작 (회피형 시작 → 안정감 25 재현)
-  INTIMACY_THREAT_START: 75, // 친밀위협 시작
+  ABANDONMENT_START: 0, // 유기불안 시작 (회피형: 아직 매인 게 없어 0)
+  INTIMACY_THREAT_START: 70, // 친밀위협 시작 → 안정감 30 → 허용 친밀도 2(경계형 시작)
   ATTACH_BALANCED_GAP: 20, // |유기불안−친밀위협| 이 값 미만이면 '균형'(안정/혼란 구분)
   ATTACH_CHAOTIC_SUM: 120, // 균형이면서 합산이 이 값 이상이면 '혼란'
   ATTACH_SOOTHE: 3, // 적정/거리 존중 접근 시 두 축 동시 진정량
   ATTACH_THREAT_UP: 5, // 과한 접근 시 친밀위협 상승량
   RETREAT_VOL_SCALE: 1.0, // 잠수 확률 = RETREAT_PROB × (1 + SCALE × 변동성/100)
+  // 4분면 '상태 대사'는 급성일 때만 뜬다 (baseline 회피는 일반 풀 유지):
+  ATTACH_CLINGY_ACUTE: 60, // 유기불안이 이 값 이상이면 집착 상태 대사
+  ATTACH_AVOIDANT_ACUTE: 90, // 친밀위협이 이 값 이상이면 회피 상태 대사
   CONVERGE_STEP: 25, // 위기 루프(병간호/잠수) 매 턴 균형점으로 이동량 (상한 25%)
   ATTACH_RETURN_GAP: 20, // 위기 루프에서 |유기불안−친밀위협| 이 값 미만이면 복귀
   ABANDONMENT_SICK_CEILING: 85, // 유기불안이 이 값 초과면 돌이 아파짐 → 강제 병간호
@@ -83,6 +86,10 @@ export const BALANCE = {
   PERSONAL_WORK_BASE: 0.05,
   PERSONAL_WORK_SCALE: 0.25, // + SCALE × (욕구 4종 평균/100) — 단, 4종 전부 충족 시에만 판정
   SELF_ACT_GAIN_PER_WORK: 10, // 개인작업 1회당 자아실현 게이지 상승
+
+  // 호감도 7티어 임계 (관계 대사 축) — 누적 호감도가 각 값 이상이면 그 티어.
+  // 목표: 1티어 4h, 이후 티어당 8h (플레이테스트로 조정). index 0 = 1티어(=0).
+  AFFECTION_TIERS: [0, 8, 20, 36, 56, 82, 115],
 
   // 엔딩
   SELF_ACT_COMPLETE: 100,

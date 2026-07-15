@@ -1,11 +1,22 @@
 import type { Era, GameState } from './types';
 import type { DialogueLine, DialoguesData } from '../data/schema';
 import { checkCondition } from './conditions';
+import { BALANCE } from './balance';
+import { acuteQuadrant } from './security';
 import type { Rng } from './rng';
 
 export interface DialoguePool {
   poolId: string;
   lines: DialogueLine[];
+}
+
+/** 누적 호감도 → 관계 티어 (1~7). AFFECTION_TIERS의 마지막으로 통과한 임계. */
+export function affectionTier(affection: number): number {
+  let tier = 1;
+  for (let i = 0; i < BALANCE.AFFECTION_TIERS.length; i++) {
+    if (affection >= BALANCE.AFFECTION_TIERS[i]) tier = i + 1;
+  }
+  return tier;
 }
 
 /**
@@ -29,12 +40,29 @@ export function cohabitStageIndex(
   return idx;
 }
 
+export interface DialogueContext {
+  era: Era;
+  needsLevel: number;
+  dependence: number;
+  affection: number;
+  abandonment: number;
+  intimacyThreat: number;
+  /** 안정 상태에서 관계 대사(true) vs 상태 대사(false) 중 무엇을 뽑을지 — 호출부가 코인. */
+  preferRelation: boolean;
+}
+
+/**
+ * 휴식 대화 풀 선택 — 대사 이원화:
+ * - apart → null (회상/방문 별도), cohabit → 의존도 구간 풀
+ * - 육성 · 애착 불안정(집착/회피/혼란) → 4분면 상태 풀 (돌이 흔들림)
+ * - 육성 · 안정 → preferRelation이면 호감도 티어 관계 풀, 아니면 욕구 단계 상태 풀
+ *   (위기 중엔 관계가 자라지 않는다 = 불안정이면 관계 풀이 나오지 않는다)
+ */
 export function selectDialoguePool(
   dialogues: DialoguesData,
-  era: Era,
-  needsLevel: number,
-  dependence: number,
+  ctx: DialogueContext,
 ): DialoguePool | null {
+  const { era, needsLevel, dependence, affection } = ctx;
   if (era === 'apart') return null;
   if (era === 'cohabit') {
     if (dialogues.cohabitStages.length === 0)
@@ -42,15 +70,25 @@ export function selectDialoguePool(
     const idx = cohabitStageIndex(dialogues.cohabitStages, dependence);
     return { poolId: `cohabit${idx}`, lines: dialogues.cohabitStages[idx].lines };
   }
-  const poolId = `stage${needsLevel}`;
-  const pools: Record<string, DialogueLine[]> = {
-    stage1: dialogues.stage1,
-    stage2: dialogues.stage2,
-    stage3: dialogues.stage3,
-    stage4: dialogues.stage4,
-    stage5: dialogues.stage5,
-  };
-  return { poolId, lines: pools[poolId] ?? [] };
+  const quadrant = acuteQuadrant(ctx.abandonment, ctx.intimacyThreat);
+  if (quadrant) {
+    return { poolId: `quad_${quadrant}`, lines: dialogues.quadrants[quadrant] };
+  }
+  if (ctx.preferRelation) {
+    const tier = affectionTier(affection);
+    return {
+      poolId: `relation${tier}`,
+      lines: dialogues.relationTiers[tier - 1] ?? [],
+    };
+  }
+  const stagePools: DialogueLine[][] = [
+    dialogues.stage1,
+    dialogues.stage2,
+    dialogues.stage3,
+    dialogues.stage4,
+    dialogues.stage5,
+  ];
+  return { poolId: `stage${needsLevel}`, lines: stagePools[needsLevel - 1] ?? [] };
 }
 
 export interface NonReplacingDraw {

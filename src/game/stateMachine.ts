@@ -1037,13 +1037,17 @@ export function transition(
         // 적합한 포섀도가 없으면 아래 단계 풀 대화로 폴백
       }
 
-      // 7) 시대·단계별 풀 비복원 추출
-      const pool = selectDialoguePool(
-        data.dialogues,
-        state.era,
-        needsLevelOf(state.stats.needs),
-        state.stats.dependence,
-      );
+      // 7) 시대·상태·관계 풀 선택 (대사 이원화) — 비복원 추출
+      // preferRelation은 세션 패리티로 결정(관계/상태 대사 번갈아, rng 순서 비교란)
+      const pool = selectDialoguePool(data.dialogues, {
+        era: state.era,
+        needsLevel: needsLevelOf(state.stats.needs),
+        dependence: state.stats.dependence,
+        affection: state.stats.affection,
+        abandonment: state.stats.abandonment,
+        intimacyThreat: state.stats.intimacyThreat,
+        preferRelation: state.totals.sessions % 2 === 0,
+      });
       if (!pool)
         return { ...state, rest: { ...state.rest, talkPressed: true } };
       // when 조건 필터 — 소품 언급 줄은 그 소품이 방에 있을 때만 후보

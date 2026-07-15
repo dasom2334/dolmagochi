@@ -15,11 +15,14 @@ import { mulberry32, type Rng } from '../rng';
 const fixed = (v: number): Rng => () => v;
 
 describe('allowedIntimacy — 안정감에 따른 허용 친밀도', () => {
-  it('구간 매핑 1~5', () => {
+  it('구간 매핑 1~5 (균등 20폭 밴드)', () => {
     expect(allowedIntimacy(0)).toBe(1);
-    expect(allowedIntimacy(24)).toBe(1);
-    expect(allowedIntimacy(25)).toBe(2);
-    expect(allowedIntimacy(75)).toBe(4);
+    expect(allowedIntimacy(19)).toBe(1);
+    expect(allowedIntimacy(20)).toBe(2);
+    expect(allowedIntimacy(30)).toBe(2); // 시작값
+    expect(allowedIntimacy(59)).toBe(3);
+    expect(allowedIntimacy(60)).toBe(4);
+    expect(allowedIntimacy(80)).toBe(5);
     expect(allowedIntimacy(100)).toBe(5);
   });
 });

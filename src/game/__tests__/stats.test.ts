@@ -135,14 +135,14 @@ describe('applyStatOutcome', () => {
   });
 
   it('B13 호감도 비례 래칫: 안정감이 낮으면 상승분이 준다', () => {
-    const r = applyStatOutcome(initialStats(), { stats: { affection: 4 } }); // 안정감 25
-    expect(r.affection).toBeCloseTo(4 * 0.25); // 1
+    const r = applyStatOutcome(initialStats(), { stats: { affection: 4 } }); // 안정감 30
+    expect(r.affection).toBeCloseTo(4 * 0.3); // 1.2
   });
 
   it('애착 태그: 친밀위협 상승 → 안정감(파생) 하락', () => {
     const r = applyStatOutcome(initialStats(), { stats: { intimacyThreat: 10 } });
-    expect(r.intimacyThreat).toBe(85); // 75 + 10
-    expect(r.security).toBe(15); // 100 − |0 − 85|
+    expect(r.intimacyThreat).toBe(80); // 70 + 10
+    expect(r.security).toBe(20); // 100 − |0 − 80|
   });
 });
 
