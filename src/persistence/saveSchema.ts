@@ -1,5 +1,6 @@
 import type { GameState } from '../game/types';
 import { SCHEMA_VERSION } from '../game/stateMachine';
+import { normalizeFlowtime } from '../game/timer';
 import { migrateState } from './migrate';
 
 /** 세이브 파일 포맷 버전 (봉투). 내부 state.schemaVersion과 별개. */
@@ -73,11 +74,24 @@ export function readSave(raw: unknown): ReadResult {
   if (!looksLikeState(raw.state)) {
     return { ok: false, reason: 'shape' };
   }
-  const state = raw.state;
+  let state = raw.state;
   if (state.schemaVersion !== SCHEMA_VERSION) {
     const migrated = migrateState(state);
     if (!migrated) return { ok: false, reason: 'version' };
-    return { ok: true, state: migrated };
+    state = migrated;
   }
-  return { ok: true, state };
+  // Flowtime 배정표는 로드/임포트 경로에서도 반드시 정규화 — 깨진 표(NaN 휴식)로
+  // restMinutesFor가 undefined를 내 휴식이 안 끝나는 것을 막는다.
+  return { ok: true, state: normalizeState(state) };
+}
+
+/** 로드 후 안전 정규화 — 현재는 flowtime 정합화. */
+function normalizeState(state: GameState): GameState {
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      flowtime: normalizeFlowtime(state.settings.flowtime),
+    },
+  };
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GameState } from '../game/types';
 import { appStore, dispatch, now, t } from '../store/appStore';
 import { SYS, UI } from '../game/text';
@@ -17,6 +17,49 @@ const numInput = {
   padding: '3px 4px',
   textAlign: 'center' as const,
 };
+
+/**
+ * 숫자 입력 — 로컬 문자열로 편집하고 blur/Enter에서만 커밋(정규화는 커밋 후 리듀서가).
+ * 편집 중에는 clamp하지 않아 여러 자리 입력·필드 비우기가 자연스럽다.
+ * 외부에서 값이 바뀌면(예: 기본값으로 돌아가기) 포커스가 없을 때만 동기화한다.
+ */
+function NumField({
+  value,
+  onCommit,
+}: {
+  value: number;
+  onCommit: (v: number) => void;
+}) {
+  const [txt, setTxt] = useState(String(value));
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!focused.current) setTxt(String(value));
+  }, [value]);
+  const commit = () => {
+    const v = parseInt(txt, 10);
+    if (Number.isNaN(v)) setTxt(String(value));
+    else onCommit(v);
+  };
+  return (
+    <input
+      type="number"
+      min={1}
+      style={numInput}
+      value={txt}
+      onFocus={() => {
+        focused.current = true;
+      }}
+      onChange={(e) => setTxt(e.target.value)}
+      onBlur={() => {
+        focused.current = false;
+        commit();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+      }}
+    />
+  );
+}
 
 const settingBtn = {
   textAlign: 'left' as const,
@@ -65,10 +108,6 @@ export function SettingsModal({
     const rests = ft.rests.slice();
     rests[i] = v;
     dispatch({ type: 'SET_FLOWTIME', flowtime: { bounds: ft.bounds, rests } });
-  };
-  const commit = (fn: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = parseInt(e.target.value, 10);
-    if (!Number.isNaN(v)) fn(v);
   };
 
   const doExport = () => {
@@ -219,28 +258,19 @@ export function SettingsModal({
               >
                 {i < ft.bounds.length ? (
                   <>
-                    <input
-                      type="number"
-                      min={1}
-                      style={numInput}
+                    <NumField
                       value={ft.bounds[i]}
-                      onChange={commit((v) => setBound(i, v))}
+                      onCommit={(v) => setBound(i, v)}
                     />
-                    분 미만
+                    {t(UI.labels.flowtime.under)}
                   </>
                 ) : (
-                  '그 이상'
+                  t(UI.labels.flowtime.above)
                 )}
               </span>
               <span>→</span>
-              <input
-                type="number"
-                min={1}
-                style={numInput}
-                value={rest}
-                onChange={commit((v) => setRest(i, v))}
-              />
-              분 휴식
+              <NumField value={rest} onCommit={(v) => setRest(i, v)} />
+              {t(UI.labels.flowtime.restSuffix)}
             </div>
           ))}
           <button

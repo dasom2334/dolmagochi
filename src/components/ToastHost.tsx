@@ -15,15 +15,24 @@ interface ToastItem {
 export function ToastHost() {
   const [items, setItems] = useState<ToastItem[]>([]);
   const seq = useRef(0);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
 
   useEffect(() => {
-    return subscribeToast((text) => {
+    const pending = timers.current;
+    const unsub = subscribeToast((text) => {
       const id = ++seq.current;
       setItems((prev) => [...prev, { id, text }]);
-      window.setTimeout(() => {
+      const timer = setTimeout(() => {
         setItems((prev) => prev.filter((it) => it.id !== id));
+        pending.delete(timer);
       }, TOAST_MS);
+      pending.add(timer);
     });
+    return () => {
+      unsub();
+      pending.forEach(clearTimeout);
+      pending.clear();
+    };
   }, []);
 
   if (items.length === 0) return null;

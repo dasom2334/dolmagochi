@@ -13,6 +13,30 @@ export function cloneFlowtime(f: FlowtimeSettings = DEFAULT_FLOWTIME): FlowtimeS
 }
 
 /**
+ * 어떤 입력이든 유효한 배정표로 정규화한다 — SET_FLOWTIME·세이브 로드/임포트 공용.
+ * 불변식을 강제해 restMinutesFor가 절대 undefined/NaN을 내지 않게 한다:
+ * - 원소는 양의 정수(clamp), bounds는 오름차순 정렬(라벨=실제 배정 일치)
+ * - rests.length === bounds.length + 1 (부족하면 마지막 값으로 채우고, 남으면 자른다)
+ * 구조 자체가 배열이 아니면 기본 배정표로 폴백.
+ */
+export function normalizeFlowtime(input: unknown): FlowtimeSettings {
+  const f = input as { bounds?: unknown; rests?: unknown } | null | undefined;
+  if (!f || !Array.isArray(f.bounds) || !Array.isArray(f.rests)) {
+    return cloneFlowtime();
+  }
+  const clamp = (n: unknown) => {
+    const v = Math.round(Number(n));
+    return Number.isFinite(v) && v >= 1 ? v : 1;
+  };
+  const bounds = f.bounds.map(clamp).sort((a, b) => a - b);
+  const rests = f.rests.map(clamp);
+  const target = bounds.length + 1;
+  while (rests.length < target) rests.push(rests[rests.length - 1] ?? 5);
+  rests.length = target; // 남는 항목은 자른다
+  return { bounds, rests };
+}
+
+/**
  * Flowtime 휴식 길이 산정(분). 기본 배정표는 기획서 규칙(<25→5·25~50→10·50~90→20·90+→30),
  * 사용자가 설정에서 수정하면 그 표(flowtime)를 쓴다.
  */

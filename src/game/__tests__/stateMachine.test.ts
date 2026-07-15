@@ -601,6 +601,13 @@ describe('SET_FLOWTIME — 휴식 배정표 사용자 수정', () => {
     ]);
     expect(s.settings.flowtime).toEqual({ bounds: [1, 56], rests: [1, 10, 20] });
   });
+
+  it('비오름차순 bounds는 정렬돼 라벨과 배정이 어긋나지 않는다', () => {
+    const s = run(init(), [
+      { type: 'SET_FLOWTIME', flowtime: { bounds: [60, 40, 90], rests: [5, 10, 20, 30] } },
+    ]);
+    expect(s.settings.flowtime.bounds).toEqual([40, 60, 90]);
+  });
 });
 
 describe('SET_PAUSE_ON_HIDE — 탭 이탈 시 일시정지 토글', () => {

@@ -15,7 +15,13 @@ import type {
   MilestoneData,
   ShopItemData,
 } from '../data/schema';
-import { accrueCare, cloneFlowtime, formatElapsed, restMinutesFor } from './timer';
+import {
+  accrueCare,
+  cloneFlowtime,
+  formatElapsed,
+  normalizeFlowtime,
+  restMinutesFor,
+} from './timer';
 import { drawMemory, remember, resolveReflection } from './memory';
 import { drawEligibleLine, selectDialoguePool } from './dialogue';
 import { pickFreeAction } from './freeAction';
@@ -1100,12 +1106,8 @@ export function transition(
       };
     }
     case 'SET_FLOWTIME': {
-      // 양의 정수로 정규화 — 잘못된 입력이 배정표를 깨지 않게
-      const clamp = (n: number) => Math.max(1, Math.round(n) || 1);
-      const flowtime = {
-        bounds: event.flowtime.bounds.map(clamp),
-        rests: event.flowtime.rests.map(clamp),
-      };
+      // 양의 정수·오름차순·길이 정합으로 정규화 — 라벨과 실제 배정이 항상 일치
+      const flowtime = normalizeFlowtime(event.flowtime);
       return { ...state, settings: { ...state.settings, flowtime } };
     }
     case 'SET_PAUSE_ON_HIDE': {

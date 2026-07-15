@@ -82,6 +82,24 @@ describe('saveSchema — 봉투·검증·마이그레이션', () => {
     }
   });
 
+  it('깨진 flowtime(길이 불일치·비정수)이 로드 시 정규화된다 (NaN 휴식 방지)', () => {
+    const broken = {
+      ...state,
+      settings: {
+        ...state.settings,
+        flowtime: { bounds: [90, 25, 50, 70], rests: [5, -1] }, // 길이·순서·부호 전부 깨짐
+      },
+    };
+    const res = readSave({ format: SAVE_FORMAT, savedAt: T0, state: broken });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const ft = res.state.settings.flowtime;
+      expect(ft.bounds).toEqual([25, 50, 70, 90]); // 정렬됨
+      expect(ft.rests).toHaveLength(ft.bounds.length + 1); // 길이 정합
+      expect(ft.rests.every((r) => Number.isInteger(r) && r >= 1)).toBe(true); // 양의 정수
+    }
+  });
+
   it('v4 세이브(Flowtime 없음) → v5로 마이그레이션, flowtime 기본값 주입', () => {
     const { flowtime, ...v4settings } = state.settings;
     void flowtime;

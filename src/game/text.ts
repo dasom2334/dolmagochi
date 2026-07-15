@@ -123,8 +123,9 @@ export const UI = {
     flowtime: {
       title: 'ui.labels.flowtimeTitle',
       hint: 'ui.labels.flowtimeHint',
-      bounds: 'ui.labels.flowtimeBounds',
-      rests: 'ui.labels.flowtimeRests',
+      under: 'ui.labels.flowtimeUnder',
+      above: 'ui.labels.flowtimeAbove',
+      restSuffix: 'ui.labels.flowtimeRestSuffix',
     },
     pauseOnHide: 'ui.labels.pauseOnHide',
   },
