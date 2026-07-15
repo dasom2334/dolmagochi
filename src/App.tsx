@@ -5,6 +5,9 @@ import { isRockPresent } from './game/stateMachine';
 import { SYS, UI } from './game/text';
 import { bootRestore, flushSave, startAutosave } from './persistence/persist';
 import { notify, requestNotifyPermission } from './notifications';
+import { pushToast } from './toast';
+import { dueFocusMarks } from './game/notify';
+import { ToastHost } from './components/ToastHost';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
 import { NarratorLog } from './components/NarratorLog';
@@ -43,7 +46,8 @@ export function App() {
       // (숨김-집중 상태로 저장→포그라운드 로드 시 타이머가 얼어붙지 않도록).
       // paused는 집중 세션에만 의미가 있으므로 focus일 때만 던진다.
       if (appStore.getState().state.phase === 'focus') {
-        dispatch({ type: 'SET_PAUSED', paused: document.hidden });
+        const pauseOnHide = appStore.getState().state.settings.pauseOnHide;
+        dispatch({ type: 'SET_PAUSED', paused: pauseOnHide && document.hidden });
       }
       if (!appStore.getState().state.settings.notifAsked) {
         await requestNotifyPermission();
@@ -60,9 +64,13 @@ export function App() {
       new URL('./workers/restTimer.worker.ts', import.meta.url),
       { type: 'module' },
     );
-    // 백그라운드에서만 알림 — 화면을 보고 있으면 OS 알림을 띄우지 않는다
+    // 휴식 종료 알림 — 설정(전체·휴식)이 켜져 있고 백그라운드일 때만 OS 알림.
+    // (화면을 보고 있으면 UI가 이미 종료를 보여주므로 굳이 안 띄운다)
     worker.onmessage = () => {
-      if (document.hidden) notify(t(SYS.notification.restEnd));
+      const nf = appStore.getState().state.settings.notify;
+      if (nf.enabled && nf.restEnd && document.hidden) {
+        notify(t(SYS.notification.restEnd));
+      }
     };
     workerRef.current = worker;
 
@@ -102,18 +110,42 @@ export function App() {
       // nowMs는 휴식 카운트다운·만료 체크에만 쓰인다 — 그 외 phase에서는
       // 매 틱 리렌더를 유발하지 않도록 rest일 때만 갱신한다.
       if (phase === 'rest') setNowMs(n);
-      if (phase === 'focus' && !st.state.session.paused && !document.hidden) {
+      // 탭이 숨겨졌을 때 멈출지는 설정(pauseOnHide)에 따른다. 끄면 백그라운드에서도 흐른다.
+      const blockedByHide = st.state.settings.pauseOnHide && document.hidden;
+      if (phase === 'focus' && !st.state.session.paused && !blockedByHide) {
         st.tick(dt);
       }
     }, 250);
     return () => clearInterval(iv);
   }, []);
 
-  // 탭 이탈 시 일시정지 — 집중 세션에만 적용 (머신이 phase를 가드한다)
+  // 집중 구간 알림(25/50/90분) — 문턱을 넘는 순간 1회.
+  // 포그라운드=인앱 토스트, 백그라운드=OS 알림. 개별 토글이 켜진 문턱만.
+  // (집중은 탭이 앞에 있을 때만 시간이 흐르므로 실제로는 대개 토스트로 뜬다)
+  const focusMarkRef = useRef(0);
+  useEffect(() => {
+    if (state.phase !== 'focus') {
+      focusMarkRef.current = 0;
+      return;
+    }
+    const cur = state.session.elapsedSec;
+    const prev = cur < focusMarkRef.current ? 0 : focusMarkRef.current;
+    for (const key of dueFocusMarks(prev, cur, state.settings.notify)) {
+      const body = t(SYS.notification.focus[key]);
+      if (document.hidden) notify(body);
+      else pushToast(body);
+    }
+    focusMarkRef.current = cur;
+  }, [state.phase, state.session.elapsedSec, state.settings.notify]);
+
+  // 탭 이탈 시 일시정지 — 설정(pauseOnHide)이 켜져 있을 때만. 집중 세션에만 의미(머신이 phase 가드).
+  // pauseOnHide가 켜져 있을 때만 델타 기준점(lastRef)을 리셋해 숨김 시간이 집중에 안 더해지게 한다.
+  // 꺼져 있으면 리셋하지 않아, 포그라운드 복귀 시 그 사이 경과가 그대로 반영된다.
   useEffect(() => {
     const onVis = () => {
-      lastRef.current = Date.now();
-      dispatch({ type: 'SET_PAUSED', paused: document.hidden });
+      const pauseOnHide = appStore.getState().state.settings.pauseOnHide;
+      if (pauseOnHide) lastRef.current = Date.now();
+      dispatch({ type: 'SET_PAUSED', paused: pauseOnHide && document.hidden });
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
@@ -222,6 +254,7 @@ export function App() {
           <SettingsModal state={state} onClose={() => setSettingsOpen(false)} />
         )}
       </div>
+      <ToastHost />
     </div>
   );
 }

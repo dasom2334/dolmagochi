@@ -226,7 +226,38 @@ export interface GameState {
   lastSessionEndAt: number | null;
   /** 마지막 정산 달력일 "YYYY-MM-DD" */
   lastDecayDate: string;
-  settings: { noiseOn: boolean; notifAsked: boolean; locale: string };
+  settings: {
+    noiseOn: boolean;
+    notifAsked: boolean;
+    locale: string;
+    /** 알림 설정. enabled=전체 스위치, 나머지는 개별. 포그라운드=토스트 / 백그라운드=OS 알림. */
+    notify: NotifySettings;
+    /** Flowtime 휴식 배정표 — 사용자가 수정 가능. 기본값은 기획서 규칙(<25→5·25~50→10·50~90→20·90+→30). */
+    flowtime: FlowtimeSettings;
+    /** 탭 이탈 시 집중 타이머 일시정지(기획서 기본 동작). false면 탭을 옮겨도 집중 시간이 계속 흐른다. */
+    pauseOnHide: boolean;
+  };
+}
+
+/** 집중 구간 알림 키(개별 토글). 임계는 balance.NOTIFY_FOCUS_MARKS. */
+export type FocusNotifyKey = 'focus25' | 'focus50' | 'focus90';
+
+export interface NotifySettings {
+  enabled: boolean;
+  restEnd: boolean;
+  focus25: boolean;
+  focus50: boolean;
+  focus90: boolean;
+}
+
+/**
+ * Flowtime 휴식 배정: 집중 분에 따라 휴식 분을 정한다.
+ * bounds = 오름차순 구간 경계(분) N개, rests = 구간별 휴식(분) N+1개.
+ * focusMin < bounds[i] 인 첫 i의 rests[i], 아니면 마지막 rests.
+ */
+export interface FlowtimeSettings {
+  bounds: number[];
+  rests: number[];
 }
 
 export type GameEvent =
@@ -245,6 +276,9 @@ export type GameEvent =
   | { type: 'SET_PLACEMENT'; itemId: ItemId; placed: boolean }
   | { type: 'VISIT_HOLD'; hold: boolean }
   | { type: 'SET_NOISE'; on: boolean }
+  | { type: 'SET_NOTIFY'; key: keyof NotifySettings; on: boolean }
+  | { type: 'SET_FLOWTIME'; flowtime: FlowtimeSettings }
+  | { type: 'SET_PAUSE_ON_HIDE'; on: boolean }
   | { type: 'MARK_NOTIF_ASKED' }
   | { type: 'REST_END' }
   | { type: 'CHOOSE_FAREWELL' }

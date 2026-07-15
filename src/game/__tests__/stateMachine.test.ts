@@ -558,6 +558,69 @@ describe('상점 — 구매 ≠ 배치', () => {
   });
 });
 
+describe('SET_NOTIFY — 알림 설정 토글', () => {
+  it('개별 키를 켜고 끄며 다른 키는 보존한다', () => {
+    let s = init();
+    // 기본값: 전체·휴식 on, 집중 구간 off
+    expect(s.settings.notify.enabled).toBe(true);
+    expect(s.settings.notify.focus50).toBe(false);
+
+    s = run(s, [{ type: 'SET_NOTIFY', key: 'focus50', on: true }]);
+    expect(s.settings.notify.focus50).toBe(true);
+    expect(s.settings.notify.restEnd).toBe(true); // 다른 키 보존
+
+    s = run(s, [{ type: 'SET_NOTIFY', key: 'enabled', on: false }]);
+    expect(s.settings.notify.enabled).toBe(false);
+    expect(s.settings.notify.focus50).toBe(true); // 개별 상태는 유지(마스터만 꺼짐)
+  });
+});
+
+describe('SET_FLOWTIME — 휴식 배정표 사용자 수정', () => {
+  it('기본값은 기획서 규칙, 수정하면 그 표로 휴식이 배정된다', () => {
+    let s = init();
+    expect(s.settings.flowtime).toEqual({ bounds: [25, 50, 90], rests: [5, 10, 20, 30] });
+
+    // 30분 미만은 3분 쉬도록 사용자가 수정
+    s = run(s, [
+      { type: 'SET_FLOWTIME', flowtime: { bounds: [30], rests: [3, 12] } },
+    ]);
+    expect(s.settings.flowtime).toEqual({ bounds: [30], rests: [3, 12] });
+
+    // 25분 집중 → 수정 전이면 10분이지만, 이제 30분 미만이라 3분
+    const rested = run(s, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(1500), // 25분
+      { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
+    ]);
+    expect(rested.rest.totalSec).toBe(3 * 60);
+  });
+
+  it('잘못된 값(0·음수·소수)은 양의 정수로 정규화', () => {
+    const s = run(init(), [
+      { type: 'SET_FLOWTIME', flowtime: { bounds: [0, 55.6], rests: [-3, 10.2, 20] } },
+    ]);
+    expect(s.settings.flowtime).toEqual({ bounds: [1, 56], rests: [1, 10, 20] });
+  });
+
+  it('비오름차순 bounds는 정렬돼 라벨과 배정이 어긋나지 않는다', () => {
+    const s = run(init(), [
+      { type: 'SET_FLOWTIME', flowtime: { bounds: [60, 40, 90], rests: [5, 10, 20, 30] } },
+    ]);
+    expect(s.settings.flowtime.bounds).toEqual([40, 60, 90]);
+  });
+});
+
+describe('SET_PAUSE_ON_HIDE — 탭 이탈 시 일시정지 토글', () => {
+  it('기본값은 켜짐(기획서 동작), 끄고 켤 수 있다', () => {
+    let s = init();
+    expect(s.settings.pauseOnHide).toBe(true);
+    s = run(s, [{ type: 'SET_PAUSE_ON_HIDE', on: false }]);
+    expect(s.settings.pauseOnHide).toBe(false);
+    s = run(s, [{ type: 'SET_PAUSE_ON_HIDE', on: true }]);
+    expect(s.settings.pauseOnHide).toBe(true);
+  });
+});
+
 describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () => {
   const TALKS = gameData.endings.preEndingTalks.length;
 
@@ -566,7 +629,7 @@ describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () =
     return {
       ...base,
       stats: { ...base.stats, selfActualization: 100 },
-      settings: { noiseOn: true, notifAsked: true, locale: 'ko' },
+      settings: { ...base.settings, noiseOn: true, notifAsked: true },
       care: { points: 7, carryMinutes: 3 },
       items: { plant: { placed: true } },
     };

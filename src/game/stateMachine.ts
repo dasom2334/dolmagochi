@@ -15,7 +15,13 @@ import type {
   MilestoneData,
   ShopItemData,
 } from '../data/schema';
-import { accrueCare, formatElapsed, restMinutesFor } from './timer';
+import {
+  accrueCare,
+  cloneFlowtime,
+  formatElapsed,
+  normalizeFlowtime,
+  restMinutesFor,
+} from './timer';
 import { drawMemory, remember, resolveReflection } from './memory';
 import { drawEligibleLine, selectDialoguePool } from './dialogue';
 import { pickFreeAction } from './freeAction';
@@ -36,7 +42,19 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 6;
+
+/**
+ * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
+ * 전체·휴식 종료 알림은 기본 on.
+ */
+export const DEFAULT_NOTIFY_SETTINGS: GameState['settings']['notify'] = {
+  enabled: true,
+  restEnd: true,
+  focus25: false,
+  focus50: false,
+  focus90: false,
+};
 
 export function createInitialState(
   nowMs: number,
@@ -82,7 +100,14 @@ export function createInitialState(
     totals: { focusSeconds: 0, sessions: 0 },
     lastSessionEndAt: null,
     lastDecayDate: dateKey(nowMs),
-    settings: { noiseOn: false, notifAsked: false, locale: 'ko' },
+    settings: {
+      noiseOn: false,
+      notifAsked: false,
+      locale: 'ko',
+      notify: { ...DEFAULT_NOTIFY_SETTINGS },
+      flowtime: cloneFlowtime(),
+      pauseOnHide: true,
+    },
   };
 }
 
@@ -621,7 +646,7 @@ export function transition(
       const mins = state.session.elapsedSec / 60;
       const care = accrueCare(state.care, mins);
       const earned = care.points - state.care.points;
-      const restMin = restMinutesFor(mins);
+      const restMin = restMinutesFor(mins, state.settings.flowtime);
       // 세션 동안 돌이 곁에 있었는가 — 없었으면 '옆에 있었다' 대신 부재 마무리
       const sessionHadRock = isRockPresent(state);
 
@@ -1071,6 +1096,26 @@ export function transition(
       return { ...state, settings: { ...state.settings, noiseOn: event.on } };
     }
 
+    case 'SET_NOTIFY': {
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          notify: { ...state.settings.notify, [event.key]: event.on },
+        },
+      };
+    }
+    case 'SET_FLOWTIME': {
+      // 양의 정수·오름차순·길이 정합으로 정규화 — 라벨과 실제 배정이 항상 일치
+      const flowtime = normalizeFlowtime(event.flowtime);
+      return { ...state, settings: { ...state.settings, flowtime } };
+    }
+    case 'SET_PAUSE_ON_HIDE': {
+      return {
+        ...state,
+        settings: { ...state.settings, pauseOnHide: event.on },
+      };
+    }
     case 'MARK_NOTIF_ASKED': {
       if (state.settings.notifAsked) return state;
       return { ...state, settings: { ...state.settings, notifAsked: true } };

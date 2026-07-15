@@ -34,7 +34,7 @@ function readyForEnding(): GameState {
     endingTalksSeen: gameData.endings.preEndingTalks.length,
     care: { points: 5, carryMinutes: 3 },
     items: { plant: { placed: true } },
-    settings: { noiseOn: true, notifAsked: true, locale: 'ko' },
+    settings: { ...base.settings, noiseOn: true, notifAsked: true },
     totals: { focusSeconds: 50 * 3600, sessions: 40 },
   };
 }
