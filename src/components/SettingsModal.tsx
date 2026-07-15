@@ -145,7 +145,7 @@ export function SettingsModal({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState('');
-  const [sub, setSub] = useState<'sound' | 'notify' | null>(null);
+  const [sub, setSub] = useState<'sound' | 'timer' | null>(null);
 
   const nf = state.settings.notify;
   const onOff = (v: boolean) => t(v ? SYS.settings.on : SYS.settings.off);
@@ -226,9 +226,9 @@ export function SettingsModal({
         <button
           className="hv-text"
           style={settingBtn}
-          onClick={() => setSub('notify')}
+          onClick={() => setSub('timer')}
         >
-          * {t(UI.labels.notifyGroup)} ▸
+          * {t(UI.labels.timerGroup)} ▸
         </button>
 
         <button
@@ -243,80 +243,6 @@ export function SettingsModal({
         >
           * {t(UI.labels.pauseOnHide)} — {onOff(state.settings.pauseOnHide)}
         </button>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <div style={{ fontSize: 13, color: '#e0d6c4' }}>
-            * {t(UI.labels.flowtime.title)}
-          </div>
-          <div style={{ fontSize: 11, color: '#8a7f96' }}>
-            {t(UI.labels.flowtime.hint)}
-          </div>
-          {ft.rests.map((rest, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 5,
-                fontSize: 12,
-                color: '#c8bdd0',
-                paddingLeft: 12,
-              }}
-            >
-              <span
-                style={{
-                  minWidth: 92,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                {i < ft.bounds.length ? (
-                  <>
-                    <NumField
-                      value={ft.bounds[i]}
-                      onCommit={(v) => setBound(i, v)}
-                    />
-                    {t(UI.labels.flowtime.under)}
-                  </>
-                ) : (
-                  t(UI.labels.flowtime.above)
-                )}
-              </span>
-              <span>→</span>
-              <NumField value={rest} onCommit={(v) => setRest(i, v)} />
-              {t(UI.labels.flowtime.restSuffix)}
-              {/* 각 구간(경계)마다 집중 알림 토글 — 경계를 바꾸면 알림 시각도 따라간다 */}
-              {i < ft.bounds.length && (
-                <button
-                  className="hv-text"
-                  style={{
-                    border: 'none',
-                    background: 'none',
-                    fontFamily: 'inherit',
-                    fontSize: 11,
-                    cursor: 'pointer',
-                    marginLeft: 'auto',
-                    color: nf.focusMarks[i] ? '#a8c491' : '#6b6178',
-                  }}
-                  onClick={() => toggleFocusMark(i)}
-                >
-                  {t(UI.labels.tierNotify)} {nf.focusMarks[i] ? '●' : '○'}
-                </button>
-              )}
-            </div>
-          ))}
-          <button
-            className="hv-text"
-            style={{ ...settingBtn, fontSize: 12, color: '#a8c491', paddingLeft: 12 }}
-            onClick={() =>
-              dispatch({ type: 'SET_FLOWTIME', flowtime: cloneFlowtime() })
-            }
-          >
-            - {t(UI.buttons.resetFlowtime)}
-          </button>
-        </div>
 
         <button className="hv-text" style={settingBtn} onClick={doExport}>
           * {t(UI.buttons.exportSave)}
@@ -414,8 +340,9 @@ export function SettingsModal({
       </SubSheet>
     )}
 
-    {sub === 'notify' && (
-      <SubSheet titleId={UI.labels.notifyGroup} onBack={() => setSub(null)}>
+    {sub === 'timer' && (
+      <SubSheet titleId={UI.labels.timerGroup} onBack={() => setSub(null)}>
+        {/* 알림: 전체 스위치 + 휴식 종료. 집중 구간 알림은 아래 표에서 구간별로. */}
         <button
           className="hv-text"
           style={settingBtn}
@@ -432,11 +359,87 @@ export function SettingsModal({
             - {t(UI.labels.notifyRest)} — {onOff(nf.restEnd)}
           </button>
         )}
-        {nf.enabled && (
-          <p style={{ margin: 0, fontSize: 11, color: '#8a7f96', lineHeight: 1.6 }}>
-            {t(UI.labels.notifyFocusHint)}
-          </p>
-        )}
+
+        <div style={{ height: 2, background: '#4a4156', margin: '4px 0' }} />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ fontSize: 13, color: '#e0d6c4' }}>
+            * {t(UI.labels.flowtime.title)}
+          </div>
+          <div style={{ fontSize: 11, color: '#8a7f96' }}>
+            {t(UI.labels.flowtime.hint)}
+          </div>
+          {ft.rests.map((rest, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 5,
+                fontSize: 12,
+                color: '#c8bdd0',
+                paddingLeft: 12,
+              }}
+            >
+              <span
+                style={{
+                  minWidth: 92,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                {i < ft.bounds.length ? (
+                  <>
+                    <NumField
+                      value={ft.bounds[i]}
+                      onCommit={(v) => setBound(i, v)}
+                    />
+                    {t(UI.labels.flowtime.under)}
+                  </>
+                ) : (
+                  t(UI.labels.flowtime.above)
+                )}
+              </span>
+              <span>→</span>
+              <NumField value={rest} onCommit={(v) => setRest(i, v)} />
+              {t(UI.labels.flowtime.restSuffix)}
+              {/* 각 구간(경계)마다 집중 알림 토글 — 경계를 바꾸면 알림 시각도 따라간다.
+                  전체 알림이 꺼져 있으면 흐리게(발동 안 함). */}
+              {i < ft.bounds.length && (
+                <button
+                  className="hv-text"
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    fontFamily: 'inherit',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    marginLeft: 'auto',
+                    color: !nf.enabled
+                      ? '#4a4156'
+                      : nf.focusMarks[i]
+                        ? '#a8c491'
+                        : '#6b6178',
+                  }}
+                  onClick={() => toggleFocusMark(i)}
+                >
+                  {t(UI.labels.tierNotify)} {nf.focusMarks[i] ? '●' : '○'}
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            className="hv-text"
+            style={{ ...settingBtn, fontSize: 12, color: '#a8c491', paddingLeft: 12 }}
+            onClick={() =>
+              dispatch({ type: 'SET_FLOWTIME', flowtime: cloneFlowtime() })
+            }
+          >
+            - {t(UI.buttons.resetFlowtime)}
+          </button>
+        </div>
       </SubSheet>
     )}
     </>

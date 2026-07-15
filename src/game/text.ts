@@ -109,10 +109,9 @@ export const UI = {
     noiseSetting: 'ui.labels.noiseSetting',
     soundSetting: 'ui.labels.soundSetting',
     soundGroup: 'ui.labels.soundGroup',
-    notifyGroup: 'ui.labels.notifyGroup',
+    timerGroup: 'ui.labels.timerGroup',
     notifyAll: 'ui.labels.notifyAll',
     notifyRest: 'ui.labels.notifyRest',
-    notifyFocusHint: 'ui.labels.notifyFocusHint',
     tierNotify: 'ui.labels.tierNotify',
     flowtime: {
       title: 'ui.labels.flowtimeTitle',
