@@ -7,6 +7,7 @@ import { bootRestore, flushSave, startAutosave } from './persistence/persist';
 import { notify, requestNotifyPermission } from './notifications';
 import { pushToast } from './toast';
 import { dueFocusMarks } from './game/notify';
+import { playSound, setSoundEnabled } from './sound';
 import { ToastHost } from './components/ToastHost';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
@@ -67,7 +68,10 @@ export function App() {
     // 휴식 종료 알림 — 설정(전체·휴식)이 켜져 있고 백그라운드일 때만 OS 알림.
     // (화면을 보고 있으면 UI가 이미 종료를 보여주므로 굳이 안 띄운다)
     worker.onmessage = () => {
-      const nf = appStore.getState().state.settings.notify;
+      const st = appStore.getState().state;
+      // 휴식 종료 종소리(포그라운드). 백그라운드는 오디오가 스로틀될 수 있어 OS 알림이 담당.
+      playSound('rest');
+      const nf = st.settings.notify;
       if (nf.enabled && nf.restEnd && document.hidden) {
         notify(t(SYS.notification.restEnd));
       }
@@ -118,6 +122,11 @@ export function App() {
     }, 250);
     return () => clearInterval(iv);
   }, []);
+
+  // 효과음 on/off를 설정과 동기화 (부트 복원·토글 반영)
+  useEffect(() => {
+    setSoundEnabled(state.settings.soundOn);
+  }, [state.settings.soundOn]);
 
   // 집중 구간 알림(25/50/90분) — 문턱을 넘는 순간 1회.
   // 포그라운드=인앱 토스트, 백그라운드=OS 알림. 개별 토글이 켜진 문턱만.

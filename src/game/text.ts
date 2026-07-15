@@ -113,6 +113,7 @@ export const UI = {
     modeRest: 'ui.labels.modeRest',
     care: 'ui.labels.care', // {points}
     noiseSetting: 'ui.labels.noiseSetting',
+    soundSetting: 'ui.labels.soundSetting',
     notifyAll: 'ui.labels.notifyAll',
     notify: {
       restEnd: 'ui.labels.notifyRest',

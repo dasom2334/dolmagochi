@@ -621,6 +621,17 @@ describe('SET_PAUSE_ON_HIDE — 탭 이탈 시 일시정지 토글', () => {
   });
 });
 
+describe('SET_SOUND — 효과음 토글', () => {
+  it('기본값은 켜짐, 끄고 켤 수 있다', () => {
+    let s = init();
+    expect(s.settings.soundOn).toBe(true);
+    s = run(s, [{ type: 'SET_SOUND', on: false }]);
+    expect(s.settings.soundOn).toBe(false);
+    s = run(s, [{ type: 'SET_SOUND', on: true }]);
+    expect(s.settings.soundOn).toBe(true);
+  });
+});
+
 describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () => {
   const TALKS = gameData.endings.preEndingTalks.length;
 
