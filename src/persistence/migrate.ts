@@ -56,6 +56,28 @@ export function migrateState(state: GameState): GameState | null {
       },
     };
   }
+  // v7 → v8: 집중 알림을 개별 키(focus25/50/90)에서 Flowtime 경계 대응 배열(focusMarks)로.
+  if (s.schemaVersion === 7) {
+    const old = s.settings.notify as unknown as {
+      focus25?: boolean;
+      focus50?: boolean;
+      focus90?: boolean;
+      focusMarks?: boolean[];
+    };
+    const boundCount = s.settings.flowtime?.bounds?.length ?? 3;
+    const legacy = [old.focus25, old.focus50, old.focus90];
+    const focusMarks =
+      old.focusMarks ??
+      Array.from({ length: boundCount }, (_, i) => legacy[i] ?? false);
+    s = {
+      ...s,
+      schemaVersion: 8,
+      settings: {
+        ...s.settings,
+        notify: { enabled: s.settings.notify.enabled, restEnd: s.settings.notify.restEnd, focusMarks },
+      },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

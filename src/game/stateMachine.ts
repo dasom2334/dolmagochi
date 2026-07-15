@@ -42,7 +42,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -51,9 +51,8 @@ export const SCHEMA_VERSION = 7;
 export const DEFAULT_NOTIFY_SETTINGS: GameState['settings']['notify'] = {
   enabled: true,
   restEnd: true,
-  focus25: false,
-  focus50: false,
-  focus90: false,
+  // 기본 Flowtime 경계 3개(25/50/90)에 대응 — 전부 off
+  focusMarks: [false, false, false],
 };
 
 export function createInitialState(
@@ -1103,6 +1102,19 @@ export function transition(
         settings: {
           ...state.settings,
           notify: { ...state.settings.notify, [event.key]: event.on },
+        },
+      };
+    }
+    case 'SET_FOCUS_NOTIFY': {
+      const focusMarks = state.settings.notify.focusMarks.slice();
+      // 경계 개수만큼 자리를 채워 두고(부족하면 false) 해당 인덱스를 설정
+      while (focusMarks.length <= event.index) focusMarks.push(false);
+      focusMarks[event.index] = event.on;
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          notify: { ...state.settings.notify, focusMarks },
         },
       };
     }

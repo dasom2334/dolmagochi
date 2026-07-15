@@ -558,20 +558,27 @@ describe('상점 — 구매 ≠ 배치', () => {
   });
 });
 
-describe('SET_NOTIFY — 알림 설정 토글', () => {
-  it('개별 키를 켜고 끄며 다른 키는 보존한다', () => {
+describe('SET_NOTIFY / SET_FOCUS_NOTIFY — 알림 설정 토글', () => {
+  it('전체·휴식 키를 켜고 끄며 다른 키는 보존', () => {
     let s = init();
-    // 기본값: 전체·휴식 on, 집중 구간 off
+    // 기본값: 전체·휴식 on, 집중 구간(경계별) off
     expect(s.settings.notify.enabled).toBe(true);
-    expect(s.settings.notify.focus50).toBe(false);
+    expect(s.settings.notify.restEnd).toBe(true);
+    expect(s.settings.notify.focusMarks).toEqual([false, false, false]);
 
-    s = run(s, [{ type: 'SET_NOTIFY', key: 'focus50', on: true }]);
-    expect(s.settings.notify.focus50).toBe(true);
-    expect(s.settings.notify.restEnd).toBe(true); // 다른 키 보존
+    s = run(s, [{ type: 'SET_NOTIFY', key: 'restEnd', on: false }]);
+    expect(s.settings.notify.restEnd).toBe(false);
+    expect(s.settings.notify.enabled).toBe(true); // 다른 키 보존
+  });
 
-    s = run(s, [{ type: 'SET_NOTIFY', key: 'enabled', on: false }]);
-    expect(s.settings.notify.enabled).toBe(false);
-    expect(s.settings.notify.focus50).toBe(true); // 개별 상태는 유지(마스터만 꺼짐)
+  it('SET_FOCUS_NOTIFY는 경계 인덱스별로 켜고, 나머지는 보존', () => {
+    let s = init();
+    s = run(s, [{ type: 'SET_FOCUS_NOTIFY', index: 2, on: true }]);
+    expect(s.settings.notify.focusMarks).toEqual([false, false, true]);
+    s = run(s, [{ type: 'SET_FOCUS_NOTIFY', index: 0, on: true }]);
+    expect(s.settings.notify.focusMarks).toEqual([true, false, true]);
+    s = run(s, [{ type: 'SET_FOCUS_NOTIFY', index: 2, on: false }]);
+    expect(s.settings.notify.focusMarks).toEqual([true, false, false]);
   });
 });
 

@@ -68,11 +68,7 @@ export const SYS = {
   },
   notification: {
     restEnd: 'sys.notification.restEnd',
-    focus: {
-      focus25: 'sys.notification.focus.25m',
-      focus50: 'sys.notification.focus.50m',
-      focus90: 'sys.notification.focus.90m',
-    },
+    focusMark: 'sys.notification.focusMark', // {min}
   },
   placement: { prompt: 'sys.placement.prompt' },
   hints: { flowtime: 'sys.hints.flowtime' },
@@ -116,12 +112,9 @@ export const UI = {
     soundGroup: 'ui.labels.soundGroup',
     notifyGroup: 'ui.labels.notifyGroup',
     notifyAll: 'ui.labels.notifyAll',
-    notify: {
-      restEnd: 'ui.labels.notifyRest',
-      focus25: 'ui.labels.notifyFocus25',
-      focus50: 'ui.labels.notifyFocus50',
-      focus90: 'ui.labels.notifyFocus90',
-    },
+    notifyRest: 'ui.labels.notifyRest',
+    notifyFocusHint: 'ui.labels.notifyFocusHint',
+    tierNotify: 'ui.labels.tierNotify',
     flowtime: {
       title: 'ui.labels.flowtimeTitle',
       hint: 'ui.labels.flowtimeHint',

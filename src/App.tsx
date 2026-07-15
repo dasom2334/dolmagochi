@@ -154,13 +154,23 @@ export function App() {
     }
     const cur = state.session.elapsedSec;
     const prev = cur < focusMarkRef.current ? 0 : focusMarkRef.current;
-    for (const key of dueFocusMarks(prev, cur, state.settings.notify)) {
-      const body = t(SYS.notification.focus[key]);
+    for (const min of dueFocusMarks(
+      prev,
+      cur,
+      state.settings.notify,
+      state.settings.flowtime,
+    )) {
+      const body = tf(SYS.notification.focusMark, { min });
       if (document.hidden) notify(body);
       else pushToast(body);
     }
     focusMarkRef.current = cur;
-  }, [state.phase, state.session.elapsedSec, state.settings.notify]);
+  }, [
+    state.phase,
+    state.session.elapsedSec,
+    state.settings.notify,
+    state.settings.flowtime,
+  ]);
 
   // 탭 이탈 시 일시정지 — 설정(pauseOnHide)이 켜져 있을 때만. 집중 세션에만 의미(머신이 phase 가드).
   // pauseOnHide가 켜져 있을 때만 델타 기준점(lastRef)을 리셋해 숨김 시간이 집중에 안 더해지게 한다.

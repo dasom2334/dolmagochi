@@ -5,7 +5,6 @@ import { SYS, UI } from '../game/text';
 import { exportSaveJson, importSaveJson } from '../persistence/exportImport';
 import { requestNotifyPermission } from '../notifications';
 import { cloneFlowtime } from '../game/timer';
-import type { NotifySettings } from '../game/types';
 
 const numInput = {
   width: 42,
@@ -150,18 +149,17 @@ export function SettingsModal({
 
   const nf = state.settings.notify;
   const onOff = (v: boolean) => t(v ? SYS.settings.on : SYS.settings.off);
-  const toggleNotify = (key: keyof NotifySettings) => {
+  const toggleNotify = (key: 'enabled' | 'restEnd') => {
     const on = !state.settings.notify[key];
     dispatch({ type: 'SET_NOTIFY', key, on });
     // 켤 때 권한이 아직 미결정이면 요청 (거부/미지원이면 알림만 조용히 빠진다)
     if (on) void requestNotifyPermission();
   };
-  const focusToggles: [keyof NotifySettings, string][] = [
-    ['restEnd', UI.labels.notify.restEnd],
-    ['focus25', UI.labels.notify.focus25],
-    ['focus50', UI.labels.notify.focus50],
-    ['focus90', UI.labels.notify.focus90],
-  ];
+  const toggleFocusMark = (index: number) => {
+    const on = !state.settings.notify.focusMarks[index];
+    dispatch({ type: 'SET_FOCUS_NOTIFY', index, on });
+    if (on) void requestNotifyPermission();
+  };
 
   const ft = state.settings.flowtime;
   const setBound = (i: number, v: number) => {
@@ -259,6 +257,7 @@ export function SettingsModal({
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                flexWrap: 'wrap',
                 gap: 5,
                 fontSize: 12,
                 color: '#c8bdd0',
@@ -288,6 +287,24 @@ export function SettingsModal({
               <span>→</span>
               <NumField value={rest} onCommit={(v) => setRest(i, v)} />
               {t(UI.labels.flowtime.restSuffix)}
+              {/* 각 구간(경계)마다 집중 알림 토글 — 경계를 바꾸면 알림 시각도 따라간다 */}
+              {i < ft.bounds.length && (
+                <button
+                  className="hv-text"
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    fontFamily: 'inherit',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    marginLeft: 'auto',
+                    color: nf.focusMarks[i] ? '#a8c491' : '#6b6178',
+                  }}
+                  onClick={() => toggleFocusMark(i)}
+                >
+                  {t(UI.labels.tierNotify)} {nf.focusMarks[i] ? '●' : '○'}
+                </button>
+              )}
             </div>
           ))}
           <button
@@ -407,20 +424,18 @@ export function SettingsModal({
           * {t(UI.labels.notifyAll)} — {onOff(nf.enabled)}
         </button>
         {nf.enabled && (
-          <div
-            style={{ display: 'flex', flexDirection: 'column', paddingLeft: 12 }}
+          <button
+            className="hv-text"
+            style={{ ...settingBtn, fontSize: 12, color: '#c8bdd0', paddingLeft: 12 }}
+            onClick={() => toggleNotify('restEnd')}
           >
-            {focusToggles.map(([key, labelId]) => (
-              <button
-                key={key}
-                className="hv-text"
-                style={{ ...settingBtn, fontSize: 12, color: '#c8bdd0' }}
-                onClick={() => toggleNotify(key)}
-              >
-                - {t(labelId)} — {onOff(nf[key])}
-              </button>
-            ))}
-          </div>
+            - {t(UI.labels.notifyRest)} — {onOff(nf.restEnd)}
+          </button>
+        )}
+        {nf.enabled && (
+          <p style={{ margin: 0, fontSize: 11, color: '#8a7f96', lineHeight: 1.6 }}>
+            {t(UI.labels.notifyFocusHint)}
+          </p>
         )}
       </SubSheet>
     )}

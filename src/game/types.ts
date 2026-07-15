@@ -241,15 +241,11 @@ export interface GameState {
   };
 }
 
-/** 집중 구간 알림 키(개별 토글). 임계는 balance.NOTIFY_FOCUS_MARKS. */
-export type FocusNotifyKey = 'focus25' | 'focus50' | 'focus90';
-
 export interface NotifySettings {
   enabled: boolean;
   restEnd: boolean;
-  focus25: boolean;
-  focus50: boolean;
-  focus90: boolean;
+  /** 집중 구간 알림 — Flowtime 경계(flowtime.bounds)와 1:1. index i = bounds[i]분에서 알림 여부. */
+  focusMarks: boolean[];
 }
 
 /**
@@ -278,7 +274,8 @@ export type GameEvent =
   | { type: 'SET_PLACEMENT'; itemId: ItemId; placed: boolean }
   | { type: 'VISIT_HOLD'; hold: boolean }
   | { type: 'SET_NOISE'; on: boolean }
-  | { type: 'SET_NOTIFY'; key: keyof NotifySettings; on: boolean }
+  | { type: 'SET_NOTIFY'; key: 'enabled' | 'restEnd'; on: boolean }
+  | { type: 'SET_FOCUS_NOTIFY'; index: number; on: boolean }
   | { type: 'SET_FLOWTIME'; flowtime: FlowtimeSettings }
   | { type: 'SET_PAUSE_ON_HIDE'; on: boolean }
   | { type: 'SET_SOUND'; on: boolean }
