@@ -432,9 +432,10 @@ export function transition(
       let next: GameState = { ...state, session: { ...s, elapsedSec: el } };
 
       // 1) 화자 관찰 로테이션 — 카탈로그 변형을 순서대로 순환
+      // 선택지가 떠 있어도 서술은 계속 흐른다(선택지는 아래 별도 박스로 남는다)
       const ambientVariants =
         data.text[present ? action.ambientId : SYS.absentAmbient] ?? [];
-      if (ambientVariants.length > 0 && !next.session.choiceState) {
+      if (ambientVariants.length > 0) {
         const wantIdx =
           Math.floor(el / BALANCE.AMBIENT_ROTATE_SEC) % ambientVariants.length;
         if (wantIdx !== next.session.ambIdx) {
@@ -486,23 +487,7 @@ export function transition(
         }
       }
 
-      // 3) 선택지 무시 → 조용히 회수
-      const cs = next.session.choiceState;
-      if (cs && el - cs.shownAtSec > BALANCE.CHOICE_RECALL_SEC) {
-        next = {
-          ...next,
-          pendingEvent: cs.source === 'foreshadow' ? null : next.pendingEvent,
-          session: {
-            ...next.session,
-            choiceState: null,
-            choicesFired:
-              cs.source === 'action'
-                ? next.session.choicesFired + 1
-                : next.session.choicesFired,
-            narratorLine: joinPages(pickText(data.text, SYS.choiceRecall, rng)),
-          },
-        };
-      }
+      // 3) 선택지는 무시해도 회수되지 않고 아래에 남는다 (선택하거나 세션이 끝날 때까지)
 
       // 4) 반추/자유행동/회상 틱
       const interval =
@@ -572,8 +557,8 @@ export function transition(
           line = absentReflectionLine(next, data, rng);
         }
 
-        const showAsNarrator =
-          action.id === 'free' && !next.session.choiceState && present;
+        // 선택지가 떠 있어도 자유행동 반추 서술은 계속 흐른다(선택지는 아래 별도 박스)
+        const showAsNarrator = action.id === 'free' && present;
         next = {
           ...next,
           memory,

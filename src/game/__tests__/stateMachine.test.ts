@@ -100,16 +100,31 @@ describe('기본 사이클: 행동선택 → 집중 → 휴식 → 행동선택'
 });
 
 describe('집중 중 조용한 선택지', () => {
-  it('등장 → 무시하면 조용히 회수', () => {
+  it('등장 → 무시해도 물러가지 않고 아래에 남는다', () => {
     let s = run(init(), [
       { type: 'START_FOCUS', nowMs: T0 },
       ...ticks(BALANCE.CHOICE_FIRST_AT_SEC),
     ]);
     expect(s.session.choiceState).toMatchObject({ source: 'action', index: 0 });
-    s = run(s, ticks(BALANCE.CHOICE_RECALL_SEC + 10));
-    expect(s.session.choiceState).toBeNull();
-    expect(s.session.choicesFired).toBe(1);
-    expect(s.session.narratorLine).toBe(T('sys.choiceRecall'));
+    // 오래 지나도 회수되지 않고 그대로 유지 — 선택 전까지는 소진되지 않는다
+    s = run(s, ticks(1200));
+    expect(s.session.choiceState).toMatchObject({ source: 'action', index: 0 });
+    expect(s.session.choicesFired).toBe(0);
+  });
+
+  it('선택지가 떠 있어도 서술(ambient)은 계속 흐른다 (별도 박스)', () => {
+    let s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(BALANCE.CHOICE_FIRST_AT_SEC),
+    ]);
+    expect(s.session.choiceState).not.toBeNull();
+    const seen = new Set<string>();
+    for (let k = 0; k < 4; k++) {
+      s = run(s, ticks(BALANCE.AMBIENT_ROTATE_SEC));
+      seen.add(s.session.narratorLine);
+      expect(s.session.choiceState).not.toBeNull(); // 선택지는 계속 남아있고
+    }
+    expect(seen.size).toBeGreaterThan(1); // 서술은 로테이션으로 갱신됨
   });
 
   it('CHOICE_PICKED: 추첨된 결과가 서술·일지·기억에 남는다', () => {

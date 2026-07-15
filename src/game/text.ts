@@ -41,7 +41,6 @@ export const SYS = {
     visitEnd: 'sys.journal.visitEnd',
   },
   absentAmbient: 'sys.absentAmbient',
-  choiceRecall: 'sys.choiceRecall',
   focusEnd: 'sys.focusEnd',
   focusEndAbsent: 'sys.focusEndAbsent',
   restSummary: 'sys.restSummary',
