@@ -46,6 +46,7 @@ export const SYS = {
   focusEndAbsent: 'sys.focusEndAbsent',
   restSummary: 'sys.restSummary',
   talkSpent: 'sys.talkSpent',
+  talkSpentAbsent: 'sys.talkSpent.absent',
   nextActionNote: 'sys.nextActionNote',
   status: {
     focus: 'sys.status.focus',
