@@ -11,6 +11,18 @@ import { GrassTufts } from './GrassTufts';
 import { RockSprite, RockShadow } from './RockSprite';
 import { sproutStageOf } from '../../game/sprout';
 import { PlantProp } from './props/PlantProp';
+import { PillowProp } from './props/PillowProp';
+import { BedProp } from './props/BedProp';
+import { UmbrellaProp } from './props/UmbrellaProp';
+import { FireplaceProp } from './props/FireplaceProp';
+import { RockingChairProp } from './props/RockingChairProp';
+import { BrushProp } from './props/BrushProp';
+import { BoardProp } from './props/BoardProp';
+import { LadleProp } from './props/LadleProp';
+import { DeskProp } from './props/DeskProp';
+import { StationeryProp } from './props/StationeryProp';
+import { LaptopProp } from './props/LaptopProp';
+import { SupplyProp } from './SupplyProp';
 import { SodaProp } from './props/SodaProp';
 import { CupProp } from './props/CupProp';
 import { FanProp } from './props/FanProp';
@@ -79,6 +91,23 @@ export function SceneView({ state }: { state: GameState }) {
       {placed('soda') && <SodaProp />}
       {placed('fan') && <FanProp />}
       {placed('lamp') && <LampProp />}
+      {placed('pillow') && <PillowProp />}
+      {placed('bed') && <BedProp />}
+      {placed('umbrella') && <UmbrellaProp />}
+      {placed('fireplace') && <FireplaceProp />}
+      {placed('rockingchair') && <RockingChairProp />}
+      {placed('brush') && <BrushProp />}
+      {placed('board') && <BoardProp />}
+      {placed('ladle') && <LadleProp />}
+      {placed('desk') && <DeskProp />}
+      {placed('stationery') && <StationeryProp />}
+      {placed('laptop') && <LaptopProp />}
+      {isFocus && state.session.supply && (
+        <SupplyProp
+          itemId={state.session.supply.itemId}
+          variant={state.session.supply.variant}
+        />
+      )}
       <div
         style={{
           position: 'absolute',

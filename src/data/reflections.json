@@ -1,7 +1,11 @@
 [
   {
     "token": "read",
-    "variants": [{ "textId": "refl.read.base" }]
+    "variants": [
+      { "when": { "placedItems": ["rockingchair"] }, "textId": "refl.read.rockingchair" },
+      { "when": { "placedItems": ["fireplace"] }, "textId": "refl.read.fireplace" },
+      { "textId": "refl.read.base" }
+    ]
   },
   {
     "token": "sun",
