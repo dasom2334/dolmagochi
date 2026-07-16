@@ -55,6 +55,7 @@ export const SYS = {
     rest: 'sys.status.rest',
   },
   toasts: {
+    actionUnlocked: 'sys.toasts.actionUnlocked', // {action} — 구매로 행동 해금
     purchase: 'sys.toasts.purchase',
     absenceStart: 'sys.toasts.absenceStart',
     importOk: 'sys.toasts.importOk',

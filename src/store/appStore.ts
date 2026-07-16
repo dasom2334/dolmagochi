@@ -2,6 +2,9 @@ import { useStore } from 'zustand';
 import { createGameStore, gameData, type GameStore } from './gameStore';
 import type { GameEvent } from '../game/types';
 import { playSound, setSoundEnabled, type SoundName } from '../sound';
+import { isActionAvailable } from '../game/stateMachine';
+import { SYS } from '../game/text';
+import { pushToast } from '../toast';
 
 /** 앱 전역 스토어 싱글턴 (테스트는 createGameStore를 직접 사용) */
 export const appStore = createGameStore();
@@ -59,7 +62,22 @@ export function dispatch(event: GameEvent): void {
     const s = soundForEvent(event);
     if (s) playSound(s);
   }
+  // 구매로 새 행동이 가능해지면 알림 — 이어서 배치 프롬프트가 뜬다
+  const beforeAvail =
+    event.type === 'BUY'
+      ? gameData.actions
+          .filter((a) => isActionAvailable(a, appStore.getState().state))
+          .map((a) => a.id)
+      : null;
   appStore.getState().dispatch(event);
+  if (beforeAvail) {
+    const after = appStore.getState().state;
+    for (const a of gameData.actions) {
+      if (!beforeAvail.includes(a.id) && isActionAvailable(a, after)) {
+        pushToast(tf(SYS.toasts.actionUnlocked, { action: t(a.nameId) }));
+      }
+    }
+  }
 }
 
 export function now(): number {
