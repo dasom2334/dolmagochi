@@ -112,6 +112,15 @@ function normalizeState(state: GameState): GameState {
       intimacyThreat,
       security: derivedSecurity(abandonment, intimacyThreat),
     },
+    // 자유행동 정산 필드 방어 — 구 세이브(집중 중 저장)엔 없을 수 있다
+    session: {
+      ...state.session,
+      freeCare: state.session?.freeCare ?? null,
+      freeWorked: state.session?.freeWorked === true,
+    },
+    // 소모품 진열/종류 필드 방어 — 구 v10 세이브 백필
+    rest: { ...state.rest, offers: state.rest?.offers ?? {} },
+    supplyVariants: state.supplyVariants ?? {},
     // 병간호 필드 방어 — 구 v9 세이브엔 없을 수 있어 기본값을 채운다(크래시 방지)
     presence: {
       ...state.presence,

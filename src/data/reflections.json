@@ -1,7 +1,11 @@
 [
   {
     "token": "read",
-    "variants": [{ "textId": "refl.read.base" }]
+    "variants": [
+      { "when": { "placedItems": ["rockingchair"] }, "textId": "refl.read.rockingchair" },
+      { "when": { "placedItems": ["fireplace"] }, "textId": "refl.read.fireplace" },
+      { "textId": "refl.read.base" }
+    ]
   },
   {
     "token": "sun",
@@ -45,6 +49,12 @@
     "variants": [{ "textId": "refl.selfCare-belonging" }]
   },
   { "token": "selfCare-esteem", "variants": [{ "textId": "refl.selfCare-esteem" }] },
+  { "token": "selfCareVia-lie", "variants": [{ "textId": "refl.selfCareVia-lie" }] },
+  { "token": "selfCareVia-sun", "variants": [{ "textId": "refl.selfCareVia-sun" }] },
+  { "token": "selfCareVia-walk", "variants": [{ "textId": "refl.selfCareVia-walk" }] },
+  { "token": "selfCareVia-cook", "variants": [{ "textId": "refl.selfCareVia-cook" }] },
+  { "token": "selfCareVia-read", "variants": [{ "textId": "refl.selfCareVia-read" }] },
+  { "token": "selfCareVia-chore", "variants": [{ "textId": "refl.selfCareVia-chore" }] },
   { "token": "personalWork", "variants": [{ "textId": "refl.personalWork" }] },
   { "token": "default", "variants": [{ "textId": "refl.default" }] },
   { "token": "absent", "variants": [{ "textId": "refl.absent" }] }

@@ -55,6 +55,7 @@ export const SYS = {
     rest: 'sys.status.rest',
   },
   toasts: {
+    actionUnlocked: 'sys.toasts.actionUnlocked', // {action} — 구매로 행동 해금
     purchase: 'sys.toasts.purchase',
     absenceStart: 'sys.toasts.absenceStart',
     importOk: 'sys.toasts.importOk',
@@ -84,6 +85,32 @@ export const SYS = {
     on: 'sys.settings.on',
     off: 'sys.settings.off',
     farewell: 'sys.settings.farewell',
+  },
+  /** 휴식 일지의 정성적 욕구 관찰 한 줄 — 숫자 없이 밴드(0/1/2)별 어휘만 */
+  needsGlance: {
+    frame: 'sys.needsGlance.frame', // {physiological} {safety} {belonging} {esteem}
+    words: {
+      physiological: [
+        'sys.needsGlance.phys.0',
+        'sys.needsGlance.phys.1',
+        'sys.needsGlance.phys.2',
+      ],
+      safety: [
+        'sys.needsGlance.safety.0',
+        'sys.needsGlance.safety.1',
+        'sys.needsGlance.safety.2',
+      ],
+      belonging: [
+        'sys.needsGlance.belonging.0',
+        'sys.needsGlance.belonging.1',
+        'sys.needsGlance.belonging.2',
+      ],
+      esteem: [
+        'sys.needsGlance.esteem.0',
+        'sys.needsGlance.esteem.1',
+        'sys.needsGlance.esteem.2',
+      ],
+    },
   },
   // 호감도 7티어와 1:1 — 티어마다 고유 관찰 문구 (인덱스 = 티어-1)
   trustLadder: [
@@ -139,7 +166,12 @@ export const UI = {
     pauseOnHide: 'ui.labels.pauseOnHide',
   },
   shop: {
+    subStore: 'ui.shop.subStore', // 물건 탭 내부: 진열대(지금 살 수 있는 것만)
+    subOwned: 'ui.shop.subOwned', // 물건 탭 내부: 소장품(보유·재고 + 배치/보관)
+    ownedEmpty: 'ui.shop.ownedEmpty', // 소장품 빈 상태
     owned: 'ui.shop.owned',
+    stocked: 'ui.shop.stocked', // 소모품 재고 있음 (아직 안 씀)
+    requires: 'ui.shop.requires', // {name} — 체인 이전 티어 필요
     poor: 'ui.shop.poor',
     price: 'ui.shop.price', // {price}
     place: 'ui.shop.place',

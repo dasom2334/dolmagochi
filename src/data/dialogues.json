@@ -17,7 +17,8 @@
     { "textId": "dlg.stage2.4", "intimacy": 2 },
     { "textId": "dlg.stage2.5", "intimacy": 2 },
     { "textId": "dlg.stage2.6", "intimacy": 2 },
-    { "textId": "dlg.stage2.7", "intimacy": 2 }
+    { "textId": "dlg.stage2.7", "intimacy": 2 },
+    { "textId": "dlg.stage2.fireplace", "intimacy": 2, "when": { "placedItems": ["fireplace"] } }
   ],
   "stage3": [
     { "textId": "dlg.stage3.0", "intimacy": 3 },
@@ -27,7 +28,8 @@
     { "textId": "dlg.stage3.4", "intimacy": 3 },
     { "textId": "dlg.stage3.5", "intimacy": 3 },
     { "textId": "dlg.stage3.6", "intimacy": 3 },
-    { "textId": "dlg.stage3.7", "intimacy": 3 }
+    { "textId": "dlg.stage3.7", "intimacy": 3 },
+    { "textId": "dlg.stage3.rockingchair", "intimacy": 3, "when": { "placedItems": ["rockingchair"] } }
   ],
   "stage4": [
     { "textId": "dlg.stage4.0", "intimacy": 4 },

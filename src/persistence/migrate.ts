@@ -107,6 +107,15 @@ export function migrateState(state: GameState): GameState | null {
       },
     };
   }
+  // v9 → v10: 상점 2.0 — 소모품 재고(supplies)·세션 소모 기록(session.supply) 추가.
+  if (s.schemaVersion === 9) {
+    s = {
+      ...s,
+      schemaVersion: 10,
+      supplies: s.supplies ?? {},
+      session: { ...s.session, supply: s.session.supply ?? null },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

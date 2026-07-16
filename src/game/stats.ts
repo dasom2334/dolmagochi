@@ -35,6 +35,12 @@ export function needsLevelOf(needs: Record<NeedId, number>): 1 | 2 | 3 | 4 | 5 {
   return level as 1 | 2 | 3 | 4 | 5;
 }
 
+/** 정성적 표시용 욕구 밴드: 0 부족 / 1 중간 / 2 충족 — 숫자 비노출 UI가 어휘를 고르는 기준 */
+export function needsBand(value: number): 0 | 1 | 2 {
+  if (value >= BALANCE.NEED_FILLED_THRESHOLD) return 2;
+  return value >= BALANCE.NEED_FILLED_THRESHOLD / 2 ? 1 : 0;
+}
+
 /** 아래에서부터 첫 미충족 욕구 (전부 충족이면 null) — 자유행동 순차성의 기준 */
 export function firstUnfilledNeed(needs: Record<NeedId, number>): NeedId | null {
   for (const need of NEED_ORDER) {

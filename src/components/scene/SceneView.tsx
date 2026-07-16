@@ -11,6 +11,24 @@ import { GrassTufts } from './GrassTufts';
 import { RockSprite, RockShadow } from './RockSprite';
 import { sproutStageOf } from '../../game/sprout';
 import { PlantProp } from './props/PlantProp';
+import { PillowProp } from './props/PillowProp';
+import { CushionProp } from './props/CushionProp';
+import { ShoesProp } from './props/ShoesProp';
+import { ReadBookProp } from './props/ReadBookProp';
+import { PotProp } from './props/PotProp';
+import { BroomProp } from './props/BroomProp';
+import { BedProp } from './props/BedProp';
+import { UmbrellaProp } from './props/UmbrellaProp';
+import { FireplaceProp } from './props/FireplaceProp';
+import { RockingChairProp } from './props/RockingChairProp';
+import { BrushProp } from './props/BrushProp';
+import { BoardProp } from './props/BoardProp';
+import { LadleProp } from './props/LadleProp';
+import { DeskProp } from './props/DeskProp';
+import { StationeryProp } from './props/StationeryProp';
+import { LaptopProp } from './props/LaptopProp';
+import { SupplyProp } from './SupplyProp';
+import { StockProp, STOCK_PROP_IDS } from './StockProp';
 import { SodaProp } from './props/SodaProp';
 import { CupProp } from './props/CupProp';
 import { FanProp } from './props/FanProp';
@@ -79,6 +97,33 @@ export function SceneView({ state }: { state: GameState }) {
       {placed('soda') && <SodaProp />}
       {placed('fan') && <FanProp />}
       {placed('lamp') && <LampProp />}
+      {placed('cushion') && <CushionProp />}
+      {placed('shoes') && <ShoesProp />}
+      {placed('book') && <ReadBookProp />}
+      {placed('pot') && <PotProp />}
+      {placed('broom') && <BroomProp />}
+      {placed('pillow') && <PillowProp />}
+      {placed('bed') && <BedProp />}
+      {placed('umbrella') && <UmbrellaProp />}
+      {placed('fireplace') && <FireplaceProp />}
+      {placed('rockingchair') && <RockingChairProp />}
+      {placed('brush') && <BrushProp />}
+      {placed('board') && <BoardProp />}
+      {placed('ladle') && <LadleProp />}
+      {placed('desk') && <DeskProp />}
+      {placed('stationery') && <StationeryProp />}
+      {placed('laptop') && <LaptopProp />}
+      {STOCK_PROP_IDS.map((id) =>
+        state.items[id]?.placed && (state.supplies[id] ?? 0) > 0 ? (
+          <StockProp key={id} itemId={id} />
+        ) : null,
+      )}
+      {isFocus && state.session.supply && (
+        <SupplyProp
+          itemId={state.session.supply.itemId}
+          variant={state.session.supply.variant}
+        />
+      )}
       <div
         style={{
           position: 'absolute',
