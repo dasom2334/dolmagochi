@@ -7,6 +7,7 @@ import type {
   ChoiceOptionData,
   Condition,
   ForeshadowEventData,
+  NeedId,
   Outcome,
   TextId,
 } from '../game/types';
@@ -112,6 +113,16 @@ export interface EventsData {
 }
 
 // ── shop.json ─────────────────────────────────────────────────
+/** 소모품 랜덤 종류 — 세션 시작 시 하나가 뽑혀 대사·씬·보너스를 정한다 */
+export interface ConsumableVariant {
+  /** 종류 키 — 텍스트 id(shop.{item}.var/use.{key})·기억토큰(use-{item}-{key})에 쓰임 */
+  key: string;
+  /** 종류별 게이지 보너스 (유의미~미미) */
+  bonusNeeds?: Partial<Record<NeedId, number>>;
+  /** 개인작업 소모품: 개인작업 성공 시 자아실현 추가 획득 */
+  bonusSelfAct?: number;
+}
+
 export interface ShopItemData {
   id: string;
   nameId: TextId;
@@ -121,6 +132,16 @@ export interface ShopItemData {
   unlock?: Condition;
   /** 구매 시 적용 */
   outcome?: Outcome;
+  /** 체인: 구매하려면 먼저 보유해야 하는 이전 티어 아이템 */
+  requires?: string;
+  /** 이 아이템이 강화하는 대상 — 행동 id 또는 'personalWork'(돌의 개인작업) */
+  boosts?: string;
+  /** (비소모품) 보유 시 대상 행동 세션마다 누적되는 게이지 보너스 */
+  bonusNeeds?: Partial<Record<NeedId, number>>;
+  /** (비소모품) 보유 시 개인작업 확률 가산 — boosts='personalWork' 전용 */
+  bonusPersonalWork?: number;
+  /** 소모품 정의 — 있으면 재고(0/1)로 반복 구매, 세션 1회 소모, 랜덤 종류 */
+  consumable?: { variants: ConsumableVariant[] };
 }
 
 // ── reflections.json — 문맥형 반추 ────────────────────────────

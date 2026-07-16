@@ -113,6 +113,15 @@ describe('pickFreeAction — 순차 자가 충족과 개인작업 게이트', ()
     expect(r).toMatchObject({ type: 'personalWork', textId: 'pw' });
   });
 
+  it('개인작업 확률 가산(상점 부스트)이 반영된다', () => {
+    const base = personalWorkProb(stateWith(ALL).stats.needs); // 0.05 + 0.25
+    // 가산 없으면 실패할 롤(base+0.05)이 +0.1 부스트로 성공한다
+    const hit = pickFreeAction(stateWith(ALL), DEFS, seq([base + 0.05]), true, 0.1);
+    expect(hit.type).toBe('personalWork');
+    const miss = pickFreeAction(stateWith(ALL), DEFS, seq([base + 0.05]), true, 0);
+    expect(miss.type).not.toBe('personalWork');
+  });
+
   it('동거 게이트: allowPersonalWork=false면 전부 충족이어도 개인작업 없음', () => {
     const r = pickFreeAction(stateWith(ALL), DEFS, seq([0.0, 0.0]), false);
     expect(r.type).toBe('reflection');

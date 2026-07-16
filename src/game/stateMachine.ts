@@ -5,6 +5,7 @@ import type {
   GameEvent,
   GameState,
   JournalEntry,
+  NeedId,
   TalkState,
 } from './types';
 import type { Rng } from './rng';
@@ -48,7 +49,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -97,6 +98,7 @@ export function createInitialState(
     endingTalksSeen: 0,
     care: { points: 0, carryMinutes: 0 },
     items: {},
+    supplies: {},
     pendingPlacement: null,
     flags: [],
     unlockedActions: [],
@@ -128,6 +130,7 @@ function emptySession(): GameState['session'] {
     narratorLine: '',
     lastReflectAtSec: 0,
     timeMarksFired: [],
+    supply: null,
   };
 }
 
@@ -176,6 +179,31 @@ function addJournal(
  * 친밀 접근 1회 반영 — 육성 시대에만. (동거: 잠수 소멸·거리 조절 상실,
  * apart: 관계 역학 자체가 끝난 뒤이므로 안정감 판정 없음)
  */
+/** 상점의 개인작업 강화: 책상 체인(보유) 확률 가산 + 이번 세션 API 토큰 가산 */
+function personalWorkBoost(state: GameState, data: GameData): number {
+  let boost = 0;
+  for (const it of data.shop) {
+    if (it.boosts === 'personalWork' && !it.consumable && it.id in state.items)
+      boost += it.bonusPersonalWork ?? 0;
+  }
+  const supply = state.session.supply;
+  if (
+    supply &&
+    data.shop.find((i) => i.id === supply.itemId)?.boosts === 'personalWork'
+  )
+    boost += BALANCE.API_TOKEN_PROB_BOOST;
+  return boost;
+}
+
+/** 이번 세션에 소모한 개인작업 소모품(API 토큰)의 자아실현 추가 획득 */
+function supplySelfActBonus(state: GameState, data: GameData): number {
+  const supply = state.session.supply;
+  if (!supply) return 0;
+  const it = data.shop.find((i) => i.id === supply.itemId);
+  const v = it?.consumable?.variants.find((x) => x.key === supply.variant);
+  return v?.bonusSelfAct ?? 0;
+}
+
 function applyIntimacy(state: GameState, intimacy: number, rng: Rng): GameState {
   if (state.era !== 'raising' || state.presence.state === 'absent') return state;
   const { abandonment, intimacyThreat } = state.stats;
@@ -410,6 +438,26 @@ export function transition(
         }
       }
 
+      // 소모품 소모: 이 행동(자유행동이면 개인작업)을 강화하는 소모품 재고가 있으면
+      // 세션 시작 시 1개 소모하고 랜덤 종류를 뽑는다 (씬·대사·보너스가 종류를 따른다)
+      const boostTarget = action.id === 'free' ? 'personalWork' : action.id;
+      const consumableItem = data.shop.find(
+        (i) =>
+          i.consumable &&
+          i.boosts === boostTarget &&
+          (next.supplies[i.id] ?? 0) > 0,
+      );
+      let supply: GameState['session']['supply'] = null;
+      if (consumableItem?.consumable) {
+        const variants = consumableItem.consumable.variants;
+        const variant = variants[Math.floor(rng() * variants.length)];
+        supply = { itemId: consumableItem.id, variant: variant.key };
+        next = {
+          ...next,
+          supplies: { ...next.supplies, [consumableItem.id]: 0 },
+        };
+      }
+
       const present = isRockPresent(next);
       const startLine = present
         ? joinPages(pickText(data.text, action.startLineId, rng))
@@ -425,6 +473,7 @@ export function transition(
         phase: 'focus',
         session: {
           ...emptySession(),
+          supply,
           narratorLine: present
             ? startLine
             : joinPages(absentAmb ?? [startLine]),
@@ -539,6 +588,7 @@ export function transition(
             data.reflections,
             rng,
             next.era === 'raising', // 동거: 개인작업 정지
+            personalWorkBoost(next, data), // 책상 체인 + API 토큰 확률 가산
           );
           line = result.textId
             ? joinPages(pickText(data.text, result.textId, rng))
@@ -561,7 +611,9 @@ export function transition(
             stats = {
               ...stats,
               selfActualization: clampStat(
-                stats.selfActualization + BALANCE.SELF_ACT_GAIN_PER_WORK,
+                stats.selfActualization +
+                  BALANCE.SELF_ACT_GAIN_PER_WORK +
+                  supplySelfActBonus(next, data), // API 토큰 종류별 추가 획득
               ),
             };
           }
@@ -668,6 +720,49 @@ export function transition(
       // 행동 결과 적용
       let next = applyOutcome(state, action.outcome, event.nowMs);
 
+      // 상점 보너스: 이 행동을 강화하는 보유 아이템(체인)의 게이지 보너스 누적
+      // + 이번 세션에 소모한 소모품의 종류별 보너스
+      const bonusNeeds: Partial<Record<NeedId, number>> = {};
+      const addBonus = (b?: Partial<Record<NeedId, number>>) => {
+        if (!b) return;
+        for (const k of Object.keys(b) as NeedId[])
+          bonusNeeds[k] = (bonusNeeds[k] ?? 0) + (b[k] ?? 0);
+      };
+      for (const it of data.shop) {
+        if (it.boosts === action.id && !it.consumable && it.id in next.items)
+          addBonus(it.bonusNeeds);
+      }
+      const supplyUse = state.session.supply;
+      let supplyLine: string | null = null;
+      if (supplyUse) {
+        const it = data.shop.find((i) => i.id === supplyUse.itemId);
+        const variant = it?.consumable?.variants.find(
+          (v) => v.key === supplyUse.variant,
+        );
+        if (variant) {
+          addBonus(variant.bonusNeeds);
+          next = {
+            ...next,
+            memory: remember(
+              next.memory,
+              `use-${supplyUse.itemId}-${supplyUse.variant}`,
+              BALANCE.MEMORY_WEIGHT_PURCHASE,
+              event.nowMs,
+            ),
+          };
+          const useId = `shop.${supplyUse.itemId}.use.${supplyUse.variant}`;
+          if (data.text[useId]) {
+            supplyLine = joinPages(pickText(data.text, useId, rng));
+          }
+        }
+      }
+      if (Object.keys(bonusNeeds).length > 0) {
+        const boosted = { ...next.stats.needs };
+        for (const k of Object.keys(bonusNeeds) as NeedId[])
+          boosted[k] = clampStat(boosted[k] + (bonusNeeds[k] ?? 0));
+        next = { ...next, stats: { ...next.stats, needs: boosted } };
+      }
+
       // 동거 하이브리드: 의존도 상승 + 존중·자아실현 잠식 (호감도는 보존)
       let stats = next.stats;
       if (next.era === 'cohabit') {
@@ -730,6 +825,9 @@ export function transition(
           joinPages(pickText(data.text, SYS.journal.rockSick, rng)),
         );
       }
+
+      // 소모품 사용 대사 — 종류별 문구를 일지에 남긴다
+      if (supplyLine) journal = addJournal(journal, elapsed, supplyLine);
 
       // apart: 방문 기간 소진 → 바로 떠나지 않고 떠나려는 기색 (붙잡기/보내주기)
       let apart = next.apart;
@@ -1114,11 +1212,29 @@ export function transition(
       const item = data.shop.find((i) => i.id === event.itemId);
       if (
         !item ||
-        item.id in state.items ||
         state.care.points < item.price ||
-        !isItemAvailable(item, state)
+        !isItemAvailable(item, state) ||
+        // 체인: 이전 티어를 보유해야 다음 티어 구매 가능
+        (item.requires !== undefined && !(item.requires in state.items))
       )
         return state;
+      // 소모품: 재고 0/1 — 배치 없이 재고로 들어가고, 소모 후 재구매 가능
+      if (item.consumable) {
+        if ((state.supplies[item.id] ?? 0) > 0) return state; // 아직 안 씀
+        const bought = applyOutcome(state, item.outcome, event.nowMs);
+        return {
+          ...bought,
+          care: { ...bought.care, points: bought.care.points - item.price },
+          supplies: { ...bought.supplies, [item.id]: 1 },
+          memory: remember(
+            bought.memory,
+            `buy-${item.id}`,
+            BALANCE.MEMORY_WEIGHT_PURCHASE,
+            event.nowMs,
+          ),
+        };
+      }
+      if (item.id in state.items) return state; // 비소모품은 1회 구매
       const next = applyOutcome(state, item.outcome, event.nowMs);
       return {
         ...next,

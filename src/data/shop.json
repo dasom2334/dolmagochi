@@ -4,6 +4,85 @@
   { "id": "book", "nameId": "shop.book.name", "price": 2, "descId": "shop.book.desc" },
   { "id": "pot", "nameId": "shop.pot.name", "price": 2, "descId": "shop.pot.desc" },
   { "id": "broom", "nameId": "shop.broom.name", "price": 3, "descId": "shop.broom.desc" },
+
+  { "id": "pillow", "nameId": "shop.pillow.name", "price": 2, "descId": "shop.pillow.desc",
+    "boosts": "lie", "bonusNeeds": { "physiological": 1 } },
+  { "id": "bed", "nameId": "shop.bed.name", "price": 5, "descId": "shop.bed.desc",
+    "requires": "pillow", "boosts": "lie", "bonusNeeds": { "physiological": 2 } },
+  { "id": "nightdrink", "nameId": "shop.nightdrink.name", "price": 1, "descId": "shop.nightdrink.desc",
+    "boosts": "lie",
+    "consumable": { "variants": [
+      { "key": "milk", "bonusNeeds": { "physiological": 3 } },
+      { "key": "cocoa", "bonusNeeds": { "physiological": 2 } },
+      { "key": "barley", "bonusNeeds": { "physiological": 1 } }
+    ] } },
+
+  { "id": "umbrella", "nameId": "shop.umbrella.name", "price": 4, "descId": "shop.umbrella.desc",
+    "requires": "shoes", "boosts": "walk", "bonusNeeds": { "safety": 1 } },
+  { "id": "lunchbox", "nameId": "shop.lunchbox.name", "price": 1, "descId": "shop.lunchbox.desc",
+    "requires": "shoes", "boosts": "walk",
+    "consumable": { "variants": [
+      { "key": "riceball", "bonusNeeds": { "safety": 3 } },
+      { "key": "sandwich", "bonusNeeds": { "safety": 2 } },
+      { "key": "fruit", "bonusNeeds": { "safety": 1 } }
+    ] } },
+
+  { "id": "tea", "nameId": "shop.tea.name", "price": 1, "descId": "shop.tea.desc",
+    "requires": "cushion", "boosts": "sun",
+    "consumable": { "variants": [
+      { "key": "green", "bonusNeeds": { "safety": 3 } },
+      { "key": "black", "bonusNeeds": { "safety": 2 } },
+      { "key": "coffee", "bonusNeeds": { "safety": 1 } }
+    ] } },
+
+  { "id": "fireplace", "nameId": "shop.fireplace.name", "price": 6, "descId": "shop.fireplace.desc",
+    "requires": "book", "boosts": "read", "bonusNeeds": { "esteem": 1 } },
+  { "id": "rockingchair", "nameId": "shop.rockingchair.name", "price": 8, "descId": "shop.rockingchair.desc",
+    "requires": "fireplace", "boosts": "read", "bonusNeeds": { "esteem": 2 } },
+  { "id": "candle", "nameId": "shop.candle.name", "price": 2, "descId": "shop.candle.desc",
+    "requires": "book", "boosts": "read",
+    "consumable": { "variants": [
+      { "key": "lavender", "bonusNeeds": { "esteem": 3 } },
+      { "key": "woody", "bonusNeeds": { "esteem": 2 } },
+      { "key": "citrus", "bonusNeeds": { "esteem": 1 } }
+    ] } },
+
+  { "id": "brush", "nameId": "shop.brush.name", "price": 4, "descId": "shop.brush.desc",
+    "requires": "broom", "boosts": "chore", "bonusNeeds": { "safety": 1, "esteem": 1 } },
+  { "id": "cleaner", "nameId": "shop.cleaner.name", "price": 2, "descId": "shop.cleaner.desc",
+    "requires": "broom", "boosts": "chore",
+    "consumable": { "variants": [
+      { "key": "soap", "bonusNeeds": { "safety": 3 } },
+      { "key": "wax", "bonusNeeds": { "esteem": 2 } },
+      { "key": "polish", "bonusNeeds": { "safety": 1, "esteem": 1 } }
+    ] } },
+
+  { "id": "board", "nameId": "shop.board.name", "price": 4, "descId": "shop.board.desc",
+    "requires": "pot", "boosts": "cook", "bonusNeeds": { "physiological": 1 } },
+  { "id": "ladle", "nameId": "shop.ladle.name", "price": 6, "descId": "shop.ladle.desc",
+    "requires": "board", "boosts": "cook", "bonusNeeds": { "belonging": 1 } },
+  { "id": "ingredients", "nameId": "shop.ingredients.name", "price": 2, "descId": "shop.ingredients.desc",
+    "requires": "pot", "boosts": "cook",
+    "consumable": { "variants": [
+      { "key": "veggie", "bonusNeeds": { "physiological": 3 } },
+      { "key": "mushroom", "bonusNeeds": { "belonging": 2 } },
+      { "key": "grain", "bonusNeeds": { "physiological": 1, "belonging": 1 } }
+    ] } },
+
+  { "id": "desk", "nameId": "shop.desk.name", "price": 5, "descId": "shop.desk.desc",
+    "boosts": "personalWork", "bonusPersonalWork": 0.05 },
+  { "id": "stationery", "nameId": "shop.stationery.name", "price": 3, "descId": "shop.stationery.desc",
+    "requires": "desk", "boosts": "personalWork", "bonusPersonalWork": 0.05 },
+  { "id": "laptop", "nameId": "shop.laptop.name", "price": 10, "descId": "shop.laptop.desc",
+    "requires": "stationery", "boosts": "personalWork", "bonusPersonalWork": 0.1 },
+  { "id": "apitoken", "nameId": "shop.apitoken.name", "price": 2, "descId": "shop.apitoken.desc",
+    "requires": "laptop", "boosts": "personalWork",
+    "consumable": { "variants": [
+      { "key": "claude", "bonusSelfAct": 5 },
+      { "key": "gpt", "bonusSelfAct": 3 },
+      { "key": "gemini", "bonusSelfAct": 2 }
+    ] } },
+
   { "id": "plant", "nameId": "shop.plant.name", "price": 1, "descId": "shop.plant.desc" },
   { "id": "soda", "nameId": "shop.soda.name", "price": 1, "descId": "shop.soda.desc" },
   { "id": "cup", "nameId": "shop.cup.name", "price": 1, "descId": "shop.cup.desc" },

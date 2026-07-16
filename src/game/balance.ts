@@ -86,6 +86,7 @@ export const BALANCE = {
   PERSONAL_WORK_BASE: 0.05,
   PERSONAL_WORK_SCALE: 0.25, // + SCALE × (욕구 4종 평균/100) — 단, 4종 전부 충족 시에만 판정
   SELF_ACT_GAIN_PER_WORK: 10, // 개인작업 1회당 자아실현 게이지 상승
+  API_TOKEN_PROB_BOOST: 0.15, // 개인작업 소모품(API 토큰) 소모 세션의 확률 가산
 
   // 호감도 7티어 임계 (관계 대사 축) — 누적 호감도가 각 값 이상이면 그 티어.
   // 목표: 1티어 4h, 이후 티어당 8h (플레이테스트로 조정). index 0 = 1티어(=0).

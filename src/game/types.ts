@@ -199,6 +199,8 @@ export interface GameState {
     lastReflectAtSec: number;
     /** 이번 집중에서 발화된 시간 문턱 인덱스 (timeMarks.focus) */
     timeMarksFired: number[];
+    /** 이번 세션에 소모된 소모품과 뽑힌 랜덤 종류 (씬·대사·보너스용) */
+    supply: { itemId: ItemId; variant: string } | null;
   };
   rest: {
     endsAt: number;
@@ -227,6 +229,8 @@ export interface GameState {
   care: { points: number; carryMinutes: number };
   /** 구매 물품 — 배치 여부 분리 */
   items: Record<ItemId, { placed: boolean }>;
+  /** 소모품 재고 (0/1) — 세션 1회 소모, 다음 휴식 때 재구매 */
+  supplies: Record<ItemId, number>;
   /** 방금 구매해 배치/보관 선택 대기 중인 물품 */
   pendingPlacement: ItemId | null;
   /** 트리거 플래그 */

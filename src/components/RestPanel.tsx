@@ -320,15 +320,28 @@ function RestShop({ state }: { state: GameState }) {
     <>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {items.map((it) => {
-          const owned = it.id in state.items;
+          const isConsumable = !!it.consumable;
+          // 소모품은 재고(0/1)로 관리 — 소모하면 다시 살 수 있다
+          const owned = !isConsumable && it.id in state.items;
+          const stocked = isConsumable && (state.supplies[it.id] ?? 0) > 0;
+          const reqMissing =
+            it.requires !== undefined && !(it.requires in state.items);
           const available = isItemAvailable(it, state);
           const poor = state.care.points < it.price;
-          const disabled = owned || poor || !available;
+          const disabled = owned || stocked || poor || !available || reqMissing;
           const stateLabel = owned
             ? t(UI.shop.owned)
-            : poor
-              ? t(UI.shop.poor)
-              : tf(UI.shop.price, { price: it.price });
+            : stocked
+              ? t(UI.shop.stocked)
+              : reqMissing
+                ? tf(UI.shop.requires, {
+                    name: t(
+                      gameData.shop.find((o) => o.id === it.requires)?.nameId ?? '',
+                    ),
+                  })
+                : poor
+                  ? t(UI.shop.poor)
+                  : tf(UI.shop.price, { price: it.price });
           return (
             <div key={it.id} style={{ display: 'flex', gap: 6 }}>
               <button

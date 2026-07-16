@@ -63,11 +63,13 @@ export function pickFreeAction(
   defs: ReflectionDef[],
   rng: Rng,
   allowPersonalWork = true,
+  /** 상점 아이템(책상 체인·API 토큰)의 개인작업 확률 가산 */
+  personalWorkBonus = 0,
 ): FreeActionResult {
   const needs = state.stats.needs;
   const target = firstUnfilledNeed(needs);
   if (target === null) {
-    if (allowPersonalWork && rng() < personalWorkProb(needs)) {
+    if (allowPersonalWork && rng() < personalWorkProb(needs) + personalWorkBonus) {
       const textId = tokenReflection(defs, 'personalWork', state, rng);
       if (textId !== null) return { type: 'personalWork', textId };
     }

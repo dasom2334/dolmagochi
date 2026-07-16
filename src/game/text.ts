@@ -131,6 +131,8 @@ export const UI = {
   },
   shop: {
     owned: 'ui.shop.owned',
+    stocked: 'ui.shop.stocked', // 소모품 재고 있음 (아직 안 씀)
+    requires: 'ui.shop.requires', // {name} — 체인 이전 티어 필요
     poor: 'ui.shop.poor',
     price: 'ui.shop.price', // {price}
     place: 'ui.shop.place',
