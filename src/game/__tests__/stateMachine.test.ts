@@ -604,6 +604,21 @@ describe('병간호 (애착 위기 — 유기불안 극단)', () => {
     }
     expect(s.presence.sick).toBe(false);
     expect(turns).toBeLessThanOrEqual(3);
+    // 회복 시 selectedAction이 'nurse'로 남지 않고 유효 행동으로 리셋
+    expect(s.selectedAction).not.toBe('nurse');
+  });
+
+  it('회복 후 재선택 없이 START_FOCUS해도 건강한 돌에게 병간호가 시작되지 않는다', () => {
+    // 재석·안 아픔인데 selectedAction이 아직 'nurse'로 남은 경계 케이스
+    const base = init();
+    const s: GameState = {
+      ...base,
+      phase: 'actionSelect',
+      selectedAction: 'nurse',
+      presence: { ...base.presence, sick: false },
+    };
+    const after = run(s, [{ type: 'START_FOCUS', nowMs: T0 }]);
+    expect(after.phase).toBe('actionSelect'); // 가드로 막힘 — 집중 시작 안 됨
   });
 });
 
@@ -768,7 +783,7 @@ describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () =
       stats: { ...base.stats, selfActualization: 100 },
       settings: { ...base.settings, noiseOn: true, notifAsked: true },
       care: { points: 7, carryMinutes: 3 },
-      items: { plant: { placed: true } },
+      items: { ...base.items, plant: { placed: true } },
     };
   }
 

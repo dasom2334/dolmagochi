@@ -2,6 +2,7 @@
   {
     "id": "lie",
     "nameId": "act.lie.name",
+    "starter": true,
     "intimacy": 1,
     "sceneId": "lie",
     "captionId": "act.lie.caption",

@@ -24,6 +24,8 @@ export interface ActionData {
   nameId: TextId;
   /** 해금 조건 (없으면 항상). Outcome.unlockActions와 OR */
   unlock?: Condition;
+  /** 새 게임의 시작 행동 (정확히 하나) — 배열 순서에 의존하지 않도록 명시 */
+  starter?: boolean;
   /** 친밀도 태그 1~5 */
   intimacy: number;
   /** M2 씬 컴포넌트 매핑 */

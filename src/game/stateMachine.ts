@@ -374,6 +374,9 @@ export function transition(
       if (state.phase !== 'actionSelect' && state.phase !== 'rest') return state;
       const action = actionOf(data, state.selectedAction);
       if (!action) return state;
+      // 선택된 행동이 지금 가용한지 검증 — 회복 후 남은 'nurse'나
+      // 마이그레이션으로 잠긴 행동으로 세션이 시작되는 것을 막는다.
+      if (!isActionAvailable(action, state)) return state;
 
       // rest 탈출 공통 정리 (응답 없는 떠나려는 기색 = 보내주기)
       const exited = exitRest(state, data, rng);
@@ -761,8 +764,12 @@ export function transition(
         ...next,
         phase: 'rest',
         restStep: 'journal',
-        // 병간호 상태면 다음 세션 행동을 '병간호하기'로 강제
-        selectedAction: presence.sick ? 'nurse' : next.selectedAction,
+        // 병간호 중이면 '병간호하기'로 강제, 회복하면 유효한 기본 행동으로 리셋
+        selectedAction: presence.sick
+          ? 'nurse'
+          : state.presence.sick
+            ? 'lie'
+            : next.selectedAction,
         care,
         stats,
         presence,

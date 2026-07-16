@@ -3,6 +3,7 @@ import { DEFAULT_NOTIFY_SETTINGS, SCHEMA_VERSION } from '../game/stateMachine';
 import { cloneFlowtime } from '../game/timer';
 import { BALANCE } from '../game/balance';
 import { derivedSecurity } from '../game/security';
+import { needsLevelOf } from '../game/stats';
 
 /**
  * 상태 스키마 버전 마이그레이션 체인.
@@ -80,13 +81,21 @@ export function migrateState(state: GameState): GameState | null {
       },
     };
   }
-  // v8 → v9: 애착 2축(유기불안·친밀위협) 도입. 구 단일 security는 버리고
-  // 두 축을 시작값으로 주입(안정감은 파생). 나머지 진행(욕구·정성·해금)은 보존.
-  // (아이템 기반 해금 리셋은 M8 상점과 함께 별도 마이그레이션에서 처리)
+  // v8 → v9: 애착 2축(유기불안·친밀위협) 도입 + 아이템 기반 행동 해금 정합화.
+  // - 구 단일 security는 버리고 두 축을 시작값으로 주입(안정감은 파생)
+  // - v8에서 가용했던 행동(read/sun/walk 항상, cook/chore는 minLevel 2/3)을
+  //   unlockedActions로 보존 — 아니면 아이템 미보유로 전부 잠겨 lie/free만 남는다
+  // - presence.sick 기본값을 여기서 채워 마이그레이션을 자기완결적으로
   if (s.schemaVersion === 8) {
+    const level = needsLevelOf(s.stats.needs);
+    const preserved = ['read', 'sun', 'walk'];
+    if (level >= 2) preserved.push('cook');
+    if (level >= 3) preserved.push('chore');
     s = {
       ...s,
       schemaVersion: 9,
+      unlockedActions: [...new Set([...s.unlockedActions, ...preserved])],
+      presence: { ...s.presence, sick: false },
       stats: {
         ...s.stats,
         abandonment: BALANCE.ABANDONMENT_START,

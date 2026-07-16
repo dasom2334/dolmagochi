@@ -165,6 +165,12 @@ export function validateGameData(
       c.options.forEach((o, oi) => checkOption(o, `${w}.choice[${ci}].opt[${oi}]`));
     });
   });
+  // 시작 행동은 정확히 하나여야 한다(무해금 + starter) — 배열 순서 비의존
+  const starters = data.actions.filter((a) => a.starter);
+  if (starters.length !== 1)
+    errors.push(`시작 행동(starter)은 정확히 하나여야 함 (현재 ${starters.length})`);
+  else if (starters[0].unlock)
+    errors.push(`시작 행동 "${starters[0].id}"에 해금 조건이 있으면 안 됨`);
 
   // ── shop ──
   const seenItemIds = new Set<string>();

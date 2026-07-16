@@ -24,7 +24,7 @@ function run(
 
 /** 자아실현 완성 + 엔딩 전 대화 소진 상태의 rest */
 function readyForEnding(): GameState {
-  const base = run(createInitialState(T0, 'read'), [
+  const base = run({ ...createInitialState(T0, 'read'), items: { book: { placed: false } } }, [
     { type: 'START_FOCUS', nowMs: T0 },
     { type: 'END_FOCUS', nowMs: T0 },
   ]);
@@ -44,7 +44,7 @@ const TALKS = gameData.endings.preEndingTalks.length;
 describe('엔딩 플로우 (ending)', () => {
   it('자아실현 100 → 엔딩 전 대화 순차 소진 → 엔딩 이벤트', () => {
     // 자아실현만 100, 엔딩 전 대화는 아직
-    const base = run(createInitialState(T0, 'read'), [
+    const base = run({ ...createInitialState(T0, 'read'), items: { book: { placed: false } } }, [
       { type: 'START_FOCUS', nowMs: T0 },
       { type: 'END_FOCUS', nowMs: T0 },
     ]);

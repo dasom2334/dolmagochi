@@ -1,6 +1,8 @@
 import type { GameState, NotifySettings } from '../game/types';
 import { SCHEMA_VERSION } from '../game/stateMachine';
 import { normalizeFlowtime } from '../game/timer';
+import { BALANCE } from '../game/balance';
+import { derivedSecurity } from '../game/security';
 import { migrateState } from './migrate';
 
 /** 세이브 파일 포맷 버전 (봉투). 내부 state.schemaVersion과 별개. */
@@ -89,10 +91,27 @@ export function readSave(raw: unknown): ReadResult {
  * 로드/임포트 후 안전 정규화 — 깨진 세이브가 런타임에서 크래시하지 않도록.
  * flowtime은 배정표 정합화, notify는 유효한 NotifySettings로 보정(focusMarks는 경계 개수만큼).
  */
+/** 유한 숫자면 그대로, 아니면 기본값 */
+function finiteOr(v: unknown, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+}
+
 function normalizeState(state: GameState): GameState {
   const flowtime = normalizeFlowtime(state.settings.flowtime);
+  // 애착 2축 방어 — 누락/NaN이면 기본값으로, 안정감은 재계산(NaN 전파 차단)
+  const abandonment = finiteOr(state.stats?.abandonment, BALANCE.ABANDONMENT_START);
+  const intimacyThreat = finiteOr(
+    state.stats?.intimacyThreat,
+    BALANCE.INTIMACY_THREAT_START,
+  );
   return {
     ...state,
+    stats: {
+      ...state.stats,
+      abandonment,
+      intimacyThreat,
+      security: derivedSecurity(abandonment, intimacyThreat),
+    },
     // 병간호 필드 방어 — 구 v9 세이브엔 없을 수 있어 기본값을 채운다(크래시 방지)
     presence: {
       ...state.presence,

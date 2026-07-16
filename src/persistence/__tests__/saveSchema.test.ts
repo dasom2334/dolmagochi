@@ -16,6 +16,41 @@ describe('saveSchema — 봉투·검증·마이그레이션', () => {
     if (res.ok) expect(res.state.schemaVersion).toBe(SCHEMA_VERSION);
   });
 
+  it('v8 세이브 → v9: 애착 축 주입 + 가용했던 행동 접근 보존', () => {
+    const v8 = {
+      ...state,
+      schemaVersion: 8,
+      unlockedActions: [],
+      stats: { ...state.stats, needs: { physiological: 80, safety: 0, belonging: 0, esteem: 0 } },
+    };
+    const res = readSave({ format: SAVE_FORMAT, savedAt: T0, state: v8 });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.state.schemaVersion).toBe(SCHEMA_VERSION);
+      // v8에서 항상 가용했던 read/sun/walk 보존, 레벨(=2)로 cook만 해금(chore는 레벨3 미달)
+      expect(res.state.unlockedActions).toEqual(
+        expect.arrayContaining(['read', 'sun', 'walk', 'cook']),
+      );
+      expect(res.state.unlockedActions).not.toContain('chore');
+      expect(Number.isFinite(res.state.stats.security)).toBe(true);
+      expect(res.state.presence.sick).toBe(false);
+    }
+  });
+
+  it('애착 축 누락·NaN v9 세이브 → 유한 값으로 보정, security NaN 없음', () => {
+    const broken = {
+      ...state,
+      stats: { ...state.stats, abandonment: NaN, intimacyThreat: undefined as unknown as number },
+    };
+    const res = readSave({ format: SAVE_FORMAT, savedAt: T0, state: broken });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(Number.isFinite(res.state.stats.abandonment)).toBe(true);
+      expect(Number.isFinite(res.state.stats.intimacyThreat)).toBe(true);
+      expect(Number.isFinite(res.state.stats.security)).toBe(true);
+    }
+  });
+
   it('포맷 불일치 → format', () => {
     expect(readSave({ format: 999, savedAt: T0, state })).toEqual({
       ok: false,
