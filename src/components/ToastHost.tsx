@@ -57,9 +57,9 @@ export function ToastHost() {
           key={it.id}
           className="pre-line"
           style={{
-            border: '3px solid #f2ead8',
-            background: '#332b3d',
-            color: '#f2ead8',
+            border: '3px solid var(--text)',
+            background: 'var(--panel)',
+            color: 'var(--text)',
             fontSize: 12,
             lineHeight: 1.6,
             padding: '10px 14px',

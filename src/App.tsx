@@ -174,6 +174,29 @@ export function App() {
   ]);
   useEffect(() => stopSoundscape, []);
 
+  // 테마 (M10) — data-theme 스탬프 + theme-color 메타 동기화(PWA).
+  // auto는 prefers-color-scheme을 따르고 시스템 변경을 구독한다.
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: light)');
+    const apply = () => {
+      const resolved =
+        state.settings.theme === 'auto'
+          ? mq?.matches
+            ? 'light'
+            : 'dark'
+          : state.settings.theme;
+      document.documentElement.dataset.theme = resolved;
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', resolved === 'light' ? '#e7decb' : '#262031');
+    };
+    apply();
+    if (state.settings.theme === 'auto' && mq) {
+      mq.addEventListener('change', apply);
+      return () => mq.removeEventListener('change', apply);
+    }
+  }, [state.settings.theme]);
+
   // iOS 등 오디오 언락 — 첫 사용자 제스처에서 AudioContext resume (1회성)
   useEffect(() => {
     const unlock = () => ensureAudioContext();
@@ -282,7 +305,7 @@ export function App() {
                     margin: 0,
                     textAlign: 'center',
                     fontSize: 11,
-                    color: '#8a7f96',
+                    color: 'var(--hint)',
                   }}
                 >
                   {t(
@@ -303,8 +326,8 @@ export function App() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 <div
                   style={{
-                    border: '3px solid #f2ead8',
-                    background: '#332b3d',
+                    border: '3px solid var(--text)',
+                    background: 'var(--panel)',
                     padding: '14px 16px',
                     display: 'flex',
                     flexDirection: 'column',

@@ -3,9 +3,9 @@ import { useState } from 'react';
 
 /** 디자인 원본의 공용 버튼 스타일 (값 그대로) */
 export const btnOutline: CSSProperties = {
-  border: '2px solid #6b6178',
+  border: '2px solid var(--hint-dim)',
   background: 'transparent',
-  color: '#e0d6c4',
+  color: 'var(--text-soft)',
   fontFamily: 'inherit',
   fontSize: 13,
   padding: 8,
@@ -13,9 +13,9 @@ export const btnOutline: CSSProperties = {
 };
 
 export const btnSmall: CSSProperties = {
-  border: '2px solid #6b6178',
+  border: '2px solid var(--hint-dim)',
   background: 'transparent',
-  color: '#a89cb4',
+  color: 'var(--ink-soft)',
   fontFamily: 'inherit',
   fontSize: 11,
   padding: '5px 8px',
@@ -24,17 +24,17 @@ export const btnSmall: CSSProperties = {
 
 export const btnDashed: CSSProperties = {
   minHeight: 48,
-  border: '2px dashed #c2b6a0',
+  border: '2px dashed var(--text-faint)',
   background: 'transparent',
-  color: '#d8cdb8',
+  color: 'var(--text-mute)',
   fontFamily: 'inherit',
   fontSize: 13,
   cursor: 'pointer',
 };
 
 export const card: CSSProperties = {
-  border: '3px solid #f2ead8',
-  background: '#332b3d',
+  border: '3px solid var(--text)',
+  background: 'var(--panel)',
 };
 
 /**
@@ -78,7 +78,7 @@ function PagesInner({
         style={{
           flex: 1,
           fontSize,
-          color: '#f2ead8',
+          color: 'var(--text)',
           lineHeight: 1.8,
           animation: 'logFade .4s steps(3) both',
           cursor: last ? 'default' : 'pointer',
@@ -87,7 +87,7 @@ function PagesInner({
       >
         * {pages[idx] ?? ''}
         {!last && (
-          <span style={{ color: '#8a7f96', animation: 'blink 1.2s infinite' }}>
+          <span style={{ color: 'var(--hint)', animation: 'blink 1.2s infinite' }}>
             {' '}
             ▾
           </span>

@@ -28,13 +28,13 @@ export function OccupiedScreen() {
           width: 480,
           maxWidth: '100%',
           aspectRatio: '320/180',
-          background: '#262031',
-          border: '3px solid #f2ead8',
+          background: 'var(--bg-deep)',
+          border: '3px solid var(--text)',
           overflow: 'hidden',
           boxSizing: 'border-box',
         }}
       >
-        <Floor bg="#332b40" line="#453a56" />
+        <Floor bg="var(--panel-2)" line="var(--panel-hi)" />
         <RockShadow />
       </div>
       <div
@@ -48,7 +48,7 @@ export function OccupiedScreen() {
       >
         <p
           className="pre-line"
-          style={{ margin: 0, fontSize: 14, color: '#f2ead8', lineHeight: 1.8 }}
+          style={{ margin: 0, fontSize: 14, color: 'var(--text)', lineHeight: 1.8 }}
         >
           * {t(SYS.singleTab.occupied)}
         </p>
@@ -56,7 +56,7 @@ export function OccupiedScreen() {
           style={{
             margin: '8px 0 0',
             fontSize: 11,
-            color: '#8a7f96',
+            color: 'var(--hint)',
             lineHeight: 1.7,
           }}
         >

@@ -269,6 +269,8 @@ export interface GameState {
     noiseOn: boolean;
     /** 소리풍경 레이어별 음소거 (M9) — LayerId 목록. 마스터는 noiseOn. */
     noiseMuted: string[];
+    /** UI 테마 (M10) — 도트 씬은 영향받지 않는다(B23). auto = prefers-color-scheme */
+    theme: 'auto' | 'light' | 'dark';
     notifAsked: boolean;
     locale: string;
     /** 알림 설정. enabled=전체 스위치, 나머지는 개별. 포그라운드=토스트 / 백그라운드=OS 알림. */
@@ -316,6 +318,7 @@ export type GameEvent =
   | { type: 'VISIT_HOLD'; hold: boolean }
   | { type: 'SET_NOISE'; on: boolean }
   | { type: 'SET_NOISE_LAYER'; layer: string; muted: boolean }
+  | { type: 'SET_THEME'; theme: 'auto' | 'light' | 'dark' }
   | { type: 'SET_NOTIFY'; key: 'enabled' | 'restEnd'; on: boolean }
   | { type: 'SET_FOCUS_NOTIFY'; index: number; on: boolean }
   | { type: 'SET_FLOWTIME'; flowtime: FlowtimeSettings }

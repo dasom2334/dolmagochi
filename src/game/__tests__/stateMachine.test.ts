@@ -1342,3 +1342,12 @@ describe('소리풍경 설정 (M9)', () => {
     expect(s.settings.noiseMuted).toEqual(['birdsWind']);
   });
 });
+
+describe('테마 설정 (M10)', () => {
+  it('SET_THEME: 자동/라이트/다크 전환', () => {
+    let s = run(init(), [{ type: 'SET_THEME', theme: 'light' }]);
+    expect(s.settings.theme).toBe('light');
+    s = run(s, [{ type: 'SET_THEME', theme: 'auto' }]);
+    expect(s.settings.theme).toBe('auto');
+  });
+});

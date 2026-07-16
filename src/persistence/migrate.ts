@@ -150,6 +150,14 @@ export function migrateState(state: GameState): GameState | null {
       settings: { ...s.settings, noiseMuted: s.settings.noiseMuted ?? [] },
     };
   }
+  // v12 → v13: 테마(M10) — 라이트/다크/자동. 기본 자동(시스템 따름).
+  if (s.schemaVersion === 12) {
+    s = {
+      ...s,
+      schemaVersion: 13,
+      settings: { ...s.settings, theme: s.settings.theme ?? 'auto' },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

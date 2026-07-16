@@ -133,6 +133,13 @@ export const UI = {
     cooking: 'ui.noise.cooking',
     sweeping: 'ui.noise.sweeping',
   } as Record<string, string>,
+  /** 테마 라벨 (M10) */
+  theme: {
+    setting: 'ui.theme.setting',
+    auto: 'ui.theme.auto',
+    light: 'ui.theme.light',
+    dark: 'ui.theme.dark',
+  },
   buttons: {
     endFocus: 'ui.buttons.endFocus',
     startFocus: 'ui.buttons.startFocus',

@@ -31,7 +31,7 @@ export function ChoicePanel({ state }: { state: GameState }) {
         style={{
           margin: 0,
           fontSize: 13,
-          color: '#f2ead8',
+          color: 'var(--text)',
           lineHeight: 1.7,
           animation: 'logFade .4s steps(3) both',
         }}

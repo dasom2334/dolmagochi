@@ -34,7 +34,7 @@ export function RestPanel({
           margin: 0,
           textAlign: 'center',
           fontSize: 11,
-          color: '#a8c491',
+          color: 'var(--ok)',
         }}
       >
         {t(SYS.status.rest)}
@@ -51,9 +51,9 @@ export function RestPanel({
               className="hv"
               style={{
                 flex: 1,
-                border: `2px solid ${active ? '#f2ead8' : '#6b6178'}`,
-                background: active ? '#f2ead8' : 'transparent',
-                color: active ? '#332b3d' : '#a89cb4',
+                border: `2px solid ${active ? 'var(--text)' : 'var(--hint-dim)'}`,
+                background: active ? 'var(--text)' : 'transparent',
+                color: active ? 'var(--panel)' : 'var(--ink-soft)',
                 fontFamily: 'inherit',
                 fontSize: 12,
                 padding: '7px 0',
@@ -81,7 +81,7 @@ export function RestPanel({
         {state.restStep === 'select' && (
           <>
             <ActionGrid state={state} />
-            <p style={{ margin: '8px 0 0', fontSize: 11, color: '#8a7f96' }}>
+            <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--hint)' }}>
               * {tf(SYS.nextActionNote, { action: t(action?.nameId ?? '') })}
             </p>
           </>
@@ -100,7 +100,7 @@ export function RestPanel({
         >
           <p
             className="pre-line"
-            style={{ margin: 0, fontSize: 12, color: '#f2ead8', lineHeight: 1.6 }}
+            style={{ margin: 0, fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}
           >
             * {t(SYS.restIncomplete)}
           </p>
@@ -161,22 +161,22 @@ function RestJournal({ state }: { state: GameState }) {
           gap: 5,
         }}
       >
-        <div style={{ fontSize: 12, color: '#ffd866' }}>
+        <div style={{ fontSize: 12, color: 'var(--accent)' }}>
           {tf(SYS.restSummary, {
             mins: state.rest.summary.mins,
             earned: state.rest.summary.earned,
           })}
         </div>
         {glance && (
-          <div style={{ fontSize: 12, color: '#a89cb4' }}>* {glance}</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>* {glance}</div>
         )}
         {state.session.journal.map((j, i) => (
           <div
             key={i}
             className="pre-line"
-            style={{ fontSize: 13, color: '#e0d6c4', lineHeight: 1.6 }}
+            style={{ fontSize: 13, color: 'var(--text-soft)', lineHeight: 1.6 }}
           >
-            * <span style={{ color: '#8a7f96' }}>{j.t}</span> {j.text}
+            * <span style={{ color: 'var(--hint)' }}>{j.t}</span> {j.text}
           </div>
         ))}
       </div>
@@ -198,9 +198,9 @@ function RestJournal({ state }: { state: GameState }) {
               disabled={off}
               style={{
                 minHeight: 44,
-                border: `2px solid ${off ? '#4a4156' : '#6b6178'}`,
+                border: `2px solid ${off ? 'var(--line)' : 'var(--hint-dim)'}`,
                 background: 'transparent',
-                color: off ? '#6b6178' : '#e0d6c4',
+                color: off ? 'var(--hint-dim)' : 'var(--text-soft)',
                 fontFamily: 'inherit',
                 fontSize: 13,
                 cursor: off ? 'default' : 'pointer',
@@ -243,7 +243,7 @@ function RestTalk({ state }: { state: GameState }) {
   const spentId = isRockPresent(state) ? SYS.talkSpent : SYS.talkSpentAbsent;
   if (!ts) {
     return (
-      <p style={{ margin: 0, fontSize: 11, color: '#8a7f96' }}>
+      <p style={{ margin: 0, fontSize: 11, color: 'var(--hint)' }}>
         * {t(spentId)}
       </p>
     );
@@ -271,7 +271,7 @@ function RestTalk({ state }: { state: GameState }) {
           </div>
         )}
         {spent && (
-          <p style={{ margin: '8px 0 0', fontSize: 11, color: '#8a7f96' }}>
+          <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--hint)' }}>
             * {t(spentId)}
           </p>
         )}
@@ -320,7 +320,7 @@ function RestShop({ state }: { state: GameState }) {
       >
         <p
           className="pre-line"
-          style={{ margin: 0, fontSize: 13, color: '#f2ead8', lineHeight: 1.7 }}
+          style={{ margin: 0, fontSize: 13, color: 'var(--text)', lineHeight: 1.7 }}
         >
           * {tf(SYS.placement.prompt, { item: t(item?.nameId ?? '') })}
         </p>
@@ -362,9 +362,9 @@ function RestShop({ state }: { state: GameState }) {
               key={k}
               className="hv"
               style={{
-                border: `2px solid ${on ? '#f2ead8' : '#4a4156'}`,
-                background: on ? '#f2ead8' : 'transparent',
-                color: on ? '#332b3d' : '#a89cb4',
+                border: `2px solid ${on ? 'var(--text)' : 'var(--line)'}`,
+                background: on ? 'var(--text)' : 'transparent',
+                color: on ? 'var(--panel)' : 'var(--ink-soft)',
                 fontFamily: 'inherit',
                 fontSize: 11,
                 padding: '3px 10px',
@@ -382,7 +382,7 @@ function RestShop({ state }: { state: GameState }) {
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {items.length === 0 && (
-          <p style={{ margin: 0, fontSize: 11, color: '#8a7f96' }}>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--hint)' }}>
             * {t(sub === 'owned' ? UI.shop.ownedEmpty : UI.shop.storeEmpty)}
           </p>
         )}
@@ -396,13 +396,13 @@ function RestShop({ state }: { state: GameState }) {
                   style={{
                     flex: 1,
                     fontSize: 12,
-                    color: '#e0d6c4',
+                    color: 'var(--text-soft)',
                     lineHeight: 1.5,
                     padding: '6px 4px',
                   }}
                 >
                   {t(it.nameId)}{' '}
-                  <span style={{ color: '#8a7f96' }}>{t(it.descId)}</span>
+                  <span style={{ color: 'var(--hint)' }}>{t(it.descId)}</span>
                 </div>
                 <button
                   className="hv"
@@ -438,9 +438,9 @@ function RestShop({ state }: { state: GameState }) {
                 style={{
                   flex: 1,
                   textAlign: 'left',
-                  border: `2px solid ${poor ? '#4a4156' : '#6b6178'}`,
+                  border: `2px solid ${poor ? 'var(--line)' : 'var(--hint-dim)'}`,
                   background: 'transparent',
-                  color: poor ? '#6b6178' : '#e0d6c4',
+                  color: poor ? 'var(--hint-dim)' : 'var(--text-soft)',
                   fontFamily: 'inherit',
                   fontSize: 12,
                   cursor: poor ? 'default' : 'pointer',
@@ -453,7 +453,7 @@ function RestShop({ state }: { state: GameState }) {
               >
                 {t(it.nameId)}
                 {offerName ? ` · ${offerName}` : ''} — {stateLabel}{' '}
-                <span style={{ color: '#8a7f96' }}>{t(it.descId)}</span>
+                <span style={{ color: 'var(--hint)' }}>{t(it.descId)}</span>
               </button>
             </div>
           );
@@ -475,13 +475,13 @@ function RestShop({ state }: { state: GameState }) {
             ...btnSmall,
             fontSize: 12,
             padding: '3px 12px',
-            color: p === 0 ? '#4a4156' : '#a89cb4',
+            color: p === 0 ? 'var(--line)' : 'var(--ink-soft)',
           }}
           onClick={() => setPage(Math.max(0, p - 1))}
         >
           ◂
         </button>
-        <span style={{ fontSize: 11, color: '#8a7f96' }}>
+        <span style={{ fontSize: 11, color: 'var(--hint)' }}>
           {p + 1} / {pages}
         </span>
         <button
@@ -491,7 +491,7 @@ function RestShop({ state }: { state: GameState }) {
             ...btnSmall,
             fontSize: 12,
             padding: '3px 12px',
-            color: p >= pages - 1 ? '#4a4156' : '#a89cb4',
+            color: p >= pages - 1 ? 'var(--line)' : 'var(--ink-soft)',
           }}
           onClick={() => setPage(Math.min(pages - 1, p + 1))}
         >
@@ -520,7 +520,7 @@ function VisitLeavePrompt() {
         style={{
           margin: 0,
           fontSize: 13,
-          color: '#f2ead8',
+          color: 'var(--text)',
           lineHeight: 1.7,
           animation: 'logFade .4s steps(3) both',
         }}

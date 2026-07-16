@@ -38,9 +38,9 @@ export function ActionGrid({ state }: { state: GameState }) {
             disabled={locked}
             style={{
               minHeight: 44,
-              border: `2px solid ${locked ? '#4a4156' : selected ? '#ffd866' : '#f2ead8'}`,
+              border: `2px solid ${locked ? 'var(--line)' : selected ? 'var(--accent)' : 'var(--text)'}`,
               background: 'transparent',
-              color: locked ? '#6b6178' : selected ? '#ffd866' : '#f2ead8',
+              color: locked ? 'var(--hint-dim)' : selected ? 'var(--accent)' : 'var(--text)',
               fontFamily: 'inherit',
               fontSize: 13,
               cursor: locked ? 'default' : 'pointer',
