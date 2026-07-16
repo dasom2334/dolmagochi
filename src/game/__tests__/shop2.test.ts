@@ -84,6 +84,18 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
     expect(s.items['nightdrink']).toEqual({ placed: true }); // 저번 자리 그대로
   });
 
+  it('진열 종류 고정: 휴식의 진열(offers)이 구매·소모 종류로 이어진다', () => {
+    let s = restRich();
+    s = { ...s, rest: { ...s.rest, offers: { nightdrink: 'cocoa' } } };
+    s = run(s, [
+      { type: 'BUY', itemId: 'nightdrink', nowMs: T0 },
+      { type: 'SET_PLACEMENT', itemId: 'nightdrink', placed: false },
+      { type: 'START_FOCUS', nowMs: T0 },
+    ]);
+    expect(s.supplyVariants['nightdrink']).toBe('cocoa'); // 진열 종류로 고정
+    expect(s.session.supply).toEqual({ itemId: 'nightdrink', variant: 'cocoa' });
+  });
+
   it('체인 보너스: 베개 보유 시 누워있기 게이지 +1 누적', () => {
     let s = restRich();
     s = run(s, [

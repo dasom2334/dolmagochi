@@ -79,6 +79,7 @@ export function createInitialState(
       talkPressed: false,
       talkState: null,
       actUsed: false,
+      offers: {},
       summary: { mins: 0, earned: 0 },
     },
     stats: initialStats(),
@@ -99,6 +100,7 @@ export function createInitialState(
     care: { points: 0, carryMinutes: 0 },
     items: {},
     supplies: {},
+    supplyVariants: {},
     pendingPlacement: null,
     flags: [],
     unlockedActions: [],
@@ -451,9 +453,11 @@ export function transition(
       );
       let supply: GameState['session']['supply'] = null;
       if (consumableItem?.consumable) {
-        const variants = consumableItem.consumable.variants;
-        const variant = variants[Math.floor(rng() * variants.length)];
-        supply = { itemId: consumableItem.id, variant: variant.key };
+        // 종류는 구매 시(진열) 이미 고정 — 여기서 다시 뽑지 않는다
+        const variant =
+          next.supplyVariants[consumableItem.id] ??
+          consumableItem.consumable.variants[0].key;
+        supply = { itemId: consumableItem.id, variant };
         next = {
           ...next,
           supplies: { ...next.supplies, [consumableItem.id]: 0 },
@@ -941,6 +945,15 @@ export function transition(
           talkPressed: false,
           talkState: null,
           actUsed: false,
+          // 이번 휴식의 소모품 진열 종류 — 휴식당 1회 추첨(진열대에 표기, 구매 시 고정)
+          offers: Object.fromEntries(
+            data.shop
+              .filter((it) => it.consumable)
+              .map((it) => {
+                const vs = it.consumable!.variants;
+                return [it.id, vs[Math.floor(rng() * vs.length)].key];
+              }),
+          ),
           summary: { mins: displayMins, earned },
         },
       };
@@ -1266,11 +1279,15 @@ export function transition(
       if (item.consumable) {
         if ((state.supplies[item.id] ?? 0) > 0) return state; // 아직 안 씀
         const firstBuy = !(item.id in state.items);
+        // 진열 종류(휴식당 1회 추첨)가 재고의 종류로 고정된다
+        const variant =
+          state.rest.offers[item.id] ?? item.consumable.variants[0].key;
         const bought = applyOutcome(state, item.outcome, event.nowMs);
         return {
           ...bought,
           care: { ...bought.care, points: bought.care.points - item.price },
           supplies: { ...bought.supplies, [item.id]: 1 },
+          supplyVariants: { ...bought.supplyVariants, [item.id]: variant },
           items: firstBuy
             ? { ...bought.items, [item.id]: { placed: false } }
             : bought.items,

@@ -119,6 +119,14 @@ function DebugTools({ state }: { state: GameState }) {
       },
     }));
 
+  const addCare = () =>
+    appStore.setState((prev) => ({
+      state: {
+        ...prev.state,
+        care: { ...prev.state.care, points: prev.state.care.points + 5 },
+      },
+    }));
+
   const wipe = async () => {
     await wipeSave();
     location.reload();
@@ -133,6 +141,9 @@ function DebugTools({ state }: { state: GameState }) {
         </button>
         <button className="hv" style={btnSmall} onClick={forceEnding}>
           force ending
+        </button>
+        <button className="hv" style={btnSmall} onClick={addCare}>
+          +5 care
         </button>
         <button className="hv" style={btnSmall} onClick={() => void wipe()}>
           wipe save

@@ -204,6 +204,7 @@ export function validateGameData(
         if (keys.has(v.key)) errors.push(`${w} 소모품 종류 키 중복 "${v.key}"`);
         keys.add(v.key);
         ref(`shop.${it.id}.use.${v.key}`, `${w}.use.${v.key}`);
+        ref(`shop.${it.id}.var.${v.key}`, `${w}.var.${v.key}`);
       });
       if (it.consumable.variants.length === 0)
         errors.push(`${w}.consumable.variants가 비어 있음`);

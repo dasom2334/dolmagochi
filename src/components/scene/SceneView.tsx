@@ -12,6 +12,11 @@ import { RockSprite, RockShadow } from './RockSprite';
 import { sproutStageOf } from '../../game/sprout';
 import { PlantProp } from './props/PlantProp';
 import { PillowProp } from './props/PillowProp';
+import { CushionProp } from './props/CushionProp';
+import { ShoesProp } from './props/ShoesProp';
+import { ReadBookProp } from './props/ReadBookProp';
+import { PotProp } from './props/PotProp';
+import { BroomProp } from './props/BroomProp';
 import { BedProp } from './props/BedProp';
 import { UmbrellaProp } from './props/UmbrellaProp';
 import { FireplaceProp } from './props/FireplaceProp';
@@ -92,6 +97,11 @@ export function SceneView({ state }: { state: GameState }) {
       {placed('soda') && <SodaProp />}
       {placed('fan') && <FanProp />}
       {placed('lamp') && <LampProp />}
+      {placed('cushion') && <CushionProp />}
+      {placed('shoes') && <ShoesProp />}
+      {placed('book') && <ReadBookProp />}
+      {placed('pot') && <PotProp />}
+      {placed('broom') && <BroomProp />}
       {placed('pillow') && <PillowProp />}
       {placed('bed') && <BedProp />}
       {placed('umbrella') && <UmbrellaProp />}

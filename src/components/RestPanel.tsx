@@ -420,11 +420,16 @@ function RestShop({ state }: { state: GameState }) {
               </div>
             );
           }
-          // 진열대: 지금 살 수 있는 것만 — 정성 여부만 표시
+          // 진열대: 지금 살 수 있는 것만 — 정성 여부만 표시.
+          // 소모품은 이번 휴식의 진열 종류(고정 랜덤)를 이름에 병기한다.
           const poor = state.care.points < it.price;
           const stateLabel = poor
             ? t(UI.shop.poor)
             : tf(UI.shop.price, { price: it.price });
+          const offerKey = it.consumable
+            ? (state.rest.offers[it.id] ?? it.consumable.variants[0].key)
+            : null;
+          const offerName = offerKey ? t(`shop.${it.id}.var.${offerKey}`) : '';
           return (
             <div key={it.id} style={{ display: 'flex', gap: 6 }}>
               <button
@@ -446,16 +451,57 @@ function RestShop({ state }: { state: GameState }) {
                   dispatch({ type: 'BUY', itemId: it.id, nowMs: now() })
                 }
               >
-                {t(it.nameId)} — {stateLabel}{' '}
+                {t(it.nameId)}
+                {offerName ? ` · ${offerName}` : ''} — {stateLabel}{' '}
                 <span style={{ color: '#8a7f96' }}>{t(it.descId)}</span>
               </button>
             </div>
           );
         })}
       </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 14,
+          marginTop: 8,
+        }}
+      >
+        <button
+          className={p === 0 ? undefined : 'hv'}
+          disabled={p === 0}
+          style={{
+            ...btnSmall,
+            fontSize: 12,
+            padding: '3px 12px',
+            color: p === 0 ? '#4a4156' : '#a89cb4',
+          }}
+          onClick={() => setPage(Math.max(0, p - 1))}
+        >
+          ◂
+        </button>
+        <span style={{ fontSize: 11, color: '#8a7f96' }}>
+          {p + 1} / {pages}
+        </span>
+        <button
+          className={p >= pages - 1 ? undefined : 'hv'}
+          disabled={p >= pages - 1}
+          style={{
+            ...btnSmall,
+            fontSize: 12,
+            padding: '3px 12px',
+            color: p >= pages - 1 ? '#4a4156' : '#a89cb4',
+          }}
+          onClick={() => setPage(Math.min(pages - 1, p + 1))}
+        >
+          ▸
+        </button>
+      </div>
     </>
   );
 }
+
 /** apart: 돌이 떠나려는 기색 — 붙잡기/보내주기 (기획서 v3-14) */
 function VisitLeavePrompt() {
   const vl = gameData.dialogues.visitLeave;

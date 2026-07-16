@@ -213,6 +213,8 @@ export interface GameState {
     talkState: TalkState | null;
     /** 작은 행동 — 휴식당 1회 */
     actUsed: boolean;
+    /** 이번 휴식의 소모품 진열 종류 — 휴식 진입 시 1회 추첨, 구매 시 이 종류로 고정 */
+    offers: Record<ItemId, string>;
     /** 휴식 일지 요약용 */
     summary: { mins: number; earned: number };
   };
@@ -235,6 +237,8 @@ export interface GameState {
   items: Record<ItemId, { placed: boolean }>;
   /** 소모품 재고 (0/1) — 세션 1회 소모, 다음 휴식 때 재구매 */
   supplies: Record<ItemId, number>;
+  /** 재고의 확정 종류 — 구매 시 진열 종류가 고정된다 (소모 시 이 종류 사용) */
+  supplyVariants: Record<ItemId, string>;
   /** 방금 구매해 배치/보관 선택 대기 중인 물품 */
   pendingPlacement: ItemId | null;
   /** 트리거 플래그 */
