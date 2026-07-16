@@ -75,12 +75,14 @@ describe('selectDialoguePool — 이원화(관계/상태/4분면) 라우팅', ()
     expect(affectionTier(1000)).toBe(7);
   });
 
-  it('trustStep — 화자 관찰 4단은 호감도 티어에서 파생 (호감도 0이면 관찰 중)', () => {
-    expect(trustStep(0)).toBe(0); // 티어 1 — "아직 관찰하는 중"
-    expect(trustStep(8)).toBe(0); // 티어 2 — 여전히 관찰
-    expect(trustStep(20)).toBe(1); // 티어 3 — 신뢰(아마도)
-    expect(trustStep(56)).toBe(2); // 티어 5 — 곁이 편함
-    expect(trustStep(115)).toBe(3); // 티어 7 — 좋아함
+  it('trustStep — 화자 관찰 문구는 호감도 7티어와 1:1 (티어 묶음 공유 없음)', () => {
+    expect(trustStep(0)).toBe(0); // 티어 1 — 관심 없음
+    expect(trustStep(8)).toBe(1); // 티어 2 — 관찰 중
+    expect(trustStep(20)).toBe(2); // 티어 3 — 밀어내지 않음
+    expect(trustStep(36)).toBe(3); // 티어 4 — 신뢰(아마도)
+    expect(trustStep(56)).toBe(4); // 티어 5 — 속을 툭, 아닌 척
+    expect(trustStep(82)).toBe(5); // 티어 6 — 곁이 편함
+    expect(trustStep(115)).toBe(6); // 티어 7 — 좋아함
   });
 });
 

@@ -20,12 +20,12 @@ export function affectionTier(affection: number): number {
 }
 
 /**
- * 화자 관찰 4단(확신의 사다리) 인덱스 0~3 — 호감도 티어에서 파생.
- * 티어 1~2 → 0(관찰 중), 3~4 → 1(신뢰 아마도), 5~6 → 2(곁이 편함), 7 → 3(좋아함).
+ * 화자 관찰(확신의 사다리) 인덱스 0~6 — 호감도 7티어와 1:1.
+ * 티어마다 고유 관찰 문구를 갖는다 (티어 묶음 공유 없음).
  * (구 세션 수 기반은 호감도 0이어도 몇 세션 만에 '신뢰·좋아함'까지 가버렸다)
  */
 export function trustStep(affection: number): number {
-  return Math.min(3, Math.floor((affectionTier(affection) - 1) / 2));
+  return affectionTier(affection) - 1;
 }
 
 /**
