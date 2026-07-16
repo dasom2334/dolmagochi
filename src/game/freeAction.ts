@@ -38,7 +38,13 @@ export function selfCareProb(needs: Record<NeedId, number>, target: NeedId): num
 
 export type FreeActionResult =
   | { type: 'personalWork'; textId: TextId }
-  | { type: 'selfCare'; need: NeedId; textId: TextId }
+  | {
+      type: 'selfCare';
+      need: NeedId;
+      /** 돌이 스스로 한 행동 id (해금 게이팅 통과분). 센티널 'self'는 게이팅 미사용 */
+      via?: string;
+      textId: TextId;
+    }
   | { type: 'reflection'; textId: TextId; memory: GameState['memory'] }
   | { type: 'default'; textId: TextId | null };
 
@@ -55,7 +61,9 @@ function tokenReflection(
 /**
  * 자유행동 틱 1회 (순차성):
  * - 욕구 4종 전부 충족 → 개인작업 확률 판정 (allowPersonalWork일 때만 — 동거 중엔 정지)
- * - 미충족이 있으면 아래에서부터 첫 미충족 욕구만 스스로 채울 수 있다 (selfCare)
+ * - 미충족이 있으면 아래에서부터 첫 미충족 욕구만 스스로 채울 수 있다 (selfCare).
+ *   단, 그 욕구를 채우는 **해금된 행동**이 있어야 한다 — 돌은 함께 아는 행동만
+ *   스스로 한다 (예: 신발이 있어야 혼자 산책 기색을 낸다). 없으면 반추로 폴백.
  * - 그 외 기억 반추 → 기본값(누워 있기)
  */
 export function pickFreeAction(
@@ -65,6 +73,9 @@ export function pickFreeAction(
   allowPersonalWork = true,
   /** 상점 아이템(책상 체인·API 토큰)의 개인작업 확률 가산 */
   personalWorkBonus = 0,
+  /** 이 욕구를 채우는 해금된 행동 id 목록 — 호출부(stateMachine)가 게이팅을 제공.
+   *  기본값은 허용 센티널(순수 로직 단독 테스트 편의). */
+  selfCareDoers: (need: NeedId) => string[] = () => ['self'],
 ): FreeActionResult {
   const needs = state.stats.needs;
   const target = firstUnfilledNeed(needs);
@@ -73,9 +84,16 @@ export function pickFreeAction(
       const textId = tokenReflection(defs, 'personalWork', state, rng);
       if (textId !== null) return { type: 'personalWork', textId };
     }
-  } else if (rng() < selfCareProb(needs, target)) {
-    const textId = tokenReflection(defs, `selfCare-${target}`, state, rng);
-    if (textId !== null) return { type: 'selfCare', need: target, textId };
+  } else {
+    const doers = selfCareDoers(target);
+    if (doers.length > 0 && rng() < selfCareProb(needs, target)) {
+      const via = doers[Math.floor(rng() * doers.length)];
+      // 행동 맛이 나는 문구 우선(selfCareVia-{행동}), 없으면 욕구별 기본 문구
+      const textId =
+        tokenReflection(defs, `selfCareVia-${via}`, state, rng) ??
+        tokenReflection(defs, `selfCare-${target}`, state, rng);
+      if (textId !== null) return { type: 'selfCare', need: target, via, textId };
+    }
   }
   const draw = drawMemory(state.memory, defs, state, rng);
   if (draw) return { type: 'reflection', textId: draw.textId, memory: draw.memory };

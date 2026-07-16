@@ -589,6 +589,18 @@ export function transition(
             rng,
             next.era === 'raising', // 동거: 개인작업 정지
             personalWorkBoost(next, data), // 책상 체인 + API 토큰 확률 가산
+            // 돌의 자가 충족은 해금된 행동으로만 — 그 욕구를 채우는 행동이
+            // 해금돼 있어야(아이템 구매 등) 돌이 스스로 그 기색을 낸다
+            (need) =>
+              data.actions
+                .filter(
+                  (a) =>
+                    a.id !== 'free' &&
+                    a.id !== 'nurse' &&
+                    a.outcome?.needs?.[need] !== undefined &&
+                    isActionAvailable(a, next),
+                )
+                .map((a) => a.id),
           );
           line = result.textId
             ? joinPages(pickText(data.text, result.textId, rng))

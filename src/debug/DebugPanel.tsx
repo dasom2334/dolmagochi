@@ -4,6 +4,7 @@ import { appStore, dispatch } from '../store/appStore';
 import { gameData } from '../store/gameStore';
 import { pickText } from '../game/text';
 import { needsLevelOf } from '../game/stats';
+import { affectionTier } from '../game/dialogue';
 import { allowedIntimacy, attachQuadrant } from '../game/security';
 import { startAbsence, presentState } from '../game/absence';
 import { wipeSave } from '../persistence/persist';
@@ -219,7 +220,7 @@ function DebugStats({ state }: { state: GameState }) {
 
       <Section label="stats" />
       <Row k="mood" v={st.mood} />
-      <Row k="affection" v={st.affection} />
+      <Row k="affection" v={`${st.affection.toFixed(1)} (tier ${affectionTier(st.affection)}/7)`} />
       <Row k="abandon." v={st.abandonment} />
       <Row k="intiThreat" v={st.intimacyThreat} />
       <Row
@@ -236,7 +237,7 @@ function DebugStats({ state }: { state: GameState }) {
       <Section label="presence / apart" />
       <Row
         k="presence"
-        v={`${state.presence.state} plan${state.presence.plannedSessions} low${state.presence.lowIntimacyProgress}${state.presence.returnPending ? ' return!' : ''}`}
+        v={`${state.presence.state}${state.presence.sick ? ' sick!' : ''}${state.presence.returnPending ? ' return!' : ''}`}
       />
       <Row
         k="apart"
@@ -255,6 +256,25 @@ function DebugStats({ state }: { state: GameState }) {
           Object.entries(state.items)
             .map(([k, v]) => `${k}${v.placed ? '✓' : '·'}`)
             .join(' ') || '—'
+        }
+      />
+
+      <Section label="supplies" />
+      <Row
+        k="stock"
+        v={
+          Object.entries(state.supplies)
+            .filter(([, n]) => n > 0)
+            .map(([k, n]) => `${k}×${n}`)
+            .join(' ') || '—'
+        }
+      />
+      <Row
+        k="session"
+        v={
+          state.session.supply
+            ? `${state.session.supply.itemId}:${state.session.supply.variant}`
+            : '—'
         }
       />
 

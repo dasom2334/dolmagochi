@@ -96,6 +96,40 @@ describe('pickFreeAction — 순차 자가 충족과 개인작업 게이트', ()
     expect(r2).toMatchObject({ type: 'selfCare', need: 'safety', textId: 'sc.safety' });
   });
 
+  it('해금 게이팅: 그 욕구를 채우는 해금 행동이 없으면 selfCare 없음 → 반추 폴백', () => {
+    // 생리 충족 → 타깃=안전. 안전을 채우는 해금 행동이 없다(빈 doers) → 반추
+    const r = pickFreeAction(
+      stateWith({ physiological: F }),
+      DEFS,
+      seq([0.0, 0.0]),
+      true,
+      0,
+      () => [],
+    );
+    expect(r.type).toBe('reflection');
+  });
+
+  it('해금 게이팅: 해금 행동이 있으면 그 행동 기색(via)으로 자가 충족', () => {
+    const defs = [
+      ...DEFS,
+      { token: 'selfCareVia-walk', variants: [{ textId: 'via.walk' }] },
+    ];
+    const r = pickFreeAction(
+      stateWith({ physiological: F }),
+      defs,
+      seq([0.0, 0.0]),
+      true,
+      0,
+      () => ['walk'],
+    );
+    expect(r).toMatchObject({
+      type: 'selfCare',
+      need: 'safety',
+      via: 'walk',
+      textId: 'via.walk',
+    });
+  });
+
   it('자가 충족 판정 실패 → 기억 반추', () => {
     // 생리 충족 → 첫 미충족=안전, 전단계 평균=60 → selfCare 확률 0.6.
     // rng 0.61 ≥ 0.6 이면 자가 충족 실패 → 기억 반추로 폴백.

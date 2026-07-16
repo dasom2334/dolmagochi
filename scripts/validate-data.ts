@@ -280,6 +280,7 @@ export function validateGameData(
       actionIds.has(t) ||
       (t.startsWith('buy-') && itemIds.has(t.slice(4))) ||
       (t.startsWith('selfCare-') && NEED_KEYS.has(t.slice(9))) ||
+      (t.startsWith('selfCareVia-') && actionIds.has(t.slice(12))) ||
       SPECIAL_TOKENS.has(t);
     if (!validToken) errors.push(`알 수 없는 reflection token "${t}"`);
     if (rf.variants.length === 0)
