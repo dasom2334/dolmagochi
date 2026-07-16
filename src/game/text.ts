@@ -112,7 +112,16 @@ export const SYS = {
       ],
     },
   },
-  trustLadder: ['sys.trust.0', 'sys.trust.1', 'sys.trust.2', 'sys.trust.3'],
+  // 호감도 7티어와 1:1 — 티어마다 고유 관찰 문구 (인덱스 = 티어-1)
+  trustLadder: [
+    'sys.trust.0',
+    'sys.trust.1',
+    'sys.trust.2',
+    'sys.trust.3',
+    'sys.trust.4',
+    'sys.trust.5',
+    'sys.trust.6',
+  ],
   trustAbsent: 'sys.trustAbsent',
   restIncomplete: 'sys.restIncomplete.prompt',
 } as const;

@@ -1199,7 +1199,9 @@ export function transition(
       }
 
       // 7) 시대·상태·관계 풀 선택 (대사 이원화) — 비복원 추출
-      // preferRelation은 세션 패리티로 결정(관계/상태 대사 번갈아, rng 순서 비교란)
+      // preferRelation은 세션 패리티로 결정(관계/상태 대사 번갈아, rng 순서 비교란).
+      // 첫 휴식(세션 1)이 홀수이므로 홀수=관계 — 첫 대화부터 데면데면한
+      // 관계 대사(1티어)를 받는다. 집중이 아무리 길어도(90분+) 순서는 같다.
       const pool = selectDialoguePool(data.dialogues, {
         era: state.era,
         needsLevel: needsLevelOf(state.stats.needs),
@@ -1207,7 +1209,7 @@ export function transition(
         affection: state.stats.affection,
         abandonment: state.stats.abandonment,
         intimacyThreat: state.stats.intimacyThreat,
-        preferRelation: state.totals.sessions % 2 === 0,
+        preferRelation: state.totals.sessions % 2 === 1,
       });
       if (!pool)
         return { ...state, rest: { ...state.rest, talkPressed: true } };
