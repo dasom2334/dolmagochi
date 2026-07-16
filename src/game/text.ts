@@ -156,6 +156,8 @@ export const UI = {
     pauseOnHide: 'ui.labels.pauseOnHide',
   },
   shop: {
+    catWork: 'ui.shop.catWork', // 카테고리: 돌의 작업(개인작업 강화)
+    catEtc: 'ui.shop.catEtc', // 카테고리: 장식(병렬 트랙)
     owned: 'ui.shop.owned',
     stocked: 'ui.shop.stocked', // 소모품 재고 있음 (아직 안 씀)
     requires: 'ui.shop.requires', // {name} — 체인 이전 티어 필요

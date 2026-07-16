@@ -280,11 +280,35 @@ function RestTalk({ state }: { state: GameState }) {
   );
 }
 
+/** 상점 카테고리 — 데이터에서 자동 유도: 해금템·boosts→행동별, personalWork→돌의 작업, 나머지→장식 */
+type ShopCat = { key: string; nameId: string; items: typeof gameData.shop };
+const SHOP_CATS: ShopCat[] = (() => {
+  const used = new Set<string>();
+  const cats: ShopCat[] = [];
+  for (const a of gameData.actions) {
+    if (a.id === 'free' || a.id === 'nurse') continue;
+    const unlockIds = a.unlock?.ownedItems ?? [];
+    const items = gameData.shop.filter(
+      (it) => unlockIds.includes(it.id) || it.boosts === a.id,
+    );
+    if (items.length === 0) continue;
+    items.forEach((it) => used.add(it.id));
+    cats.push({ key: a.id, nameId: a.nameId, items });
+  }
+  const work = gameData.shop.filter((it) => it.boosts === 'personalWork');
+  if (work.length > 0) {
+    work.forEach((it) => used.add(it.id));
+    cats.push({ key: 'work', nameId: UI.shop.catWork, items: work });
+  }
+  const etc = gameData.shop.filter((it) => !used.has(it.id));
+  if (etc.length > 0) cats.push({ key: 'etc', nameId: UI.shop.catEtc, items: etc });
+  return cats;
+})();
+
 function RestShop({ state }: { state: GameState }) {
-  const [page, setPage] = useState(0);
-  const pages = Math.max(1, Math.ceil(gameData.shop.length / 3));
-  const p = Math.min(page, pages - 1);
-  const items = gameData.shop.slice(p * 3, p * 3 + 3);
+  const [cat, setCat] = useState(0);
+  const catIdx = Math.min(cat, SHOP_CATS.length - 1);
+  const items = SHOP_CATS[catIdx]?.items ?? [];
   const pending = state.pendingPlacement;
 
   // 구매 직후 배치 결정은 상점을 덮는다 — 결정 전에는 다음 물건을 살 수 없다
@@ -335,7 +359,39 @@ function RestShop({ state }: { state: GameState }) {
 
   return (
     <>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+        {SHOP_CATS.map((c, i) => {
+          const on = i === catIdx;
+          return (
+            <button
+              key={c.key}
+              className="hv"
+              style={{
+                border: `2px solid ${on ? '#f2ead8' : '#4a4156'}`,
+                background: on ? '#f2ead8' : 'transparent',
+                color: on ? '#332b3d' : '#a89cb4',
+                fontFamily: 'inherit',
+                fontSize: 11,
+                padding: '3px 8px',
+                cursor: 'pointer',
+              }}
+              onClick={() => setCat(i)}
+            >
+              {t(c.nameId)}
+            </button>
+          );
+        })}
+      </div>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          maxHeight: 170,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+        }}
+      >
         {items.map((it) => {
           const isConsumable = !!it.consumable;
           // 소모품은 재고(0/1)로 관리 — 소모하면 다시 살 수 있다
@@ -401,45 +457,6 @@ function RestShop({ state }: { state: GameState }) {
             </div>
           );
         })}
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 14,
-          marginTop: 8,
-        }}
-      >
-        <button
-          className={p === 0 ? undefined : 'hv'}
-          disabled={p === 0}
-          style={{
-            ...btnSmall,
-            fontSize: 12,
-            padding: '3px 12px',
-            color: p === 0 ? '#4a4156' : '#a89cb4',
-          }}
-          onClick={() => setPage(Math.max(0, p - 1))}
-        >
-          ◂
-        </button>
-        <span style={{ fontSize: 11, color: '#8a7f96' }}>
-          {p + 1} / {pages}
-        </span>
-        <button
-          className={p >= pages - 1 ? undefined : 'hv'}
-          disabled={p >= pages - 1}
-          style={{
-            ...btnSmall,
-            fontSize: 12,
-            padding: '3px 12px',
-            color: p >= pages - 1 ? '#4a4156' : '#a89cb4',
-          }}
-          onClick={() => setPage(Math.min(pages - 1, p + 1))}
-        >
-          ▸
-        </button>
       </div>
     </>
   );

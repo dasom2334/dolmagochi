@@ -539,6 +539,8 @@
   "ui.labels.flowtimeAbove": [["그 이상"]],
   "ui.labels.flowtimeRestSuffix": [["분 휴식"]],
   "ui.labels.pauseOnHide": [["탭 이탈 시 집중 일시정지"]],
+  "ui.shop.catWork": [["돌의 작업"]],
+  "ui.shop.catEtc": [["장식"]],
   "ui.shop.owned": [["방에 있다"]],
   "ui.shop.stocked": [["준비해 둠"]],
   "ui.shop.requires": [["{name} 필요"]],
