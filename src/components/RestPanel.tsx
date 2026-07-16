@@ -280,35 +280,25 @@ function RestTalk({ state }: { state: GameState }) {
   );
 }
 
-/** 상점 카테고리 — 데이터에서 자동 유도: 해금템·boosts→행동별, personalWork→돌의 작업, 나머지→장식 */
-type ShopCat = { key: string; nameId: string; items: typeof gameData.shop };
-const SHOP_CATS: ShopCat[] = (() => {
-  const used = new Set<string>();
-  const cats: ShopCat[] = [];
-  for (const a of gameData.actions) {
-    if (a.id === 'free' || a.id === 'nurse') continue;
-    const unlockIds = a.unlock?.ownedItems ?? [];
-    const items = gameData.shop.filter(
-      (it) => unlockIds.includes(it.id) || it.boosts === a.id,
-    );
-    if (items.length === 0) continue;
-    items.forEach((it) => used.add(it.id));
-    cats.push({ key: a.id, nameId: a.nameId, items });
-  }
-  const work = gameData.shop.filter((it) => it.boosts === 'personalWork');
-  if (work.length > 0) {
-    work.forEach((it) => used.add(it.id));
-    cats.push({ key: 'work', nameId: UI.shop.catWork, items: work });
-  }
-  const etc = gameData.shop.filter((it) => !used.has(it.id));
-  if (etc.length > 0) cats.push({ key: 'etc', nameId: UI.shop.catEtc, items: etc });
-  return cats;
-})();
+/** 진열대: 지금 살 수 있는 다음 한 걸음만 — 보유·재고·이전 티어 미달·미해금은 숨긴다 */
+function storeItems(state: GameState) {
+  return gameData.shop.filter((it) => {
+    if (!isItemAvailable(it, state)) return false;
+    if (it.requires !== undefined && !(it.requires in state.items)) return false;
+    if (it.consumable) return (state.supplies[it.id] ?? 0) === 0; // 재고는 소장품에
+    return !(it.id in state.items); // 보유 비소모품도 소장품에
+  });
+}
+
+/** 소장품: 보유 비소모품 + 재고 있는 소모품 — 배치/보관을 여기서 조절 */
+function ownedList(state: GameState) {
+  return gameData.shop.filter((it) =>
+    it.consumable ? (state.supplies[it.id] ?? 0) > 0 : it.id in state.items,
+  );
+}
 
 function RestShop({ state }: { state: GameState }) {
-  const [cat, setCat] = useState(0);
-  const catIdx = Math.min(cat, SHOP_CATS.length - 1);
-  const items = SHOP_CATS[catIdx]?.items ?? [];
+  const [sub, setSub] = useState<'store' | 'owned'>('store');
   const pending = state.pendingPlacement;
 
   // 구매 직후 배치 결정은 상점을 덮는다 — 결정 전에는 다음 물건을 살 수 없다
@@ -357,14 +347,15 @@ function RestShop({ state }: { state: GameState }) {
     );
   }
 
+  const items = sub === 'store' ? storeItems(state) : ownedList(state);
   return (
     <>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-        {SHOP_CATS.map((c, i) => {
-          const on = i === catIdx;
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+        {(['store', 'owned'] as const).map((k) => {
+          const on = sub === k;
           return (
             <button
-              key={c.key}
+              key={k}
               className="hv"
               style={{
                 border: `2px solid ${on ? '#f2ead8' : '#4a4156'}`,
@@ -372,12 +363,12 @@ function RestShop({ state }: { state: GameState }) {
                 color: on ? '#332b3d' : '#a89cb4',
                 fontFamily: 'inherit',
                 fontSize: 11,
-                padding: '3px 8px',
+                padding: '3px 10px',
                 cursor: 'pointer',
               }}
-              onClick={() => setCat(i)}
+              onClick={() => setSub(k)}
             >
-              {t(c.nameId)}
+              {t(k === 'store' ? UI.shop.subStore : UI.shop.subOwned)}
             </button>
           );
         })}
@@ -392,43 +383,64 @@ function RestShop({ state }: { state: GameState }) {
           gap: 6,
         }}
       >
+        {sub === 'owned' && items.length === 0 && (
+          <p style={{ margin: 0, fontSize: 11, color: '#8a7f96' }}>
+            * {t(UI.shop.ownedEmpty)}
+          </p>
+        )}
         {items.map((it) => {
-          const isConsumable = !!it.consumable;
-          // 소모품은 재고(0/1)로 관리 — 소모하면 다시 살 수 있다
-          const owned = !isConsumable && it.id in state.items;
-          const stocked = isConsumable && (state.supplies[it.id] ?? 0) > 0;
-          const reqMissing =
-            it.requires !== undefined && !(it.requires in state.items);
-          const available = isItemAvailable(it, state);
+          if (sub === 'owned') {
+            // 소장품: 배치/보관 조절 (소모품 포함 — 재고가 방에 보인다)
+            const isPlaced = !!state.items[it.id]?.placed;
+            return (
+              <div key={it.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    fontSize: 12,
+                    color: '#e0d6c4',
+                    lineHeight: 1.5,
+                    padding: '6px 4px',
+                  }}
+                >
+                  {t(it.nameId)}{' '}
+                  <span style={{ color: '#8a7f96' }}>{t(it.descId)}</span>
+                </div>
+                <button
+                  className="hv"
+                  style={btnSmall}
+                  onClick={() =>
+                    dispatch({
+                      type: 'SET_PLACEMENT',
+                      itemId: it.id,
+                      placed: !isPlaced,
+                    })
+                  }
+                >
+                  {t(isPlaced ? UI.shop.stash : UI.shop.place)}
+                </button>
+              </div>
+            );
+          }
+          // 진열대: 지금 살 수 있는 것만 — 정성 여부만 표시
           const poor = state.care.points < it.price;
-          const disabled = owned || stocked || poor || !available || reqMissing;
-          const stateLabel = owned
-            ? t(UI.shop.owned)
-            : stocked
-              ? t(UI.shop.stocked)
-              : reqMissing
-                ? tf(UI.shop.requires, {
-                    name: t(
-                      gameData.shop.find((o) => o.id === it.requires)?.nameId ?? '',
-                    ),
-                  })
-                : poor
-                  ? t(UI.shop.poor)
-                  : tf(UI.shop.price, { price: it.price });
+          const stateLabel = poor
+            ? t(UI.shop.poor)
+            : tf(UI.shop.price, { price: it.price });
           return (
             <div key={it.id} style={{ display: 'flex', gap: 6 }}>
               <button
-                className={disabled ? undefined : 'hv'}
-                disabled={disabled}
+                className={poor ? undefined : 'hv'}
+                disabled={poor}
                 style={{
                   flex: 1,
                   textAlign: 'left',
-                  border: `2px solid ${disabled ? '#4a4156' : '#6b6178'}`,
+                  border: `2px solid ${poor ? '#4a4156' : '#6b6178'}`,
                   background: 'transparent',
-                  color: disabled ? '#6b6178' : '#e0d6c4',
+                  color: poor ? '#6b6178' : '#e0d6c4',
                   fontFamily: 'inherit',
                   fontSize: 12,
-                  cursor: disabled ? 'default' : 'pointer',
+                  cursor: poor ? 'default' : 'pointer',
                   padding: '8px 10px',
                   lineHeight: 1.5,
                 }}
@@ -439,21 +451,6 @@ function RestShop({ state }: { state: GameState }) {
                 {t(it.nameId)} — {stateLabel}{' '}
                 <span style={{ color: '#8a7f96' }}>{t(it.descId)}</span>
               </button>
-              {owned && state.pendingPlacement !== it.id && (
-                <button
-                  className="hv"
-                  style={btnSmall}
-                  onClick={() =>
-                    dispatch({
-                      type: 'SET_PLACEMENT',
-                      itemId: it.id,
-                      placed: !state.items[it.id].placed,
-                    })
-                  }
-                >
-                  {t(state.items[it.id].placed ? UI.shop.stash : UI.shop.place)}
-                </button>
-              )}
             </div>
           );
         })}
@@ -461,7 +458,6 @@ function RestShop({ state }: { state: GameState }) {
     </>
   );
 }
-
 /** apart: 돌이 떠나려는 기색 — 붙잡기/보내주기 (기획서 v3-14) */
 function VisitLeavePrompt() {
   const vl = gameData.dialogues.visitLeave;

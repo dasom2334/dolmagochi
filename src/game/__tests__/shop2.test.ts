@@ -46,20 +46,25 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
     expect('bed' in s.items).toBe(true);
   });
 
-  it('소모품: 구매→재고 1, 재고 있으면 재구매 거절, 배치 흐름 없음', () => {
+  it('소모품: 첫 구매만 배치 프롬프트, 재고 있으면 재구매 거절', () => {
     let s = restRich();
     s = run(s, [{ type: 'BUY', itemId: 'nightdrink', nowMs: T0 }]);
     expect(s.supplies['nightdrink']).toBe(1);
-    expect('nightdrink' in s.items).toBe(false);
-    expect(s.pendingPlacement).toBeNull();
+    // 소모품도 배치 가능 — 첫 구매 시 배치 결정을 묻는다
+    expect(s.items['nightdrink']).toEqual({ placed: false });
+    expect(s.pendingPlacement).toBe('nightdrink');
+    s = run(s, [{ type: 'SET_PLACEMENT', itemId: 'nightdrink', placed: true }]);
     const points = s.care.points;
     s = run(s, [{ type: 'BUY', itemId: 'nightdrink', nowMs: T0 }]);
-    expect(s.care.points).toBe(points); // 거절 — 정성 그대로
+    expect(s.care.points).toBe(points); // 거절 — 재고가 아직 있다
   });
 
   it('소모: 세션 시작 시 재고 소모+종류 추첨 → 종료 시 종류 보너스·기억토큰 → 재구매 가능', () => {
     let s = restRich();
-    s = run(s, [{ type: 'BUY', itemId: 'nightdrink', nowMs: T0 }]);
+    s = run(s, [
+      { type: 'BUY', itemId: 'nightdrink', nowMs: T0 },
+      { type: 'SET_PLACEMENT', itemId: 'nightdrink', placed: true },
+    ]);
     // rng 0.0 → variants[0] = milk (생리 +3)
     s = run(s, [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.0]));
     expect(s.supplies['nightdrink']).toBe(0);
@@ -72,9 +77,11 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
     expect(
       s.session.journal.some((j) => j.text.includes('우유')),
     ).toBe(true);
-    // 소모 후 재구매 가능
+    // 소모 후 재구매 가능 — 배치는 기억되고, 프롬프트는 다시 뜨지 않는다
     s = run(s, [{ type: 'BUY', itemId: 'nightdrink', nowMs: T0 }]);
     expect(s.supplies['nightdrink']).toBe(1);
+    expect(s.pendingPlacement).toBeNull();
+    expect(s.items['nightdrink']).toEqual({ placed: true }); // 저번 자리 그대로
   });
 
   it('체인 보너스: 베개 보유 시 누워있기 게이지 +1 누적', () => {

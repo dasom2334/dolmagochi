@@ -23,6 +23,7 @@ import { DeskProp } from './props/DeskProp';
 import { StationeryProp } from './props/StationeryProp';
 import { LaptopProp } from './props/LaptopProp';
 import { SupplyProp } from './SupplyProp';
+import { StockProp, STOCK_PROP_IDS } from './StockProp';
 import { SodaProp } from './props/SodaProp';
 import { CupProp } from './props/CupProp';
 import { FanProp } from './props/FanProp';
@@ -102,6 +103,11 @@ export function SceneView({ state }: { state: GameState }) {
       {placed('desk') && <DeskProp />}
       {placed('stationery') && <StationeryProp />}
       {placed('laptop') && <LaptopProp />}
+      {STOCK_PROP_IDS.map((id) =>
+        state.items[id]?.placed && (state.supplies[id] ?? 0) > 0 ? (
+          <StockProp key={id} itemId={id} />
+        ) : null,
+      )}
       {isFocus && state.session.supply && (
         <SupplyProp
           itemId={state.session.supply.itemId}

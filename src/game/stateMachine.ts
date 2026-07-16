@@ -1261,14 +1261,20 @@ export function transition(
         (item.requires !== undefined && !(item.requires in state.items))
       )
         return state;
-      // 소모품: 재고 0/1 — 배치 없이 재고로 들어가고, 소모 후 재구매 가능
+      // 소모품: 재고 0/1 — 소모 후 재구매 가능. 배치도 가능(재고가 방에 보인다):
+      // 첫 구매만 배치를 묻고, 재구매는 기억된 배치 자리를 그대로 따른다.
       if (item.consumable) {
         if ((state.supplies[item.id] ?? 0) > 0) return state; // 아직 안 씀
+        const firstBuy = !(item.id in state.items);
         const bought = applyOutcome(state, item.outcome, event.nowMs);
         return {
           ...bought,
           care: { ...bought.care, points: bought.care.points - item.price },
           supplies: { ...bought.supplies, [item.id]: 1 },
+          items: firstBuy
+            ? { ...bought.items, [item.id]: { placed: false } }
+            : bought.items,
+          pendingPlacement: firstBuy ? item.id : bought.pendingPlacement,
           memory: remember(
             bought.memory,
             `buy-${item.id}`,
