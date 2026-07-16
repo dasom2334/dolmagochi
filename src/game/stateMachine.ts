@@ -25,9 +25,18 @@ import {
   restMinutesFor,
 } from './timer';
 import { drawMemory, remember, resolveReflection } from './memory';
-import { drawEligibleLine, selectDialoguePool } from './dialogue';
-import { pickFreeAction } from './freeAction';
-import { clampStat, dateKey, initialStats, needsLevelOf, settleCalendar } from './stats';
+import { affectionTier, drawEligibleLine, selectDialoguePool } from './dialogue';
+import { personalWorkProb, pickFreeAction } from './freeAction';
+import {
+  applyNeedsGated,
+  clampStat,
+  dateKey,
+  decayNeeds,
+  firstUnfilledNeed,
+  initialStats,
+  needsLevelOf,
+  settleCalendar,
+} from './stats';
 import {
   convergeStep,
   derivedSecurity,
@@ -49,7 +58,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -97,6 +106,11 @@ export function createInitialState(
     pendingEvent: null,
     foreUsed: [],
     endingTalksSeen: 0,
+    lastEndingTalkDate: null,
+    relationTier: 1,
+    lastTierUpDate: null,
+    pendingCrisis: null,
+    crisisArcsFired: [],
     care: { points: 0, carryMinutes: 0 },
     items: {},
     supplies: {},
@@ -134,8 +148,25 @@ function emptySession(): GameState['session'] {
     timeMarksFired: [],
     supply: null,
     freeCare: null,
+    freeCareVia: null,
     freeWorked: false,
+    restMult: 1,
   };
+}
+
+/**
+ * 직전 휴식 준수 배율 (개정 v4-4): 배정 휴식을 얼마나 채우고 왔는가.
+ * 완주(초과 포함) ×1.0 / 절반 이상 ×0.75 / 미만·스킵 ×0.5.
+ * 첫 세션(직전 휴식 없음)은 1.0.
+ */
+function restComplianceMult(state: GameState, nowMs: number): number {
+  if (state.lastSessionEndAt === null || state.rest.totalSec <= 0) return 1;
+  const restStartMs = state.rest.endsAt - state.rest.totalSec * 1000;
+  const ratio = (nowMs - restStartMs) / 1000 / state.rest.totalSec;
+  if (ratio >= 1) return 1;
+  return ratio >= BALANCE.REST_MULT_HALF_RATIO
+    ? BALANCE.REST_MULT_HALF
+    : BALANCE.REST_MULT_SKIP;
 }
 
 function actionOf(data: GameData, id: ActionId): ActionData | undefined {
@@ -143,14 +174,19 @@ function actionOf(data: GameData, id: ActionId): ActionData | undefined {
 }
 
 /** 행동/물품 해금: unlock 조건 통과 OR Outcome으로 명시 해금 */
-export function isActionAvailable(action: ActionData, state: GameState): boolean {
-  // 병간호 상태: '병간호하기'만 가능 (돌이 아파 다른 행동을 받지 못한다)
-  if (state.presence.sick) return action.id === 'nurse';
-  if (action.id === 'nurse') return false; // 병간호는 평소엔 숨김
+/** 해금 여부만 판정 — 병간호 같은 일시 차단과 무관 (해금 알림 등 영구 상태용) */
+export function isActionUnlocked(action: ActionData, state: GameState): boolean {
   return (
     state.unlockedActions.includes(action.id) ||
     checkCondition(action.unlock, state)
   );
+}
+
+export function isActionAvailable(action: ActionData, state: GameState): boolean {
+  // 병간호 상태: '병간호하기'만 가능 (돌이 아파 다른 행동을 받지 못한다)
+  if (state.presence.sick) return action.id === 'nurse';
+  if (action.id === 'nurse') return false; // 병간호는 평소엔 숨김
+  return isActionUnlocked(action, state);
 }
 
 export function isItemAvailable(item: ShopItemData, state: GameState): boolean {
@@ -307,11 +343,33 @@ function absentReflectionLine(
   return textId ? joinPages(pickText(data.text, textId, rng)) : '';
 }
 
-/** 엔딩 이벤트 진입 조건: 자아실현 완성 + 엔딩 전 대화 소진 (육성 시대) */
+/**
+ * 1차 토큰 게이트 (개정 v4-9/10): 함께 겪었어야 할 것들 — 행동 전종(병간호 제외,
+ * 위기 아크는 7티어 게이트가 보장) + 첫 선택 + 첫 구매 + 개인작업 목격.
+ * 전부 분기 내 상시 획득 가능한 것만 — 퇴화 플레이 차단용, 페이싱 영향 0.
+ */
+export function hasEndingTokens(
+  memory: GameState['memory'],
+  data: GameData,
+): boolean {
+  return (
+    data.actions.every((a) => a.id === 'nurse' || a.id in memory) &&
+    'choice' in memory &&
+    'personalWork' in memory &&
+    Object.keys(memory).some((k) => k.startsWith('buy-'))
+  );
+}
+
+/**
+ * 엔딩 이벤트 진입 조건 (개정 v4-9): 자아실현 완성 + 호감도 7티어 +
+ * 1차 토큰 게이트 + 엔딩 전 대화 소진 (육성 시대)
+ */
 function isEndingDue(state: GameState, data: GameData): boolean {
   return (
     state.era === 'raising' &&
     state.stats.selfActualization >= BALANCE.SELF_ACT_COMPLETE &&
+    state.relationTier >= BALANCE.AFFECTION_TIERS.length &&
+    hasEndingTokens(state.memory, data) &&
     state.endingTalksSeen >= data.endings.preEndingTalks.length
   );
 }
@@ -418,7 +476,26 @@ export function transition(
         return { ...exited.state, phase: 'ending' };
       }
 
-      let next = applyIntimacy(exited.state, action.intimacy, rng);
+      // 보장 위기 아크: 잠수 (개정 v4-8) — 3티어 승급이 예약, 다음 세션 시작에 발동.
+      // 가까워진 스스로에게 놀라 물러난다. 기존 잠수 시스템(부재·수렴 복귀)을 그대로 탄다.
+      let arcState = exited.state;
+      let crisisLine: string | null = null;
+      if (
+        arcState.era === 'raising' &&
+        arcState.pendingCrisis === 'retreat' &&
+        arcState.presence.state === 'present' &&
+        !arcState.presence.sick
+      ) {
+        arcState = {
+          ...arcState,
+          presence: startAbsence(rng),
+          pendingCrisis: null,
+          crisisArcsFired: [...arcState.crisisArcsFired, 'retreat'],
+        };
+        crisisLine = joinPages(pickText(data.text, SYS.journal.crisisRetreat, rng));
+      }
+
+      let next = applyIntimacy(arcState, action.intimacy, rng);
       let visitJournal: string | null = null;
 
       // apart: 돌이 놀러올 확률 — 오면 며칠(1~N세션) 머문다
@@ -442,18 +519,23 @@ export function transition(
         }
       }
 
+      const present = isRockPresent(next);
+
       // 소모품 소모: 이 행동(자유행동이면 개인작업)을 강화하는 소모품 재고가 있으면
-      // 세션 시작 시 1개 소모하고 랜덤 종류를 뽑는다 (씬·대사·보너스가 종류를 따른다)
+      // 세션 시작 시 1개 소모하고 종류는 구매 시(진열) 고정분을 쓴다.
+      // 돌이 곁에 있을 때만 — 부재 세션에서 재고가 증발하거나
+      // 돌 반응 대사(사용 서술)가 새는 것을 막는다.
       const boostTarget = action.id === 'free' ? 'personalWork' : action.id;
-      const consumableItem = data.shop.find(
-        (i) =>
-          i.consumable &&
-          i.boosts === boostTarget &&
-          (next.supplies[i.id] ?? 0) > 0,
-      );
+      const consumableItem = present
+        ? data.shop.find(
+            (i) =>
+              i.consumable &&
+              i.boosts === boostTarget &&
+              (next.supplies[i.id] ?? 0) > 0,
+          )
+        : undefined;
       let supply: GameState['session']['supply'] = null;
       if (consumableItem?.consumable) {
-        // 종류는 구매 시(진열) 이미 고정 — 여기서 다시 뽑지 않는다
         const variant =
           next.supplyVariants[consumableItem.id] ??
           consumableItem.consumable.variants[0].key;
@@ -463,14 +545,13 @@ export function transition(
           supplies: { ...next.supplies, [consumableItem.id]: 0 },
         };
       }
-
-      const present = isRockPresent(next);
       const startLine = present
         ? joinPages(pickText(data.text, action.startLineId, rng))
         : joinPages(pickText(data.text, SYS.journal.sessionStartAbsent, rng));
       let journal: JournalEntry[] = [];
       // '돌이 떠났다' 기록은 새 세션 일지 맨 앞에 보존한다
       if (exited.visitEndLine) journal = addJournal(journal, 0, exited.visitEndLine);
+      if (crisisLine) journal = addJournal(journal, 0, crisisLine);
       journal = addJournal(journal, 0, startLine);
       if (visitJournal) journal = addJournal(journal, 0, visitJournal);
       const absentAmb = data.text[SYS.absentAmbient]?.[0];
@@ -480,10 +561,14 @@ export function transition(
         session: {
           ...emptySession(),
           supply,
-          narratorLine: present
-            ? startLine
-            : joinPages(absentAmb ?? [startLine]),
+          narratorLine: crisisLine
+            ? crisisLine
+            : present
+              ? startLine
+              : joinPages(absentAmb ?? [startLine]),
           journal,
+          // 직전 휴식 준수 배율 — 이번 세션의 게이지 정산에 곱한다 (개정 v4-4)
+          restMult: restComplianceMult(state, event.nowMs),
         },
       };
     }
@@ -578,7 +663,7 @@ export function transition(
         let stats = next.stats;
         let recalled = next.remembrancesRecalled;
         let careNowNeed: NeedId | null = null;
-        let workedNow = false;
+        let careNowVia: string | null = null;
 
         if (next.era === 'apart' && !next.apart.visiting) {
           // 빈자리: 추억 회상 — 당시 미표시 정보(reveal)가 드러난다.
@@ -591,24 +676,24 @@ export function transition(
             line = absentReflectionLine(next, data, rng);
           }
         } else if (action.id === 'free' && present) {
+          // 돌의 자가 충족·심심풀이는 해금된 행동으로만 — 그 욕구를 채우는 행동이
+          // 해금돼 있어야(아이템 구매 등) 돌이 스스로 그 기색을 낸다 (개정 v4-6)
+          const availableIds = (filter: (a: (typeof data.actions)[number]) => boolean) =>
+            data.actions
+              .filter(
+                (a) =>
+                  a.id !== 'free' &&
+                  a.id !== 'nurse' &&
+                  filter(a) &&
+                  isActionAvailable(a, next),
+              )
+              .map((a) => a.id);
           const result = pickFreeAction(
             next,
             data.reflections,
             rng,
-            next.era === 'raising', // 동거: 개인작업 정지
-            personalWorkBoost(next, data), // 책상 체인 + API 토큰 확률 가산
-            // 돌의 자가 충족은 해금된 행동으로만 — 그 욕구를 채우는 행동이
-            // 해금돼 있어야(아이템 구매 등) 돌이 스스로 그 기색을 낸다
-            (need) =>
-              data.actions
-                .filter(
-                  (a) =>
-                    a.id !== 'free' &&
-                    a.id !== 'nurse' &&
-                    a.outcome?.needs?.[need] !== undefined &&
-                    isActionAvailable(a, next),
-                )
-                .map((a) => a.id),
+            (need) => availableIds((a) => a.outcome?.needs?.[need] !== undefined),
+            () => availableIds(() => true),
           );
           line = result.textId
             ? joinPages(pickText(data.text, result.textId, rng))
@@ -618,9 +703,11 @@ export function transition(
           // 집중 시간으로 정산한다 (틱마다 올리면 5분에 +5씩 폭주).
           if (result.type === 'selfCare' && next.session.freeCare === null) {
             careNowNeed = result.need;
+            careNowVia = result.via ?? null;
           }
-          if (result.type === 'personalWork' && !next.session.freeWorked) {
-            workedNow = true;
+          // idle(제 마음대로 한 행동)도 기억 약강화 대상 — END_FOCUS에서 정산
+          if (result.type === 'idle' && next.session.freeCareVia === null) {
+            careNowVia = result.via;
           }
         } else if (present) {
           const draw = drawMemory(memory, data.reflections, next, rng);
@@ -651,7 +738,7 @@ export function transition(
             ...next.session,
             lastReflectAtSec: el,
             freeCare: next.session.freeCare ?? careNowNeed,
-            freeWorked: next.session.freeWorked || workedNow,
+            freeCareVia: next.session.freeCareVia ?? careNowVia,
             journal:
               line && !timeMarkFiring
                 ? addJournal(next.session.journal, el, line)
@@ -663,9 +750,14 @@ export function transition(
       }
 
       // 5) 시간 문턱 발화 — 집중이 길어질수록 문턱별 1회 (기획서 요청)
+      // 분 표기는 문구에 박지 않고 문턱값({mins})을 채운다 — 데이터 수정에도 어긋나지 않게
       data.timeMarks.focus.forEach((mark, i) => {
         if (el >= mark.minSec && !next.session.timeMarksFired.includes(i)) {
-          const markLine = joinPages(pickText(data.text, mark.textId, rng));
+          const markLine = joinPages(
+            fillPages(pickText(data.text, mark.textId, rng), {
+              mins: Math.round(mark.minSec / 60),
+            }),
+          );
           next = {
             ...next,
             session: {
@@ -728,12 +820,15 @@ export function transition(
       // 시간 정산 단위 — 정성과 같은 자(25분당 1), 90분 상한 → 최대 3.6u.
       // 게이지 보상은 세션 횟수가 아니라 완료한 집중 시간에 비례한다.
       const units = cappedMins / BALANCE.CARE_MINUTES_PER_POINT;
+      // 휴식 준수 배율 (개정 v4-4): 게이지 정산에만 곱한다 — 정성(units)은 제외
+      const restMult = state.session.restMult ?? 1;
+      const gainUnits = units * restMult;
       const scaleNeeds = (
         b: Partial<Record<NeedId, number>> | undefined,
       ): Partial<Record<NeedId, number>> | undefined => {
         if (!b) return undefined;
         const out: Partial<Record<NeedId, number>> = {};
-        for (const k of Object.keys(b) as NeedId[]) out[k] = (b[k] ?? 0) * units;
+        for (const k of Object.keys(b) as NeedId[]) out[k] = (b[k] ?? 0) * gainUnits;
         return out;
       };
 
@@ -743,7 +838,7 @@ export function transition(
         needs: scaleNeeds(action.outcome.needs),
         stats: action.outcome.stats && {
           ...action.outcome.stats,
-          affection: (action.outcome.stats.affection ?? 0) * units,
+          affection: (action.outcome.stats.affection ?? 0) * gainUnits,
         },
       };
       let next = applyOutcome(state, scaledOutcome, event.nowMs);
@@ -759,55 +854,79 @@ export function transition(
         if (it.boosts === action.id && !it.consumable && it.id in next.items)
           addBonus(scaleNeeds(it.bonusNeeds));
       }
-      // 자유행동 정산: 자가충족(발동 시)은 시간 정산, 개인작업(발동 시)은 90분 만액
+      // 자유행동 정산: 자가충족(발동 시)은 시간 정산.
+      // 개인작업 판정은 여기서 세션당 1회 — 확률·획득 모두 시간 비례 (개정 v4-3):
+      //   p = (기본 + 욕구평균 비례 + 아이템 가산) × min(집중분,90)/90
+      // 짧은 세션은 기대값이 그만큼 작아 스팸이 무의미하고, 책상 체인 확률 노브가 살아난다.
+      let freeWorked = false;
       if (action.id === 'free') {
         const freeCareNeed = state.session.freeCare;
         if (freeCareNeed)
-          addBonus({ [freeCareNeed]: BALANCE.FREE_SELF_CARE_GAIN * units });
-        if (state.session.freeWorked) {
-          const workGain =
-            (BALANCE.SELF_ACT_GAIN_PER_WORK * cappedMins) / 90 +
-            supplySelfActBonus(state, data); // API 토큰 보너스는 1회 효과라 플랫
-          next = {
-            ...next,
-            stats: {
-              ...next.stats,
-              selfActualization: clampStat(
-                next.stats.selfActualization + workGain,
-              ),
-            },
-          };
+          addBonus({ [freeCareNeed]: BALANCE.FREE_SELF_CARE_GAIN * gainUnits });
+        if (
+          sessionHadRock &&
+          state.era === 'raising' && // 동거: 개인작업 정지
+          firstUnfilledNeed(next.stats.needs) === null
+        ) {
+          const prob =
+            (personalWorkProb(next.stats.needs) +
+              personalWorkBoost(state, data)) *
+            (cappedMins / 90);
+          if (rng() < prob) {
+            freeWorked = true;
+            // 획득은 발동당 고정 × 휴식 배율 — 확률이 이미 시간 비례라
+            // 시간당 기대값은 세션 길이와 무관하다 (개정 v4-3)
+            const workGain =
+              BALANCE.SELF_ACT_GAIN_PER_WORK * restMult +
+              supplySelfActBonus(state, data); // API 토큰 보너스는 1회 효과라 플랫
+            next = {
+              ...next,
+              stats: {
+                ...next.stats,
+                selfActualization: clampStat(
+                  next.stats.selfActualization + workGain,
+                ),
+              },
+            };
+          }
         }
       }
       const supplyUse = state.session.supply;
       let supplyLine: string | null = null;
       if (supplyUse) {
         const it = data.shop.find((i) => i.id === supplyUse.itemId);
-        const variant = it?.consumable?.variants.find(
-          (v) => v.key === supplyUse.variant,
-        );
-        if (variant) {
-          addBonus(variant.bonusNeeds);
+        if (it?.boosts === 'personalWork' && !freeWorked) {
+          // 개인작업 소모품(API 토큰): 개인작업이 발동하지 않은 세션엔 소모하지
+          // 않는다 — 재고로 되돌리고, '작업이 순조로웠다'류 거짓 서술도 남기지 않는다
           next = {
             ...next,
-            memory: remember(
-              next.memory,
-              `use-${supplyUse.itemId}-${supplyUse.variant}`,
-              BALANCE.MEMORY_WEIGHT_PURCHASE,
-              event.nowMs,
-            ),
+            supplies: { ...next.supplies, [supplyUse.itemId]: 1 },
           };
-          const useId = `shop.${supplyUse.itemId}.use.${supplyUse.variant}`;
-          if (data.text[useId]) {
-            supplyLine = joinPages(pickText(data.text, useId, rng));
+        } else {
+          const variant = it?.consumable?.variants.find(
+            (v) => v.key === supplyUse.variant,
+          );
+          if (variant) {
+            addBonus(variant.bonusNeeds);
+            const useId = `shop.${supplyUse.itemId}.use.${supplyUse.variant}`;
+            if (data.text[useId]) {
+              supplyLine = joinPages(pickText(data.text, useId, rng));
+            }
           }
         }
       }
       if (Object.keys(bonusNeeds).length > 0) {
-        const boosted = { ...next.stats.needs };
-        for (const k of Object.keys(bonusNeeds) as NeedId[])
-          boosted[k] = clampStat(boosted[k] + (bonusNeeds[k] ?? 0));
-        next = { ...next, stats: { ...next.stats, needs: boosted } };
+        // 아이템·자가충족 보너스도 같은 상승 게이트를 지난다 (개정 v4-5)
+        const inCrisis =
+          next.era === 'raising' &&
+          (next.presence.sick || next.presence.state === 'absent');
+        next = {
+          ...next,
+          stats: {
+            ...next.stats,
+            needs: applyNeedsGated(next.stats.needs, bonusNeeds, !inCrisis),
+          },
+        };
       }
 
       // 동거 하이브리드: 의존도 상승 + 존중·자아실현 잠식 (호감도는 보존)
@@ -825,6 +944,50 @@ export function transition(
           selfActualization: clampStat(
             stats.selfActualization - BALANCE.COHABIT_SELF_ACT_DECAY,
           ),
+        };
+      }
+
+      // 욕구 시간 비례 감소 (개정 v4-5) — 로테이션 유도. apart(돌 없음)는 제외.
+      if (next.era !== 'apart') {
+        stats = { ...stats, needs: decayNeeds(stats.needs, cappedMins / 60) };
+      }
+
+      // 관계 티어 승급 — 하루 1회 (서사 비트 달력 게이트, 개정 v4-7).
+      // 임계 초과분은 이월되고, 다음 플레이 날 승급이 확정된다.
+      const today = dateKey(event.nowMs);
+      let relationTier = next.relationTier;
+      let lastTierUpDate = next.lastTierUpDate;
+      let pendingCrisis = next.pendingCrisis;
+      let crisisArcsFired = next.crisisArcsFired;
+      if (
+        next.era === 'raising' &&
+        affectionTier(stats.affection) > relationTier &&
+        lastTierUpDate !== today
+      ) {
+        relationTier += 1;
+        lastTierUpDate = today;
+        // 보장 위기 아크 예약 (개정 v4-8): 3티어 = 잠수, 5티어 = 병간호(성장통)
+        if (relationTier === 3 && !crisisArcsFired.includes('retreat'))
+          pendingCrisis = 'retreat';
+        if (relationTier === 5 && !crisisArcsFired.includes('sick'))
+          pendingCrisis = 'sick';
+      }
+
+      // 약한 애착 표류 (개정 v4-8): 깊어진 관계 + 휴식 스킵이 유기불안을 서서히 쌓는다.
+      // 접근의 진정(−3)이 상쇄하므로 성실 플레이어는 체감 0 — 무심·스킵만 위기로 간다.
+      if (
+        next.era === 'raising' &&
+        next.presence.state === 'present' &&
+        !next.presence.sick
+      ) {
+        const drift =
+          BALANCE.ATTACH_DRIFT_PER_TIER * relationTier +
+          (restMult < 1 ? BALANCE.ATTACH_DRIFT_ON_SKIP : 0);
+        const ab = clampStat(stats.abandonment + drift);
+        stats = {
+          ...stats,
+          abandonment: ab,
+          security: derivedSecurity(ab, stats.intimacyThreat),
         };
       }
 
@@ -859,13 +1022,24 @@ export function transition(
           }
         }
       } else if (
-        // 병간호 발동: 유기불안이 상한을 넘으면 돌이 아파진다 (재석 중, 육성)
+        // 병간호 발동: 유기불안이 상한을 넘으면 돌이 아파진다 (재석 중, 육성).
+        // 보장 아크(개정 v4-8): 5티어 승급이 예약한 성장통도 여기서 발동한다.
         next.era === 'raising' &&
         presence.state === 'present' &&
         !presence.sick &&
-        stats.abandonment > BALANCE.ABANDONMENT_SICK_CEILING
+        (stats.abandonment > BALANCE.ABANDONMENT_SICK_CEILING ||
+          pendingCrisis === 'sick')
       ) {
         presence = { ...presence, sick: true };
+        if (pendingCrisis === 'sick') {
+          pendingCrisis = null;
+          crisisArcsFired = [...crisisArcsFired, 'sick'];
+          journal = addJournal(
+            journal,
+            elapsed,
+            joinPages(pickText(data.text, SYS.journal.crisisSick, rng)),
+          );
+        }
         journal = addJournal(
           journal,
           elapsed,
@@ -887,20 +1061,70 @@ export function transition(
         };
       }
 
-      const memory = remember(
+      let memory = remember(
         next.memory,
         action.id,
         BALANCE.MEMORY_WEIGHT_ACTION,
         event.nowMs,
       );
+      // 돌이 스스로 한 행동 — 그 행동의 기억을 약하게 강화 (개정 v4-6)
+      const via = state.session.freeCareVia;
+      if (via && via !== 'self') {
+        memory = remember(
+          memory,
+          via,
+          BALANCE.MEMORY_WEIGHT_SELF_ACTION,
+          event.nowMs,
+        );
+      }
+      // 개인작업 목격 — 1차 토큰 게이트 재료 (개정 v4-10)
+      if (freeWorked) {
+        memory = remember(
+          memory,
+          'personalWork',
+          BALANCE.MEMORY_WEIGHT_ACTION,
+          event.nowMs,
+        );
+      }
 
-      // 휴식 길이 문턱 발화 — 배정된 휴식이 길수록 (긴 집중의 결과) 진입 시 1회
+      // 엔딩 전 대화 — 서로 다른 날 하루 1개, 휴식 진입 시 자동 노출 (개정 v4-7/9).
+      // 조건이 다 갖춰진 뒤에는 대화 버튼을 누르지 않는 유저도 이별에 도달한다.
+      let endingTalksSeen = next.endingTalksSeen;
+      let lastEndingTalkDate = next.lastEndingTalkDate;
+      let endingTalk: TalkState | null = null;
+      if (
+        next.era === 'raising' &&
+        presence.state === 'present' &&
+        !presence.sick &&
+        stats.selfActualization >= BALANCE.SELF_ACT_COMPLETE &&
+        relationTier >= BALANCE.AFFECTION_TIERS.length &&
+        hasEndingTokens(memory, data) &&
+        endingTalksSeen < data.endings.preEndingTalks.length &&
+        lastEndingTalkDate !== today
+      ) {
+        const entry = data.endings.preEndingTalks[endingTalksSeen];
+        endingTalksSeen += 1;
+        lastEndingTalkDate = today;
+        endingTalk = {
+          kind: 'ending',
+          pages: pickText(data.text, entry.textId, rng),
+          hasChoice: !!entry.choice,
+          done: false,
+          yesId: entry.choice?.yesId,
+          noId: entry.choice?.noId,
+        };
+      }
+
+      // 휴식 길이 문턱 발화 — 배정된 휴식이 길수록 (긴 집중의 결과) 진입 시 1회.
+      // 분 표기({mins})는 실제 배정된 휴식 길이 — 유저가 설정에서 바꾼 값이 그대로 들어간다
       const restSec = restMin * 60;
       const restMark = [...data.timeMarks.rest]
         .filter((m) => restSec >= m.minSec)
         .pop();
       if (restMark) {
-        const markLine = joinPages(pickText(data.text, restMark.textId, rng));
+        const markLine = joinPages(
+          fillPages(pickText(data.text, restMark.textId, rng), { mins: restMin }),
+        );
         if (markLine) journal = addJournal(journal, state.session.elapsedSec, markLine);
       }
 
@@ -920,6 +1144,12 @@ export function transition(
         presence,
         apart,
         memory,
+        relationTier,
+        lastTierUpDate,
+        pendingCrisis,
+        crisisArcsFired,
+        endingTalksSeen,
+        lastEndingTalkDate,
         totals: {
           focusSeconds: state.totals.focusSeconds + state.session.elapsedSec,
           sessions: state.totals.sessions + 1,
@@ -927,6 +1157,7 @@ export function transition(
         lastSessionEndAt: event.nowMs,
         session: {
           ...state.session,
+          freeWorked,
           journal,
           narratorLine: joinPages(
             fillPages(
@@ -942,8 +1173,9 @@ export function transition(
         rest: {
           endsAt: event.nowMs + restMin * 60_000,
           totalSec: restMin * 60,
-          talkPressed: false,
-          talkState: null,
+          // 엔딩 전 대화가 준비됐으면 자동 노출 — 이 휴식의 대화 슬롯을 차지한다
+          talkPressed: endingTalk !== null,
+          talkState: endingTalk,
           actUsed: false,
           // 이번 휴식의 소모품 진열 종류 — 휴식당 1회 추첨(진열대에 표기, 구매 시 고정)
           offers: Object.fromEntries(
@@ -1114,31 +1346,8 @@ export function transition(
         return serveTalkPool(state, data, rng, 'apart', data.dialogues.apart);
       }
 
-      // 4) 엔딩 전 대화 (자아실현 완성 후, 순차 소진 — 기획서 v3-7)
-      //    의도적으로 안정감/잠수 판정을 우회한다 (EndingTalk에는 intimacy가 없다)
-      if (
-        state.era === 'raising' &&
-        state.stats.selfActualization >= BALANCE.SELF_ACT_COMPLETE &&
-        state.endingTalksSeen < data.endings.preEndingTalks.length
-      ) {
-        const entry = data.endings.preEndingTalks[state.endingTalksSeen];
-        return {
-          ...state,
-          endingTalksSeen: state.endingTalksSeen + 1,
-          rest: {
-            ...state.rest,
-            talkPressed: true,
-            talkState: {
-              kind: 'ending',
-              pages: pickText(data.text, entry.textId, rng),
-              hasChoice: !!entry.choice,
-              done: false,
-              yesId: entry.choice?.yesId,
-              noId: entry.choice?.noId,
-            },
-          },
-        };
-      }
+      // 4) (개정 v4-7) 엔딩 전 대화는 END_FOCUS에서 하루 1개 자동 노출로 이동 —
+      //    자동 노출된 휴식은 talkPressed=true라 여기 도달하지 않는다.
 
       // 5) 고정 마일스톤 대화
       const due = data.events.milestones.find((m) => milestoneDue(m, state));
@@ -1204,7 +1413,7 @@ export function transition(
         era: state.era,
         needsLevel: needsLevelOf(state.stats.needs),
         dependence: state.stats.dependence,
-        affection: state.stats.affection,
+        tier: state.relationTier,
         abandonment: state.stats.abandonment,
         intimacyThreat: state.stats.intimacyThreat,
         preferRelation: state.totals.sessions % 2 === 0,

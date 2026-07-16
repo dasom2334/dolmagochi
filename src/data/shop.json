@@ -78,9 +78,9 @@
   { "id": "apitoken", "nameId": "shop.apitoken.name", "price": 2, "descId": "shop.apitoken.desc",
     "requires": "laptop", "boosts": "personalWork",
     "consumable": { "variants": [
-      { "key": "claude", "bonusSelfAct": 5 },
-      { "key": "gpt", "bonusSelfAct": 3 },
-      { "key": "gemini", "bonusSelfAct": 2 }
+      { "key": "claude", "bonusSelfAct": 2 },
+      { "key": "gpt", "bonusSelfAct": 1 },
+      { "key": "gemini", "bonusSelfAct": 0 }
     ] } },
 
   { "id": "plant", "nameId": "shop.plant.name", "price": 1, "descId": "shop.plant.desc" },

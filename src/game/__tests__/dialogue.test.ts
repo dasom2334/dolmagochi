@@ -17,7 +17,7 @@ function ctx(over: Partial<DialogueContext> & { era: Era }): DialogueContext {
   return {
     needsLevel: 1,
     dependence: 0,
-    affection: 0,
+    tier: 1,
     abandonment: 0,
     intimacyThreat: 30, // 안정(급성 아님): 합산·각 축 모두 임계 미만
     preferRelation: false,
@@ -33,12 +33,12 @@ describe('selectDialoguePool — 이원화(관계/상태/4분면) 라우팅', ()
     expect(selectDialoguePool(d, ctx({ era: 'raising', needsLevel: 4 }))?.poolId).toBe('stage4');
   });
 
-  it('안정 · 관계 선호 → 호감도 티어 풀', () => {
+  it('안정 · 관계 선호 → 확정 티어 풀 (개정 v4-7: 승급 하루 1회를 지난 값)', () => {
     expect(
-      selectDialoguePool(d, ctx({ era: 'raising', preferRelation: true, affection: 0 }))?.poolId,
+      selectDialoguePool(d, ctx({ era: 'raising', preferRelation: true, tier: 1 }))?.poolId,
     ).toBe('relation1');
     expect(
-      selectDialoguePool(d, ctx({ era: 'raising', preferRelation: true, affection: 200 }))?.poolId,
+      selectDialoguePool(d, ctx({ era: 'raising', preferRelation: true, tier: 7 }))?.poolId,
     ).toBe('relation7');
   });
 
@@ -67,10 +67,10 @@ describe('selectDialoguePool — 이원화(관계/상태/4분면) 라우팅', ()
     expect(selectDialoguePool(d, ctx({ era: 'apart' }))).toBeNull();
   });
 
-  it('affectionTier — 누적 호감도 → 1~7', () => {
+  it('affectionTier — 누적 호감도 → 1~7 (개정 v4 임계 [0,8,30,55,78,100,122])', () => {
     expect(affectionTier(0)).toBe(1);
-    expect(affectionTier(5)).toBe(1);
-    expect(affectionTier(6)).toBe(2);
+    expect(affectionTier(7)).toBe(1);
+    expect(affectionTier(8)).toBe(2);
     expect(affectionTier(1000)).toBe(7);
   });
 });

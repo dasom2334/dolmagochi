@@ -45,6 +45,13 @@ export const BALANCE = {
   ATTACH_CLINGY_ACUTE: 60, // 유기불안이 이 값 이상이면 집착 상태 대사
   ATTACH_AVOIDANT_ACUTE: 90, // 친밀위협이 이 값 이상이면 회피 상태 대사
   CONVERGE_STEP: 25, // 위기 루프(병간호/잠수) 매 턴 균형점으로 이동량 (상한 25%)
+  // 약한 애착 표류 (개정 v4-8): 관계가 깊을수록 잃을까 불안해진다.
+  // 세션마다 유기불안 += PER_TIER×티어 (+ 휴식 스킵 시 ON_SKIP).
+  // 접근(세션 시작/선택지/대화)의 진정 −3이 이를 상쇄 — 성실 플레이어는 체감 0,
+  // 무심·스킵 플레이어만 서서히 쌓여 유기적 위기(병간호)로 이어진다.
+  // 시뮬 확정(v4): 1.0이면 성실 플레이어 0회, 무심·캐주얼 1~3회의 유기 위기.
+  ATTACH_DRIFT_PER_TIER: 1.0,
+  ATTACH_DRIFT_ON_SKIP: 3,
   ATTACH_RETURN_GAP: 20, // 위기 루프에서 |유기불안−친밀위협| 이 값 미만이면 복귀
   ABANDONMENT_SICK_CEILING: 85, // 유기불안이 이 값 초과면 돌이 아파짐 → 강제 병간호
 
@@ -83,15 +90,35 @@ export const BALANCE = {
   FREE_SELF_CARE_PROB: 0.5, // 확률 바닥값 (전단계 평균 50% 미만 구간)
   FREE_URGENT_THRESHOLD: 50, // 최우선 욕구가 이 값 미만이면 돌이 무조건 스스로 채운다
   FREE_SELF_CARE_GAIN: 5, // 자가 충족 게이지 — 25분당, END_FOCUS 시간 정산 (행동과 같은 속도)
-  PERSONAL_WORK_BASE: 0.05,
+  PERSONAL_WORK_BASE: 0.2,
   PERSONAL_WORK_SCALE: 0.25, // + SCALE × (욕구 4종 평균/100) — 단, 4종 전부 충족 시에만 판정
-  SELF_ACT_GAIN_PER_WORK: 10, // 개인작업 자아실현 — 90분 만액, END_FOCUS 시간 정산 (엔딩 속도의 축)
+  // 개정 v4-3: 판정은 세션당 1회(END_FOCUS), 확률은 시간 비례(×분/90 — 짧은 세션
+  // 스팸 차단), 획득은 발동당 고정 — 시간당 기대값이 세션 길이와 무관해진다.
+  // 시뮬 확정(v4): 균형 플레이 자아실현 100 ≈ 57h → 엔딩 ≈ 64h/15일차.
+  SELF_ACT_GAIN_PER_WORK: 16, // 개인작업 자아실현 — 발동당 고정 (엔딩 속도의 축)
   API_TOKEN_PROB_BOOST: 0.15, // 개인작업 소모품(API 토큰) 소모 세션의 확률 가산
+  MEMORY_WEIGHT_SELF_ACTION: 1, // 돌이 스스로 한 행동의 기억 약강화 (개정 v4-6)
 
   // 호감도 7티어 임계 (관계 대사 축) — 누적 호감도가 각 값 이상이면 그 티어.
-  // 목표: 1티어 4h, 이후 티어당 8h. 호감도 = 1 × (집중분/25) × 안정감 래칫이므로
-  // 시간당 ~2.4×래칫(평균 ~0.65) → 완주 87 ≈ 56h (플레이테스트로 조정).
-  AFFECTION_TIERS: [0, 6, 15, 27, 42, 62, 87],
+  // 개정 v4: 실측 래칫(안정감이 7~20h에 100 포화, 실효 ~0.9) 기반 재조정 —
+  // 시간당 ~2.2~2.5 → 7티어(122) ≈ 53h, 엔딩 ≈ 55h+ (balance-sim 검증).
+  AFFECTION_TIERS: [0, 8, 30, 55, 78, 100, 122],
+  // 티어 '승급'은 하루 1회 (서사 비트 달력 게이트, 개정 v4-7) — 초과분은 이월.
+
+  // 욕구 개편 (개정 v4-5)
+  NEED_RISE_GATE: 80, // 욕구 n+1은 욕구 n이 이 값 이상일 때만 오른다 (위기 중 면제)
+  // 욕구별 시간 비례 감소 (집중 h당, END_FOCUS 정산) — 아래 욕구일수록 빨리 고파진다
+  NEED_DECAY_PER_HOUR: {
+    physiological: 1.2,
+    safety: 0.8,
+    belonging: 0.6,
+    esteem: 0.4,
+  } as Record<string, number>,
+
+  // 휴식 준수 배율 (개정 v4-4, 디메리트형 계단) — 다음 세션 게이지 정산에 곱한다. 정성 제외.
+  REST_MULT_HALF: 0.75, // 배정 휴식의 절반 이상
+  REST_MULT_SKIP: 0.5, // 절반 미만/스킵
+  REST_MULT_HALF_RATIO: 0.5,
 
   // 엔딩
   SELF_ACT_COMPLETE: 100,

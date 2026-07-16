@@ -44,9 +44,13 @@ export function applyOutcome(
   }
   const addUnique = (base: string[], adds: string[] | undefined) =>
     adds?.length ? [...new Set([...base, ...adds])] : base;
+  // 위기 루프(병간호·잠수) 중엔 욕구 상승 게이트 면제 (개정 v4-5)
+  const inCrisis =
+    state.era === 'raising' &&
+    (state.presence.sick || state.presence.state === 'absent');
   return {
     ...state,
-    stats: applyStatOutcome(state.stats, outcome),
+    stats: applyStatOutcome(state.stats, outcome, !inCrisis),
     memory,
     flags: addUnique(state.flags, outcome.flags),
     unlockedActions: addUnique(state.unlockedActions, outcome.unlockActions),

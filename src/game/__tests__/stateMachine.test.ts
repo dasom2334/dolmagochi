@@ -7,6 +7,7 @@ import {
   transition,
 } from '../stateMachine';
 import type { GameEvent, GameState } from '../types';
+import { remember } from '../memory';
 import { mulberry32, type Rng } from '../rng';
 import { gameData } from '../../store/gameStore';
 import type { GameData } from '../../data/schema';
@@ -15,6 +16,9 @@ const T0 = new Date(2026, 0, 10, 12, 0, 0).getTime();
 
 /** 카탈로그 첫 변형을 페이지 조인한 기대 문자열 */
 const T = (id: string) => (gameData.text[id]?.[0] ?? []).join('\n');
+/** {mins} 등 자리표를 채운 텍스트 — 타임마크류 검증용 */
+const TF = (id: string, vars: Record<string, string | number>) =>
+  T(id).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
 const variantsOf = (id: string) =>
   (gameData.text[id] ?? []).map((pages) => pages.join('\n'));
 
@@ -101,7 +105,16 @@ describe('기본 사이클: 행동선택 → 집중 → 휴식 → 행동선택'
   });
 
   it('END_FOCUS: 휴식 진입, 정성 이월, 휴식 길이·요약, 행동 Outcome 적용', () => {
-    const s = run(init(), [
+    // 존중(read)이 오르려면 하위 욕구가 상승 게이트(80)를 넘어 있어야 한다 (개정 v4-5)
+    const base = init();
+    const start: GameState = {
+      ...base,
+      stats: {
+        ...base.stats,
+        needs: { physiological: 80, safety: 80, belonging: 80, esteem: 0 },
+      },
+    };
+    const s = run(start, [
       { type: 'START_FOCUS', nowMs: T0 },
       ...ticks(1800), // 30분
       { type: 'END_FOCUS', nowMs: T0 + 1_800_000 },
@@ -111,7 +124,8 @@ describe('기본 사이클: 행동선택 → 집중 → 휴식 → 행동선택'
     expect(s.rest.totalSec).toBe(10 * 60);
     expect(s.rest.summary).toEqual({ mins: 30, earned: 1 });
     expect(s.stats.needs.esteem).toBeGreaterThan(0); // read → 존경
-    expect(s.stats.needs.physiological).toBe(0);
+    // 시간 비례 감소 (개정 v4-5): 30분 = 생리 −1.2×0.5
+    expect(s.stats.needs.physiological).toBeCloseTo(80 - 1.2 * 0.5, 5);
     expect(s.totals.sessions).toBe(1);
   });
 
@@ -235,7 +249,9 @@ describe('시간 문턱 발화 (timeMarks)', () => {
     // 문턱을 넘으면 발화 + 인덱스 기록
     s = run(s, ticks(20));
     expect(s.session.timeMarksFired).toContain(0);
-    expect(s.session.journal.map((j) => j.text)).toContain(T(first.textId));
+    expect(s.session.journal.map((j) => j.text)).toContain(
+      TF(first.textId, { mins: first.minSec / 60 }),
+    );
     // 같은 문턱은 다시 발화하지 않음
     const firedCount = s.session.timeMarksFired.filter((i) => i === 0).length;
     expect(firedCount).toBe(1);
@@ -251,7 +267,7 @@ describe('시간 문턱 발화 (timeMarks)', () => {
     const at30 = s.session.journal.filter((j) => j.t === '30:00');
     // 30:00엔 문턱 대사만 남는다 (반추 서술은 억제 — 없었다면 반추+문턱 2줄)
     expect(at30).toHaveLength(1);
-    expect(at30[0].text).toBe(T(mark30.textId));
+    expect(at30[0].text).toBe(TF(mark30.textId, { mins: 30 }));
     // 반추 블록 자체는 돌았다(간격 리셋) → 수치는 그대로 적용됨
     expect(s.session.lastReflectAtSec).toBe(1800);
   });
@@ -265,7 +281,28 @@ describe('시간 문턱 발화 (timeMarks)', () => {
     ]);
     expect(s.rest.totalSec).toBe(20 * 60);
     const restMark = gameData.timeMarks.rest.filter((m) => 20 * 60 >= m.minSec).pop()!;
-    expect(s.session.journal.map((j) => j.text)).toContain(T(restMark.textId));
+    expect(s.session.journal.map((j) => j.text)).toContain(
+      TF(restMark.textId, { mins: 20 }),
+    );
+  });
+
+  it('유저가 설정에서 바꾼 휴식 길이가 휴식 문턱 대사에 그대로 들어간다', () => {
+    // 배정표를 50~90분 → 25분 휴식으로 변경: 60분 집중 → "25분의 휴식" (20m 문턱 문구)
+    const custom = init();
+    custom.settings = {
+      ...custom.settings,
+      flowtime: { bounds: [25, 50, 90], rests: [5, 10, 25, 30] },
+    };
+    const s = run(custom, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(3600),
+      { type: 'END_FOCUS', nowMs: T0 + 3_600_000 },
+    ]);
+    expect(s.rest.totalSec).toBe(25 * 60);
+    const restMark = gameData.timeMarks.rest.filter((m) => 25 * 60 >= m.minSec).pop()!;
+    expect(s.session.journal.map((j) => j.text)).toContain(
+      TF(restMark.textId, { mins: 25 }),
+    );
   });
 });
 
@@ -579,11 +616,11 @@ describe('자유행동 게이지 — END_FOCUS 시간 정산', () => {
     expect(s.session.freeCare).toBe('physiological'); // 발동 기록
     expect(s.stats.needs.physiological).toBe(0); // 집중 중엔 아직 미정산
     s = run(s, [{ type: 'END_FOCUS', nowMs: T0 + 1_200_000 }], seq([0.0]));
-    // 20분 = 0.8u → 5 × 0.8 = 4 (자유행동은 고정 욕구 outcome 없음)
-    expect(s.stats.needs.physiological).toBeCloseTo(4, 5);
+    // 20분 = 0.8u → 5 × 0.8 = 4, 시간 감소 −1.2×(20/60) (개정 v4-5)
+    expect(s.stats.needs.physiological).toBeCloseTo(4 - 1.2 * (20 / 60), 5);
   });
 
-  it('개인작업: 90분 만액 정산 — 20분 세션 = 10×20/90', () => {
+  it('개인작업: END_FOCUS 세션당 1회 판정, 90분 만액·시간 비례 확률 (개정 v4-3)', () => {
     let s: GameState = {
       ...init(),
       selectedAction: 'free',
@@ -598,12 +635,22 @@ describe('자유행동 게이지 — END_FOCUS 시간 정산', () => {
         { type: 'START_FOCUS', nowMs: T0 },
         ...ticks(BALANCE.REFLECT_INTERVAL_FREE_SEC * 4),
       ],
-      seq([0.0]), // 개인작업 확률 롤 성공
+      seq([0.9]), // 틱에서는 개인작업 판정이 없다 — idle/반추만 흐른다
     );
-    expect(s.session.freeWorked).toBe(true);
     expect(s.stats.selfActualization).toBe(0); // 집중 중엔 미정산
-    s = run(s, [{ type: 'END_FOCUS', nowMs: T0 + 1_200_000 }], seq([0.0]));
-    expect(s.stats.selfActualization).toBeCloseTo((10 * 20) / 90, 5);
+    // 성공 롤: p = (0.05+0.25)×20/90 ≈ 0.0667 — rng 0.0이면 발동.
+    // 획득은 발동당 고정 (확률이 시간 비례라 시간당 기대값은 길이 무관)
+    const hit = run(s, [{ type: 'END_FOCUS', nowMs: T0 + 1_200_000 }], seq([0.0]));
+    expect(hit.session.freeWorked).toBe(true);
+    expect(hit.stats.selfActualization).toBeCloseTo(
+      BALANCE.SELF_ACT_GAIN_PER_WORK,
+      5,
+    );
+    expect('personalWork' in hit.memory).toBe(true); // 목격 토큰 (개정 v4-10)
+    // 실패 롤: rng 0.9 > p — 발동 없음
+    const miss = run(s, [{ type: 'END_FOCUS', nowMs: T0 + 1_200_000 }], seq([0.9]));
+    expect(miss.session.freeWorked).toBe(false);
+    expect(miss.stats.selfActualization).toBe(0);
   });
 });
 
@@ -818,36 +865,74 @@ describe('SET_SOUND — 효과음 토글', () => {
 
 describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () => {
   const TALKS = gameData.endings.preEndingTalks.length;
+  const DAY = 86_400_000;
+
+  /** 1차 토큰 게이트 충족 기억 (개정 v4-10): 행동 전종 + 첫 선택/구매 + 개인작업 목격 */
+  function tokenMemory(): GameState['memory'] {
+    let m: GameState['memory'] = {};
+    for (const a of gameData.actions)
+      if (a.id !== 'nurse') m = remember(m, a.id, 3, T0);
+    m = remember(m, 'choice', 2, T0);
+    m = remember(m, 'personalWork', 3, T0);
+    m = remember(m, 'buy-plant', 3, T0);
+    return m;
+  }
 
   function selfActDone(): GameState {
     const base = toRest();
     return {
       ...base,
       stats: { ...base.stats, selfActualization: 100 },
+      relationTier: gameData.dialogues.relationTiers.length, // 7티어 게이트 (개정 v4-9)
+      memory: tokenMemory(),
+      // 토큰 기억이 firstAction 마일스톤을 다시 깨우지 않게 — 지나온 세이브로 취급
+      milestonesFired: gameData.events.milestones.map((m) => m.id),
       settings: { ...base.settings, noiseOn: true, notifAsked: true },
       care: { points: 7, carryMinutes: 3 },
       items: { ...base.items, plant: { placed: true } },
     };
   }
 
-  it('엔딩 전 대화를 다 보기 전에는 엔딩으로 가지 않는다', () => {
+  it('7티어·토큰 게이트 미충족이면 엔딩 전 대화가 나오지 않는다 (개정 v4-9)', () => {
+    const noTier: GameState = { ...selfActDone(), relationTier: 5 };
+    let s = run(noTier, [
+      { type: 'START_FOCUS', nowMs: T0 + DAY },
+      { type: 'END_FOCUS', nowMs: T0 + DAY },
+    ]);
+    expect(s.rest.talkState).toBeNull();
+    expect(s.endingTalksSeen).toBe(0);
+
+    const noTokens: GameState = { ...selfActDone(), memory: {} };
+    s = run(noTokens, [
+      { type: 'START_FOCUS', nowMs: T0 + DAY },
+      { type: 'END_FOCUS', nowMs: T0 + DAY },
+    ]);
+    expect(s.endingTalksSeen).toBe(0);
+  });
+
+  it('엔딩 전 대화는 서로 다른 날 하루 1개씩 자동 노출, 다 보기 전에는 엔딩 없음', () => {
     let s = selfActDone();
     expect(run(s, [{ type: 'REST_END' }]).phase).toBe('actionSelect');
 
     for (let i = 0; i < TALKS; i++) {
-      s = run(s, [{ type: 'TALK' }]);
+      const day = T0 + (i + 1) * DAY;
+      s = run(s, [
+        { type: 'START_FOCUS', nowMs: day },
+        { type: 'END_FOCUS', nowMs: day },
+      ]);
       expect(s.rest.talkState?.kind).toBe('ending');
       expect(s.endingTalksSeen).toBe(i + 1);
-      s = run(s, [
-        { type: 'REST_END' },
-        ...(i < TALKS - 1
-          ? ([
-              { type: 'START_FOCUS', nowMs: T0 },
-              { type: 'END_FOCUS', nowMs: T0 },
-            ] as GameEvent[])
-          : []),
-      ]);
+      if (i === 0) {
+        // 같은 날 두 번째 휴식에는 나오지 않는다 (하루 1개 게이트)
+        const sameDay = run(s, [
+          { type: 'REST_END' },
+          { type: 'START_FOCUS', nowMs: day + 3_600_000 },
+          { type: 'END_FOCUS', nowMs: day + 3_600_000 },
+        ]);
+        expect(sameDay.endingTalksSeen).toBe(1);
+      }
     }
+    s = run(s, [{ type: 'REST_END' }]);
     expect(s.phase).toBe('ending');
   });
 
@@ -1145,5 +1230,102 @@ describe('달력일 정산 이벤트', () => {
     expect(s.stats.mood).toBe(
       BALANCE.MOOD_START - 2 * BALANCE.MOOD_DECAY_PER_DAY,
     );
+  });
+});
+
+describe('서사 비트 게이트 + 보장 위기 아크 (개정 v4-7/8)', () => {
+  const DAY = 86_400_000;
+
+  it('티어 승급은 하루 1회 — 임계 초과분은 이월된다', () => {
+    const base = init();
+    let s: GameState = { ...base, stats: { ...base.stats, affection: 200 } };
+    s = run(s, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      { type: 'END_FOCUS', nowMs: T0 },
+    ]);
+    expect(s.relationTier).toBe(2);
+    // 같은 날 두 번째 세션 — 승급 없음
+    s = run(s, [
+      { type: 'REST_END' },
+      { type: 'START_FOCUS', nowMs: T0 + 3_600_000 },
+      { type: 'END_FOCUS', nowMs: T0 + 3_600_000 },
+    ]);
+    expect(s.relationTier).toBe(2);
+    // 다음 날 — 3티어 승급 + 잠수 아크 예약 (개정 v4-8)
+    s = run(s, [
+      { type: 'REST_END' },
+      { type: 'START_FOCUS', nowMs: T0 + DAY },
+      { type: 'END_FOCUS', nowMs: T0 + DAY },
+    ]);
+    expect(s.relationTier).toBe(3);
+    expect(s.pendingCrisis).toBe('retreat');
+  });
+
+  it('3티어 잠수 아크: 다음 세션 시작에 돌이 물러난다 (1회성)', () => {
+    const base = init();
+    let s: GameState = { ...base, relationTier: 3, pendingCrisis: 'retreat' };
+    s = run(s, [{ type: 'START_FOCUS', nowMs: T0 }]);
+    expect(isRockPresent(s)).toBe(false);
+    expect(s.pendingCrisis).toBeNull();
+    expect(s.crisisArcsFired).toContain('retreat');
+    expect(
+      s.session.journal.some((j) =>
+        variantsOf('sys.journal.crisisRetreat').includes(j.text),
+      ),
+    ).toBe(true);
+  });
+
+  it('5티어 병간호 아크: 세션 종료에 앓아눕는다 → 병간호만 가능', () => {
+    const base = init();
+    let s: GameState = { ...base, relationTier: 5, pendingCrisis: 'sick' };
+    s = run(s, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      { type: 'END_FOCUS', nowMs: T0 },
+    ]);
+    expect(s.presence.sick).toBe(true);
+    expect(s.pendingCrisis).toBeNull();
+    expect(s.crisisArcsFired).toContain('sick');
+    const nurse = gameData.actions.find((a) => a.id === 'nurse')!;
+    expect(isActionAvailable(nurse, s)).toBe(true);
+    expect(
+      s.session.journal.some((j) =>
+        variantsOf('sys.journal.crisisSick').includes(j.text),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('휴식 준수 배율 — 디메리트 계단 (개정 v4-4)', () => {
+  it('스킵 ×0.5 / 절반 ×0.75 / 완주 ×1.0 이 다음 세션 게이지 정산에 곱해진다', () => {
+    const base = run({ ...init(), selectedAction: 'lie' }, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(1500),
+      { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
+    ]);
+    // 25분 lie: 생리 5×1 − 감소 1.2×(25/60)=0.5 → 4.5
+    const p0 = base.stats.needs.physiological;
+    expect(p0).toBeCloseTo(4.5, 5);
+    const restMs = base.rest.totalSec * 1000;
+    const endAt = T0 + 1_500_000;
+    const again = (startAt: number): GameState =>
+      run(base, [
+        { type: 'START_FOCUS', nowMs: startAt },
+        ...ticks(1500),
+        { type: 'END_FOCUS', nowMs: startAt + 1_500_000 },
+      ]);
+    // 완주: +5×1.0 − 0.5
+    expect(again(endAt + restMs).stats.needs.physiological).toBeCloseTo(
+      p0 + 5 - 0.5,
+      5,
+    );
+    // 절반: +5×0.75 − 0.5
+    expect(again(endAt + restMs / 2).stats.needs.physiological).toBeCloseTo(
+      p0 + 3.75 - 0.5,
+      5,
+    );
+    // 스킵: +5×0.5 − 0.5. 정성은 배율과 무관 (개정 v4-4)
+    const skipped = again(endAt);
+    expect(skipped.stats.needs.physiological).toBeCloseTo(p0 + 2.5 - 0.5, 5);
+    expect(skipped.care.points).toBe(2); // 25분×2 = 2pt — 배율 미적용
   });
 });

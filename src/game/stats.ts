@@ -106,10 +106,64 @@ export function settleCalendar(
   };
 }
 
+/**
+ * 욕구 상승 게이트 (개정 v4-5): 욕구 n+1의 양수 델타는 욕구 n이
+ * NEED_RISE_GATE(80) 이상일 때만 통과한다. 음수 델타(감소·퇴행)는 항상 적용.
+ * 위기 루프 중엔 호출부가 gate=false로 면제한다.
+ */
+function gatedNeedDelta(
+  needs: Record<NeedId, number>,
+  need: NeedId,
+  delta: number,
+): number {
+  if (delta <= 0) return delta;
+  const idx = NEED_ORDER.indexOf(need);
+  if (idx <= 0) return delta;
+  const prev = NEED_ORDER[idx - 1];
+  return needs[prev] >= BALANCE.NEED_RISE_GATE ? delta : 0;
+}
+
+/**
+ * 욕구 델타 묶음을 게이트 적용해 반영 (개정 v4-5) — END_FOCUS의 아이템 보너스·
+ * 자가충족 정산처럼 Outcome을 거치지 않는 경로도 같은 게이트를 지나게 한다.
+ */
+export function applyNeedsGated(
+  needs: Record<NeedId, number>,
+  deltas: Partial<Record<NeedId, number>>,
+  gate = true,
+): Record<NeedId, number> {
+  const next = { ...needs };
+  for (const need of NEED_ORDER) {
+    const delta = deltas[need];
+    if (delta === undefined) continue;
+    const applied = gate ? gatedNeedDelta(next, need, delta) : delta;
+    next[need] = clampStat(next[need] + applied);
+  }
+  return next;
+}
+
+/**
+ * 욕구 시간 비례 감소 (개정 v4-5): 집중 h당 욕구별 차등 하락 — 로테이션 유도.
+ * END_FOCUS에서 게이지 정산 후 호출한다. apart 시대엔 호출하지 않는다.
+ */
+export function decayNeeds(
+  needs: Record<NeedId, number>,
+  hours: number,
+): Record<NeedId, number> {
+  const next = { ...needs };
+  for (const need of NEED_ORDER) {
+    const rate = BALANCE.NEED_DECAY_PER_HOUR[need] ?? 0;
+    next[need] = clampStat(next[need] - rate * hours);
+  }
+  return next;
+}
+
 /** Outcome의 stats/needs/selfActualization 부분을 상태에 적용 (클램프). */
 export function applyStatOutcome(
   stats: Stats,
   outcome: Outcome | undefined,
+  /** 욕구 상승 게이트 적용 여부 — 위기 루프 중엔 false (개정 v4-5) */
+  gateNeeds = true,
 ): Stats {
   if (!outcome) return stats;
   const next: Stats = { ...stats, needs: { ...stats.needs } };
@@ -135,7 +189,10 @@ export function applyStatOutcome(
     for (const need of NEED_ORDER) {
       const delta = outcome.needs[need];
       if (delta !== undefined) {
-        next.needs[need] = clampStat(next.needs[need] + delta);
+        const applied = gateNeeds
+          ? gatedNeedDelta(next.needs, need, delta)
+          : delta;
+        next.needs[need] = clampStat(next.needs[need] + applied);
       }
     }
   }

@@ -203,8 +203,12 @@ export interface GameState {
     supply: { itemId: ItemId; variant: string } | null;
     /** 자유행동 자가충족이 발동한 욕구 — END_FOCUS에서 시간 정산 (서술은 계속 흐른다) */
     freeCare: NeedId | null;
-    /** 자유행동 개인작업 발동 여부 — END_FOCUS에서 시간 정산 */
+    /** 자가충족을 수행한 행동 id — END_FOCUS에서 기억 약강화 (개정 v4-6) */
+    freeCareVia: string | null;
+    /** 자유행동 개인작업 발동 여부 — 개정 v4-3부터 END_FOCUS 판정 결과 기록 */
     freeWorked: boolean;
+    /** 직전 휴식 준수 배율 (개정 v4-4) — 이번 세션 게이지 정산에 곱한다. 정성 제외 */
+    restMult: number;
   };
   rest: {
     endsAt: number;
@@ -232,6 +236,16 @@ export interface GameState {
   foreUsed: number[];
   /** 엔딩 전 대화 소진 수 */
   endingTalksSeen: number;
+  /** 엔딩 전 대화를 소진한 마지막 달력일 — 하루 1개 게이트 (개정 v4-7) */
+  lastEndingTalkDate: string | null;
+  /** 확정 관계 티어 (1~7) — 승급은 하루 1회, 임계 초과분은 이월 (개정 v4-7) */
+  relationTier: number;
+  /** 티어 승급이 일어난 마지막 달력일 */
+  lastTierUpDate: string | null;
+  /** 예약된 위기 아크 — 티어 승급이 잡고, 다음 세션 경계에서 발동 (개정 v4-8) */
+  pendingCrisis: 'retreat' | 'sick' | null;
+  /** 이미 발동한 보장 위기 아크 (retreat/sick — 게임당 1회) */
+  crisisArcsFired: string[];
   care: { points: number; carryMinutes: number };
   /** 구매 물품 — 배치 여부 분리 */
   items: Record<ItemId, { placed: boolean }>;

@@ -117,7 +117,7 @@
     "captionId": "act.walk.caption",
     "startLineId": "act.walk.start",
     "ambientId": "act.walk.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5 } },
+    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5, "belonging": 2 } },
     "choices": [
       {
         "promptId": "act.walk.c0.prompt",
