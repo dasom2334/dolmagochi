@@ -24,6 +24,8 @@ export interface ActionData {
   nameId: TextId;
   /** 해금 조건 (없으면 항상). Outcome.unlockActions와 OR */
   unlock?: Condition;
+  /** 새 게임의 시작 행동 (정확히 하나) — 배열 순서에 의존하지 않도록 명시 */
+  starter?: boolean;
   /** 친밀도 태그 1~5 */
   intimacy: number;
   /** M2 씬 컴포넌트 매핑 */
@@ -58,6 +60,14 @@ export interface DialoguesData {
   stage3: DialogueLine[];
   stage4: DialogueLine[];
   stage5: DialogueLine[];
+  /** 관계 대사 — 호감도 7티어(화자와의 관계 진행). 안정 상태에서만 등장. index 0 = 1티어 */
+  relationTiers: DialogueLine[][];
+  /** 상태 대사 — 애착 4분면 중 불안정(집착/회피/혼란) 전용 풀 */
+  quadrants: {
+    clingy: DialogueLine[];
+    avoidant: DialogueLine[];
+    chaotic: DialogueLine[];
+  };
   /** 육성 — 잠수(부재) 중 휴식 대화: 돌 없는 방의 화자. 마일스톤·복선·단계 풀은 복귀 후로 미뤄진다 */
   absent: DialogueLine[];
   /** 동거 — 의존도 구간별 (깨달음 심화) */

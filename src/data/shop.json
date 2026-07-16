@@ -1,4 +1,9 @@
 [
+  { "id": "cushion", "nameId": "shop.cushion.name", "price": 1, "descId": "shop.cushion.desc" },
+  { "id": "shoes", "nameId": "shop.shoes.name", "price": 1, "descId": "shop.shoes.desc" },
+  { "id": "book", "nameId": "shop.book.name", "price": 2, "descId": "shop.book.desc" },
+  { "id": "pot", "nameId": "shop.pot.name", "price": 2, "descId": "shop.pot.desc" },
+  { "id": "broom", "nameId": "shop.broom.name", "price": 3, "descId": "shop.broom.desc" },
   { "id": "plant", "nameId": "shop.plant.name", "price": 1, "descId": "shop.plant.desc" },
   { "id": "soda", "nameId": "shop.soda.name", "price": 1, "descId": "shop.soda.desc" },
   { "id": "cup", "nameId": "shop.cup.name", "price": 1, "descId": "shop.cup.desc" },

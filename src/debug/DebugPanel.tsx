@@ -4,7 +4,7 @@ import { appStore, dispatch } from '../store/appStore';
 import { gameData } from '../store/gameStore';
 import { pickText } from '../game/text';
 import { needsLevelOf } from '../game/stats';
-import { allowedIntimacy } from '../game/security';
+import { allowedIntimacy, attachQuadrant } from '../game/security';
 import { startAbsence, presentState } from '../game/absence';
 import { wipeSave } from '../persistence/persist';
 import { BALANCE } from '../game/balance';
@@ -220,7 +220,12 @@ function DebugStats({ state }: { state: GameState }) {
       <Section label="stats" />
       <Row k="mood" v={st.mood} />
       <Row k="affection" v={st.affection} />
-      <Row k="security" v={`${st.security} (allow≤${allowedIntimacy(st.security)})`} />
+      <Row k="abandon." v={st.abandonment} />
+      <Row k="intiThreat" v={st.intimacyThreat} />
+      <Row
+        k="→ security"
+        v={`${st.security} (allow≤${allowedIntimacy(st.security)}, ${attachQuadrant(st.abandonment, st.intimacyThreat)})`}
+      />
       <Row k="selfActual." v={st.selfActualization} />
       <Row k="dependence" v={st.dependence} />
 

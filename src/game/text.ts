@@ -37,6 +37,8 @@ export const SYS = {
   journal: {
     sessionStartAbsent: 'sys.journal.sessionStartAbsent',
     rockReturned: 'sys.journal.rockReturned',
+    rockSick: 'sys.journal.rockSick',
+    rockRecovered: 'sys.journal.rockRecovered',
     visitStart: 'sys.journal.visitStart',
     visitEnd: 'sys.journal.visitEnd',
   },

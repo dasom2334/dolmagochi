@@ -4,6 +4,18 @@ import { isActionAvailable } from '../game/stateMachine';
 import { dispatch, t } from '../store/appStore';
 import { UI } from '../game/text';
 
+/**
+ * 표시 순서: 병간호 상태면 '병간호하기'만, 아니면 자유행동을 맨 앞에 두고
+ * 병간호는 숨긴다(평소엔 선택 불가).
+ */
+function displayActions(state: GameState) {
+  const acts = gameData.actions;
+  if (state.presence.sick) return acts.filter((a) => a.id === 'nurse');
+  const rest = acts.filter((a) => a.id !== 'free' && a.id !== 'nurse');
+  const free = acts.filter((a) => a.id === 'free');
+  return [...free, ...rest];
+}
+
 /** 행동 카드 그리드 — 잠긴 행동은 자물쇠 대신 (잠김) 라벨 (디자인 데모 방식) */
 export function ActionGrid({ state }: { state: GameState }) {
   return (
@@ -16,7 +28,7 @@ export function ActionGrid({ state }: { state: GameState }) {
         alignContent: 'start',
       }}
     >
-      {gameData.actions.map((a) => {
+      {displayActions(state).map((a) => {
         const locked = !isActionAvailable(a, state);
         const selected = a.id === state.selectedAction;
         return (

@@ -1,13 +1,45 @@
 [
   {
+    "id": "lie",
+    "nameId": "act.lie.name",
+    "starter": true,
+    "intimacy": 1,
+    "sceneId": "lie",
+    "captionId": "act.lie.caption",
+    "startLineId": "act.lie.start",
+    "ambientId": "act.lie.ambient",
+    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "physiological": 5 } },
+    "choices": [
+      {
+        "promptId": "act.lie.c0.prompt",
+        "intimacy": 1,
+        "options": [
+          {
+            "labelId": "act.lie.c0.o0.label",
+            "intimacy": 2,
+            "outcomes": [
+              { "resultId": "act.lie.c0.o0.r0", "outcome": { "needs": { "physiological": 2 } } }
+            ]
+          },
+          {
+            "labelId": "act.lie.c0.o1.label",
+            "intimacy": 1,
+            "outcomes": [{ "resultId": "act.lie.c0.o1.r0" }]
+          }
+        ]
+      }
+    ]
+  },
+  {
     "id": "read",
     "nameId": "act.read.name",
+    "unlock": { "ownedItems": ["book"] },
     "intimacy": 2,
     "sceneId": "read",
     "captionId": "act.read.caption",
     "startLineId": "act.read.start",
     "ambientId": "act.read.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "belonging": 5 } },
+    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "esteem": 5 } },
     "choices": [
       {
         "promptId": "act.read.c0.prompt",
@@ -17,7 +49,7 @@
             "labelId": "act.read.c0.o0.label",
             "intimacy": 3,
             "outcomes": [
-              { "resultId": "act.read.c0.o0.r0", "outcome": { "needs": { "belonging": 2 } } }
+              { "resultId": "act.read.c0.o0.r0", "outcome": { "needs": { "esteem": 2 } } }
             ]
           },
           {
@@ -48,12 +80,13 @@
   {
     "id": "sun",
     "nameId": "act.sun.name",
+    "unlock": { "ownedItems": ["cushion"] },
     "intimacy": 1,
     "sceneId": "sun",
     "captionId": "act.sun.caption",
     "startLineId": "act.sun.start",
     "ambientId": "act.sun.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "physiological": 5 } },
+    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5 } },
     "choices": [
       {
         "promptId": "act.sun.c0.prompt",
@@ -63,7 +96,7 @@
             "labelId": "act.sun.c0.o0.label",
             "intimacy": 3,
             "outcomes": [
-              { "resultId": "act.sun.c0.o0.r0", "outcome": { "needs": { "physiological": 2 } } }
+              { "resultId": "act.sun.c0.o0.r0", "outcome": { "needs": { "safety": 2 } } }
             ]
           },
           {
@@ -78,12 +111,13 @@
   {
     "id": "walk",
     "nameId": "act.walk.name",
+    "unlock": { "ownedItems": ["shoes"] },
     "intimacy": 2,
     "sceneId": "walk",
     "captionId": "act.walk.caption",
     "startLineId": "act.walk.start",
     "ambientId": "act.walk.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "physiological": 5 } },
+    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5 } },
     "choices": [
       {
         "promptId": "act.walk.c0.prompt",
@@ -120,7 +154,7 @@
     "captionId": "act.free.caption",
     "startLineId": "act.free.start",
     "ambientId": "act.free.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5 } },
+    "outcome": { "stats": { "mood": 1, "affection": 1 } },
     "choices": [
       {
         "promptId": "act.free.c0.prompt",
@@ -145,25 +179,36 @@
   {
     "id": "cook",
     "nameId": "act.cook.name",
-    "unlock": { "minLevel": 2 },
+    "unlock": { "ownedItems": ["pot"] },
     "intimacy": 3,
     "sceneId": "cook",
     "captionId": "act.cook.caption",
     "startLineId": "act.cook.start",
     "ambientId": "act.cook.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "physiological": 5 } },
+    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "physiological": 5, "belonging": 5 } },
     "choices": []
   },
   {
     "id": "chore",
     "nameId": "act.chore.name",
-    "unlock": { "minLevel": 3 },
+    "unlock": { "ownedItems": ["broom"] },
     "intimacy": 2,
     "sceneId": "chore",
     "captionId": "act.chore.caption",
     "startLineId": "act.chore.start",
     "ambientId": "act.chore.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5 } },
+    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5, "esteem": 5 } },
+    "choices": []
+  },
+  {
+    "id": "nurse",
+    "nameId": "act.nurse.name",
+    "intimacy": 1,
+    "sceneId": "nurse",
+    "captionId": "act.nurse.caption",
+    "startLineId": "act.nurse.start",
+    "ambientId": "act.nurse.ambient",
+    "outcome": { "stats": { "mood": 1 } },
     "choices": []
   }
 ]

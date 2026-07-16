@@ -32,8 +32,23 @@ export const BALANCE = {
   MEMORY_WEIGHT_PURCHASE: 3,
   MEMORY_WEIGHT_CHOICE: 2,
 
-  // 안정감 (숨은 값, 0–100)
-  SECURITY_START: 25,
+  // 애착 2축 (숨은 값, 0–100) — 안정감은 두 축의 파생값
+  //   안정감 = 100 − |유기불안 − 친밀위협|,  변동성 = (유기불안 + 친밀위협) / 2
+  ABANDONMENT_START: 0, // 유기불안 시작 (회피형: 아직 매인 게 없어 0)
+  INTIMACY_THREAT_START: 70, // 친밀위협 시작 → 안정감 30 → 허용 친밀도 2(경계형 시작)
+  ATTACH_BALANCED_GAP: 20, // |유기불안−친밀위협| 이 값 미만이면 '균형'(안정/혼란 구분)
+  ATTACH_CHAOTIC_SUM: 120, // 균형이면서 합산이 이 값 이상이면 '혼란'
+  ATTACH_SOOTHE: 3, // 적정/거리 존중 접근 시 두 축 동시 진정량
+  ATTACH_THREAT_UP: 5, // 과한 접근 시 친밀위협 상승량
+  RETREAT_VOL_SCALE: 1.0, // 잠수 확률 = RETREAT_PROB × (1 + SCALE × 변동성/100)
+  // 4분면 '상태 대사'는 급성일 때만 뜬다 (baseline 회피는 일반 풀 유지):
+  ATTACH_CLINGY_ACUTE: 60, // 유기불안이 이 값 이상이면 집착 상태 대사
+  ATTACH_AVOIDANT_ACUTE: 90, // 친밀위협이 이 값 이상이면 회피 상태 대사
+  CONVERGE_STEP: 25, // 위기 루프(병간호/잠수) 매 턴 균형점으로 이동량 (상한 25%)
+  ATTACH_RETURN_GAP: 20, // 위기 루프에서 |유기불안−친밀위협| 이 값 미만이면 복귀
+  ABANDONMENT_SICK_CEILING: 85, // 유기불안이 이 값 초과면 돌이 아파짐 → 강제 병간호
+
+  SECURITY_START: 25, // (파생 초기값 참고용 — 실제 값은 위 두 축에서 계산)
   RETREAT_GAP: 2, // 허용치 대비 이만큼 이상 초과하면 잠수 판정 (기획서 명시)
   RETREAT_PROB: 0.35,
   SECURITY_GAIN_MATCHED: 3,
@@ -47,6 +62,7 @@ export const BALANCE = {
   // 달력일 정산
   MOOD_DECAY_PER_DAY: 8,
   NEGLECT_DAYS_PER_REGRESS: 3, // 이 일수마다 욕구 1단계 퇴행 (하한 1, 죽지 않음)
+  NEGLECT_ABANDONMENT_PER_STEP: 20, // 방치 퇴행 1스텝당 유기불안 상승 (오래 안 오면 불안해진다)
 
   // 상태값 공통
   STAT_MIN: 0,
@@ -57,12 +73,23 @@ export const BALANCE = {
   NEED_FILLED_THRESHOLD: 60, // 이 값 이상이면 해당 욕구 '충족' — 단계 파생 기준
   NEED_REGRESS_AMOUNT: 30, // 방치 퇴행 1스텝당 최상위 충족 욕구 하락량
 
+  // 세션당 상한 — 90분 초과 집중은 "잠수했거나 타이머를 잊은 것"으로 취급,
+  // 게이지·정성 모두 이 시점 이후로는 오르지 않는다. (휴식표 90+→30분과 정합)
+  SESSION_CAP_MINUTES: 90,
+
   // 자유행동 (순차 자가 충족 · 개인작업)
-  FREE_SELF_CARE_PROB: 0.5, // 첫 미충족 욕구를 스스로 채우는 행동 확률
+  // selfCare 확률: 최우선 욕구(생리)가 절반 미만이면 무조건, 아니면 전단계 평균 비례.
+  //   p = 첫욕구<50 ? 1 : max(FLOOR, avg(전단계)/100)  — 전단계 없으면 FLOOR.
+  FREE_SELF_CARE_PROB: 0.5, // 확률 바닥값 (전단계 평균 50% 미만 구간)
+  FREE_URGENT_THRESHOLD: 50, // 최우선 욕구가 이 값 미만이면 돌이 무조건 스스로 채운다
   FREE_SELF_CARE_GAIN: 5, // 자가 충족 1회당 게이지 상승
   PERSONAL_WORK_BASE: 0.05,
   PERSONAL_WORK_SCALE: 0.25, // + SCALE × (욕구 4종 평균/100) — 단, 4종 전부 충족 시에만 판정
   SELF_ACT_GAIN_PER_WORK: 10, // 개인작업 1회당 자아실현 게이지 상승
+
+  // 호감도 7티어 임계 (관계 대사 축) — 누적 호감도가 각 값 이상이면 그 티어.
+  // 목표: 1티어 4h, 이후 티어당 8h (플레이테스트로 조정). index 0 = 1티어(=0).
+  AFFECTION_TIERS: [0, 8, 20, 36, 56, 82, 115],
 
   // 엔딩
   SELF_ACT_COMPLETE: 100,

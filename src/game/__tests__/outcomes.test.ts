@@ -32,8 +32,8 @@ describe('checkCondition — 결과 분기·해금 조건', () => {
     expect(checkCondition({ minNeeds: { safety: 1 } }, s)).toBe(false);
     expect(checkCondition({ minLevel: 2 }, s)).toBe(true);
     expect(checkCondition({ minLevel: 3 }, s)).toBe(false);
-    expect(checkCondition({ minSecurity: 25 }, s)).toBe(true);
-    expect(checkCondition({ minSecurity: 26 }, s)).toBe(false);
+    expect(checkCondition({ minSecurity: 30 }, s)).toBe(true); // 시작 안정감 30
+    expect(checkCondition({ minSecurity: 31 }, s)).toBe(false);
   });
 
   it('보유/배치 물품과 누적 시간', () => {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
-import { createInitialState, isRockPresent, transition } from '../stateMachine';
+import {
+  createInitialState,
+  isActionAvailable,
+  isRockPresent,
+  transition,
+} from '../stateMachine';
 import type { GameEvent, GameState } from '../types';
 import { mulberry32, type Rng } from '../rng';
 import { gameData } from '../../store/gameStore';
@@ -27,8 +32,20 @@ function run(
   return events.reduce((s, e) => transition(s, e, { rng, data }), state);
 }
 
+// 흐름 테스트 편의: 해금 아이템을 모두 보유한 시작 상태(행동 게이팅과 무관하게 검증).
+// 아이템 해금 게이트 자체는 아래 전용 테스트에서 맨 상태로 확인한다.
 function init(): GameState {
-  return createInitialState(T0, 'read');
+  const s = createInitialState(T0, 'read');
+  return {
+    ...s,
+    items: {
+      book: { placed: false },
+      cushion: { placed: false },
+      shoes: { placed: false },
+      pot: { placed: false },
+      broom: { placed: false },
+    },
+  };
 }
 
 /** dt초씩 total초만큼 TICK */
@@ -54,14 +71,18 @@ describe('기본 사이클: 행동선택 → 집중 → 휴식 → 행동선택'
     expect(isRockPresent(s)).toBe(true);
   });
 
-  it('SELECT_ACTION: 해금 조건 미달은 무시, Outcome 해금은 통과', () => {
-    const s = init();
-    expect(run(s, [{ type: 'SELECT_ACTION', actionId: 'cook' }]).selectedAction).toBe('read');
-    expect(run(s, [{ type: 'SELECT_ACTION', actionId: 'walk' }]).selectedAction).toBe('walk');
-    const unlocked: GameState = { ...s, unlockedActions: ['cook'] };
+  it('SELECT_ACTION: 아이템 없으면 잠김, 아이템/Outcome 해금은 통과', () => {
+    // 맨 시작 상태 — lie/free만 해금(read/sun/walk/cook/chore는 아이템 필요)
+    const bare = createInitialState(T0, 'lie');
+    expect(run(bare, [{ type: 'SELECT_ACTION', actionId: 'walk' }]).selectedAction).toBe('lie'); // 신발 없음 → 무시
+    const withShoes: GameState = { ...bare, items: { shoes: { placed: false } } };
+    expect(
+      run(withShoes, [{ type: 'SELECT_ACTION', actionId: 'walk' }]).selectedAction,
+    ).toBe('walk'); // 신발 보유 → 해금
+    const unlocked: GameState = { ...bare, unlockedActions: ['cook'] };
     expect(
       run(unlocked, [{ type: 'SELECT_ACTION', actionId: 'cook' }]).selectedAction,
-    ).toBe('cook');
+    ).toBe('cook'); // Outcome 명시 해금도 통과
   });
 
   it('START_FOCUS → 집중, 일지 첫 줄 = 행동 시작 서술 (카탈로그 경유)', () => {
@@ -89,9 +110,19 @@ describe('기본 사이클: 행동선택 → 집중 → 휴식 → 행동선택'
     expect(s.care).toEqual({ points: 1, carryMinutes: 5 });
     expect(s.rest.totalSec).toBe(10 * 60);
     expect(s.rest.summary).toEqual({ mins: 30, earned: 1 });
-    expect(s.stats.needs.belonging).toBeGreaterThan(0); // read → 소속/애정만
+    expect(s.stats.needs.esteem).toBeGreaterThan(0); // read → 존경
     expect(s.stats.needs.physiological).toBe(0);
     expect(s.totals.sessions).toBe(1);
+  });
+
+  it('90분 상한: 초과 집중은 정성이 더 오르지 않는다', () => {
+    const s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(6000), // 100분
+      { type: 'END_FOCUS', nowMs: T0 + 6_000_000 },
+    ]);
+    // 90분까지만 환산: floor(90/25)=3, 이월 90-75=15 (100분이 아니라 90분 기준)
+    expect(s.care).toEqual({ points: 3, carryMinutes: 15 });
   });
 
   it('REST_END: 평시에는 행동선택으로 복귀', () => {
@@ -393,7 +424,6 @@ describe('잠수(부재) 분기', () => {
     const data = riskyData();
     const s = run(init(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.1, 0.0]), data);
     expect(s.presence.state).toBe('absent');
-    expect(s.presence.plannedSessions).toBe(1);
     expect(s.session.journal[0].text).toBe(T('sys.journal.sessionStartAbsent'));
 
     const miss = run(init(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.9]), data);
@@ -534,11 +564,85 @@ describe('잠수(부재) 분기', () => {
   });
 });
 
+describe('병간호 (애착 위기 — 유기불안 극단)', () => {
+  // 유기불안 상한 초과 상태를 만든다 (안정감 = 100 − |95−20| = 25)
+  function sickProneInit(): GameState {
+    const s = init();
+    return {
+      ...s,
+      stats: { ...s.stats, abandonment: 95, intimacyThreat: 20, security: 25 },
+    };
+  }
+
+  it('유기불안이 상한을 넘으면 병간호 발동 → 병간호만 가능', () => {
+    const s = run(sickProneInit(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      { type: 'END_FOCUS', nowMs: T0 },
+    ]);
+    expect(s.presence.sick).toBe(true);
+    expect(s.selectedAction).toBe('nurse');
+    const nurse = gameData.actions.find((a) => a.id === 'nurse')!;
+    const read = gameData.actions.find((a) => a.id === 'read')!;
+    expect(isActionAvailable(nurse, s)).toBe(true);
+    expect(isActionAvailable(read, s)).toBe(false); // 아플 땐 다른 행동 불가
+  });
+
+  it('병간호 세션을 반복하면 두 축이 수렴해 회복한다 (2~3턴)', () => {
+    let s: GameState = {
+      ...sickProneInit(),
+      presence: { ...init().presence, sick: true },
+      selectedAction: 'nurse',
+    };
+    let turns = 0;
+    while (s.presence.sick && turns < 6) {
+      s = run(s, [
+        { type: 'START_FOCUS', nowMs: T0 },
+        { type: 'END_FOCUS', nowMs: T0 },
+        { type: 'REST_END' },
+      ]);
+      turns++;
+    }
+    expect(s.presence.sick).toBe(false);
+    expect(turns).toBeLessThanOrEqual(3);
+    // 회복 시 selectedAction이 'nurse'로 남지 않고 유효 행동으로 리셋
+    expect(s.selectedAction).not.toBe('nurse');
+  });
+
+  it('회복 후 재선택 없이 START_FOCUS해도 건강한 돌에게 병간호가 시작되지 않는다', () => {
+    // 재석·안 아픔인데 selectedAction이 아직 'nurse'로 남은 경계 케이스
+    const base = init();
+    const s: GameState = {
+      ...base,
+      phase: 'actionSelect',
+      selectedAction: 'nurse',
+      presence: { ...base.presence, sick: false },
+    };
+    const after = run(s, [{ type: 'START_FOCUS', nowMs: T0 }]);
+    expect(after.phase).toBe('actionSelect'); // 가드로 막힘 — 집중 시작 안 됨
+  });
+});
+
 describe('상점 — 구매 ≠ 배치', () => {
   function richRest(): GameState {
     const base = toRest();
     return { ...base, care: { points: 5, carryMinutes: 0 } };
   }
+
+  it('해금 루프: 신발 구매 → 산책 해금 (누워있기 시작 → 아이템으로 행동 확장)', () => {
+    const walk = gameData.actions.find((a) => a.id === 'walk')!;
+    const bare = createInitialState(T0, 'lie');
+    expect(isActionAvailable(walk, bare)).toBe(false); // 시작엔 잠김
+    const rest: GameState = {
+      ...bare,
+      phase: 'rest',
+      restStep: 'shop',
+      care: { points: 3, carryMinutes: 0 },
+    };
+    const s = run(rest, [{ type: 'BUY', itemId: 'shoes', nowMs: T0 }]);
+    expect(s.items['shoes']).toEqual({ placed: false });
+    expect(s.care.points).toBe(2); // 신발 가격 1
+    expect(isActionAvailable(walk, s)).toBe(true); // 구매(=소유) 후 해금
+  });
 
   it('구매 시 보관 상태 + 배치 선택 대기 → SET_PLACEMENT로 결정·토글', () => {
     let s = run(richRest(), [{ type: 'BUY', itemId: 'plant', nowMs: T0 }]);
@@ -679,7 +783,7 @@ describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () =
       stats: { ...base.stats, selfActualization: 100 },
       settings: { ...base.settings, noiseOn: true, notifAsked: true },
       care: { points: 7, carryMinutes: 3 },
-      items: { plant: { placed: true } },
+      items: { ...base.items, plant: { placed: true } },
     };
   }
 
@@ -733,6 +837,8 @@ describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () =
     expect(s.era).toBe('cohabit');
     s = {
       ...s,
+      // 존경을 건드리지 않는 행동(자유행동)으로 고정 — 동거 잠식만 검증
+      selectedAction: 'free',
       stats: { ...s.stats, needs: { ...s.stats.needs, esteem: 50 } },
     };
     const affectionBefore = s.stats.affection;
@@ -770,9 +876,10 @@ describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () =
       ...endingPhase(),
       presence: {
         state: 'absent',
-        plannedSessions: 3,
+        plannedSessions: 0,
         lowIntimacyProgress: 0,
         returnPending: false,
+        sick: false,
       },
     };
     const s = run(absentEnding, [{ type: 'CHOOSE_COHABIT' }]);

@@ -27,8 +27,13 @@ import { drawMemory, remember, resolveReflection } from './memory';
 import { drawEligibleLine, selectDialoguePool } from './dialogue';
 import { pickFreeAction } from './freeAction';
 import { clampStat, dateKey, initialStats, needsLevelOf, settleCalendar } from './stats';
-import { intimacyOutcome } from './security';
-import { absenceSessionEnd, presentState, startAbsence } from './absence';
+import {
+  convergeStep,
+  derivedSecurity,
+  intimacyOutcome,
+  isBalanced,
+} from './security';
+import { presentState, startAbsence } from './absence';
 import {
   applyOutcome,
   checkCondition,
@@ -43,7 +48,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -132,6 +137,9 @@ function actionOf(data: GameData, id: ActionId): ActionData | undefined {
 
 /** 행동/물품 해금: unlock 조건 통과 OR Outcome으로 명시 해금 */
 export function isActionAvailable(action: ActionData, state: GameState): boolean {
+  // 병간호 상태: '병간호하기'만 가능 (돌이 아파 다른 행동을 받지 못한다)
+  if (state.presence.sick) return action.id === 'nurse';
+  if (action.id === 'nurse') return false; // 병간호는 평소엔 숨김
   return (
     state.unlockedActions.includes(action.id) ||
     checkCondition(action.unlock, state)
@@ -170,15 +178,20 @@ function addJournal(
  */
 function applyIntimacy(state: GameState, intimacy: number, rng: Rng): GameState {
   if (state.era !== 'raising' || state.presence.state === 'absent') return state;
-  const outcome = intimacyOutcome(state.stats.security, intimacy, rng);
+  const { abandonment, intimacyThreat } = state.stats;
+  const oc = intimacyOutcome(abandonment, intimacyThreat, intimacy, rng);
+  const ab = clampStat(abandonment + oc.abandonmentDelta);
+  const it = clampStat(intimacyThreat + oc.intimacyThreatDelta);
   let next: GameState = {
     ...state,
     stats: {
       ...state.stats,
-      security: clampStat(state.stats.security + outcome.securityDelta),
+      abandonment: ab,
+      intimacyThreat: it,
+      security: derivedSecurity(ab, it),
     },
   };
-  if (outcome.retreat) {
+  if (oc.retreat) {
     next = { ...next, presence: startAbsence(rng) };
   }
   return next;
@@ -361,6 +374,9 @@ export function transition(
       if (state.phase !== 'actionSelect' && state.phase !== 'rest') return state;
       const action = actionOf(data, state.selectedAction);
       if (!action) return state;
+      // 선택된 행동이 지금 가용한지 검증 — 회복 후 남은 'nurse'나
+      // 마이그레이션으로 잠긴 행동으로 세션이 시작되는 것을 막는다.
+      if (!isActionAvailable(action, state)) return state;
 
       // rest 탈출 공통 정리 (응답 없는 떠나려는 기색 = 보내주기)
       const exited = exitRest(state, data, rng);
@@ -528,7 +544,9 @@ export function transition(
             ? joinPages(pickText(data.text, result.textId, rng))
             : '';
           if (result.type === 'reflection') memory = result.memory;
-          if (result.type === 'selfCare') {
+          // 90분 상한: 초과 후엔 자유행동 게이지·자아실현 상승 정지 (서술 줄은 계속)
+          const withinCap = el <= BALANCE.SESSION_CAP_MINUTES * 60;
+          if (result.type === 'selfCare' && withinCap) {
             stats = {
               ...stats,
               needs: {
@@ -539,7 +557,7 @@ export function transition(
               },
             };
           }
-          if (result.type === 'personalWork') {
+          if (result.type === 'personalWork' && withinCap) {
             stats = {
               ...stats,
               selfActualization: clampStat(
@@ -640,7 +658,8 @@ export function transition(
       if (!action) return state;
 
       const mins = state.session.elapsedSec / 60;
-      const care = accrueCare(state.care, mins);
+      // 90분 상한: 정성은 상한까지만 환산 (초과분은 보상 없음)
+      const care = accrueCare(state.care, Math.min(mins, BALANCE.SESSION_CAP_MINUTES));
       const earned = care.points - state.care.points;
       const restMin = restMinutesFor(mins, state.settings.flowtime);
       // 세션 동안 돌이 곁에 있었는가 — 없었으면 '옆에 있었다' 대신 부재 마무리
@@ -667,18 +686,49 @@ export function transition(
         };
       }
 
-      // 잠수 복귀 판정 (육성)
+      // 애착 위기 루프 (육성): 잠수(부재)·병간호(sick) 모두 두 축을 균형으로 수렴시켜
+      // 벗어난다(항상성 복귀). 균형이면 위기 종료 — 부재는 복귀, 병간호는 회복.
       let presence = next.presence;
       let journal = state.session.journal;
-      if (next.era === 'raising' && presence.state === 'absent') {
-        presence = absenceSessionEnd(presence, action.intimacy);
-        if (presence.returnPending) {
-          journal = addJournal(
-            journal,
-            state.session.elapsedSec,
-            joinPages(pickText(data.text, SYS.journal.rockReturned, rng)),
-          );
+      const elapsed = state.session.elapsedSec;
+      if (next.era === 'raising' && (presence.state === 'absent' || presence.sick)) {
+        const step = convergeStep(stats.abandonment, stats.intimacyThreat);
+        stats = {
+          ...stats,
+          abandonment: step.abandonment,
+          intimacyThreat: step.intimacyThreat,
+          security: derivedSecurity(step.abandonment, step.intimacyThreat),
+        };
+        if (isBalanced(step.abandonment, step.intimacyThreat)) {
+          if (presence.state === 'absent') {
+            presence = { ...presentState(), returnPending: true };
+            journal = addJournal(
+              journal,
+              elapsed,
+              joinPages(pickText(data.text, SYS.journal.rockReturned, rng)),
+            );
+          } else {
+            presence = { ...presence, sick: false };
+            journal = addJournal(
+              journal,
+              elapsed,
+              joinPages(pickText(data.text, SYS.journal.rockRecovered, rng)),
+            );
+          }
         }
+      } else if (
+        // 병간호 발동: 유기불안이 상한을 넘으면 돌이 아파진다 (재석 중, 육성)
+        next.era === 'raising' &&
+        presence.state === 'present' &&
+        !presence.sick &&
+        stats.abandonment > BALANCE.ABANDONMENT_SICK_CEILING
+      ) {
+        presence = { ...presence, sick: true };
+        journal = addJournal(
+          journal,
+          elapsed,
+          joinPages(pickText(data.text, SYS.journal.rockSick, rng)),
+        );
       }
 
       // apart: 방문 기간 소진 → 바로 떠나지 않고 떠나려는 기색 (붙잡기/보내주기)
@@ -714,6 +764,12 @@ export function transition(
         ...next,
         phase: 'rest',
         restStep: 'journal',
+        // 병간호 중이면 '병간호하기'로 강제, 회복하면 유효한 기본 행동으로 리셋
+        selectedAction: presence.sick
+          ? 'nurse'
+          : state.presence.sick
+            ? 'lie'
+            : next.selectedAction,
         care,
         stats,
         presence,
@@ -988,13 +1044,17 @@ export function transition(
         // 적합한 포섀도가 없으면 아래 단계 풀 대화로 폴백
       }
 
-      // 7) 시대·단계별 풀 비복원 추출
-      const pool = selectDialoguePool(
-        data.dialogues,
-        state.era,
-        needsLevelOf(state.stats.needs),
-        state.stats.dependence,
-      );
+      // 7) 시대·상태·관계 풀 선택 (대사 이원화) — 비복원 추출
+      // preferRelation은 세션 패리티로 결정(관계/상태 대사 번갈아, rng 순서 비교란)
+      const pool = selectDialoguePool(data.dialogues, {
+        era: state.era,
+        needsLevel: needsLevelOf(state.stats.needs),
+        dependence: state.stats.dependence,
+        affection: state.stats.affection,
+        abandonment: state.stats.abandonment,
+        intimacyThreat: state.stats.intimacyThreat,
+        preferRelation: state.totals.sessions % 2 === 0,
+      });
       if (!pool)
         return { ...state, rest: { ...state.rest, talkPressed: true } };
       // when 조건 필터 — 소품 언급 줄은 그 소품이 방에 있을 때만 후보

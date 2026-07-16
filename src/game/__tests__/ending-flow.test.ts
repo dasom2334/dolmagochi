@@ -24,7 +24,7 @@ function run(
 
 /** 자아실현 완성 + 엔딩 전 대화 소진 상태의 rest */
 function readyForEnding(): GameState {
-  const base = run(createInitialState(T0, 'read'), [
+  const base = run({ ...createInitialState(T0, 'read'), items: { book: { placed: false } } }, [
     { type: 'START_FOCUS', nowMs: T0 },
     { type: 'END_FOCUS', nowMs: T0 },
   ]);
@@ -44,7 +44,7 @@ const TALKS = gameData.endings.preEndingTalks.length;
 describe('엔딩 플로우 (ending)', () => {
   it('자아실현 100 → 엔딩 전 대화 순차 소진 → 엔딩 이벤트', () => {
     // 자아실현만 100, 엔딩 전 대화는 아직
-    const base = run(createInitialState(T0, 'read'), [
+    const base = run({ ...createInitialState(T0, 'read'), items: { book: { placed: false } } }, [
       { type: 'START_FOCUS', nowMs: T0 },
       { type: 'END_FOCUS', nowMs: T0 },
     ]);
@@ -98,7 +98,12 @@ describe('엔딩 플로우 (ending)', () => {
     expect(s.session.narratorLine).toBe(T('end.cohabit'));
 
     const esteem0 = 50;
-    s = { ...s, stats: { ...s.stats, needs: { ...s.stats.needs, esteem: esteem0 } } };
+    s = {
+      ...s,
+      // 존경을 건드리지 않는 행동(자유행동)으로 고정 — 동거 잠식만 검증
+      selectedAction: 'free',
+      stats: { ...s.stats, needs: { ...s.stats.needs, esteem: esteem0 } },
+    };
     const affection0 = s.stats.affection;
     s = run(s, [
       { type: 'START_FOCUS', nowMs: T0 },

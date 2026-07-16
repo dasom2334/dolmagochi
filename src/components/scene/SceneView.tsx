@@ -22,6 +22,8 @@ const SCENE_COLORS: Record<string, { bg: string; floor: string; line: string }> 
   walk: { bg: '#2e3d49', floor: '#2e4430', line: '#3a5440' },
   sun: { bg: '#3d3446', floor: '#4a4053', line: '#5a4e66' },
   read: { bg: '#2b2436', floor: '#3a3145', line: '#453a56' },
+  lie: { bg: '#232030', floor: '#2d2838', line: '#3a3348' },
+  nurse: { bg: '#2a2530', floor: '#37303c', line: '#463c4e' },
 };
 const ROOM_COLORS = { bg: '#262031', floor: '#332b40', line: '#453a56' };
 

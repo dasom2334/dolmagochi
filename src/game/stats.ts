@@ -1,4 +1,5 @@
 import { BALANCE } from './balance';
+import { derivedSecurity } from './security';
 import { NEED_ORDER, type NeedId, type Outcome, type Stats } from './types';
 
 export function clampStat(n: number): number {
@@ -84,6 +85,13 @@ export function settleCalendar(
         next.needs[topFilled] - BALANCE.NEED_REGRESS_AMOUNT,
       );
     }
+    // 방치는 유기불안을 키운다 (오래 안 오면 돌이 불안해진다) → 안정감 재계산
+    if (steps > 0) {
+      next.abandonment = clampStat(
+        next.abandonment + BALANCE.NEGLECT_ABANDONMENT_PER_STEP * steps,
+      );
+      next.security = derivedSecurity(next.abandonment, next.intimacyThreat);
+    }
   }
   return {
     stats: next,
@@ -101,8 +109,21 @@ export function applyStatOutcome(
   const next: Stats = { ...stats, needs: { ...stats.needs } };
   if (outcome.stats) {
     next.mood = clampStat(next.mood + (outcome.stats.mood ?? 0));
-    next.affection = Math.max(0, next.affection + (outcome.stats.affection ?? 0));
-    next.security = clampStat(next.security + (outcome.stats.security ?? 0));
+    // 애착 2축 태그 적용 → 안정감(파생) 재계산
+    next.abandonment = clampStat(
+      next.abandonment + (outcome.stats.abandonment ?? 0),
+    );
+    next.intimacyThreat = clampStat(
+      next.intimacyThreat +
+        (outcome.stats.intimacyThreat ?? 0) +
+        // 하위호환: 구 security 델타는 부호를 뒤집어 친밀위협에 반영(양=안정↑=위협↓)
+        -(outcome.stats.security ?? 0),
+    );
+    next.security = derivedSecurity(next.abandonment, next.intimacyThreat);
+    // B13 호감도 비례 래칫: 안정할수록 상승분이 커진다. 하락 없음.
+    const affDelta = outcome.stats.affection ?? 0;
+    const scaled = affDelta > 0 ? affDelta * (next.security / BALANCE.STAT_MAX) : affDelta;
+    next.affection = Math.max(0, next.affection + scaled);
   }
   if (outcome.needs) {
     for (const need of NEED_ORDER) {
@@ -125,7 +146,12 @@ export function initialStats(): Stats {
     mood: BALANCE.MOOD_START,
     affection: 0,
     needs: { physiological: 0, safety: 0, belonging: 0, esteem: 0 },
-    security: BALANCE.SECURITY_START,
+    abandonment: BALANCE.ABANDONMENT_START,
+    intimacyThreat: BALANCE.INTIMACY_THREAT_START,
+    security: derivedSecurity(
+      BALANCE.ABANDONMENT_START,
+      BALANCE.INTIMACY_THREAT_START,
+    ),
     selfActualization: 0,
     dependence: 0,
   };

@@ -49,7 +49,14 @@ export interface Condition {
 
 /** 상태에 남기는 영향 — 선택지·행동완료·구매가 공유하는 명시적 타입 */
 export interface Outcome {
-  stats?: { mood?: number; affection?: number; security?: number };
+  stats?: {
+    mood?: number;
+    affection?: number;
+    security?: number;
+    /** 애착 2축 태그 (대사·선택지가 명시적으로 조절) */
+    abandonment?: number;
+    intimacyThreat?: number;
+  };
   needs?: Partial<Record<NeedId, number>>;
   selfActualization?: number;
   /** 기억 토큰 적립 */
@@ -134,7 +141,11 @@ export interface Stats {
   affection: number;
   /** 명명된 욕구 게이지 0–100 */
   needs: Record<NeedId, number>;
-  /** 안정감 0–100 (숨은 값) */
+  /** 유기불안 0–100 (숨은 값, 애착 2축) */
+  abandonment: number;
+  /** 친밀위협 0–100 (숨은 값, 애착 2축) */
+  intimacyThreat: number;
+  /** 안정감 0–100 — 두 애착 축의 파생 캐시 (= 100 − |유기불안−친밀위협|) */
   security: number;
   /** 자아실현 게이지 0–100 → 엔딩 트리거 */
   selfActualization: number;
@@ -144,12 +155,14 @@ export interface Stats {
 
 export interface PresenceState {
   state: Presence;
-  /** 잠수 예정 길이 1–3 세션 */
+  /** (구) 잠수 예정 길이 — 항상성 복귀 도입 후 미사용, 스키마 호환용 */
   plannedSessions: number;
-  /** 저친밀 행동 세션 복귀 누적 */
+  /** (구) 저친밀 복귀 누적 — 항상성 복귀 도입 후 미사용, 스키마 호환용 */
   lowIntimacyProgress: number;
   /** 이번 휴식에 복귀 대화를 걸어야 함 */
   returnPending: boolean;
+  /** 병간호 상태 — 재석하되 유기불안 과다로 아파, '병간호하기'만 가능 */
+  sick: boolean;
 }
 
 /** 발생한 추억 기록 (영구) */

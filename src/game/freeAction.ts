@@ -17,6 +17,25 @@ export function personalWorkProb(needs: Record<NeedId, number>): number {
   );
 }
 
+/**
+ * 자가 충족(selfCare) 확률 — 돌이 첫 미충족 욕구를 스스로 채울 확률.
+ * B4/B4-1: 최우선 욕구(생리)가 절반 미만이면 무조건(1.0, 매슬로 최우선),
+ * 그 외엔 전단계(아래 욕구들) 평균 충족도에 비례하되 바닥값 아래로는 안 내려간다.
+ *   p = max(FLOOR, avg(전단계)/100)   (전단계가 없으면 FLOOR)
+ * 전단계가 많이 차 있을수록 돌이 다음 욕구를 적극적으로 채운다.
+ */
+export function selfCareProb(needs: Record<NeedId, number>, target: NeedId): number {
+  const idx = NEED_ORDER.indexOf(target);
+  if (idx <= 0) {
+    return needs[target] < BALANCE.FREE_URGENT_THRESHOLD
+      ? 1
+      : BALANCE.FREE_SELF_CARE_PROB;
+  }
+  const prev = NEED_ORDER.slice(0, idx);
+  const avg = prev.reduce((a, n) => a + needs[n], 0) / prev.length;
+  return Math.max(BALANCE.FREE_SELF_CARE_PROB, avg / BALANCE.STAT_MAX);
+}
+
 export type FreeActionResult =
   | { type: 'personalWork'; textId: TextId }
   | { type: 'selfCare'; need: NeedId; textId: TextId }
@@ -52,7 +71,7 @@ export function pickFreeAction(
       const textId = tokenReflection(defs, 'personalWork', state, rng);
       if (textId !== null) return { type: 'personalWork', textId };
     }
-  } else if (rng() < BALANCE.FREE_SELF_CARE_PROB) {
+  } else if (rng() < selfCareProb(needs, target)) {
     const textId = tokenReflection(defs, `selfCare-${target}`, state, rng);
     if (textId !== null) return { type: 'selfCare', need: target, textId };
   }

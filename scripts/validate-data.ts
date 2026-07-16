@@ -165,6 +165,12 @@ export function validateGameData(
       c.options.forEach((o, oi) => checkOption(o, `${w}.choice[${ci}].opt[${oi}]`));
     });
   });
+  // 시작 행동은 정확히 하나여야 한다(무해금 + starter) — 배열 순서 비의존
+  const starters = data.actions.filter((a) => a.starter);
+  if (starters.length !== 1)
+    errors.push(`시작 행동(starter)은 정확히 하나여야 함 (현재 ${starters.length})`);
+  else if (starters[0].unlock)
+    errors.push(`시작 행동 "${starters[0].id}"에 해금 조건이 있으면 안 됨`);
 
   // ── shop ──
   const seenItemIds = new Set<string>();
@@ -196,6 +202,18 @@ export function validateGameData(
   d.absent.forEach((l, i) => checkLine(l, `dialogues.absent[${i}]`));
   d.apart.forEach((l, i) => checkLine(l, `dialogues.apart[${i}]`));
   d.apartVisit.forEach((l, i) => checkLine(l, `dialogues.apartVisit[${i}]`));
+  // 관계 대사(호감도 7티어) — 파생 로직이 티어 수(7)에 맞물리므로 개수 확인
+  if (!Array.isArray(d.relationTiers) || d.relationTiers.length !== 7)
+    errors.push(`dialogues.relationTiers는 7티어여야 함 (현재 ${d.relationTiers?.length})`);
+  (d.relationTiers ?? []).forEach((lines, t) =>
+    lines.forEach((l, i) => checkLine(l, `dialogues.relationTiers[${t}][${i}]`)),
+  );
+  // 상태 대사(애착 4분면) — 급성 집착/회피/혼란 풀
+  (['clingy', 'avoidant', 'chaotic'] as const).forEach((q) => {
+    const lines = d.quadrants?.[q];
+    if (!Array.isArray(lines)) errors.push(`dialogues.quadrants.${q} 누락`);
+    else lines.forEach((l, i) => checkLine(l, `dialogues.quadrants.${q}[${i}]`));
+  });
   // selectDialoguePool은 dependence가 임계 미만이면 stage0로 하한 처리하므로,
   // 첫 단계 임계는 0이어야 한다(그래야 동거 시작=stage0가 정확히 맞물린다).
   if (d.cohabitStages.length > 0 && d.cohabitStages[0].minDependence !== 0)

@@ -64,7 +64,11 @@ export function createGameStore(
   const now = options.now ?? Date.now;
   const data = options.data ?? gameData;
   const ctx: TransitionCtx = { rng, data };
-  const defaultAction = data.actions.find((a) => !a.unlock)?.id ?? 'free';
+  // 시작 행동은 starter 플래그로 명시 (배열 순서·무해금 행동 추가에 영향받지 않게)
+  const defaultAction =
+    data.actions.find((a) => a.starter)?.id ??
+    data.actions.find((a) => !a.unlock)?.id ??
+    'free';
 
   return createStore<GameStore>((set, get) => ({
     state: options.initialState ?? createInitialState(now(), defaultAction),

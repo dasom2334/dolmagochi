@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  affectionTier,
   drawEligibleLine,
   drawNonReplacing,
   selectDialoguePool,
@@ -7,24 +8,70 @@ import {
 import { mulberry32 } from '../rng';
 import { gameData } from '../../store/gameStore';
 import { createInitialState } from '../stateMachine';
+import type { DialogueContext } from '../dialogue';
+import type { Era } from '../types';
 import type { DialogueLine } from '../../data/schema';
 
-describe('selectDialoguePool — 시대·단계·의존도 풀 게이트', () => {
+// 안정(급성 아님) baseline 컨텍스트 — 필요한 필드만 덮어쓴다
+function ctx(over: Partial<DialogueContext> & { era: Era }): DialogueContext {
+  return {
+    needsLevel: 1,
+    dependence: 0,
+    affection: 0,
+    abandonment: 0,
+    intimacyThreat: 30, // 안정(급성 아님): 합산·각 축 모두 임계 미만
+    preferRelation: false,
+    ...over,
+  };
+}
+
+describe('selectDialoguePool — 이원화(관계/상태/4분면) 라우팅', () => {
   const d = gameData.dialogues;
 
-  it('육성 중에는 파생 욕구 단계별 풀', () => {
-    expect(selectDialoguePool(d, 'raising', 1, 0)?.poolId).toBe('stage1');
-    expect(selectDialoguePool(d, 'raising', 4, 0)?.poolId).toBe('stage4');
+  it('안정 · 상태 선호 → 욕구 단계 풀', () => {
+    expect(selectDialoguePool(d, ctx({ era: 'raising', needsLevel: 1 }))?.poolId).toBe('stage1');
+    expect(selectDialoguePool(d, ctx({ era: 'raising', needsLevel: 4 }))?.poolId).toBe('stage4');
+  });
+
+  it('안정 · 관계 선호 → 호감도 티어 풀', () => {
+    expect(
+      selectDialoguePool(d, ctx({ era: 'raising', preferRelation: true, affection: 0 }))?.poolId,
+    ).toBe('relation1');
+    expect(
+      selectDialoguePool(d, ctx({ era: 'raising', preferRelation: true, affection: 200 }))?.poolId,
+    ).toBe('relation7');
+  });
+
+  it('급성 애착 상태 → 4분면 풀 (관계보다 우선)', () => {
+    // 유기불안 극단 → 집착
+    expect(
+      selectDialoguePool(d, ctx({ era: 'raising', preferRelation: true, abandonment: 95, intimacyThreat: 10 }))?.poolId,
+    ).toBe('quad_clingy');
+    // 친밀위협 극단 → 회피
+    expect(
+      selectDialoguePool(d, ctx({ era: 'raising', abandonment: 10, intimacyThreat: 95 }))?.poolId,
+    ).toBe('quad_avoidant');
+    // 합산 과다 → 혼란
+    expect(
+      selectDialoguePool(d, ctx({ era: 'raising', abandonment: 70, intimacyThreat: 70 }))?.poolId,
+    ).toBe('quad_chaotic');
   });
 
   it('동거는 의존도 구간별 단계 풀 (깨달음 심화)', () => {
-    expect(selectDialoguePool(d, 'cohabit', 3, 0)?.poolId).toBe('cohabit0');
-    expect(selectDialoguePool(d, 'cohabit', 3, 45)?.poolId).toBe('cohabit1');
-    expect(selectDialoguePool(d, 'cohabit', 3, 90)?.poolId).toBe('cohabit2');
+    expect(selectDialoguePool(d, ctx({ era: 'cohabit', dependence: 0 }))?.poolId).toBe('cohabit0');
+    expect(selectDialoguePool(d, ctx({ era: 'cohabit', dependence: 45 }))?.poolId).toBe('cohabit1');
+    expect(selectDialoguePool(d, ctx({ era: 'cohabit', dependence: 90 }))?.poolId).toBe('cohabit2');
   });
 
   it('apart는 풀 대신 회상/방문 경로 — null', () => {
-    expect(selectDialoguePool(d, 'apart', 3, 0)).toBeNull();
+    expect(selectDialoguePool(d, ctx({ era: 'apart' }))).toBeNull();
+  });
+
+  it('affectionTier — 누적 호감도 → 1~7', () => {
+    expect(affectionTier(0)).toBe(1);
+    expect(affectionTier(7)).toBe(1);
+    expect(affectionTier(8)).toBe(2);
+    expect(affectionTier(1000)).toBe(7);
   });
 });
 
