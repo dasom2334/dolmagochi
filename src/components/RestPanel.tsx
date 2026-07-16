@@ -299,6 +299,7 @@ function ownedList(state: GameState) {
 
 function RestShop({ state }: { state: GameState }) {
   const [sub, setSub] = useState<'store' | 'owned'>('store');
+  const [page, setPage] = useState(0);
   const pending = state.pendingPlacement;
 
   // 구매 직후 배치 결정은 상점을 덮는다 — 결정 전에는 다음 물건을 살 수 없다
@@ -347,7 +348,10 @@ function RestShop({ state }: { state: GameState }) {
     );
   }
 
-  const items = sub === 'store' ? storeItems(state) : ownedList(state);
+  const all = sub === 'store' ? storeItems(state) : ownedList(state);
+  const pages = Math.max(1, Math.ceil(all.length / 3));
+  const p = Math.min(page, pages - 1);
+  const items = all.slice(p * 3, p * 3 + 3);
   return (
     <>
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
@@ -366,23 +370,17 @@ function RestShop({ state }: { state: GameState }) {
                 padding: '3px 10px',
                 cursor: 'pointer',
               }}
-              onClick={() => setSub(k)}
+              onClick={() => {
+                setSub(k);
+                setPage(0);
+              }}
             >
               {t(k === 'store' ? UI.shop.subStore : UI.shop.subOwned)}
             </button>
           );
         })}
       </div>
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          maxHeight: 170,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-        }}
-      >
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {sub === 'owned' && items.length === 0 && (
           <p style={{ margin: 0, fontSize: 11, color: '#8a7f96' }}>
             * {t(UI.shop.ownedEmpty)}
