@@ -381,9 +381,9 @@ function RestShop({ state }: { state: GameState }) {
         })}
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {sub === 'owned' && items.length === 0 && (
+        {items.length === 0 && (
           <p style={{ margin: 0, fontSize: 11, color: '#8a7f96' }}>
-            * {t(UI.shop.ownedEmpty)}
+            * {t(sub === 'owned' ? UI.shop.ownedEmpty : UI.shop.storeEmpty)}
           </p>
         )}
         {items.map((it) => {
