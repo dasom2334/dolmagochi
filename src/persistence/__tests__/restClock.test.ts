@@ -29,4 +29,11 @@ describe('restClock — endsAt 타임스탬프 기준', () => {
     expect(restProgressPct(T0, 600, T0 + 60_000)).toBe(0);
     expect(restProgressPct(T0 + 600_000, 0, T0)).toBe(0); // 전체 0 방어
   });
+
+  it('진행률 %: 100 상한 클램프 (휴식 시작 순간 낡은 nowMs 방어)', () => {
+    // nowMs가 아직 갱신 전(과거)이라 잔여가 totalSec를 초과해도 100을 넘지 않는다
+    const endsAt = T0 + 600_000; // 10분 뒤 종료(총 600초)
+    const staleNow = T0 - 300_000; // 5분 과거 → 잔여 900초 > 600초
+    expect(restProgressPct(endsAt, 600, staleNow)).toBe(100);
+  });
 });
