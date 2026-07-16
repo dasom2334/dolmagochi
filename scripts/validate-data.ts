@@ -184,6 +184,31 @@ export function validateGameData(
     checkOutcome(it.outcome, `${w}.outcome`);
     if (typeof it.price !== 'number' || it.price < 0)
       errors.push(`${w}.price는 0 이상 숫자여야 함`);
+    // 체인: requires는 존재하는 상점 아이템, 자기 자신 금지
+    if (it.requires !== undefined) {
+      if (it.requires === it.id) errors.push(`${w}.requires가 자기 자신`);
+      else if (!data.shop.some((o) => o.id === it.requires))
+        errors.push(`${w}.requires "${it.requires}" — 없는 아이템`);
+    }
+    // boosts: 행동 id 또는 'personalWork'
+    if (
+      it.boosts !== undefined &&
+      it.boosts !== 'personalWork' &&
+      !actionIds.has(it.boosts)
+    )
+      errors.push(`${w}.boosts "${it.boosts}" — 없는 행동`);
+    // 소모품: 종류 키 중복 금지 + 사용 대사 텍스트 존재
+    if (it.consumable) {
+      const keys = new Set<string>();
+      it.consumable.variants.forEach((v) => {
+        if (keys.has(v.key)) errors.push(`${w} 소모품 종류 키 중복 "${v.key}"`);
+        keys.add(v.key);
+        ref(`shop.${it.id}.use.${v.key}`, `${w}.use.${v.key}`);
+        ref(`shop.${it.id}.var.${v.key}`, `${w}.var.${v.key}`);
+      });
+      if (it.consumable.variants.length === 0)
+        errors.push(`${w}.consumable.variants가 비어 있음`);
+    }
   });
   if (data.shop.length < SHOP_MIN)
     warnings.push(`상점 물품이 ${data.shop.length}종 (권장 ${SHOP_MIN}+)`);
@@ -256,6 +281,7 @@ export function validateGameData(
       actionIds.has(t) ||
       (t.startsWith('buy-') && itemIds.has(t.slice(4))) ||
       (t.startsWith('selfCare-') && NEED_KEYS.has(t.slice(9))) ||
+      (t.startsWith('selfCareVia-') && actionIds.has(t.slice(12))) ||
       SPECIAL_TOKENS.has(t);
     if (!validToken) errors.push(`알 수 없는 reflection token "${t}"`);
     if (rf.variants.length === 0)

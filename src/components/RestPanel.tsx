@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { GameState, RestStep } from '../game/types';
 import { gameData } from '../store/gameStore';
 import { isItemAvailable, isRockPresent } from '../game/stateMachine';
+import { needsBand } from '../game/stats';
 import { dispatch, now, t, tf } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { btnDashed, btnOutline, btnSmall, card, PagesView } from './ui';
@@ -135,6 +136,19 @@ export function RestPanel({
 }
 
 function RestJournal({ state }: { state: GameState }) {
+  // 정성적 욕구 관찰 한 줄 — 숫자 없이 밴드별 어휘만 (돌이 없으면 관찰도 없다)
+  const glance = isRockPresent(state)
+    ? tf(SYS.needsGlance.frame, {
+        physiological: t(
+          SYS.needsGlance.words.physiological[needsBand(state.stats.needs.physiological)],
+        ),
+        safety: t(SYS.needsGlance.words.safety[needsBand(state.stats.needs.safety)]),
+        belonging: t(
+          SYS.needsGlance.words.belonging[needsBand(state.stats.needs.belonging)],
+        ),
+        esteem: t(SYS.needsGlance.words.esteem[needsBand(state.stats.needs.esteem)]),
+      })
+    : null;
   return (
     <>
       <div
@@ -153,6 +167,9 @@ function RestJournal({ state }: { state: GameState }) {
             earned: state.rest.summary.earned,
           })}
         </div>
+        {glance && (
+          <div style={{ fontSize: 12, color: '#a89cb4' }}>* {glance}</div>
+        )}
         {state.session.journal.map((j, i) => (
           <div
             key={i}
@@ -263,11 +280,26 @@ function RestTalk({ state }: { state: GameState }) {
   );
 }
 
+/** 진열대: 지금 살 수 있는 다음 한 걸음만 — 보유·재고·이전 티어 미달·미해금은 숨긴다 */
+function storeItems(state: GameState) {
+  return gameData.shop.filter((it) => {
+    if (!isItemAvailable(it, state)) return false;
+    if (it.requires !== undefined && !(it.requires in state.items)) return false;
+    if (it.consumable) return (state.supplies[it.id] ?? 0) === 0; // 재고는 소장품에
+    return !(it.id in state.items); // 보유 비소모품도 소장품에
+  });
+}
+
+/** 소장품: 보유 비소모품 + 재고 있는 소모품 — 배치/보관을 여기서 조절 */
+function ownedList(state: GameState) {
+  return gameData.shop.filter((it) =>
+    it.consumable ? (state.supplies[it.id] ?? 0) > 0 : it.id in state.items,
+  );
+}
+
 function RestShop({ state }: { state: GameState }) {
+  const [sub, setSub] = useState<'store' | 'owned'>('store');
   const [page, setPage] = useState(0);
-  const pages = Math.max(1, Math.ceil(gameData.shop.length / 3));
-  const p = Math.min(page, pages - 1);
-  const items = gameData.shop.slice(p * 3, p * 3 + 3);
   const pending = state.pendingPlacement;
 
   // 구매 직후 배치 결정은 상점을 덮는다 — 결정 전에는 다음 물건을 살 수 없다
@@ -316,44 +348,62 @@ function RestShop({ state }: { state: GameState }) {
     );
   }
 
+  const all = sub === 'store' ? storeItems(state) : ownedList(state);
+  const pages = Math.max(1, Math.ceil(all.length / 3));
+  const p = Math.min(page, pages - 1);
+  const items = all.slice(p * 3, p * 3 + 3);
   return (
     <>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {items.map((it) => {
-          const owned = it.id in state.items;
-          const available = isItemAvailable(it, state);
-          const poor = state.care.points < it.price;
-          const disabled = owned || poor || !available;
-          const stateLabel = owned
-            ? t(UI.shop.owned)
-            : poor
-              ? t(UI.shop.poor)
-              : tf(UI.shop.price, { price: it.price });
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+        {(['store', 'owned'] as const).map((k) => {
+          const on = sub === k;
           return (
-            <div key={it.id} style={{ display: 'flex', gap: 6 }}>
-              <button
-                className={disabled ? undefined : 'hv'}
-                disabled={disabled}
-                style={{
-                  flex: 1,
-                  textAlign: 'left',
-                  border: `2px solid ${disabled ? '#4a4156' : '#6b6178'}`,
-                  background: 'transparent',
-                  color: disabled ? '#6b6178' : '#e0d6c4',
-                  fontFamily: 'inherit',
-                  fontSize: 12,
-                  cursor: disabled ? 'default' : 'pointer',
-                  padding: '8px 10px',
-                  lineHeight: 1.5,
-                }}
-                onClick={() =>
-                  dispatch({ type: 'BUY', itemId: it.id, nowMs: now() })
-                }
-              >
-                {t(it.nameId)} — {stateLabel}{' '}
-                <span style={{ color: '#8a7f96' }}>{t(it.descId)}</span>
-              </button>
-              {owned && state.pendingPlacement !== it.id && (
+            <button
+              key={k}
+              className="hv"
+              style={{
+                border: `2px solid ${on ? '#f2ead8' : '#4a4156'}`,
+                background: on ? '#f2ead8' : 'transparent',
+                color: on ? '#332b3d' : '#a89cb4',
+                fontFamily: 'inherit',
+                fontSize: 11,
+                padding: '3px 10px',
+                cursor: 'pointer',
+              }}
+              onClick={() => {
+                setSub(k);
+                setPage(0);
+              }}
+            >
+              {t(k === 'store' ? UI.shop.subStore : UI.shop.subOwned)}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {sub === 'owned' && items.length === 0 && (
+          <p style={{ margin: 0, fontSize: 11, color: '#8a7f96' }}>
+            * {t(UI.shop.ownedEmpty)}
+          </p>
+        )}
+        {items.map((it) => {
+          if (sub === 'owned') {
+            // 소장품: 배치/보관 조절 (소모품 포함 — 재고가 방에 보인다)
+            const isPlaced = !!state.items[it.id]?.placed;
+            return (
+              <div key={it.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    fontSize: 12,
+                    color: '#e0d6c4',
+                    lineHeight: 1.5,
+                    padding: '6px 4px',
+                  }}
+                >
+                  {t(it.nameId)}{' '}
+                  <span style={{ color: '#8a7f96' }}>{t(it.descId)}</span>
+                </div>
                 <button
                   className="hv"
                   style={btnSmall}
@@ -361,13 +411,50 @@ function RestShop({ state }: { state: GameState }) {
                     dispatch({
                       type: 'SET_PLACEMENT',
                       itemId: it.id,
-                      placed: !state.items[it.id].placed,
+                      placed: !isPlaced,
                     })
                   }
                 >
-                  {t(state.items[it.id].placed ? UI.shop.stash : UI.shop.place)}
+                  {t(isPlaced ? UI.shop.stash : UI.shop.place)}
                 </button>
-              )}
+              </div>
+            );
+          }
+          // 진열대: 지금 살 수 있는 것만 — 정성 여부만 표시.
+          // 소모품은 이번 휴식의 진열 종류(고정 랜덤)를 이름에 병기한다.
+          const poor = state.care.points < it.price;
+          const stateLabel = poor
+            ? t(UI.shop.poor)
+            : tf(UI.shop.price, { price: it.price });
+          const offerKey = it.consumable
+            ? (state.rest.offers[it.id] ?? it.consumable.variants[0].key)
+            : null;
+          const offerName = offerKey ? t(`shop.${it.id}.var.${offerKey}`) : '';
+          return (
+            <div key={it.id} style={{ display: 'flex', gap: 6 }}>
+              <button
+                className={poor ? undefined : 'hv'}
+                disabled={poor}
+                style={{
+                  flex: 1,
+                  textAlign: 'left',
+                  border: `2px solid ${poor ? '#4a4156' : '#6b6178'}`,
+                  background: 'transparent',
+                  color: poor ? '#6b6178' : '#e0d6c4',
+                  fontFamily: 'inherit',
+                  fontSize: 12,
+                  cursor: poor ? 'default' : 'pointer',
+                  padding: '8px 10px',
+                  lineHeight: 1.5,
+                }}
+                onClick={() =>
+                  dispatch({ type: 'BUY', itemId: it.id, nowMs: now() })
+                }
+              >
+                {t(it.nameId)}
+                {offerName ? ` · ${offerName}` : ''} — {stateLabel}{' '}
+                <span style={{ color: '#8a7f96' }}>{t(it.descId)}</span>
+              </button>
             </div>
           );
         })}

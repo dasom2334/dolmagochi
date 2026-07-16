@@ -5,6 +5,7 @@ import type {
   GameEvent,
   GameState,
   JournalEntry,
+  NeedId,
   TalkState,
 } from './types';
 import type { Rng } from './rng';
@@ -48,7 +49,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -78,6 +79,7 @@ export function createInitialState(
       talkPressed: false,
       talkState: null,
       actUsed: false,
+      offers: {},
       summary: { mins: 0, earned: 0 },
     },
     stats: initialStats(),
@@ -97,6 +99,8 @@ export function createInitialState(
     endingTalksSeen: 0,
     care: { points: 0, carryMinutes: 0 },
     items: {},
+    supplies: {},
+    supplyVariants: {},
     pendingPlacement: null,
     flags: [],
     unlockedActions: [],
@@ -128,6 +132,9 @@ function emptySession(): GameState['session'] {
     narratorLine: '',
     lastReflectAtSec: 0,
     timeMarksFired: [],
+    supply: null,
+    freeCare: null,
+    freeWorked: false,
   };
 }
 
@@ -176,6 +183,31 @@ function addJournal(
  * 친밀 접근 1회 반영 — 육성 시대에만. (동거: 잠수 소멸·거리 조절 상실,
  * apart: 관계 역학 자체가 끝난 뒤이므로 안정감 판정 없음)
  */
+/** 상점의 개인작업 강화: 책상 체인(보유) 확률 가산 + 이번 세션 API 토큰 가산 */
+function personalWorkBoost(state: GameState, data: GameData): number {
+  let boost = 0;
+  for (const it of data.shop) {
+    if (it.boosts === 'personalWork' && !it.consumable && it.id in state.items)
+      boost += it.bonusPersonalWork ?? 0;
+  }
+  const supply = state.session.supply;
+  if (
+    supply &&
+    data.shop.find((i) => i.id === supply.itemId)?.boosts === 'personalWork'
+  )
+    boost += BALANCE.API_TOKEN_PROB_BOOST;
+  return boost;
+}
+
+/** 이번 세션에 소모한 개인작업 소모품(API 토큰)의 자아실현 추가 획득 */
+function supplySelfActBonus(state: GameState, data: GameData): number {
+  const supply = state.session.supply;
+  if (!supply) return 0;
+  const it = data.shop.find((i) => i.id === supply.itemId);
+  const v = it?.consumable?.variants.find((x) => x.key === supply.variant);
+  return v?.bonusSelfAct ?? 0;
+}
+
 function applyIntimacy(state: GameState, intimacy: number, rng: Rng): GameState {
   if (state.era !== 'raising' || state.presence.state === 'absent') return state;
   const { abandonment, intimacyThreat } = state.stats;
@@ -410,6 +442,28 @@ export function transition(
         }
       }
 
+      // 소모품 소모: 이 행동(자유행동이면 개인작업)을 강화하는 소모품 재고가 있으면
+      // 세션 시작 시 1개 소모하고 랜덤 종류를 뽑는다 (씬·대사·보너스가 종류를 따른다)
+      const boostTarget = action.id === 'free' ? 'personalWork' : action.id;
+      const consumableItem = data.shop.find(
+        (i) =>
+          i.consumable &&
+          i.boosts === boostTarget &&
+          (next.supplies[i.id] ?? 0) > 0,
+      );
+      let supply: GameState['session']['supply'] = null;
+      if (consumableItem?.consumable) {
+        // 종류는 구매 시(진열) 이미 고정 — 여기서 다시 뽑지 않는다
+        const variant =
+          next.supplyVariants[consumableItem.id] ??
+          consumableItem.consumable.variants[0].key;
+        supply = { itemId: consumableItem.id, variant };
+        next = {
+          ...next,
+          supplies: { ...next.supplies, [consumableItem.id]: 0 },
+        };
+      }
+
       const present = isRockPresent(next);
       const startLine = present
         ? joinPages(pickText(data.text, action.startLineId, rng))
@@ -425,6 +479,7 @@ export function transition(
         phase: 'focus',
         session: {
           ...emptySession(),
+          supply,
           narratorLine: present
             ? startLine
             : joinPages(absentAmb ?? [startLine]),
@@ -522,6 +577,8 @@ export function transition(
         let memory = next.memory;
         let stats = next.stats;
         let recalled = next.remembrancesRecalled;
+        let careNowNeed: NeedId | null = null;
+        let workedNow = false;
 
         if (next.era === 'apart' && !next.apart.visiting) {
           // 빈자리: 추억 회상 — 당시 미표시 정보(reveal)가 드러난다.
@@ -539,31 +596,31 @@ export function transition(
             data.reflections,
             rng,
             next.era === 'raising', // 동거: 개인작업 정지
+            personalWorkBoost(next, data), // 책상 체인 + API 토큰 확률 가산
+            // 돌의 자가 충족은 해금된 행동으로만 — 그 욕구를 채우는 행동이
+            // 해금돼 있어야(아이템 구매 등) 돌이 스스로 그 기색을 낸다
+            (need) =>
+              data.actions
+                .filter(
+                  (a) =>
+                    a.id !== 'free' &&
+                    a.id !== 'nurse' &&
+                    a.outcome?.needs?.[need] !== undefined &&
+                    isActionAvailable(a, next),
+                )
+                .map((a) => a.id),
           );
           line = result.textId
             ? joinPages(pickText(data.text, result.textId, rng))
             : '';
           if (result.type === 'reflection') memory = result.memory;
-          // 90분 상한: 초과 후엔 자유행동 게이지·자아실현 상승 정지 (서술 줄은 계속)
-          const withinCap = el <= BALANCE.SESSION_CAP_MINUTES * 60;
-          if (result.type === 'selfCare' && withinCap) {
-            stats = {
-              ...stats,
-              needs: {
-                ...stats.needs,
-                [result.need]: clampStat(
-                  stats.needs[result.need] + BALANCE.FREE_SELF_CARE_GAIN,
-                ),
-              },
-            };
+          // 게이지는 여기서 올리지 않는다 — 발동만 기록하고 END_FOCUS에서
+          // 집중 시간으로 정산한다 (틱마다 올리면 5분에 +5씩 폭주).
+          if (result.type === 'selfCare' && next.session.freeCare === null) {
+            careNowNeed = result.need;
           }
-          if (result.type === 'personalWork' && withinCap) {
-            stats = {
-              ...stats,
-              selfActualization: clampStat(
-                stats.selfActualization + BALANCE.SELF_ACT_GAIN_PER_WORK,
-              ),
-            };
+          if (result.type === 'personalWork' && !next.session.freeWorked) {
+            workedNow = true;
           }
         } else if (present) {
           const draw = drawMemory(memory, data.reflections, next, rng);
@@ -593,6 +650,8 @@ export function transition(
           session: {
             ...next.session,
             lastReflectAtSec: el,
+            freeCare: next.session.freeCare ?? careNowNeed,
+            freeWorked: next.session.freeWorked || workedNow,
             journal:
               line && !timeMarkFiring
                 ? addJournal(next.session.journal, el, line)
@@ -658,15 +717,98 @@ export function transition(
       if (!action) return state;
 
       const mins = state.session.elapsedSec / 60;
+      const cappedMins = Math.min(mins, BALANCE.SESSION_CAP_MINUTES);
       // 90분 상한: 정성은 상한까지만 환산 (초과분은 보상 없음)
-      const care = accrueCare(state.care, Math.min(mins, BALANCE.SESSION_CAP_MINUTES));
+      const care = accrueCare(state.care, cappedMins);
       const earned = care.points - state.care.points;
       const restMin = restMinutesFor(mins, state.settings.flowtime);
       // 세션 동안 돌이 곁에 있었는가 — 없었으면 '옆에 있었다' 대신 부재 마무리
       const sessionHadRock = isRockPresent(state);
 
-      // 행동 결과 적용
-      let next = applyOutcome(state, action.outcome, event.nowMs);
+      // 시간 정산 단위 — 정성과 같은 자(25분당 1), 90분 상한 → 최대 3.6u.
+      // 게이지 보상은 세션 횟수가 아니라 완료한 집중 시간에 비례한다.
+      const units = cappedMins / BALANCE.CARE_MINUTES_PER_POINT;
+      const scaleNeeds = (
+        b: Partial<Record<NeedId, number>> | undefined,
+      ): Partial<Record<NeedId, number>> | undefined => {
+        if (!b) return undefined;
+        const out: Partial<Record<NeedId, number>> = {};
+        for (const k of Object.keys(b) as NeedId[]) out[k] = (b[k] ?? 0) * units;
+        return out;
+      };
+
+      // 행동 결과 적용 — 욕구·호감도는 시간 정산, 기분은 세션당 그대로
+      const scaledOutcome = action.outcome && {
+        ...action.outcome,
+        needs: scaleNeeds(action.outcome.needs),
+        stats: action.outcome.stats && {
+          ...action.outcome.stats,
+          affection: (action.outcome.stats.affection ?? 0) * units,
+        },
+      };
+      let next = applyOutcome(state, scaledOutcome, event.nowMs);
+
+      // 상점 보너스: 체인(행동 강화)은 시간 정산, 소모품은 1회 효과라 플랫
+      const bonusNeeds: Partial<Record<NeedId, number>> = {};
+      const addBonus = (b?: Partial<Record<NeedId, number>>) => {
+        if (!b) return;
+        for (const k of Object.keys(b) as NeedId[])
+          bonusNeeds[k] = (bonusNeeds[k] ?? 0) + (b[k] ?? 0);
+      };
+      for (const it of data.shop) {
+        if (it.boosts === action.id && !it.consumable && it.id in next.items)
+          addBonus(scaleNeeds(it.bonusNeeds));
+      }
+      // 자유행동 정산: 자가충족(발동 시)은 시간 정산, 개인작업(발동 시)은 90분 만액
+      if (action.id === 'free') {
+        const freeCareNeed = state.session.freeCare;
+        if (freeCareNeed)
+          addBonus({ [freeCareNeed]: BALANCE.FREE_SELF_CARE_GAIN * units });
+        if (state.session.freeWorked) {
+          const workGain =
+            (BALANCE.SELF_ACT_GAIN_PER_WORK * cappedMins) / 90 +
+            supplySelfActBonus(state, data); // API 토큰 보너스는 1회 효과라 플랫
+          next = {
+            ...next,
+            stats: {
+              ...next.stats,
+              selfActualization: clampStat(
+                next.stats.selfActualization + workGain,
+              ),
+            },
+          };
+        }
+      }
+      const supplyUse = state.session.supply;
+      let supplyLine: string | null = null;
+      if (supplyUse) {
+        const it = data.shop.find((i) => i.id === supplyUse.itemId);
+        const variant = it?.consumable?.variants.find(
+          (v) => v.key === supplyUse.variant,
+        );
+        if (variant) {
+          addBonus(variant.bonusNeeds);
+          next = {
+            ...next,
+            memory: remember(
+              next.memory,
+              `use-${supplyUse.itemId}-${supplyUse.variant}`,
+              BALANCE.MEMORY_WEIGHT_PURCHASE,
+              event.nowMs,
+            ),
+          };
+          const useId = `shop.${supplyUse.itemId}.use.${supplyUse.variant}`;
+          if (data.text[useId]) {
+            supplyLine = joinPages(pickText(data.text, useId, rng));
+          }
+        }
+      }
+      if (Object.keys(bonusNeeds).length > 0) {
+        const boosted = { ...next.stats.needs };
+        for (const k of Object.keys(bonusNeeds) as NeedId[])
+          boosted[k] = clampStat(boosted[k] + (bonusNeeds[k] ?? 0));
+        next = { ...next, stats: { ...next.stats, needs: boosted } };
+      }
 
       // 동거 하이브리드: 의존도 상승 + 존중·자아실현 잠식 (호감도는 보존)
       let stats = next.stats;
@@ -730,6 +872,9 @@ export function transition(
           joinPages(pickText(data.text, SYS.journal.rockSick, rng)),
         );
       }
+
+      // 소모품 사용 대사 — 종류별 문구를 일지에 남긴다
+      if (supplyLine) journal = addJournal(journal, elapsed, supplyLine);
 
       // apart: 방문 기간 소진 → 바로 떠나지 않고 떠나려는 기색 (붙잡기/보내주기)
       let apart = next.apart;
@@ -800,6 +945,15 @@ export function transition(
           talkPressed: false,
           talkState: null,
           actUsed: false,
+          // 이번 휴식의 소모품 진열 종류 — 휴식당 1회 추첨(진열대에 표기, 구매 시 고정)
+          offers: Object.fromEntries(
+            data.shop
+              .filter((it) => it.consumable)
+              .map((it) => {
+                const vs = it.consumable!.variants;
+                return [it.id, vs[Math.floor(rng() * vs.length)].key];
+              }),
+          ),
           summary: { mins: displayMins, earned },
         },
       };
@@ -1114,11 +1268,39 @@ export function transition(
       const item = data.shop.find((i) => i.id === event.itemId);
       if (
         !item ||
-        item.id in state.items ||
         state.care.points < item.price ||
-        !isItemAvailable(item, state)
+        !isItemAvailable(item, state) ||
+        // 체인: 이전 티어를 보유해야 다음 티어 구매 가능
+        (item.requires !== undefined && !(item.requires in state.items))
       )
         return state;
+      // 소모품: 재고 0/1 — 소모 후 재구매 가능. 배치도 가능(재고가 방에 보인다):
+      // 첫 구매만 배치를 묻고, 재구매는 기억된 배치 자리를 그대로 따른다.
+      if (item.consumable) {
+        if ((state.supplies[item.id] ?? 0) > 0) return state; // 아직 안 씀
+        const firstBuy = !(item.id in state.items);
+        // 진열 종류(휴식당 1회 추첨)가 재고의 종류로 고정된다
+        const variant =
+          state.rest.offers[item.id] ?? item.consumable.variants[0].key;
+        const bought = applyOutcome(state, item.outcome, event.nowMs);
+        return {
+          ...bought,
+          care: { ...bought.care, points: bought.care.points - item.price },
+          supplies: { ...bought.supplies, [item.id]: 1 },
+          supplyVariants: { ...bought.supplyVariants, [item.id]: variant },
+          items: firstBuy
+            ? { ...bought.items, [item.id]: { placed: false } }
+            : bought.items,
+          pendingPlacement: firstBuy ? item.id : bought.pendingPlacement,
+          memory: remember(
+            bought.memory,
+            `buy-${item.id}`,
+            BALANCE.MEMORY_WEIGHT_PURCHASE,
+            event.nowMs,
+          ),
+        };
+      }
+      if (item.id in state.items) return state; // 비소모품은 1회 구매
       const next = applyOutcome(state, item.outcome, event.nowMs);
       return {
         ...next,

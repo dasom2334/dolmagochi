@@ -564,6 +564,49 @@ describe('잠수(부재) 분기', () => {
   });
 });
 
+describe('자유행동 게이지 — END_FOCUS 시간 정산', () => {
+  it('자가충족: 발동은 틱에서, 게이지는 종료 정산 — 20분 세션 = 5×0.8', () => {
+    // 생리 0 → selfCare 확률 1.0(매슬로 최우선). 틱마다 성공해도 게이지는 정산 1회
+    let s: GameState = { ...init(), selectedAction: 'free' };
+    s = run(
+      s,
+      [
+        { type: 'START_FOCUS', nowMs: T0 },
+        ...ticks(BALANCE.REFLECT_INTERVAL_FREE_SEC * 4), // 20분 (반추 틱 4회)
+      ],
+      seq([0.0]),
+    );
+    expect(s.session.freeCare).toBe('physiological'); // 발동 기록
+    expect(s.stats.needs.physiological).toBe(0); // 집중 중엔 아직 미정산
+    s = run(s, [{ type: 'END_FOCUS', nowMs: T0 + 1_200_000 }], seq([0.0]));
+    // 20분 = 0.8u → 5 × 0.8 = 4 (자유행동은 고정 욕구 outcome 없음)
+    expect(s.stats.needs.physiological).toBeCloseTo(4, 5);
+  });
+
+  it('개인작업: 90분 만액 정산 — 20분 세션 = 10×20/90', () => {
+    let s: GameState = {
+      ...init(),
+      selectedAction: 'free',
+      stats: {
+        ...init().stats,
+        needs: { physiological: 100, safety: 100, belonging: 100, esteem: 100 },
+      },
+    };
+    s = run(
+      s,
+      [
+        { type: 'START_FOCUS', nowMs: T0 },
+        ...ticks(BALANCE.REFLECT_INTERVAL_FREE_SEC * 4),
+      ],
+      seq([0.0]), // 개인작업 확률 롤 성공
+    );
+    expect(s.session.freeWorked).toBe(true);
+    expect(s.stats.selfActualization).toBe(0); // 집중 중엔 미정산
+    s = run(s, [{ type: 'END_FOCUS', nowMs: T0 + 1_200_000 }], seq([0.0]));
+    expect(s.stats.selfActualization).toBeCloseTo((10 * 20) / 90, 5);
+  });
+});
+
 describe('병간호 (애착 위기 — 유기불안 극단)', () => {
   // 유기불안 상한 초과 상태를 만든다 (안정감 = 100 − |95−20| = 25)
   function sickProneInit(): GameState {
