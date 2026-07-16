@@ -270,17 +270,30 @@ describe('시간 문턱 발화 (timeMarks)', () => {
 });
 
 describe('휴식 대화', () => {
-  it('풀 추출: 단계 풀에서 비복원, usedByPool 기록', () => {
+  it('첫 휴식(세션 1)은 관계 1티어 풀 — 데면데면한 첫 대화, 비복원 기록', () => {
+    // 집중이 아무리 길어도(첫 세션) 관계 대사가 먼저 나온다
     const s = run(toRest(), [{ type: 'TALK' }], seq([0.9, 0.0, 0.0]));
+    expect(s.rest.talkState?.kind).toBe('pool');
+    const rel1Texts = gameData.dialogues.relationTiers[0].map((l) => T(l.textId));
+    expect(rel1Texts).toContain(s.rest.talkState!.pages.join('\n'));
+    expect(s.dialogue.usedByPool['relation1']).toHaveLength(1);
+  });
+
+  it('둘째 휴식(세션 2)은 상태(욕구 단계) 풀 — 관계/상태 번갈아', () => {
+    let s = run(toRest(), [{ type: 'REST_END' }]);
+    s = run(s, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      { type: 'END_FOCUS', nowMs: T0 },
+      { type: 'TALK' },
+    ], seq([0.9])); // 상수 0.9 — 포섀도 예약(<0.45) 회피
     expect(s.rest.talkState?.kind).toBe('pool');
     const stage1Texts = gameData.dialogues.stage1.map((l) => T(l.textId));
     expect(stage1Texts).toContain(s.rest.talkState!.pages.join('\n'));
-    expect(s.dialogue.usedByPool['stage1']).toHaveLength(1);
   });
 
   it('휴식당 1회 — 두 번째 TALK은 무시', () => {
     const s = run(toRest(), [{ type: 'TALK' }, { type: 'TALK' }], seq([0.9, 0.0, 0.0]));
-    expect(s.dialogue.usedByPool['stage1']).toHaveLength(1);
+    expect(s.dialogue.usedByPool['relation1']).toHaveLength(1);
   });
 
   it('포섀도: 예약 → 다음 세션 이벤트 → 결과·플래그', () => {
@@ -348,9 +361,10 @@ describe('휴식 대화', () => {
 
   it('TALK_CHOICE: 예/아니오 응답 페이지로 교체', () => {
     const withChoice: GameData = structuredClone(gameData);
-    withChoice.dialogues.stage1 = [
+    // 첫 휴식 대화 풀(관계 1티어)에 choice 줄을 심는다
+    withChoice.dialogues.relationTiers[0] = [
       {
-        textId: 'dlg.stage1.0',
+        textId: 'dlg.rel1.0',
         intimacy: 1,
         choice: { yesId: 'dlg.return.yes', noId: 'dlg.return.no' },
       },

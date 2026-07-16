@@ -1,13 +1,14 @@
 import type { GameState } from '../game/types';
 import { isRockPresent } from '../game/stateMachine';
+import { trustStep } from '../game/dialogue';
 import { t } from '../store/appStore';
 import { SYS } from '../game/text';
 import { card } from './ui';
 
 export function NarratorLog({ state }: { state: GameState }) {
-  // 관계 진전 관찰 문장 — 수치 비노출, 화자 관찰 4단 (디자인 데모: 세션 수 기반).
+  // 관계 진전 관찰 문장 — 수치 비노출, 화자 관찰 4단 (호감도 티어에서 파생).
   // 돌이 없을 때는 신뢰 관찰 대신 부재 전용 문장 (돌 언급 누출 방지)
-  const trustIdx = Math.min(SYS.trustLadder.length - 1, state.totals.sessions);
+  const trustIdx = trustStep(state.stats.affection);
   const trustText = isRockPresent(state)
     ? t(SYS.trustLadder[trustIdx])
     : t(SYS.trustAbsent);

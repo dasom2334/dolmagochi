@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   affectionTier,
+  trustStep,
   drawEligibleLine,
   drawNonReplacing,
   selectDialoguePool,
@@ -72,6 +73,14 @@ describe('selectDialoguePool — 이원화(관계/상태/4분면) 라우팅', ()
     expect(affectionTier(7)).toBe(1);
     expect(affectionTier(8)).toBe(2);
     expect(affectionTier(1000)).toBe(7);
+  });
+
+  it('trustStep — 화자 관찰 4단은 호감도 티어에서 파생 (호감도 0이면 관찰 중)', () => {
+    expect(trustStep(0)).toBe(0); // 티어 1 — "아직 관찰하는 중"
+    expect(trustStep(8)).toBe(0); // 티어 2 — 여전히 관찰
+    expect(trustStep(20)).toBe(1); // 티어 3 — 신뢰(아마도)
+    expect(trustStep(56)).toBe(2); // 티어 5 — 곁이 편함
+    expect(trustStep(115)).toBe(3); // 티어 7 — 좋아함
   });
 });
 
