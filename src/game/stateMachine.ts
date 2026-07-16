@@ -131,6 +131,8 @@ function emptySession(): GameState['session'] {
     lastReflectAtSec: 0,
     timeMarksFired: [],
     supply: null,
+    freeSelfCared: false,
+    freeWorked: false,
   };
 }
 
@@ -571,6 +573,8 @@ export function transition(
         let memory = next.memory;
         let stats = next.stats;
         let recalled = next.remembrancesRecalled;
+        let selfCaredNow = false;
+        let workedNow = false;
 
         if (next.era === 'apart' && !next.apart.visiting) {
           // 빈자리: 추억 회상 — 당시 미표시 정보(reveal)가 드러난다.
@@ -606,9 +610,16 @@ export function transition(
             ? joinPages(pickText(data.text, result.textId, rng))
             : '';
           if (result.type === 'reflection') memory = result.memory;
-          // 90분 상한: 초과 후엔 자유행동 게이지·자아실현 상승 정지 (서술 줄은 계속)
+          // 90분 상한: 초과 후엔 자유행동 게이지·자아실현 상승 정지 (서술 줄은 계속).
+          // 게이지 상승은 세션당 1회 — 화자의 행동(+5/세션)과 같은 속도.
+          // (틱마다 올리면 5분에 +5씩 쌓여 한 세션에 욕구가 통째로 차버린다)
           const withinCap = el <= BALANCE.SESSION_CAP_MINUTES * 60;
-          if (result.type === 'selfCare' && withinCap) {
+          if (
+            result.type === 'selfCare' &&
+            withinCap &&
+            !next.session.freeSelfCared
+          ) {
+            selfCaredNow = true;
             stats = {
               ...stats,
               needs: {
@@ -619,7 +630,12 @@ export function transition(
               },
             };
           }
-          if (result.type === 'personalWork' && withinCap) {
+          if (
+            result.type === 'personalWork' &&
+            withinCap &&
+            !next.session.freeWorked
+          ) {
+            workedNow = true;
             stats = {
               ...stats,
               selfActualization: clampStat(
@@ -657,6 +673,8 @@ export function transition(
           session: {
             ...next.session,
             lastReflectAtSec: el,
+            freeSelfCared: next.session.freeSelfCared || selfCaredNow,
+            freeWorked: next.session.freeWorked || workedNow,
             journal:
               line && !timeMarkFiring
                 ? addJournal(next.session.journal, el, line)

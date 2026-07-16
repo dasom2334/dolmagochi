@@ -564,6 +564,44 @@ describe('잠수(부재) 분기', () => {
   });
 });
 
+describe('자유행동 게이지 — 세션당 1회', () => {
+  it('긴 자유행동 세션에서도 자가충족 게이지는 1회(+5)만 오른다', () => {
+    // 생리 0 → selfCare 확률 1.0(매슬로 최우선) — 반추 틱마다 성공하지만 게이지는 1회
+    let s: GameState = { ...init(), selectedAction: 'free' };
+    s = run(
+      s,
+      [
+        { type: 'START_FOCUS', nowMs: T0 },
+        ...ticks(BALANCE.REFLECT_INTERVAL_FREE_SEC * 4), // 반추 틱 4회 분량 (20분)
+      ],
+      seq([0.0]),
+    );
+    expect(s.stats.needs.physiological).toBe(BALANCE.FREE_SELF_CARE_GAIN); // +5, +20 아님
+    expect(s.session.freeSelfCared).toBe(true);
+  });
+
+  it('개인작업(자아실현)도 세션당 1회만 오른다', () => {
+    let s: GameState = {
+      ...init(),
+      selectedAction: 'free',
+      stats: {
+        ...init().stats,
+        needs: { physiological: 100, safety: 100, belonging: 100, esteem: 100 },
+      },
+    };
+    s = run(
+      s,
+      [
+        { type: 'START_FOCUS', nowMs: T0 },
+        ...ticks(BALANCE.REFLECT_INTERVAL_FREE_SEC * 4),
+      ],
+      seq([0.0]), // 개인작업 확률 롤 항상 성공
+    );
+    expect(s.stats.selfActualization).toBe(BALANCE.SELF_ACT_GAIN_PER_WORK); // +10, +40 아님
+    expect(s.session.freeWorked).toBe(true);
+  });
+});
+
 describe('병간호 (애착 위기 — 유기불안 극단)', () => {
   // 유기불안 상한 초과 상태를 만든다 (안정감 = 100 − |95−20| = 25)
   function sickProneInit(): GameState {

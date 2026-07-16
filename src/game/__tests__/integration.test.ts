@@ -24,6 +24,8 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
       esteem: 100,
     };
     initial.milestonesFired = ['stage-up-2', 'stage-up-3'];
+    // 개인작업은 세션당 1회(+10) — 2세션 내 완성을 위해 80에서 시작
+    initial.stats.selfActualization = 80;
 
     const store = createGameStore({
       rng: () => 0,
@@ -39,12 +41,12 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
       }
     };
 
-    // ── 세션 1: 자유행동 25분 — 개인작업 5회 ──
+    // ── 세션 1: 자유행동 25분 — 개인작업 1회(세션당 1회) ──
     dispatch({ type: 'SELECT_ACTION', actionId: 'free' });
     dispatch({ type: 'START_FOCUS', nowMs: now });
     expect(get().session.journal[0].text).toBe(T('act.free.start'));
     focusFor(1500);
-    expect(get().stats.selfActualization).toBe(50);
+    expect(get().stats.selfActualization).toBe(90); // 80 + 세션당 1회 10
     expect(get().session.journal.map((j) => j.text)).toContain(
       T('refl.personalWork'),
     );

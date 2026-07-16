@@ -112,6 +112,12 @@ function normalizeState(state: GameState): GameState {
       intimacyThreat,
       security: derivedSecurity(abandonment, intimacyThreat),
     },
+    // 세션당 1회 자유행동 게이지 플래그 방어 — 구 세이브(집중 중 저장)엔 없을 수 있다
+    session: {
+      ...state.session,
+      freeSelfCared: state.session?.freeSelfCared === true,
+      freeWorked: state.session?.freeWorked === true,
+    },
     // 병간호 필드 방어 — 구 v9 세이브엔 없을 수 있어 기본값을 채운다(크래시 방지)
     presence: {
       ...state.presence,
