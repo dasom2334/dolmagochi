@@ -142,6 +142,14 @@ export function migrateState(state: GameState): GameState | null {
       },
     };
   }
+  // v11 → v12: 소리풍경(M9) — 레이어별 음소거 목록 추가.
+  if (s.schemaVersion === 11) {
+    s = {
+      ...s,
+      schemaVersion: 12,
+      settings: { ...s.settings, noiseMuted: s.settings.noiseMuted ?? [] },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

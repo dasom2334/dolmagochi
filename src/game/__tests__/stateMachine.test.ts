@@ -1329,3 +1329,16 @@ describe('휴식 준수 배율 — 디메리트 계단 (개정 v4-4)', () => {
     expect(skipped.care.points).toBe(2); // 25분×2 = 2pt — 배율 미적용
   });
 });
+
+describe('소리풍경 설정 (M9)', () => {
+  it('SET_NOISE_LAYER: 레이어 음소거 토글 — 중복 없이', () => {
+    let s = run(init(), [
+      { type: 'SET_NOISE_LAYER', layer: 'fireplace', muted: true },
+      { type: 'SET_NOISE_LAYER', layer: 'fireplace', muted: true },
+      { type: 'SET_NOISE_LAYER', layer: 'birdsWind', muted: true },
+    ]);
+    expect(s.settings.noiseMuted).toEqual(['fireplace', 'birdsWind']);
+    s = run(s, [{ type: 'SET_NOISE_LAYER', layer: 'fireplace', muted: false }]);
+    expect(s.settings.noiseMuted).toEqual(['birdsWind']);
+  });
+});

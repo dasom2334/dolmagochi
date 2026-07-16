@@ -121,6 +121,18 @@ export const SYS = {
 
 /** 순수 UI 단문 id 상수 (M2에서 사용) */
 export const UI = {
+  /** 소리풍경 레이어 라벨 (M9) — LayerId → textId */
+  noiseLayers: {
+    roomBase: 'ui.noise.roomBase',
+    fireplace: 'ui.noise.fireplace',
+    birdsWind: 'ui.noise.birdsWind',
+    footsteps: 'ui.noise.footsteps',
+    pageTurn: 'ui.noise.pageTurn',
+    pageWriting: 'ui.noise.pageWriting',
+    rockingChair: 'ui.noise.rockingChair',
+    cooking: 'ui.noise.cooking',
+    sweeping: 'ui.noise.sweeping',
+  } as Record<string, string>,
   buttons: {
     endFocus: 'ui.buttons.endFocus',
     startFocus: 'ui.buttons.startFocus',

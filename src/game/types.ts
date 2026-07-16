@@ -267,6 +267,8 @@ export interface GameState {
   lastDecayDate: string;
   settings: {
     noiseOn: boolean;
+    /** 소리풍경 레이어별 음소거 (M9) — LayerId 목록. 마스터는 noiseOn. */
+    noiseMuted: string[];
     notifAsked: boolean;
     locale: string;
     /** 알림 설정. enabled=전체 스위치, 나머지는 개별. 포그라운드=토스트 / 백그라운드=OS 알림. */
@@ -313,6 +315,7 @@ export type GameEvent =
   | { type: 'SET_PLACEMENT'; itemId: ItemId; placed: boolean }
   | { type: 'VISIT_HOLD'; hold: boolean }
   | { type: 'SET_NOISE'; on: boolean }
+  | { type: 'SET_NOISE_LAYER'; layer: string; muted: boolean }
   | { type: 'SET_NOTIFY'; key: 'enabled' | 'restEnd'; on: boolean }
   | { type: 'SET_FOCUS_NOTIFY'; index: number; on: boolean }
   | { type: 'SET_FLOWTIME'; flowtime: FlowtimeSettings }

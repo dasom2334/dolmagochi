@@ -10,7 +10,8 @@ import { notify, requestNotifyPermission } from './notifications';
 import { pushToast } from './toast';
 import { dueFocusMarks } from './game/notify';
 import { ensureAudioContext, playSound, setSoundEnabled } from './sound';
-import { startWhiteNoise, stopWhiteNoise } from './audio/whiteNoise';
+import { deriveLayers } from './audio/layers';
+import { stopSoundscape, syncSoundscape } from './audio/engine';
 import { ToastHost } from './components/ToastHost';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
@@ -151,12 +152,27 @@ export function App() {
     setSoundEnabled(state.settings.soundOn);
   }, [state.settings.soundOn]);
 
-  // 화이트노이즈 앰비언트 — noiseOn과 동기화. 언마운트 시 정지.
+  // 소리풍경 (M9) — 상황(행동×보유 아이템×실내외) 레이어를 noiseOn·음소거와 동기화.
+  // 언마운트 시 정지. 아이템 목록은 키 문자열로 의존성 안정화.
+  const ownedKey = Object.keys(state.items).sort().join(',');
   useEffect(() => {
-    if (state.settings.noiseOn) startWhiteNoise();
-    else stopWhiteNoise();
-  }, [state.settings.noiseOn]);
-  useEffect(() => stopWhiteNoise, []);
+    syncSoundscape({
+      on: state.settings.noiseOn,
+      layers: deriveLayers({
+        phase: state.phase === 'focus' ? 'focus' : 'room',
+        actionId: state.phase === 'focus' ? state.selectedAction : null,
+        ownedItems: ownedKey ? ownedKey.split(',') : [],
+      }),
+      muted: state.settings.noiseMuted,
+    });
+  }, [
+    state.settings.noiseOn,
+    state.settings.noiseMuted,
+    state.phase,
+    state.selectedAction,
+    ownedKey,
+  ]);
+  useEffect(() => stopSoundscape, []);
 
   // iOS 등 오디오 언락 — 첫 사용자 제스처에서 AudioContext resume (1회성)
   useEffect(() => {
