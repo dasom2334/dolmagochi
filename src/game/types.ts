@@ -201,9 +201,9 @@ export interface GameState {
     timeMarksFired: number[];
     /** 이번 세션에 소모된 소모품과 뽑힌 랜덤 종류 (씬·대사·보너스용) */
     supply: { itemId: ItemId; variant: string } | null;
-    /** 자유행동 게이지 상승은 세션당 1회 — 자가충족 적용 여부 (서술은 계속 흐른다) */
-    freeSelfCared: boolean;
-    /** 자유행동 개인작업(자아실현 +) 적용 여부 — 세션당 1회 */
+    /** 자유행동 자가충족이 발동한 욕구 — END_FOCUS에서 시간 정산 (서술은 계속 흐른다) */
+    freeCare: NeedId | null;
+    /** 자유행동 개인작업 발동 여부 — END_FOCUS에서 시간 정산 */
     freeWorked: boolean;
   };
   rest: {

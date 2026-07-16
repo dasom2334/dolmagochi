@@ -15,6 +15,13 @@ function run(s: GameState, events: GameEvent[], rng: Rng = seq([0.99])): GameSta
   return events.reduce((acc, e) => transition(acc, e, { rng, data: gameData }), s);
 }
 
+/** 25분 집중(units=1) — 게이지는 END_FOCUS 시간 정산이므로 시간이 흘러야 한다 */
+function ticks25(): GameEvent[] {
+  const out: GameEvent[] = [];
+  for (let t = 0; t < 1500; t += 10) out.push({ type: 'TICK', dtSec: 10 });
+  return out;
+}
+
 /** 상점 열린 휴식 상태 + 넉넉한 정성 */
 function restRich(care = 20): GameState {
   const s = createInitialState(T0, 'lie');
@@ -57,8 +64,9 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
     s = run(s, [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.0]));
     expect(s.supplies['nightdrink']).toBe(0);
     expect(s.session.supply).toEqual({ itemId: 'nightdrink', variant: 'milk' });
-    s = run(s, [{ type: 'END_FOCUS', nowMs: T0 }]);
-    expect(s.stats.needs.physiological).toBe(5 + 3); // 누워있기 5 + 우유 3
+    s = run(s, [...ticks25(), { type: 'END_FOCUS', nowMs: T0 + 1_500_000 }]);
+    // 25분(units=1): 누워있기 5×1 + 우유 3(소모품은 플랫)
+    expect(s.stats.needs.physiological).toBeCloseTo(5 + 3, 5);
     expect('use-nightdrink-milk' in s.memory).toBe(true);
     // 사용 대사가 일지에 남는다
     expect(
@@ -75,18 +83,21 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
       { type: 'BUY', itemId: 'pillow', nowMs: T0 },
       { type: 'SET_PLACEMENT', itemId: 'pillow', placed: false },
       { type: 'START_FOCUS', nowMs: T0 },
-      { type: 'END_FOCUS', nowMs: T0 },
+      ...ticks25(),
+      { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
     ]);
-    expect(s.stats.needs.physiological).toBe(5 + 1); // 행동 5 + 베개 1
+    // 25분(units=1): 행동 5×1 + 베개 1×1 (체인도 시간 정산)
+    expect(s.stats.needs.physiological).toBeCloseTo(5 + 1, 5);
   });
 
   it('소모품 없이 세션 진행: 보너스 없음, 행동은 정상', () => {
     let s = restRich();
     s = run(s, [
       { type: 'START_FOCUS', nowMs: T0 },
-      { type: 'END_FOCUS', nowMs: T0 },
+      ...ticks25(),
+      { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
     ]);
     expect(s.session.supply).toBeNull();
-    expect(s.stats.needs.physiological).toBe(5); // 행동 기본만
+    expect(s.stats.needs.physiological).toBeCloseTo(5, 5); // 행동 기본만(25분=만액)
   });
 });

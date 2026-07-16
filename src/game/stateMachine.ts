@@ -131,7 +131,7 @@ function emptySession(): GameState['session'] {
     lastReflectAtSec: 0,
     timeMarksFired: [],
     supply: null,
-    freeSelfCared: false,
+    freeCare: null,
     freeWorked: false,
   };
 }
@@ -573,7 +573,7 @@ export function transition(
         let memory = next.memory;
         let stats = next.stats;
         let recalled = next.remembrancesRecalled;
-        let selfCaredNow = false;
+        let careNowNeed: NeedId | null = null;
         let workedNow = false;
 
         if (next.era === 'apart' && !next.apart.visiting) {
@@ -610,40 +610,13 @@ export function transition(
             ? joinPages(pickText(data.text, result.textId, rng))
             : '';
           if (result.type === 'reflection') memory = result.memory;
-          // 90분 상한: 초과 후엔 자유행동 게이지·자아실현 상승 정지 (서술 줄은 계속).
-          // 게이지 상승은 세션당 1회 — 화자의 행동(+5/세션)과 같은 속도.
-          // (틱마다 올리면 5분에 +5씩 쌓여 한 세션에 욕구가 통째로 차버린다)
-          const withinCap = el <= BALANCE.SESSION_CAP_MINUTES * 60;
-          if (
-            result.type === 'selfCare' &&
-            withinCap &&
-            !next.session.freeSelfCared
-          ) {
-            selfCaredNow = true;
-            stats = {
-              ...stats,
-              needs: {
-                ...stats.needs,
-                [result.need]: clampStat(
-                  stats.needs[result.need] + BALANCE.FREE_SELF_CARE_GAIN,
-                ),
-              },
-            };
+          // 게이지는 여기서 올리지 않는다 — 발동만 기록하고 END_FOCUS에서
+          // 집중 시간으로 정산한다 (틱마다 올리면 5분에 +5씩 폭주).
+          if (result.type === 'selfCare' && next.session.freeCare === null) {
+            careNowNeed = result.need;
           }
-          if (
-            result.type === 'personalWork' &&
-            withinCap &&
-            !next.session.freeWorked
-          ) {
+          if (result.type === 'personalWork' && !next.session.freeWorked) {
             workedNow = true;
-            stats = {
-              ...stats,
-              selfActualization: clampStat(
-                stats.selfActualization +
-                  BALANCE.SELF_ACT_GAIN_PER_WORK +
-                  supplySelfActBonus(next, data), // API 토큰 종류별 추가 획득
-              ),
-            };
           }
         } else if (present) {
           const draw = drawMemory(memory, data.reflections, next, rng);
@@ -673,7 +646,7 @@ export function transition(
           session: {
             ...next.session,
             lastReflectAtSec: el,
-            freeSelfCared: next.session.freeSelfCared || selfCaredNow,
+            freeCare: next.session.freeCare ?? careNowNeed,
             freeWorked: next.session.freeWorked || workedNow,
             journal:
               line && !timeMarkFiring
@@ -740,18 +713,38 @@ export function transition(
       if (!action) return state;
 
       const mins = state.session.elapsedSec / 60;
+      const cappedMins = Math.min(mins, BALANCE.SESSION_CAP_MINUTES);
       // 90분 상한: 정성은 상한까지만 환산 (초과분은 보상 없음)
-      const care = accrueCare(state.care, Math.min(mins, BALANCE.SESSION_CAP_MINUTES));
+      const care = accrueCare(state.care, cappedMins);
       const earned = care.points - state.care.points;
       const restMin = restMinutesFor(mins, state.settings.flowtime);
       // 세션 동안 돌이 곁에 있었는가 — 없었으면 '옆에 있었다' 대신 부재 마무리
       const sessionHadRock = isRockPresent(state);
 
-      // 행동 결과 적용
-      let next = applyOutcome(state, action.outcome, event.nowMs);
+      // 시간 정산 단위 — 정성과 같은 자(25분당 1), 90분 상한 → 최대 3.6u.
+      // 게이지 보상은 세션 횟수가 아니라 완료한 집중 시간에 비례한다.
+      const units = cappedMins / BALANCE.CARE_MINUTES_PER_POINT;
+      const scaleNeeds = (
+        b: Partial<Record<NeedId, number>> | undefined,
+      ): Partial<Record<NeedId, number>> | undefined => {
+        if (!b) return undefined;
+        const out: Partial<Record<NeedId, number>> = {};
+        for (const k of Object.keys(b) as NeedId[]) out[k] = (b[k] ?? 0) * units;
+        return out;
+      };
 
-      // 상점 보너스: 이 행동을 강화하는 보유 아이템(체인)의 게이지 보너스 누적
-      // + 이번 세션에 소모한 소모품의 종류별 보너스
+      // 행동 결과 적용 — 욕구·호감도는 시간 정산, 기분은 세션당 그대로
+      const scaledOutcome = action.outcome && {
+        ...action.outcome,
+        needs: scaleNeeds(action.outcome.needs),
+        stats: action.outcome.stats && {
+          ...action.outcome.stats,
+          affection: (action.outcome.stats.affection ?? 0) * units,
+        },
+      };
+      let next = applyOutcome(state, scaledOutcome, event.nowMs);
+
+      // 상점 보너스: 체인(행동 강화)은 시간 정산, 소모품은 1회 효과라 플랫
       const bonusNeeds: Partial<Record<NeedId, number>> = {};
       const addBonus = (b?: Partial<Record<NeedId, number>>) => {
         if (!b) return;
@@ -760,7 +753,27 @@ export function transition(
       };
       for (const it of data.shop) {
         if (it.boosts === action.id && !it.consumable && it.id in next.items)
-          addBonus(it.bonusNeeds);
+          addBonus(scaleNeeds(it.bonusNeeds));
+      }
+      // 자유행동 정산: 자가충족(발동 시)은 시간 정산, 개인작업(발동 시)은 90분 만액
+      if (action.id === 'free') {
+        const freeCareNeed = state.session.freeCare;
+        if (freeCareNeed)
+          addBonus({ [freeCareNeed]: BALANCE.FREE_SELF_CARE_GAIN * units });
+        if (state.session.freeWorked) {
+          const workGain =
+            (BALANCE.SELF_ACT_GAIN_PER_WORK * cappedMins) / 90 +
+            supplySelfActBonus(state, data); // API 토큰 보너스는 1회 효과라 플랫
+          next = {
+            ...next,
+            stats: {
+              ...next.stats,
+              selfActualization: clampStat(
+                next.stats.selfActualization + workGain,
+              ),
+            },
+          };
+        }
       }
       const supplyUse = state.session.supply;
       let supplyLine: string | null = null;

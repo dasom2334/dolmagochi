@@ -69,8 +69,8 @@ describe('selectDialoguePool — 이원화(관계/상태/4분면) 라우팅', ()
 
   it('affectionTier — 누적 호감도 → 1~7', () => {
     expect(affectionTier(0)).toBe(1);
-    expect(affectionTier(7)).toBe(1);
-    expect(affectionTier(8)).toBe(2);
+    expect(affectionTier(5)).toBe(1);
+    expect(affectionTier(6)).toBe(2);
     expect(affectionTier(1000)).toBe(7);
   });
 });
