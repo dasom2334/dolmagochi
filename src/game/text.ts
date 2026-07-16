@@ -85,6 +85,32 @@ export const SYS = {
     off: 'sys.settings.off',
     farewell: 'sys.settings.farewell',
   },
+  /** 휴식 일지의 정성적 욕구 관찰 한 줄 — 숫자 없이 밴드(0/1/2)별 어휘만 */
+  needsGlance: {
+    frame: 'sys.needsGlance.frame', // {physiological} {safety} {belonging} {esteem}
+    words: {
+      physiological: [
+        'sys.needsGlance.phys.0',
+        'sys.needsGlance.phys.1',
+        'sys.needsGlance.phys.2',
+      ],
+      safety: [
+        'sys.needsGlance.safety.0',
+        'sys.needsGlance.safety.1',
+        'sys.needsGlance.safety.2',
+      ],
+      belonging: [
+        'sys.needsGlance.belonging.0',
+        'sys.needsGlance.belonging.1',
+        'sys.needsGlance.belonging.2',
+      ],
+      esteem: [
+        'sys.needsGlance.esteem.0',
+        'sys.needsGlance.esteem.1',
+        'sys.needsGlance.esteem.2',
+      ],
+    },
+  },
   trustLadder: ['sys.trust.0', 'sys.trust.1', 'sys.trust.2', 'sys.trust.3'],
   trustAbsent: 'sys.trustAbsent',
   restIncomplete: 'sys.restIncomplete.prompt',

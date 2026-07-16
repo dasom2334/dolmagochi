@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { GameState, RestStep } from '../game/types';
 import { gameData } from '../store/gameStore';
 import { isItemAvailable, isRockPresent } from '../game/stateMachine';
+import { needsBand } from '../game/stats';
 import { dispatch, now, t, tf } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { btnDashed, btnOutline, btnSmall, card, PagesView } from './ui';
@@ -135,6 +136,19 @@ export function RestPanel({
 }
 
 function RestJournal({ state }: { state: GameState }) {
+  // 정성적 욕구 관찰 한 줄 — 숫자 없이 밴드별 어휘만 (돌이 없으면 관찰도 없다)
+  const glance = isRockPresent(state)
+    ? tf(SYS.needsGlance.frame, {
+        physiological: t(
+          SYS.needsGlance.words.physiological[needsBand(state.stats.needs.physiological)],
+        ),
+        safety: t(SYS.needsGlance.words.safety[needsBand(state.stats.needs.safety)]),
+        belonging: t(
+          SYS.needsGlance.words.belonging[needsBand(state.stats.needs.belonging)],
+        ),
+        esteem: t(SYS.needsGlance.words.esteem[needsBand(state.stats.needs.esteem)]),
+      })
+    : null;
   return (
     <>
       <div
@@ -153,6 +167,9 @@ function RestJournal({ state }: { state: GameState }) {
             earned: state.rest.summary.earned,
           })}
         </div>
+        {glance && (
+          <div style={{ fontSize: 12, color: '#a89cb4' }}>* {glance}</div>
+        )}
         {state.session.journal.map((j, i) => (
           <div
             key={i}
