@@ -25,14 +25,23 @@ export default function DebugPanel({
   nowMs: number;
 }) {
   const [panel, setPanel] = useState<'none' | 'stats' | 'tools' | 'mem'>('none');
+  const [ffMin, setFfMin] = useState(5);
   const toggle = (p: 'stats' | 'tools' | 'mem') =>
     setPanel((cur) => (cur === p ? 'none' : p));
 
+  // 빨리감기 — 집중은 ffMin분 경과, 휴식은 ffMin분만큼 남은 시간 차감
   const fastForward = () => {
-    if (state.phase === 'focus') dispatch({ type: 'TICK', dtSec: 300 });
+    const sec = Math.max(1, ffMin) * 60;
+    if (state.phase === 'focus') dispatch({ type: 'TICK', dtSec: sec });
     else if (state.phase === 'rest')
       appStore.setState((prev) => ({
-        state: { ...prev.state, rest: { ...prev.state.rest, endsAt: nowMs } },
+        state: {
+          ...prev.state,
+          rest: {
+            ...prev.state.rest,
+            endsAt: Math.max(nowMs, prev.state.rest.endsAt - sec * 1000),
+          },
+        },
       }));
   };
 
@@ -58,6 +67,15 @@ export default function DebugPanel({
         <button className="hv" style={btnSmall} onClick={fastForward}>
           ≫ ff
         </button>
+        <input
+          type="number"
+          min={1}
+          value={ffMin}
+          onChange={(e) => setFfMin(Number(e.target.value) || 1)}
+          style={numInput}
+          title="빨리감기 분"
+        />
+        <span>m</span>
         <TabBtn label="stats" on={panel === 'stats'} onClick={() => toggle('stats')} />
         <TabBtn label="tools" on={panel === 'tools'} onClick={() => toggle('tools')} />
         <TabBtn label="mem" on={panel === 'mem'} onClick={() => toggle('mem')} />
@@ -67,13 +85,171 @@ export default function DebugPanel({
         </span>
       </div>
       {panel === 'stats' && <DebugStats state={state} />}
-      {panel === 'tools' && <DebugTools state={state} />}
+      {panel === 'tools' && <DebugTools state={state} nowMs={nowMs} />}
       {panel === 'mem' && <DebugMemory state={state} />}
     </div>
   );
 }
 
-function DebugTools({ state }: { state: GameState }) {
+const DAY_MS = 86_400_000;
+
+function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
+  // 상태 패치 헬퍼 — 리듀서를 우회해 직접 쓴다 (DEV 전용이므로 허용)
+  const patch = (fn: (s: GameState) => Partial<GameState>) =>
+    appStore.setState((prev) => ({ state: { ...prev.state, ...fn(prev.state) } }));
+
+  const apartReset = {
+    visiting: false,
+    visitSessionsLeft: 0,
+    leavePending: false,
+    holdCount: 0,
+    held: false,
+  };
+
+  // 1차 말: 티어 7 + 자아실현 완성 + 토큰 게이트 충족 + 마일스톤 소진 →
+  // 다음 휴식 대화부터 엔딩 전 대화가 흐른다 (hasEndingTokens 게이트 참고).
+  // 다른 프리셋에서 돌아올 수 있도록 2·3차 필드를 함께 초기화한다
+  const gateTokens = (
+    memory: GameState['memory'],
+    nowMs: number,
+  ): GameState['memory'] => {
+    const need = [
+      ...gameData.actions.filter((a) => a.id !== 'nurse').map((a) => a.id),
+      'choice',
+      'personalWork',
+      'buy-cushion',
+    ];
+    const next = { ...memory };
+    for (const k of need) next[k] ??= { w: 1, count: 1, lastAt: nowMs };
+    return next;
+  };
+  const jumpPreEnding = () =>
+    patch((s) => ({
+      era: 'raising',
+      phase: 'actionSelect',
+      memory: gateTokens(s.memory, nowMs),
+      milestonesFired: gameData.events.milestones.map((m) => m.id),
+      apart: { ...apartReset },
+      planted: false,
+      plantedAt: null,
+      sproutGrowth: 0,
+      witherLevel: 0,
+      bloomSeen: false,
+      letGoCount: 0,
+      visitBlockedUntil: null,
+      lastTreeFindDate: null,
+      treeBondDays: 0,
+      lastTreeBondDate: null,
+      treeBondToday: 0,
+      stats: {
+        ...s.stats,
+        affection: BALANCE.AFFECTION_TIERS[BALANCE.AFFECTION_TIERS.length - 1],
+        selfActualization: BALANCE.SELF_ACT_COMPLETE,
+        needs: { physiological: 90, safety: 90, belonging: 90, esteem: 90 },
+      },
+      relationTier: BALANCE.AFFECTION_TIERS.length,
+      endingTalksSeen: 0,
+      lastEndingTalkDate: null,
+    }));
+
+  // 2차 apart 개막: 작별 직후의 빈 방 (성장 0부터)
+  const jumpApart = () =>
+    patch(() => ({
+      era: 'apart',
+      phase: 'actionSelect',
+      apart: { ...apartReset },
+      planted: false,
+      plantedAt: null,
+      sproutGrowth: 0,
+      witherLevel: 0,
+      letGoCount: 0,
+      bloomSeen: false,
+      visitBlockedUntil: null,
+      lastTreeFindDate: null,
+      treeBondDays: 0,
+      lastTreeBondDate: null,
+      treeBondToday: 0,
+    }));
+
+  // 2차 동거: 의존도 중간에서 시작
+  const jumpCohabit = () =>
+    patch((s) => ({
+      era: 'cohabit',
+      phase: 'actionSelect',
+      stats: { ...s.stats, dependence: 40 },
+      planted: false,
+      plantedAt: null,
+      sproutGrowth: 0,
+      witherLevel: 0,
+    }));
+
+  // apart 방문 강제 — 다음 세션들이 방문 세션이 된다
+  const forceVisit = () =>
+    patch((s) => ({
+      era: 'apart',
+      apart: { ...s.apart, visiting: true, visitSessionsLeft: 2, leavePending: false },
+      planted: false,
+      visitBlockedUntil: null,
+    }));
+
+  // 떠날 기색 — 휴식 화면에 붙잡기/보내주기 프롬프트를 띄운다 (사다리 확인용)
+  const forceLeave = () =>
+    patch((s) => ({
+      era: 'apart',
+      phase: 'rest',
+      planted: false,
+      rest: { ...s.rest, endsAt: 0 },
+      apart: { ...s.apart, visiting: true, leavePending: true },
+    }));
+
+  // 심기 직전: 다음 무방문 세션 정산에서 성장 100을 넘어 심기 이벤트가 뜬다
+  const sproutReady = () =>
+    patch((s) => ({
+      era: 'apart',
+      phase: 'actionSelect',
+      apart: { ...apartReset },
+      planted: false,
+      plantedAt: null,
+      sproutGrowth: 99,
+      witherLevel: 0,
+      bloomSeen: true,
+      letGoCount: Math.max(1, s.letGoCount),
+      visitBlockedUntil: null,
+    }));
+
+  // 3차: 심은 지 N일째로 점프 — 다음 세션 종료 시 그날의 발견이 뜬다
+  const treeAt = (days: number) =>
+    patch((s) => ({
+      era: 'apart',
+      phase: 'actionSelect',
+      apart: { ...apartReset },
+      planted: true,
+      plantedAt: nowMs - days * DAY_MS,
+      sproutGrowth: 100,
+      bloomSeen: true,
+      letGoCount: Math.max(1, s.letGoCount),
+      lastTreeFindDate: null,
+      treeBondDays: 0,
+      lastTreeBondDate: null,
+      treeBondToday: 0,
+      visitBlockedUntil: null,
+    }));
+
+  // 다음날: 하루 1회 게이트를 전부 다시 연다 — 티어 승급·엔딩 전 대화·
+  // 나무 발견·날씨 리롤이 같은 날에도 한 번 더 진행된다.
+  // 심은 나무가 있으면 수령도 하루 늘려 달력을 일관되게 민다.
+  // (lastDecayDate는 건드리지 않는다 — 욕구 감쇠까지 당기면 스탯이 떨어져
+  //  진행 확인이 아니라 회복 노동이 된다)
+  const nextDay = () =>
+    patch((s) => ({
+      lastTierUpDate: null,
+      lastEndingTalkDate: null,
+      lastTreeFindDate: null,
+      lastTreeBondDate: null,
+      lastWeatherDate: null,
+      plantedAt: s.plantedAt !== null ? s.plantedAt - DAY_MS : null,
+    }));
+
   const toggleAbsence = () =>
     appStore.setState((prev) => ({
       state: {
@@ -119,11 +295,12 @@ function DebugTools({ state }: { state: GameState }) {
       },
     }));
 
+  const [careAmt, setCareAmt] = useState(5);
   const addCare = () =>
     appStore.setState((prev) => ({
       state: {
         ...prev.state,
-        care: { ...prev.state.care, points: prev.state.care.points + 5 },
+        care: { ...prev.state.care, points: prev.state.care.points + careAmt },
       },
     }));
 
@@ -143,11 +320,51 @@ function DebugTools({ state }: { state: GameState }) {
           force ending
         </button>
         <button className="hv" style={btnSmall} onClick={addCare}>
-          +5 care
+          +care
         </button>
+        <input
+          type="number"
+          min={1}
+          value={careAmt}
+          onChange={(e) => setCareAmt(Number(e.target.value) || 1)}
+          style={numInput}
+          title="추가할 정성"
+        />
         <button className="hv" style={btnSmall} onClick={() => void wipe()}>
           wipe save
         </button>
+      </div>
+      <Section label="phase jump" />
+      <div style={rowWrap}>
+        <button className="hv" style={btnSmall} onClick={jumpPreEnding}>
+          1차말
+        </button>
+        <button className="hv" style={btnSmall} onClick={jumpApart}>
+          apart
+        </button>
+        <button className="hv" style={btnSmall} onClick={jumpCohabit}>
+          cohabit
+        </button>
+        <button className="hv" style={btnSmall} onClick={forceVisit}>
+          방문
+        </button>
+        <button className="hv" style={btnSmall} onClick={forceLeave}>
+          떠날기색
+        </button>
+        <button className="hv" style={btnSmall} onClick={sproutReady}>
+          심기직전
+        </button>
+        <button className="hv" style={btnSmall} onClick={nextDay}>
+          다음날
+        </button>
+      </div>
+      <Section label="tree (3차)" />
+      <div style={rowWrap}>
+        {[0, 3, 7, 30, 90, 180].map((d) => (
+          <button key={d} className="hv" style={btnSmall} onClick={() => treeAt(d)}>
+            d{d}
+          </button>
+        ))}
       </div>
       <Section label="milestone preview" />
       <div style={rowWrap}>
@@ -313,6 +530,16 @@ const panelStyle = {
   overflowY: 'auto' as const,
   color: '#c9c0d4',
   lineHeight: 1.5,
+};
+
+const numInput = {
+  width: 44,
+  border: '1px solid #6b6178',
+  background: 'transparent',
+  color: '#c9c0d4',
+  fontFamily: 'inherit',
+  fontSize: 11,
+  padding: '2px 4px',
 };
 
 const rowWrap = {

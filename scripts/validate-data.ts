@@ -354,6 +354,33 @@ export function validateGameData(
       errors.push(`badges[${i}] "${b.id}": 알 수 없는 quadrantSeen "${w.quadrantSeen}"`);
   });
 
+  // ── treeFinds (M15) ──
+  const treeFindIds = new Set<string>();
+  (data.treeFinds ?? []).forEach((f, i) => {
+    if (treeFindIds.has(f.id)) errors.push(`중복 treeFind.id "${f.id}"`);
+    treeFindIds.add(f.id);
+    ref(f.textId, `treeFinds[${i}]`);
+    if (typeof f.minStage !== 'number' || f.minStage < 0 || f.minStage > 5)
+      errors.push(`treeFinds[${i}] "${f.id}": minStage는 0~5`);
+    if (
+      f.season !== undefined &&
+      !['spring', 'summer', 'autumn', 'winter'].includes(f.season)
+    )
+      errors.push(`treeFinds[${i}] "${f.id}": 알 수 없는 season "${f.season}"`);
+  });
+  // after 체인: 존재하는 발견을 가리켜야 하고, 선행의 minStage가 더 높으면
+  // 후행이 영원히 잠긴다 (앞 단계에서 막힘)
+  (data.treeFinds ?? []).forEach((f, i) => {
+    if (f.after === undefined) return;
+    if (!treeFindIds.has(f.after))
+      errors.push(`treeFinds[${i}] "${f.id}": 알 수 없는 after "${f.after}"`);
+    const prev = (data.treeFinds ?? []).find((p) => p.id === f.after);
+    if (prev && prev.minStage > f.minStage)
+      errors.push(
+        `treeFinds[${i}] "${f.id}": after "${f.after}"의 minStage(${prev.minStage})가 더 높음`,
+      );
+  });
+
   // ── moments (M11a) ──
   const restActKeys = new Set(data.restActs.map((a) => a.key));
   const momentIds = new Set<string>();

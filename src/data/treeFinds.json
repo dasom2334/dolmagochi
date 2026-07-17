@@ -1,0 +1,13 @@
+[
+  { "id": "fruit-swell", "minStage": 0, "priority": 2, "textId": "tree.find.fruit-swell" },
+  { "id": "first-leaf", "minStage": 0, "textId": "tree.find.first-leaf" },
+  { "id": "first-fruit", "minStage": 1, "priority": 2, "after": "fruit-swell", "textId": "tree.find.first-fruit" },
+  { "id": "fruit-stir", "minStage": 1, "priority": 2, "after": "first-fruit", "textId": "tree.find.fruit-stir" },
+  { "id": "first-branch", "minStage": 1, "textId": "tree.find.first-branch" },
+  { "id": "autumn-tint", "minStage": 1, "season": "autumn", "textId": "tree.find.autumn-tint" },
+  { "id": "snow-branch", "minStage": 1, "season": "winter", "textId": "tree.find.snow-branch" },
+  { "id": "awakening", "minStage": 2, "priority": 2, "after": "fruit-stir", "textId": "tree.find.awakening" },
+  { "id": "nest", "minStage": 3, "season": "spring", "textId": "tree.find.nest" },
+  { "id": "cicada-shell", "minStage": 3, "season": "summer", "textId": "tree.find.cicada-shell" },
+  { "id": "full-grown", "minStage": 5, "priority": 1, "textId": "tree.find.full-grown" }
+]

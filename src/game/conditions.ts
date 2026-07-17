@@ -17,6 +17,8 @@ export function checkCondition(
     return false;
   if (cond.notActions && cond.notActions.includes(state.selectedAction))
     return false;
+  if (cond.hasTokens && !cond.hasTokens.every((t) => t in state.memory))
+    return false;
   if (cond.minNeeds) {
     for (const need of NEED_ORDER) {
       const min = cond.minNeeds[need];

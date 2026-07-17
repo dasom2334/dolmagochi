@@ -77,6 +77,8 @@ export interface DialoguesData {
   apartVisit: DialogueLine[];
   /** apart — 돌 없는 방, 회상할 추억도 없을 때의 폴백 */
   apart: DialogueLine[];
+  /** 3차 — 동행자(씨앗의 아이) 대화 (M15). 각성(무성 단계) 후 */
+  companion: DialogueLine[];
   absentReturn: { lineId: TextId; yesId: TextId; noId: TextId };
   /** apart — 방문이 끝나려 할 때: 붙잡기(죄책감)/보내주기.
    * holdResultId의 변형 인덱스 = 붙잡은 횟수 (붙잡을수록 무거워진다) */
@@ -257,6 +259,23 @@ export interface MomentDef {
   weight?: number;
 }
 
+// ── treeFinds.json — 3차 나무 발견 (M15/M15b) ─────────────────
+/**
+ * 접속해 세션을 마친 날에만 하루 1개 발견된다. minStage 도달 + 계절 일치 +
+ * 선행 발견(after) 완료 + 미발견인 후보 중 단계가 높은 것 우선(동률은 배열
+ * 순서) — 전조→열매→흔들림→각성 같은 서사 체인은 after로 순서를 보장한다.
+ */
+export interface TreeFindDef {
+  id: string;
+  minStage: number;
+  season?: string;
+  /** 이 발견을 먼저 기록해야 후보가 된다 (발견 id) */
+  after?: string;
+  /** 추첨 우선순위 (기본 0) — 각성 체인처럼 단계 필러보다 먼저 나와야 하는 서사용 */
+  priority?: number;
+  textId: TextId;
+}
+
 // ── 통합 ──────────────────────────────────────────────────────
 export interface GameData {
   actions: ActionData[];
@@ -269,6 +288,7 @@ export interface GameData {
   endings: EndingsData;
   badges: BadgeDef[];
   moments: MomentDef[];
+  treeFinds: TreeFindDef[];
   /** 현재 로케일로 해석된 텍스트 카탈로그 */
   text: TextCatalog;
 }

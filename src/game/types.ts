@@ -39,6 +39,8 @@ export interface Condition {
   action?: ActionId;
   /** 이 행동들에서는 통과하지 않음 (예: 산책 약속 포섀도는 산책 중 부적합) */
   notActions?: ActionId[];
+  /** 전부 기억(memory)에 있어야 하는 토큰 — 돌이 실제 겪은 일에만 반응하는 줄 */
+  hasTokens?: string[];
   minNeeds?: Partial<Record<NeedId, number>>;
   minSecurity?: number;
   minMood?: number;
@@ -287,6 +289,14 @@ export interface GameState {
   highThreatStreak: number;
   /** apart 제2의 이별 후 방문 차단 시각 (ms) — 그때까지 돌이 오지 않는다 */
   visitBlockedUntil: number | null;
+  /** 3차: 나무 발견을 기록한 마지막 달력일 — 하루 1개 (M15) */
+  lastTreeFindDate: string | null;
+  /** 3차: 동행 보너스 누계(나무일 가산분) — 출석 + 세션 시간 비례 (M15b) */
+  treeBondDays: number;
+  /** 동행 보너스를 센 마지막 달력일 */
+  lastTreeBondDate: string | null;
+  /** 오늘 얻은 동행 보너스 — 하루 상한(TREE_BOND_DAILY_MAX) 판정용 */
+  treeBondToday: number;
   /** 현재 날씨 (M12) — 자연 변화는 달력일당 1회, 정성 지불로 즉시 변경 */
   weather: WeatherKind;
   /** 자연 날씨 추첨을 마친 달력일 */

@@ -11,6 +11,8 @@ import { resolveTimeOfDay } from '../../game/timeOfDay';
 import { SunPatch } from './SunPatch';
 import { GrassTufts } from './GrassTufts';
 import { RockSprite, RockShadow } from './RockSprite';
+import { TreeSprite } from './TreeSprite';
+import { treeStage } from '../../game/tree';
 import { sproutStageOf } from '../../game/sprout';
 import { PlantProp } from './props/PlantProp';
 import { PillowProp } from './props/PillowProp';
@@ -76,8 +78,10 @@ export function SceneView({ state }: { state: GameState }) {
 
   const caption = isFocus
     ? t(action?.captionId ?? '')
-    : state.era === 'apart' && !state.apart.visiting
-      ? t(SYS.captions.apartRoom)
+    : state.planted
+      ? t(SYS.captions.treeRoom)
+      : state.era === 'apart' && !state.apart.visiting
+        ? t(SYS.captions.apartRoom)
       : present
         ? t(SYS.captions.restRoom)
         : t(SYS.captions.restRoomAbsent);
@@ -100,7 +104,10 @@ export function SceneView({ state }: { state: GameState }) {
       <Floor bg={colors.floor} line={colors.line} />
       {isFocus && sceneId === 'sun' && <SunPatch />}
       {isFocus && sceneId === 'walk' && <GrassTufts />}
-      {present ? (
+      {state.planted && state.plantedAt !== null ? (
+        // 3차 (M15): 돌의 자리에 나무가 자란다 — 성장은 달력이 정한다
+        <TreeSprite stage={treeStage(state.plantedAt, state.treeBondDays, now())} />
+      ) : present ? (
         <RockSprite
           moss={placed('moss')}
           sprout={sproutStageOf(state, gameData.dialogues)}

@@ -214,6 +214,32 @@ export function migrateState(state: GameState): GameState | null {
       visitBlockedUntil: s.visitBlockedUntil ?? null,
     };
   }
+  // v17 → v18: 3차 나무(M15) — 발견 기록일 추가.
+  if (s.schemaVersion === 17) {
+    s = {
+      ...s,
+      schemaVersion: 18,
+      lastTreeFindDate: s.lastTreeFindDate ?? null,
+    };
+  }
+  // v18 → v19: 3차 페이싱 개편(M15b) — 동행일 가산 필드 추가.
+  // 기존 심은 세이브는 동행일 0에서 시작 (경과일만큼은 이미 자라 있다)
+  if (s.schemaVersion === 18) {
+    s = {
+      ...s,
+      schemaVersion: 19,
+      treeBondDays: s.treeBondDays ?? 0,
+      lastTreeBondDate: s.lastTreeBondDate ?? null,
+    };
+  }
+  // v19 → v20: 동행 보너스 하루 상한 — 오늘 획득분 추적 필드 추가.
+  if (s.schemaVersion === 19) {
+    s = {
+      ...s,
+      schemaVersion: 20,
+      treeBondToday: s.treeBondToday ?? 0,
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }
