@@ -2,7 +2,7 @@ import { useStore } from 'zustand';
 import { createGameStore, gameData, type GameStore } from './gameStore';
 import type { GameEvent } from '../game/types';
 import { playSound, setSoundEnabled, type SoundName } from '../sound';
-import { isActionAvailable } from '../game/stateMachine';
+import { isActionUnlocked } from '../game/stateMachine';
 import { SYS } from '../game/text';
 import { pushToast } from '../toast';
 
@@ -62,18 +62,19 @@ export function dispatch(event: GameEvent): void {
     const s = soundForEvent(event);
     if (s) playSound(s);
   }
-  // 구매로 새 행동이 가능해지면 알림 — 이어서 배치 프롬프트가 뜬다
-  const beforeAvail =
+  // 구매로 새 행동이 해금되면 알림 — 이어서 배치 프롬프트가 뜬다.
+  // (일시 차단과 무관한 해금 판정 — 병간호 중 구매해도 알림이 유실되지 않는다)
+  const beforeUnlocked =
     event.type === 'BUY'
       ? gameData.actions
-          .filter((a) => isActionAvailable(a, appStore.getState().state))
+          .filter((a) => isActionUnlocked(a, appStore.getState().state))
           .map((a) => a.id)
       : null;
   appStore.getState().dispatch(event);
-  if (beforeAvail) {
+  if (beforeUnlocked) {
     const after = appStore.getState().state;
     for (const a of gameData.actions) {
-      if (!beforeAvail.includes(a.id) && isActionAvailable(a, after)) {
+      if (!beforeUnlocked.includes(a.id) && isActionUnlocked(a, after)) {
         pushToast(tf(SYS.toasts.actionUnlocked, { action: t(a.nameId) }));
       }
     }

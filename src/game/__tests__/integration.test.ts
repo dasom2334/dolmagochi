@@ -15,7 +15,8 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
     const T0 = new Date(2026, 0, 10, 9, 0, 0).getTime();
     let now = T0;
 
-    // 욕구 4종 충족 상태에서 시작 (개인작업 국면) + 승급 마일스톤은 소진된 것으로
+    // 욕구 4종 충족 상태에서 시작 (개인작업 국면) + 마일스톤 소진 + 엔딩 게이트
+    // (개정 v4-9/10: 7티어 + 1차 토큰) 충족 상태로 시작 — 엔딩 경로 자체를 검증한다
     const initial = createInitialState(T0, 'read');
     initial.stats.needs = {
       physiological: 100,
@@ -23,10 +24,17 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
       belonging: 100,
       esteem: 100,
     };
-    initial.milestonesFired = ['stage-up-2', 'stage-up-3'];
-    // 개인작업은 END_FOCUS 시간 정산(25분 세션 = 10×25/90 ≈ +2.78)
-    // — 2세션 내 완성을 위해 95에서 시작
-    initial.stats.selfActualization = 95;
+    initial.milestonesFired = gameData.events.milestones.map((m) => m.id);
+    initial.relationTier = 7;
+    for (const a of gameData.actions)
+      if (a.id !== 'nurse')
+        initial.memory[a.id] = { w: 3, count: 1, lastAt: T0 };
+    initial.memory['choice'] = { w: 2, count: 1, lastAt: T0 };
+    initial.memory['personalWork'] = { w: 3, count: 1, lastAt: T0 };
+    initial.memory['buy-soda'] = { w: 3, count: 1, lastAt: T0 };
+    // 개인작업은 END_FOCUS 세션당 1회 판정, 획득은 발동당 고정 16 (개정 v4-3)
+    // — 세션 1에서는 미완(<100), 세션 2에서 완성되도록 80에서 시작
+    initial.stats.selfActualization = 80;
 
     const store = createGameStore({
       rng: () => 0,
@@ -42,18 +50,15 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
       }
     };
 
-    // ── 세션 1: 자유행동 25분 — 개인작업 1회(세션당 1회) ──
+    // ── 세션 1: 자유행동 25분 — 개인작업은 END_FOCUS 세션당 1회 판정 ──
     dispatch({ type: 'SELECT_ACTION', actionId: 'free' });
     dispatch({ type: 'START_FOCUS', nowMs: now });
     expect(get().session.journal[0].text).toBe(T('act.free.start'));
     focusFor(1500);
-    expect(get().session.journal.map((j) => j.text)).toContain(
-      T('refl.personalWork'),
-    );
 
     dispatch({ type: 'END_FOCUS', nowMs: now });
-    // 개인작업은 END_FOCUS에서 시간 정산: 25분 세션 = 10 × 25/90
-    expect(get().stats.selfActualization).toBeCloseTo(95 + (10 * 25) / 90, 5);
+    // rng 0 → 판정 성공: 발동당 고정 +16 (개정 v4-3)
+    expect(get().stats.selfActualization).toBeCloseTo(80 + 16, 5);
     expect(get().care).toEqual({ points: 1, carryMinutes: 0 });
     expect(get().rest.summary).toEqual({ mins: 25, earned: 1 });
 
@@ -71,6 +76,8 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
     expect(get().items['plant']).toEqual({ placed: true });
     expect(get().care.points).toBe(0);
 
+    // 배정된 휴식을 다 채우고 다음 세션 시작 — 휴식 준수 배율 ×1.0 (개정 v4-4)
+    now += get().rest.totalSec * 1000;
     dispatch({ type: 'REST_END' });
     expect(get().phase).toBe('actionSelect');
 
@@ -86,17 +93,20 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
     dispatch({ type: 'END_FOCUS', nowMs: now });
     expect(get().stats.selfActualization).toBe(100); // 두 번째 정산으로 완성(클램프)
 
-    // ── 엔딩 전 대화 소진 → 엔딩 ──
+    // ── 엔딩 전 대화: 서로 다른 날 하루 1개씩 자동 노출 (개정 v4-7) → 엔딩 ──
     const TALKS = gameData.endings.preEndingTalks.length;
-    for (let i = 0; i < TALKS; i++) {
-      dispatch({ type: 'TALK' });
-      expect(get().rest.talkState?.kind).toBe('ending');
+    // 완성 직후의 이번 휴식에서 첫 대화가 이미 자동 노출됐다
+    expect(get().rest.talkState?.kind).toBe('ending');
+    expect(get().endingTalksSeen).toBe(1);
+    for (let i = 1; i < TALKS; i++) {
       dispatch({ type: 'REST_END' });
-      if (i < TALKS - 1) {
-        dispatch({ type: 'START_FOCUS', nowMs: now });
-        dispatch({ type: 'END_FOCUS', nowMs: now });
-      }
+      now += 86_400_000; // 다음 날
+      dispatch({ type: 'START_FOCUS', nowMs: now });
+      dispatch({ type: 'END_FOCUS', nowMs: now });
+      expect(get().rest.talkState?.kind).toBe('ending');
+      expect(get().endingTalksSeen).toBe(i + 1);
     }
+    dispatch({ type: 'REST_END' });
     expect(get().phase).toBe('ending');
 
     // ── 떠나보내기 → apart: 아무 것도 리셋되지 않는다 ──

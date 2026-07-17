@@ -39,6 +39,10 @@ export const SYS = {
     rockReturned: 'sys.journal.rockReturned',
     rockSick: 'sys.journal.rockSick',
     rockRecovered: 'sys.journal.rockRecovered',
+    crisisRetreat: 'sys.journal.crisisRetreat',
+    crisisSick: 'sys.journal.crisisSick',
+    restShort: 'sys.journal.restShort',
+    restSkipped: 'sys.journal.restSkipped',
     visitStart: 'sys.journal.visitStart',
     visitEnd: 'sys.journal.visitEnd',
   },
@@ -169,9 +173,7 @@ export const UI = {
     subStore: 'ui.shop.subStore', // 물건 탭 내부: 진열대(지금 살 수 있는 것만)
     subOwned: 'ui.shop.subOwned', // 물건 탭 내부: 소장품(보유·재고 + 배치/보관)
     ownedEmpty: 'ui.shop.ownedEmpty', // 소장품 빈 상태
-    owned: 'ui.shop.owned',
-    stocked: 'ui.shop.stocked', // 소모품 재고 있음 (아직 안 씀)
-    requires: 'ui.shop.requires', // {name} — 체인 이전 티어 필요
+    storeEmpty: 'ui.shop.storeEmpty', // 진열대 빈 상태 (전부 보유/재고)
     poor: 'ui.shop.poor',
     price: 'ui.shop.price', // {price}
     place: 'ui.shop.place',

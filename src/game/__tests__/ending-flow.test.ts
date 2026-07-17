@@ -42,8 +42,19 @@ function readyForEnding(): GameState {
 const TALKS = gameData.endings.preEndingTalks.length;
 
 describe('엔딩 플로우 (ending)', () => {
-  it('자아실현 100 → 엔딩 전 대화 순차 소진 → 엔딩 이벤트', () => {
-    // 자아실현만 100, 엔딩 전 대화는 아직
+  it('자아실현 100 + 7티어 + 토큰 → 엔딩 전 대화 일별 자동 소진 → 엔딩 이벤트', () => {
+    const DAY = 86_400_000;
+    // 개정 v4-9/10: 엔딩 게이트 = 자아실현 + 7티어 + 1차 토큰 게이트
+    let tokens: GameState['memory'] = {};
+    for (const a of gameData.actions)
+      if (a.id !== 'nurse')
+        tokens = { ...tokens, [a.id]: { w: 3, count: 1, lastAt: T0 } };
+    tokens = {
+      ...tokens,
+      choice: { w: 2, count: 1, lastAt: T0 },
+      personalWork: { w: 3, count: 1, lastAt: T0 },
+      'buy-plant': { w: 3, count: 1, lastAt: T0 },
+    };
     const base = run({ ...createInitialState(T0, 'read'), items: { book: { placed: false } } }, [
       { type: 'START_FOCUS', nowMs: T0 },
       { type: 'END_FOCUS', nowMs: T0 },
@@ -51,23 +62,24 @@ describe('엔딩 플로우 (ending)', () => {
     let s: GameState = {
       ...base,
       stats: { ...base.stats, selfActualization: BALANCE.SELF_ACT_COMPLETE },
+      relationTier: BALANCE.AFFECTION_TIERS.length,
+      memory: tokens,
+      milestonesFired: gameData.events.milestones.map((m) => m.id),
     };
     // 아직 엔딩 전 대화를 안 봤으면 REST_END는 엔딩으로 안 감
     expect(run(s, [{ type: 'REST_END' }]).phase).toBe('actionSelect');
 
+    // 엔딩 전 대화는 서로 다른 날 하루 1개씩, 휴식 진입 시 자동 노출 (개정 v4-7)
     for (let i = 0; i < TALKS; i++) {
-      s = run(s, [{ type: 'TALK' }]);
-      expect(s.rest.talkState?.kind).toBe('ending');
+      const day = T0 + (i + 1) * DAY;
       s = run(s, [
-        { type: 'REST_END' },
-        ...(i < TALKS - 1
-          ? ([
-              { type: 'START_FOCUS', nowMs: T0 },
-              { type: 'END_FOCUS', nowMs: T0 },
-            ] as GameEvent[])
-          : []),
+        { type: 'START_FOCUS', nowMs: day },
+        { type: 'END_FOCUS', nowMs: day },
       ]);
+      expect(s.rest.talkState?.kind).toBe('ending');
+      expect(s.endingTalksSeen).toBe(i + 1);
     }
+    s = run(s, [{ type: 'REST_END' }]);
     expect(s.phase).toBe('ending');
   });
 

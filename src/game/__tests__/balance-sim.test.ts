@@ -1,0 +1,371 @@
+/**
+ * 밸런스 시뮬레이션 하네스 — 실제 transition 리듀서 + 실데이터로
+ * 개정 v4 패키지(80게이트·감소치·계단 배율·비트 게이트·위기 아크·토큰 게이트·표류)의
+ * 플레이 스타일별 타임라인을 측정한다. 수치 재튜닝 시 이 하네스로 재검증한다.
+ * (어서션 없이 콘솔 표를 남기는 관측용 테스트 — 상세 근거는 docs/plans/기획서-개정초안.)
+ */
+import { describe, it } from 'vitest';
+import { BALANCE } from '../balance';
+import { createInitialState, transition } from '../stateMachine';
+import type { ActionId, GameEvent, GameState, NeedId } from '../types';
+import { mulberry32, type Rng } from '../rng';
+import { careTargetNeed } from '../freeAction';
+import { gameData } from '../../store/gameStore';
+
+const DAY = 86_400_000;
+const T0 = new Date(2026, 0, 10, 9, 0, 0).getTime();
+
+interface Policy {
+  name: string;
+  sessionMin: number;
+  dailyFocusMin: number;
+  answerChoices: boolean; // false여도 토큰용 첫 1회는 응답
+  doTalk: boolean;
+  skipRest: boolean; // true면 휴식을 전부 스킵 (배율 ×0.5)
+  buyOrder: string[];
+  rebuyConsumables: string[];
+}
+
+const NEED_ACTION: Record<NeedId, ActionId[]> = {
+  physiological: ['lie', 'cook'],
+  safety: ['sun', 'walk', 'chore'],
+  belonging: ['walk', 'cook'],
+  esteem: ['read', 'chore'],
+};
+
+function available(s: GameState, id: ActionId): boolean {
+  const a = gameData.actions.find((x) => x.id === id);
+  if (!a) return false;
+  if (s.presence.sick) return id === 'nurse';
+  if (id === 'nurse') return false;
+  return (
+    s.unlockedActions.includes(id) ||
+    !a.unlock ||
+    (a.unlock.ownedItems ?? []).every((i) => i in s.items)
+  );
+}
+
+/** 돌봄 대상(게이트 기준 첫 80 미만)을 채우는 가용·안전 행동 */
+function needFillAction(s: GameState): ActionId | null {
+  const target = careTargetNeed(s.stats.needs);
+  if (!target) return null;
+  const allowed = 1 + Math.floor(s.stats.security / 20);
+  const cands = NEED_ACTION[target].filter(
+    (id) =>
+      available(s, id) &&
+      (gameData.actions.find((x) => x.id === id)!.intimacy -
+        Math.min(5, Math.max(1, allowed)) <
+        BALANCE.RETREAT_GAP),
+  );
+  return cands[0] ?? null;
+}
+
+/** 토큰 게이트용: 아직 한 번도 안 해본 가용 행동 */
+function missingTokenAction(s: GameState): ActionId | null {
+  for (const a of gameData.actions) {
+    if (a.id === 'nurse' || a.id === 'free') continue;
+    if (!(a.id in s.memory) && available(s, a.id)) return a.id;
+  }
+  return null;
+}
+
+interface RunResult {
+  hTier7: number | null; // relationTier 7 확정 (집중 h)
+  dTier7: number | null;
+  hSelfAct: number | null;
+  hEnding: number | null;
+  dEnding: number | null;
+  affAtEnding: number | null;
+  arcRetreat: number; // 보장 잠수 아크 발동 여부(1)
+  arcSick: number;
+  organicRetreats: number; // 아크 외 잠수 (표류·초과 접근)
+  organicSicks: number;
+  endSecurity: number;
+  hoursSimmed: number;
+}
+
+function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult {
+  const rng: Rng = mulberry32(seed);
+  const dispatch = (s: GameState, e: GameEvent) =>
+    transition(s, e, { rng, data: gameData });
+
+  let s = createInitialState(T0, 'lie');
+  let now = T0;
+  let dayFocus = 0;
+  let choiceAnswered = false;
+  let wasAbsent = false;
+  let wasSick = false;
+  const res: RunResult = {
+    hTier7: null,
+    dTier7: null,
+    hSelfAct: null,
+    hEnding: null,
+    dEnding: null,
+    affAtEnding: null,
+    arcRetreat: 0,
+    arcSick: 0,
+    organicRetreats: 0,
+    organicSicks: 0,
+    endSecurity: 0,
+    hoursSimmed: 0,
+  };
+
+  const focusH = () => s.totals.focusSeconds / 3600;
+  const days = () => Math.round((now - T0) / DAY);
+  const topTier = BALANCE.AFFECTION_TIERS.length;
+
+  while (focusH() < maxFocusHours) {
+    s = dispatch(s, { type: 'SETTLE', nowMs: now });
+
+    let act: ActionId;
+    if (s.presence.sick) act = 'nurse';
+    else act = needFillAction(s) ?? missingTokenAction(s) ?? 'free';
+    if (!s.presence.sick && !available(s, act)) act = 'lie';
+    s = dispatch(s, { type: 'SELECT_ACTION', actionId: act });
+    s = dispatch(s, { type: 'START_FOCUS', nowMs: now });
+    if (s.phase === 'ending') break;
+
+    if (s.presence.state === 'absent' && !wasAbsent) {
+      if (s.crisisArcsFired.includes('retreat') && res.arcRetreat === 0)
+        res.arcRetreat = 1;
+      else res.organicRetreats++;
+    }
+    wasAbsent = s.presence.state === 'absent';
+
+    const totalSec = policy.sessionMin * 60;
+    for (let t = 0; t < totalSec; t += 10) {
+      s = dispatch(s, { type: 'TICK', dtSec: 10 });
+      const cs = s.session.choiceState;
+      if (cs && (policy.answerChoices || !choiceAnswered)) {
+        const action = gameData.actions.find((a) => a.id === s.selectedAction)!;
+        const opts =
+          cs.source === 'foreshadow'
+            ? (s.pendingEvent?.options ?? [])
+            : (action.choices[cs.index]?.options ?? []);
+        if (opts.length > 0) {
+          const allowed = Math.min(
+            5,
+            Math.max(1, 1 + Math.floor(s.stats.security / 20)),
+          );
+          let best = 0;
+          let bestVal = -1;
+          opts.forEach((o, i) => {
+            const val = o.intimacy <= allowed ? 100 + o.intimacy : -o.intimacy;
+            if (val > bestVal) {
+              bestVal = val;
+              best = i;
+            }
+          });
+          s = dispatch(s, {
+            type: 'CHOICE_PICKED',
+            optionIndex: best,
+            nowMs: now + t * 1000,
+          });
+          choiceAnswered = true;
+        }
+      }
+    }
+
+    now += totalSec * 1000;
+    s = dispatch(s, { type: 'END_FOCUS', nowMs: now });
+
+    if (s.presence.sick && !wasSick) {
+      if (s.crisisArcsFired.includes('sick') && res.arcSick === 0) res.arcSick = 1;
+      else res.organicSicks++;
+    }
+    wasSick = s.presence.sick;
+
+    if (res.hTier7 === null && s.relationTier >= topTier) {
+      res.hTier7 = focusH();
+      res.dTier7 = days();
+    }
+    if (res.hSelfAct === null && s.stats.selfActualization >= 100)
+      res.hSelfAct = focusH();
+
+    if (policy.doTalk && !s.rest.talkPressed) {
+      s = dispatch(s, { type: 'TALK' });
+      if (s.rest.talkState?.hasChoice)
+        s = dispatch(s, { type: 'TALK_CHOICE', yes: true });
+    }
+
+    const tryBuy = (id: string) => {
+      s = dispatch(s, { type: 'BUY', itemId: id, nowMs: now });
+      if (s.pendingPlacement)
+        s = dispatch(s, {
+          type: 'SET_PLACEMENT',
+          itemId: s.pendingPlacement,
+          placed: true,
+        });
+    };
+    for (const id of policy.buyOrder) if (!(id in s.items)) tryBuy(id);
+    for (const id of policy.rebuyConsumables)
+      if ((s.supplies[id] ?? 0) === 0) tryBuy(id);
+
+    const restSec = s.rest.totalSec;
+    s = dispatch(s, { type: 'REST_END' });
+    if (s.phase === 'ending') {
+      res.hEnding = focusH();
+      res.dEnding = days();
+      res.affAtEnding = s.stats.affection;
+      break;
+    }
+    if (!policy.skipRest) now += restSec * 1000;
+
+    dayFocus += policy.sessionMin;
+    if (dayFocus >= policy.dailyFocusMin) {
+      dayFocus = 0;
+      const nextDay = new Date(now);
+      nextDay.setDate(nextDay.getDate() + 1);
+      nextDay.setHours(9, 0, 0, 0);
+      now = nextDay.getTime();
+    }
+  }
+  res.endSecurity = s.stats.security;
+  res.hoursSimmed = focusH();
+  if (res.affAtEnding === null) res.affAtEnding = s.stats.affection;
+  return res;
+}
+
+const fmt = (v: number | null) => (v === null ? '  --' : v.toFixed(1).padStart(5));
+
+function report(policy: Policy, seeds: number[]) {
+  const runs = seeds.map((sd) => simulate(policy, sd));
+  const avg = (get: (r: RunResult) => number | null) => {
+    const vals = runs.map(get).filter((v): v is number => v !== null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+  const reached = (get: (r: RunResult) => number | null) =>
+    runs.filter((r) => get(r) !== null).length;
+
+  console.log(
+    `\n=== ${policy.name} (${policy.sessionMin}분, ${policy.dailyFocusMin / 60}h/day${policy.skipRest ? ', 휴식 스킵' : ''}) ===`,
+  );
+  console.log(
+    `7티어 확정: ${fmt(avg((r) => r.hTier7))}h / ${fmt(avg((r) => r.dTier7))}일 (${reached((r) => r.hTier7)}/${runs.length}) | 자아실현 100: ${fmt(avg((r) => r.hSelfAct))}h (${reached((r) => r.hSelfAct)}/${runs.length})`,
+  );
+  console.log(
+    `엔딩: ${fmt(avg((r) => r.hEnding))}h / ${fmt(avg((r) => r.dEnding))}일차 (${reached((r) => r.hEnding)}/${runs.length}) | 엔딩 시 호감도 ${fmt(avg((r) => r.affAtEnding))}`,
+  );
+  console.log(
+    `위기: 보장아크 잠수 ${fmt(avg((r) => r.arcRetreat))} 병간호 ${fmt(avg((r) => r.arcSick))} | 유기적 잠수 ${fmt(avg((r) => r.organicRetreats))} 병간호 ${fmt(avg((r) => r.organicSicks))} | 종료 안정감 ${fmt(avg((r) => r.endSecurity))} | 시뮬 ${fmt(avg((r) => r.hoursSimmed))}h`,
+  );
+}
+
+const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
+const ALL_ITEMS = ['cushion', 'shoes', 'book', 'pot', 'broom', 'desk', 'pillow', 'stationery', 'laptop'];
+
+describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
+  it('플레이 스타일별 타임라인', () => {
+    report(
+      {
+        name: 'A. 균형 (성실 응답·휴식 완주)',
+        sessionMin: 50,
+        dailyFocusMin: 240,
+        answerChoices: true,
+        doTalk: true,
+        skipRest: false,
+        buyOrder: ALL_ITEMS,
+        rebuyConsumables: ['apitoken'],
+      },
+      SEEDS,
+    );
+    report(
+      {
+        name: 'B. 엔딩 러시 (90분, 6h/day)',
+        sessionMin: 90,
+        dailyFocusMin: 360,
+        answerChoices: false,
+        doTalk: true,
+        skipRest: false,
+        buyOrder: ALL_ITEMS,
+        rebuyConsumables: ['apitoken'],
+      },
+      SEEDS,
+    );
+    report(
+      {
+        name: 'D. 캐주얼 (25분, 2h/day, 선택지 최소)',
+        sessionMin: 25,
+        dailyFocusMin: 120,
+        answerChoices: false,
+        doTalk: true,
+        skipRest: false,
+        buyOrder: ALL_ITEMS,
+        rebuyConsumables: ['apitoken'],
+      },
+      SEEDS,
+    );
+    report(
+      {
+        name: 'E. 무심 (대화 안 함, 선택지 최소)',
+        sessionMin: 50,
+        dailyFocusMin: 240,
+        answerChoices: false,
+        doTalk: false,
+        skipRest: false,
+        buyOrder: ALL_ITEMS,
+        rebuyConsumables: ['apitoken'],
+      },
+      SEEDS,
+    );
+    report(
+      {
+        name: 'F. 휴식 스킵 (그 외 균형과 동일)',
+        sessionMin: 50,
+        dailyFocusMin: 240,
+        answerChoices: true,
+        doTalk: true,
+        skipRest: true,
+        buyOrder: ALL_ITEMS,
+        rebuyConsumables: ['apitoken'],
+      },
+      SEEDS,
+    );
+  }, 300_000);
+
+  it('튜닝 실험: GAIN·표류', () => {
+    const B = BALANCE as unknown as Record<string, number>;
+    const saved = {
+      gain: BALANCE.SELF_ACT_GAIN_PER_WORK,
+      base: BALANCE.PERSONAL_WORK_BASE,
+      drift: BALANCE.ATTACH_DRIFT_PER_TIER,
+    };
+    const POL = (over: Partial<Policy>): Policy => ({
+      name: 'A. 균형',
+      sessionMin: 50,
+      dailyFocusMin: 240,
+      answerChoices: true,
+      doTalk: true,
+      skipRest: false,
+      buyOrder: ALL_ITEMS,
+      rebuyConsumables: ['apitoken'],
+      ...over,
+    });
+    try {
+      for (const [gain, base, drift] of [
+        [14, 0.15, 1.0],
+        [16, 0.2, 1.0],
+      ] as const) {
+        B.SELF_ACT_GAIN_PER_WORK = gain;
+        B.PERSONAL_WORK_BASE = base;
+        B.ATTACH_DRIFT_PER_TIER = drift;
+        console.log(`\n##### GAIN=${gain}, BASE=${base}, DRIFT/티어=${drift} #####`);
+        report(POL({}), SEEDS);
+        report(
+          POL({ name: 'B. 러시', sessionMin: 90, dailyFocusMin: 360, answerChoices: false }),
+          SEEDS,
+        );
+        report(
+          POL({ name: 'D. 캐주얼', sessionMin: 25, dailyFocusMin: 120, answerChoices: false }),
+          SEEDS,
+        );
+        report(POL({ name: 'E. 무심', answerChoices: false, doTalk: false }), SEEDS);
+        report(POL({ name: 'F. 휴식 스킵', skipRest: true }), SEEDS);
+      }
+    } finally {
+      B.SELF_ACT_GAIN_PER_WORK = saved.gain;
+      B.PERSONAL_WORK_BASE = saved.base;
+      B.ATTACH_DRIFT_PER_TIER = saved.drift;
+    }
+  }, 300_000);
+});

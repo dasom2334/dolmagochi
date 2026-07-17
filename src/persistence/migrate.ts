@@ -3,6 +3,7 @@ import { DEFAULT_NOTIFY_SETTINGS, SCHEMA_VERSION } from '../game/stateMachine';
 import { cloneFlowtime } from '../game/timer';
 import { BALANCE } from '../game/balance';
 import { derivedSecurity } from '../game/security';
+import { affectionTier } from '../game/dialogue';
 import { needsLevelOf } from '../game/stats';
 
 /**
@@ -114,6 +115,31 @@ export function migrateState(state: GameState): GameState | null {
       schemaVersion: 10,
       supplies: s.supplies ?? {},
       session: { ...s.session, supply: s.session.supply ?? null },
+    };
+  }
+  // v10 → v11: 개정 v4 — 확정 관계 티어(하루 1회 승급)·위기 아크·엔딩 전 대화 일별
+  // 게이트·휴식 준수 배율 필드 추가.
+  // - relationTier는 현 호감도의 티어로 초기화 (새 임계 기준 — 구 세이브의 진행 존중)
+  // - 이미 3/5티어를 지난 세이브는 보장 아크를 '겪은 것'으로 처리 —
+  //   마이그레이션 직후 위기가 연속으로 터지는 것을 막는다 (그 시절은 지났다)
+  if (s.schemaVersion === 10) {
+    const tier = affectionTier(s.stats.affection);
+    const fired: string[] = [];
+    if (tier >= 3) fired.push('retreat');
+    if (tier >= 5) fired.push('sick');
+    s = {
+      ...s,
+      schemaVersion: 11,
+      relationTier: tier,
+      lastTierUpDate: null,
+      lastEndingTalkDate: null,
+      pendingCrisis: null,
+      crisisArcsFired: fired,
+      session: {
+        ...s.session,
+        freeCareVia: s.session.freeCareVia ?? null,
+        restMult: s.session.restMult ?? 1,
+      },
     };
   }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;

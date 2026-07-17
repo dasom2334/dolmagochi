@@ -53,7 +53,8 @@ export interface DialogueContext {
   era: Era;
   needsLevel: number;
   dependence: number;
-  affection: number;
+  /** 확정 관계 티어 (1~7) — 승급 하루 1회 게이트를 지난 값 (개정 v4-7) */
+  tier: number;
   abandonment: number;
   intimacyThreat: number;
   /** 안정 상태에서 관계 대사(true) vs 상태 대사(false) 중 무엇을 뽑을지 — 호출부가 코인. */
@@ -71,7 +72,7 @@ export function selectDialoguePool(
   dialogues: DialoguesData,
   ctx: DialogueContext,
 ): DialoguePool | null {
-  const { era, needsLevel, dependence, affection } = ctx;
+  const { era, needsLevel, dependence } = ctx;
   if (era === 'apart') return null;
   if (era === 'cohabit') {
     if (dialogues.cohabitStages.length === 0)
@@ -84,7 +85,7 @@ export function selectDialoguePool(
     return { poolId: `quad_${quadrant}`, lines: dialogues.quadrants[quadrant] };
   }
   if (ctx.preferRelation) {
-    const tier = affectionTier(affection);
+    const tier = Math.max(1, Math.min(ctx.tier, dialogues.relationTiers.length));
     return {
       poolId: `relation${tier}`,
       lines: dialogues.relationTiers[tier - 1] ?? [],

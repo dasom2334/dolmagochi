@@ -115,7 +115,7 @@ export interface EventsData {
 // ── shop.json ─────────────────────────────────────────────────
 /** 소모품 랜덤 종류 — 세션 시작 시 하나가 뽑혀 대사·씬·보너스를 정한다 */
 export interface ConsumableVariant {
-  /** 종류 키 — 텍스트 id(shop.{item}.var/use.{key})·기억토큰(use-{item}-{key})에 쓰임 */
+  /** 종류 키 — 텍스트 id(shop.{item}.var.{key} / shop.{item}.use.{key})에 쓰임 */
   key: string;
   /** 종류별 게이지 보너스 (유의미~미미) */
   bonusNeeds?: Partial<Record<NeedId, number>>;

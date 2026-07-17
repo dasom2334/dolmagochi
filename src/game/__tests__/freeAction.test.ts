@@ -78,18 +78,19 @@ describe('selfCareProb — B4/B4-1 자가 충족 확률', () => {
   });
 });
 
-describe('pickFreeAction — 순차 자가 충족과 개인작업 게이트', () => {
-  it('미충족이 있으면 개인작업은 절대 나오지 않는다', () => {
-    const r = pickFreeAction(stateWith({}), DEFS, seq([0.0, 0.0]));
-    expect(r.type).not.toBe('personalWork');
-  });
+describe('pickFreeAction — 순차 자가 충족(80게이트 정합)과 심심풀이(idle)', () => {
+  const G = BALANCE.NEED_RISE_GATE;
 
-  it('아래에서부터 첫 미충족 욕구만 스스로 채운다', () => {
+  it('아래에서부터 첫 80 미만 욕구만 스스로 채운다 (개정 v4-5 게이트 정합)', () => {
     const r = pickFreeAction(stateWith({}), DEFS, seq([0.0, 0.0]));
     expect(r).toMatchObject({ type: 'selfCare', need: 'physiological', textId: 'sc.phys' });
 
+    // 충족(60) 이상이어도 게이트(80) 미만이면 여전히 생리가 돌봄 대상
+    const rMid = pickFreeAction(stateWith({ physiological: F }), DEFS, seq([0.0, 0.0]));
+    expect(rMid).toMatchObject({ type: 'selfCare', need: 'physiological' });
+
     const r2 = pickFreeAction(
-      stateWith({ physiological: F }),
+      stateWith({ physiological: G }),
       DEFS,
       seq([0.0, 0.0]),
     );
@@ -97,13 +98,11 @@ describe('pickFreeAction — 순차 자가 충족과 개인작업 게이트', ()
   });
 
   it('해금 게이팅: 그 욕구를 채우는 해금 행동이 없으면 selfCare 없음 → 반추 폴백', () => {
-    // 생리 충족 → 타깃=안전. 안전을 채우는 해금 행동이 없다(빈 doers) → 반추
+    // 생리 80 → 타깃=안전. 안전을 채우는 해금 행동이 없다(빈 doers) → 반추
     const r = pickFreeAction(
-      stateWith({ physiological: F }),
+      stateWith({ physiological: G }),
       DEFS,
       seq([0.0, 0.0]),
-      true,
-      0,
       () => [],
     );
     expect(r.type).toBe('reflection');
@@ -115,11 +114,9 @@ describe('pickFreeAction — 순차 자가 충족과 개인작업 게이트', ()
       { token: 'selfCareVia-walk', variants: [{ textId: 'via.walk' }] },
     ];
     const r = pickFreeAction(
-      stateWith({ physiological: F }),
+      stateWith({ physiological: G }),
       defs,
       seq([0.0, 0.0]),
-      true,
-      0,
       () => ['walk'],
     );
     expect(r).toMatchObject({
@@ -131,8 +128,7 @@ describe('pickFreeAction — 순차 자가 충족과 개인작업 게이트', ()
   });
 
   it('자가 충족 판정 실패 → 기억 반추', () => {
-    // 생리 충족 → 첫 미충족=안전, 전단계 평균=60 → selfCare 확률 0.6.
-    // rng 0.61 ≥ 0.6 이면 자가 충족 실패 → 기억 반추로 폴백.
+    // 생리 60(절반 이상) → 확률 바닥값 0.5. rng 0.61 ≥ 0.5 → 실패 → 반추 폴백.
     const r = pickFreeAction(
       stateWith({ physiological: F }),
       DEFS,
@@ -142,27 +138,28 @@ describe('pickFreeAction — 순차 자가 충족과 개인작업 게이트', ()
     expect(r).toMatchObject({ textId: 'read.base' });
   });
 
-  it('욕구 4종 전부 충족 시에만 개인작업', () => {
+  it('전부 80 이상이면 해금 행동 중 하나를 제 마음대로 한다 (idle — 서술·기억만)', () => {
+    const defs = [
+      ...DEFS,
+      { token: 'selfCareVia-walk', variants: [{ textId: 'via.walk' }] },
+    ];
+    const r = pickFreeAction(
+      stateWith(ALL),
+      defs,
+      seq([0.0, 0.0]),
+      () => [],
+      () => ['walk'],
+    );
+    expect(r).toMatchObject({ type: 'idle', via: 'walk', textId: 'via.walk' });
+  });
+
+  it('idle 후보가 없으면 반추로 폴백 — 개인작업 판정은 여기 없다 (END_FOCUS 소관)', () => {
     const r = pickFreeAction(stateWith(ALL), DEFS, seq([0.0, 0.0]));
-    expect(r).toMatchObject({ type: 'personalWork', textId: 'pw' });
-  });
-
-  it('개인작업 확률 가산(상점 부스트)이 반영된다', () => {
-    const base = personalWorkProb(stateWith(ALL).stats.needs); // 0.05 + 0.25
-    // 가산 없으면 실패할 롤(base+0.05)이 +0.1 부스트로 성공한다
-    const hit = pickFreeAction(stateWith(ALL), DEFS, seq([base + 0.05]), true, 0.1);
-    expect(hit.type).toBe('personalWork');
-    const miss = pickFreeAction(stateWith(ALL), DEFS, seq([base + 0.05]), true, 0);
-    expect(miss.type).not.toBe('personalWork');
-  });
-
-  it('동거 게이트: allowPersonalWork=false면 전부 충족이어도 개인작업 없음', () => {
-    const r = pickFreeAction(stateWith(ALL), DEFS, seq([0.0, 0.0]), false);
     expect(r.type).toBe('reflection');
   });
 
   it('기억이 비어 있으면 기본값 (누워 있기)', () => {
-    const r = pickFreeAction(stateWith(ALL, false), DEFS, seq([0.9]), false);
+    const r = pickFreeAction(stateWith(ALL, false), DEFS, seq([0.9]));
     expect(r).toMatchObject({ type: 'default', textId: 'def' });
   });
 });

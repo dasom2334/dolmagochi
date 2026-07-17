@@ -70,9 +70,8 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
     expect(s.supplies['nightdrink']).toBe(0);
     expect(s.session.supply).toEqual({ itemId: 'nightdrink', variant: 'milk' });
     s = run(s, [...ticks25(), { type: 'END_FOCUS', nowMs: T0 + 1_500_000 }]);
-    // 25분(units=1): 누워있기 5×1 + 우유 3(소모품은 플랫)
-    expect(s.stats.needs.physiological).toBeCloseTo(5 + 3, 5);
-    expect('use-nightdrink-milk' in s.memory).toBe(true);
+    // 25분(units=1): 누워있기 5×1 + 우유 3(소모품은 플랫) − 시간 감소 1.2×(25/60)
+    expect(s.stats.needs.physiological).toBeCloseTo(5 + 3 - 0.5, 5);
     // 사용 대사가 일지에 남는다
     expect(
       s.session.journal.some((j) => j.text.includes('우유')),
@@ -105,8 +104,48 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
       ...ticks25(),
       { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
     ]);
-    // 25분(units=1): 행동 5×1 + 베개 1×1 (체인도 시간 정산)
-    expect(s.stats.needs.physiological).toBeCloseTo(5 + 1, 5);
+    // 25분(units=1): 행동 5×1 + 베개 1×1 (체인도 시간 정산) − 감소 0.5
+    expect(s.stats.needs.physiological).toBeCloseTo(5 + 1 - 0.5, 5);
+  });
+
+  it('부재(잠수) 세션: 소모품이 소모되지 않고 사용 대사도 남지 않는다', () => {
+    let s = restRich();
+    s = run(s, [
+      { type: 'BUY', itemId: 'nightdrink', nowMs: T0 },
+      { type: 'SET_PLACEMENT', itemId: 'nightdrink', placed: false },
+    ]);
+    s = {
+      ...s,
+      presence: { ...s.presence, state: 'absent' },
+    };
+    s = run(s, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks25(),
+      { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
+    ]);
+    expect(s.supplies['nightdrink']).toBe(1); // 재고 보존
+    expect(s.session.supply).toBeNull();
+    expect(s.session.journal.some((j) => j.text.includes('우유'))).toBe(false);
+  });
+
+  it('API 토큰: 개인작업이 발동하지 않은 세션엔 재고로 되돌아가고 거짓 서술이 없다', () => {
+    let s = restRich();
+    // 욕구 미충족(생리 0) → 개인작업 판정 자체가 없다
+    s = {
+      ...s,
+      selectedAction: 'free',
+      supplies: { apitoken: 1 },
+      supplyVariants: { apitoken: 'claude' },
+    };
+    s = run(s, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks25(),
+      { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
+    ]);
+    expect(s.session.freeWorked).toBe(false);
+    expect(s.supplies['apitoken']).toBe(1); // 반환
+    expect(s.stats.selfActualization).toBe(0); // bonusSelfAct 미적용
+    expect(s.session.journal.some((j) => j.text.includes('토큰'))).toBe(false);
   });
 
   it('소모품 없이 세션 진행: 보너스 없음, 행동은 정상', () => {
@@ -117,6 +156,6 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
       { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
     ]);
     expect(s.session.supply).toBeNull();
-    expect(s.stats.needs.physiological).toBeCloseTo(5, 5); // 행동 기본만(25분=만액)
+    expect(s.stats.needs.physiological).toBeCloseTo(5 - 0.5, 5); // 행동 기본만(25분=만액)
   });
 });

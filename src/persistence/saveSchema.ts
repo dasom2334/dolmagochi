@@ -116,8 +116,18 @@ function normalizeState(state: GameState): GameState {
     session: {
       ...state.session,
       freeCare: state.session?.freeCare ?? null,
+      freeCareVia: state.session?.freeCareVia ?? null,
       freeWorked: state.session?.freeWorked === true,
+      restMult: finiteOr(state.session?.restMult, 1),
     },
+    // 개정 v4 필드 방어 — 구 세이브 백필
+    relationTier: finiteOr(state.relationTier, 1),
+    lastTierUpDate: state.lastTierUpDate ?? null,
+    lastEndingTalkDate: state.lastEndingTalkDate ?? null,
+    pendingCrisis: state.pendingCrisis ?? null,
+    crisisArcsFired: Array.isArray(state.crisisArcsFired)
+      ? state.crisisArcsFired
+      : [],
     // 소모품 진열/종류 필드 방어 — 구 v10 세이브 백필
     rest: { ...state.rest, offers: state.rest?.offers ?? {} },
     supplyVariants: state.supplyVariants ?? {},

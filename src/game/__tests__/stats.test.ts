@@ -4,6 +4,7 @@ import {
   applyStatOutcome,
   dateKey,
   daysBetween,
+  decayNeeds,
   firstUnfilledNeed,
   initialStats,
   needsLevelOf,
@@ -118,9 +119,21 @@ describe('settleCalendar — 달력일 정산', () => {
 });
 
 describe('applyStatOutcome', () => {
-  it('기분/호감도/욕구/자아실현 반영과 클램프', () => {
-    // 안정 상태(안정감 100)에서 호감도가 온전히 오르도록
-    const base = { ...initialStats(), abandonment: 40, intimacyThreat: 40, security: 100 };
+  it('기분/호감도/욕구/자아실현 반영과 클램프 (하위 욕구 80 이상이어야 상위가 찬다)', () => {
+    // 안정 상태(안정감 100)에서 호감도가 온전히 오르도록.
+    // 소속·존중이 오르려면 아래 욕구들이 상승 게이트(80)를 넘어 있어야 한다 (개정 v4-5).
+    const base = {
+      ...initialStats(),
+      abandonment: 40,
+      intimacyThreat: 40,
+      security: 100,
+      needs: {
+        physiological: BALANCE.NEED_RISE_GATE,
+        safety: BALANCE.NEED_RISE_GATE,
+        belonging: 0,
+        esteem: 0,
+      },
+    };
     const r = applyStatOutcome(base, {
       stats: { mood: 100, affection: 2 },
       needs: { belonging: 30, esteem: 500 },
@@ -129,9 +142,36 @@ describe('applyStatOutcome', () => {
     expect(r.mood).toBe(100);
     expect(r.affection).toBe(2); // 안정감 100 → 비례 래칫 온전 상승
     expect(r.needs.belonging).toBe(30);
-    expect(r.needs.esteem).toBe(100);
-    expect(r.needs.physiological).toBe(0); // 명시된 게이지만 찬다
+    // 존중은 소속(30 < 80)이 게이트 미달이라 오르지 않는다
+    expect(r.needs.esteem).toBe(0);
+    expect(r.needs.physiological).toBe(BALANCE.NEED_RISE_GATE); // 명시된 게이지만 찬다
     expect(r.selfActualization).toBe(15);
+  });
+
+  it('욕구 상승 게이트 (개정 v4-5): 같은 Outcome 안에서도 아래부터 캐스케이드된다', () => {
+    const base = {
+      ...initialStats(),
+      needs: { physiological: 78, safety: 50, belonging: 0, esteem: 0 },
+    };
+    // 생리 +5 → 83(게이트 통과) → 같은 적용에서 안전 +5도 통과
+    const r = applyStatOutcome(base, { needs: { physiological: 5, safety: 5 } });
+    expect(r.needs.physiological).toBe(83);
+    expect(r.needs.safety).toBe(55);
+    // gateNeeds=false(위기 면제)면 게이트 무시
+    const r2 = applyStatOutcome(base, { needs: { esteem: 5 } }, false);
+    expect(r2.needs.esteem).toBe(5);
+    // 음수 델타(퇴행)는 게이트와 무관하게 적용
+    const r3 = applyStatOutcome(base, { needs: { safety: -10 } });
+    expect(r3.needs.safety).toBe(40);
+  });
+
+  it('decayNeeds — 욕구별 차등 시간 감소, 0 밑으로 안 내려간다', () => {
+    const needs = { physiological: 10, safety: 10, belonging: 0.1, esteem: 10 };
+    const r = decayNeeds(needs, 2); // 2시간
+    expect(r.physiological).toBeCloseTo(10 - BALANCE.NEED_DECAY_PER_HOUR.physiological * 2);
+    expect(r.safety).toBeCloseTo(10 - BALANCE.NEED_DECAY_PER_HOUR.safety * 2);
+    expect(r.belonging).toBe(0);
+    expect(r.esteem).toBeCloseTo(10 - BALANCE.NEED_DECAY_PER_HOUR.esteem * 2);
   });
 
   it('B13 호감도 비례 래칫: 안정감이 낮으면 상승분이 준다', () => {
