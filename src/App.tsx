@@ -11,6 +11,7 @@ import { pushToast } from './toast';
 import { dueFocusMarks } from './game/notify';
 import { ensureAudioContext, playSound, setSoundEnabled } from './sound';
 import { deriveLayers } from './audio/layers';
+import { resolveSeason, resolveTimeOfDay } from './game/timeOfDay';
 import { stopSoundscape, syncSoundscape } from './audio/engine';
 import { ToastHost } from './components/ToastHost';
 import { TimerCard } from './components/TimerCard';
@@ -195,6 +196,8 @@ export function App() {
         ownedItems: ownedKey ? ownedKey.split(',') : [],
         weather: state.weather,
         umbrella: state.session.umbrella,
+        season: resolveSeason(state.settings, Date.now()),
+        timeOfDay: resolveTimeOfDay(state.settings, Date.now()),
       }),
       muted: state.settings.noiseMuted,
     });
@@ -206,6 +209,8 @@ export function App() {
     ownedKey,
     state.weather,
     state.session.umbrella,
+    state.settings.season,
+    state.settings.timeOfDay,
   ]);
   useEffect(() => stopSoundscape, []);
 

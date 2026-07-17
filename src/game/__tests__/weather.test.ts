@@ -161,4 +161,23 @@ describe('deriveLayers — 날씨 레이어 (M12)', () => {
       deriveLayers({ phase: 'room', actionId: null, ownedItems: [], weather: 'snow' }),
     ).not.toContain('rainSoft');
   });
+
+  it('여름 매미: 낮·황혼에만, 밤·비·다른 계절엔 없음 — 실내에도 창 너머로', () => {
+    const base = { phase: 'focus' as const, actionId: 'walk', ownedItems: [] };
+    expect(
+      deriveLayers({ ...base, season: 'summer', timeOfDay: 'day', weather: 'clear' }),
+    ).toContain('cicadas');
+    expect(
+      deriveLayers({ phase: 'room', actionId: null, ownedItems: [], season: 'summer', timeOfDay: 'twilight', weather: 'clear' }),
+    ).toContain('cicadas');
+    expect(
+      deriveLayers({ ...base, season: 'summer', timeOfDay: 'night', weather: 'clear' }),
+    ).not.toContain('cicadas');
+    expect(
+      deriveLayers({ ...base, season: 'summer', timeOfDay: 'day', weather: 'rain' }),
+    ).not.toContain('cicadas');
+    expect(
+      deriveLayers({ ...base, season: 'autumn', timeOfDay: 'day', weather: 'clear' }),
+    ).not.toContain('cicadas');
+  });
 });
