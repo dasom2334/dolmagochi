@@ -548,11 +548,27 @@ export function transition(
       const startLine = present
         ? joinPages(pickText(data.text, action.startLineId, rng))
         : joinPages(pickText(data.text, SYS.journal.sessionStartAbsent, rng));
+      // 직전 휴식 준수 배율 — 이번 세션의 게이지 정산에 곱한다 (개정 v4-4).
+      // 1 미만이면 관찰 문장으로 텔레그래프 (수치 비노출 — 돌의 기색으로만).
+      const restMult = restComplianceMult(state, event.nowMs);
+      const restLine =
+        present && restMult < 1
+          ? joinPages(
+              pickText(
+                data.text,
+                restMult <= BALANCE.REST_MULT_SKIP
+                  ? SYS.journal.restSkipped
+                  : SYS.journal.restShort,
+                rng,
+              ),
+            )
+          : null;
       let journal: JournalEntry[] = [];
       // '돌이 떠났다' 기록은 새 세션 일지 맨 앞에 보존한다
       if (exited.visitEndLine) journal = addJournal(journal, 0, exited.visitEndLine);
       if (crisisLine) journal = addJournal(journal, 0, crisisLine);
       journal = addJournal(journal, 0, startLine);
+      if (restLine) journal = addJournal(journal, 0, restLine);
       if (visitJournal) journal = addJournal(journal, 0, visitJournal);
       const absentAmb = data.text[SYS.absentAmbient]?.[0];
       return {
@@ -567,8 +583,7 @@ export function transition(
               ? startLine
               : joinPages(absentAmb ?? [startLine]),
           journal,
-          // 직전 휴식 준수 배율 — 이번 세션의 게이지 정산에 곱한다 (개정 v4-4)
-          restMult: restComplianceMult(state, event.nowMs),
+          restMult,
         },
       };
     }
@@ -967,6 +982,10 @@ export function transition(
         relationTier += 1;
         lastTierUpDate = today;
         // 보장 위기 아크 예약 (개정 v4-8): 3티어 = 잠수, 5티어 = 병간호(성장통)
+        // TODO(v4-후속): pendingCrisis가 단일 슬롯이라, 3티어가 예약한 'retreat'가
+        // 발동 전(계속 부재/병중)에 5티어 승급을 만나면 'sick'이 덮어써 보장 잠수가
+        // 사라질 수 있다 (재예약 조건이 relationTier === 3 순간뿐). 발생 확률이 낮아
+        // 보류 — 고칠 때는 pendingCrisis를 큐로 바꾸거나 미발동 아크를 이월할 것.
         if (relationTier === 3 && !crisisArcsFired.includes('retreat'))
           pendingCrisis = 'retreat';
         if (relationTier === 5 && !crisisArcsFired.includes('sick'))

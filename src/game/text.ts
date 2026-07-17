@@ -41,6 +41,8 @@ export const SYS = {
     rockRecovered: 'sys.journal.rockRecovered',
     crisisRetreat: 'sys.journal.crisisRetreat',
     crisisSick: 'sys.journal.crisisSick',
+    restShort: 'sys.journal.restShort',
+    restSkipped: 'sys.journal.restSkipped',
     visitStart: 'sys.journal.visitStart',
     visitEnd: 'sys.journal.visitEnd',
   },

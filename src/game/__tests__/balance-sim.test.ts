@@ -327,6 +327,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
     const B = BALANCE as unknown as Record<string, number>;
     const saved = {
       gain: BALANCE.SELF_ACT_GAIN_PER_WORK,
+      base: BALANCE.PERSONAL_WORK_BASE,
       drift: BALANCE.ATTACH_DRIFT_PER_TIER,
     };
     const POL = (over: Partial<Policy>): Policy => ({
@@ -363,7 +364,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
       }
     } finally {
       B.SELF_ACT_GAIN_PER_WORK = saved.gain;
-      B.PERSONAL_WORK_BASE = 0.05;
+      B.PERSONAL_WORK_BASE = saved.base;
       B.ATTACH_DRIFT_PER_TIER = saved.drift;
     }
   }, 300_000);
