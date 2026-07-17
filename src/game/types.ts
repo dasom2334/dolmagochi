@@ -123,7 +123,7 @@ export interface ChoiceState {
 
 /** 휴식 대화 카드 상태 — pages: 배열 원소 = 페이지, 페이지 안 \n = 줄바꿈 */
 export interface TalkState {
-  kind: 'pool' | 'foreshadow' | 'return' | 'milestone' | 'ending' | 'recall';
+  kind: 'pool' | 'foreshadow' | 'return' | 'milestone' | 'ending' | 'recall' | 'planting' | 'farewell2';
   pages: string[];
   hasChoice: boolean;
   done: boolean;
@@ -189,6 +189,8 @@ export interface ApartState {
   leavePending: boolean;
   /** 붙잡은 횟수 — 붙잡을수록 문구가 무거워진다 */
   holdCount: number;
+  /** 붙잡기로 연장된 체류인가 (M14) — 임시 동거: 의존도↑·묘목 시듦 */
+  held: boolean;
 }
 
 export interface GameState {
@@ -267,6 +269,22 @@ export interface GameState {
   quadrantsSeen: string[];
   /** 도감 뱃지 획득 기록 — 최초 충족 시각 (M11a). 숫자는 UI 비노출 */
   badges: Record<string, { at: number }>;
+  // ── 2차 독립기 (M14) — 붙잡기 스펙트럼·묘목 성장. 수치는 전부 비노출 ──
+  /** 묘목 성장 0–100 — 돌의 자아실현 재가동의 가시화 (개정 v4 §5) */
+  sproutGrowth: number;
+  /** 묘목 시듦 0–3 (연속값) — 붙잡을수록 시들고, 놓아주면 회복 */
+  witherLevel: number;
+  /** 방문 온 돌을 보내준 횟수 — 2차 게이트 재료 */
+  letGoCount: number;
+  /** 개화(성장 66+) 목격 — 2차 게이트 재료 */
+  bloomSeen: boolean;
+  /** 동거 균형 애착 달성 목격 — 동거 루트 2차 게이트 재료 */
+  balancedSeen: boolean;
+  /** 심기 이벤트 완료 — 3차(나무) 시작점 */
+  planted: boolean;
+  plantedAt: number | null;
+  /** 동거: 친밀위협 급성 연속 세션 수 — 임계 도달 시 제2의 이별 */
+  highThreatStreak: number;
   /** 현재 날씨 (M12) — 자연 변화는 달력일당 1회, 정성 지불로 즉시 변경 */
   weather: WeatherKind;
   /** 자연 날씨 추첨을 마친 달력일 */

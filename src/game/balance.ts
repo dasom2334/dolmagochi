@@ -160,6 +160,17 @@ export const BALANCE = {
   COHABIT_ESTEEM_DECAY: 1, // 동거 세션마다 존중 게이지 하락
   COHABIT_SELF_ACT_DECAY: 1, // 동거 세션마다 자아실현 게이지 하락
 
+  // 2차 독립기 (M14) — 묘목 성장 = 돌의 자아실현 재가동. 목표 25~30h (개정 v4 §5).
+  // apart 비방문 세션당 units×2.0 (~3.6/h × 유효 75%) → 100 ≈ 28h.
+  SPROUT_GROWTH_PER_UNIT: 2.0,
+  SPROUT_GROWTH_COHABIT_FACTOR: 0.5, // 동거는 균형 애착일 때만, 절반 속도 (잠식 역전)
+  SPROUT_BLOOM_AT: 66, // 개화 임계 — 2차 게이트 재료
+  SPROUT_WITHER_HELD: 0.5, // 강제 체류(붙잡기 연장) 세션당 시듦
+  SPROUT_WITHER_COHABIT: 0.25, // 동거 불안정 애착 세션당 시듦
+  SPROUT_RECOVER: 0.25, // 자연/자발 세션당 회복
+  DEPENDENCE_PER_HELD_SESSION: 2, // 강제 체류 = 임시 동거: 의존도 상승
+  FAREWELL2_STREAK: 6, // 친밀위협 급성 연속 세션 임계 → 제2의 이별
+
   // apart (빈자리) — 돌의 방문
   VISIT_PROB: 0.25, // 세션 시작 시 돌이 놀러올 확률
   VISIT_STAY_MIN: 1, // 머무는 세션 수

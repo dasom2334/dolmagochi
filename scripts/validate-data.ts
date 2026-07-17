@@ -345,7 +345,7 @@ export function validateGameData(
       errors.push(`badges[${i}] "${b.id}": when은 정확히 한 필드여야 함`);
     if (w.milestone !== undefined && !milestoneIds.has(w.milestone))
       errors.push(`badges[${i}] "${b.id}": 알 수 없는 milestone "${w.milestone}"`);
-    if (w.crisisArc !== undefined && !['retreat', 'sick'].includes(w.crisisArc))
+    if (w.crisisArc !== undefined && !['retreat', 'sick', 'farewell2'].includes(w.crisisArc))
       errors.push(`badges[${i}] "${b.id}": 알 수 없는 crisisArc "${w.crisisArc}"`);
     if (
       w.quadrantSeen !== undefined &&

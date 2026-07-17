@@ -40,6 +40,7 @@ import {
 } from './stats';
 import {
   acuteQuadrant,
+  attachQuadrant,
   convergeStep,
   derivedSecurity,
   intimacyOutcome,
@@ -62,7 +63,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -102,6 +103,7 @@ export function createInitialState(
       visitSessionsLeft: 0,
       leavePending: false,
       holdCount: 0,
+      held: false,
     },
     memory: {},
     remembrances: [],
@@ -117,6 +119,14 @@ export function createInitialState(
     crisisArcsFired: [],
     quadrantsSeen: [],
     badges: {},
+    sproutGrowth: 0,
+    witherLevel: 0,
+    letGoCount: 0,
+    bloomSeen: false,
+    balancedSeen: false,
+    planted: false,
+    plantedAt: null,
+    highThreatStreak: 0,
     weather: 'clear',
     lastWeatherDate: null,
     pendingUmbrella: false,
@@ -443,7 +453,7 @@ function exitRest(
   return {
     state: {
       ...state,
-      apart: { ...state.apart, visiting: false, leavePending: false },
+      apart: { ...state.apart, visiting: false, leavePending: false, held: false },
     },
     visitEndLine: joinPages(pickText(data.text, SYS.journal.visitEnd, rng)),
   };
@@ -598,6 +608,7 @@ function reduce(
             apart: {
               ...next.apart,
               visiting: true,
+              held: false, // 자발적 방문 — 시들지 않는다 (M14)
               visitSessionsLeft: randInt(
                 rng,
                 BALANCE.VISIT_STAY_MIN,
@@ -1240,6 +1251,78 @@ function reduce(
         };
       }
 
+      // ── 2차 독립기 정산 (M14, 개정 v4 §5) — 묘목 성장 = 돌의 자아실현 재가동 ──
+      // apart: 돌이 밖에서 스스로 (방문 중엔 쉬는 날 — 성장 정지, 자발 체류는 시들지 않음).
+      // 강제 체류(붙잡기 연장) = 임시 동거: 의존도↑·시듦. 동거: 균형 애착일 때만
+      // 절반 속도 성장(잠식 역전 — M14 새싹 연결안), 불안정이면 시듦.
+      let sproutGrowth = next.sproutGrowth;
+      let witherLevel = next.witherLevel;
+      let bloomSeen = next.bloomSeen;
+      let balancedSeen = next.balancedSeen;
+      let highThreatStreak = next.highThreatStreak;
+      let era = next.era;
+      let farewell2 = false;
+      if (!next.planted && next.era === 'apart') {
+        if (!apart.visiting) {
+          sproutGrowth = Math.min(
+            100,
+            sproutGrowth + BALANCE.SPROUT_GROWTH_PER_UNIT * units,
+          );
+          witherLevel = Math.max(0, witherLevel - BALANCE.SPROUT_RECOVER);
+        } else if (apart.held) {
+          witherLevel = Math.min(3, witherLevel + BALANCE.SPROUT_WITHER_HELD);
+          stats = {
+            ...stats,
+            dependence: clampStat(
+              stats.dependence + BALANCE.DEPENDENCE_PER_HELD_SESSION,
+            ),
+          };
+        }
+      } else if (!next.planted && next.era === 'cohabit') {
+        const balanced =
+          attachQuadrant(stats.abandonment, stats.intimacyThreat) === 'secure';
+        if (balanced) {
+          balancedSeen = true;
+          sproutGrowth = Math.min(
+            100,
+            sproutGrowth +
+              BALANCE.SPROUT_GROWTH_PER_UNIT *
+                BALANCE.SPROUT_GROWTH_COHABIT_FACTOR *
+                units,
+          );
+          witherLevel = Math.max(0, witherLevel - BALANCE.SPROUT_RECOVER);
+        } else {
+          witherLevel = Math.min(3, witherLevel + BALANCE.SPROUT_WITHER_COHABIT);
+        }
+        // 제2의 이별 (M14): 친밀위협이 급성으로 오래 유지되면 돌이 스스로 떠난다.
+        // 이번엔 붙잡을 수 없다 — "떠나고 싶어하는 스크립트"의 종착점.
+        highThreatStreak =
+          stats.intimacyThreat >= BALANCE.ATTACH_AVOIDANT_ACUTE
+            ? highThreatStreak + 1
+            : 0;
+        if (highThreatStreak >= BALANCE.FAREWELL2_STREAK) {
+          farewell2 = true;
+          era = 'apart';
+          highThreatStreak = 0;
+          crisisArcsFired = [...crisisArcsFired, 'farewell2'];
+        }
+      }
+      // 개화 목격 (2차 게이트 재료) — 일지에 한 번 남는다
+      let bloomLine: string | null = null;
+      if (!bloomSeen && sproutGrowth >= BALANCE.SPROUT_BLOOM_AT) {
+        bloomSeen = true;
+        bloomLine = joinPages(pickText(data.text, SYS.journal.bloom, rng));
+      }
+
+      if (bloomLine) journal = addJournal(journal, elapsed, bloomLine);
+      if (farewell2) {
+        journal = addJournal(
+          journal,
+          elapsed,
+          joinPages(pickText(data.text, SYS.journal.farewell2, rng)),
+        );
+      }
+
       let memory = remember(
         next.memory,
         action.id,
@@ -1303,6 +1386,37 @@ function reduce(
         };
       }
 
+      // ── 2차 종료: 심기 이벤트 (M14) — 성장 완주 + 2차 게이트(개화 목격 +
+      // 보내주기 1회 또는 균형 애착 목격) → 이번 휴식의 대화 슬롯에서 심는다.
+      // 3차(나무) 시스템은 후속 마일스톤 — 여기서는 상태 확정과 연출까지.
+      let planted = next.planted;
+      let plantedAt = next.plantedAt;
+      if (
+        !planted &&
+        era !== 'raising' &&
+        sproutGrowth >= 100 &&
+        bloomSeen &&
+        (next.letGoCount >= 1 || balancedSeen)
+      ) {
+        planted = true;
+        plantedAt = event.nowMs;
+        endingTalk = {
+          kind: 'planting',
+          pages: pickText(data.text, SYS.planting, rng),
+          hasChoice: false,
+          done: false,
+        };
+      }
+      // 제2의 이별 대화가 최우선 — 돌이 스스로 떠나는 순간
+      if (farewell2) {
+        endingTalk = {
+          kind: 'farewell2',
+          pages: pickText(data.text, SYS.farewell2, rng),
+          hasChoice: false,
+          done: false,
+        };
+      }
+
       // 휴식 길이 문턱 발화 — 배정된 휴식이 길수록 (긴 집중의 결과) 진입 시 1회.
       // 분 표기({mins})는 실제 배정된 휴식 길이 — 유저가 설정에서 바꾼 값이 그대로 들어간다
       const restSec = restMin * 60;
@@ -1332,6 +1446,14 @@ function reduce(
         presence,
         apart,
         memory,
+        era,
+        sproutGrowth,
+        witherLevel,
+        bloomSeen,
+        balancedSeen,
+        planted,
+        plantedAt,
+        highThreatStreak,
         relationTier,
         lastTierUpDate,
         pendingCrisis,
@@ -1464,6 +1586,7 @@ function reduce(
             visiting: true,
             visitSessionsLeft: BALANCE.VISIT_HOLD_EXTEND,
             holdCount: state.apart.holdCount + 1,
+            held: true, // 강제 체류 = 임시 동거 (M14): 의존도↑·묘목 시듦
           },
           stats: {
             ...state.stats,
@@ -1480,13 +1603,14 @@ function reduce(
           },
         };
       }
-      // 보내주기: 자유롭게 떠난다
+      // 보내주기: 자유롭게 떠난다 — 2차 게이트 재료 (M14)
       const line = joinPages(
         pickText(data.text, data.dialogues.visitLeave.letGoResultId, rng),
       );
       return {
         ...state,
-        apart: { ...state.apart, visiting: false, leavePending: false },
+        letGoCount: state.letGoCount + 1,
+        apart: { ...state.apart, visiting: false, leavePending: false, held: false },
         session: {
           ...state.session,
           narratorLine: line,
@@ -1927,6 +2051,7 @@ function reduce(
           visitSessionsLeft: 0,
           leavePending: false,
           holdCount: 0,
+          held: false,
         },
         presence: presentState(),
       };

@@ -124,6 +124,16 @@ function normalizeState(state: GameState): GameState {
       freeWorked: state.session?.freeWorked === true,
       restMult: finiteOr(state.session?.restMult, 1),
     },
+    // 2차 독립기 필드 방어 (M14)
+    sproutGrowth: finiteOr(state.sproutGrowth, 0),
+    witherLevel: finiteOr(state.witherLevel, 0),
+    letGoCount: finiteOr(state.letGoCount, 0),
+    bloomSeen: state.bloomSeen === true,
+    balancedSeen: state.balancedSeen === true,
+    planted: state.planted === true,
+    plantedAt: typeof state.plantedAt === 'number' ? state.plantedAt : null,
+    highThreatStreak: finiteOr(state.highThreatStreak, 0),
+    apart: { ...state.apart, held: state.apart?.held === true },
     // 날씨 필드 방어 (M12)
     weather: (['clear', 'rain', 'downpour', 'snow', 'petals', 'leaves'] as const).includes(state.weather)
       ? state.weather

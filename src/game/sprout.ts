@@ -14,6 +14,7 @@ export function sproutStageOf(
   state: GameState,
   dialogues: DialoguesData,
 ): SproutStage | null {
+  if (state.planted) return null; // 심기 이후 — 묘목은 돌을 떠나 땅에 있다 (M14)
   if (state.era === 'apart') return 'thriving';
   if (state.era === 'cohabit')
     return cohabitStageIndex(dialogues.cohabitStages, state.stats.dependence);
