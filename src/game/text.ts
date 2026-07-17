@@ -1,5 +1,6 @@
 import type { TextId } from './types';
 import type { Rng } from './rng';
+import type { LayerId } from '../audio/layers';
 
 /** 로케일 카탈로그: textId → 변형 배열 → 페이지 배열 (페이지 안 \n = 줄바꿈) */
 export type TextCatalog = Record<string, string[][]>;
@@ -41,6 +42,8 @@ export const SYS = {
     rockRecovered: 'sys.journal.rockRecovered',
     crisisRetreat: 'sys.journal.crisisRetreat',
     crisisSick: 'sys.journal.crisisSick',
+    restShort: 'sys.journal.restShort',
+    restSkipped: 'sys.journal.restSkipped',
     visitStart: 'sys.journal.visitStart',
     visitEnd: 'sys.journal.visitEnd',
   },
@@ -121,7 +124,7 @@ export const SYS = {
 
 /** 순수 UI 단문 id 상수 (M2에서 사용) */
 export const UI = {
-  /** 소리풍경 레이어 라벨 (M9) — LayerId → textId */
+  /** 소리풍경 레이어 라벨 (M9) — LayerId 추가 시 라벨 누락은 컴파일 에러로 잡힌다 */
   noiseLayers: {
     roomBase: 'ui.noise.roomBase',
     fireplace: 'ui.noise.fireplace',
@@ -132,7 +135,7 @@ export const UI = {
     rockingChair: 'ui.noise.rockingChair',
     cooking: 'ui.noise.cooking',
     sweeping: 'ui.noise.sweeping',
-  } as Record<string, string>,
+  } satisfies Record<LayerId, string>,
   /** 테마 라벨 (M10) */
   theme: {
     setting: 'ui.theme.setting',

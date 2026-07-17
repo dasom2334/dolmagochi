@@ -1328,6 +1328,28 @@ describe('휴식 준수 배율 — 디메리트 계단 (개정 v4-4)', () => {
     expect(skipped.stats.needs.physiological).toBeCloseTo(p0 + 2.5 - 0.5, 5);
     expect(skipped.care.points).toBe(2); // 25분×2 = 2pt — 배율 미적용
   });
+
+  it('스킵·부족은 세션 시작 일지에 관찰 문장으로 텔레그래프된다 (수치 비노출)', () => {
+    const base = run({ ...init(), selectedAction: 'lie' }, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(1500),
+      { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
+    ]);
+    const restMs = base.rest.totalSec * 1000;
+    const endAt = T0 + 1_500_000;
+    const journalOf = (startAt: number) =>
+      run(base, [{ type: 'START_FOCUS', nowMs: startAt }]).session.journal.map(
+        (j) => j.text,
+      );
+    const hasLine = (texts: string[], id: string) =>
+      texts.some((t2) => variantsOf(id).includes(t2));
+    // 스킵(×0.5) → restSkipped, 절반(×0.75) → restShort, 완주 → 없음
+    expect(hasLine(journalOf(endAt), 'sys.journal.restSkipped')).toBe(true);
+    expect(hasLine(journalOf(endAt + restMs / 2), 'sys.journal.restShort')).toBe(true);
+    const full = journalOf(endAt + restMs);
+    expect(hasLine(full, 'sys.journal.restSkipped')).toBe(false);
+    expect(hasLine(full, 'sys.journal.restShort')).toBe(false);
+  });
 });
 
 describe('소리풍경 설정 (M9)', () => {
