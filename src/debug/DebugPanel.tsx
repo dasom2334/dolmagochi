@@ -25,14 +25,23 @@ export default function DebugPanel({
   nowMs: number;
 }) {
   const [panel, setPanel] = useState<'none' | 'stats' | 'tools' | 'mem'>('none');
+  const [ffMin, setFfMin] = useState(5);
   const toggle = (p: 'stats' | 'tools' | 'mem') =>
     setPanel((cur) => (cur === p ? 'none' : p));
 
+  // 빨리감기 — 집중은 ffMin분 경과, 휴식은 ffMin분만큼 남은 시간 차감
   const fastForward = () => {
-    if (state.phase === 'focus') dispatch({ type: 'TICK', dtSec: 300 });
+    const sec = Math.max(1, ffMin) * 60;
+    if (state.phase === 'focus') dispatch({ type: 'TICK', dtSec: sec });
     else if (state.phase === 'rest')
       appStore.setState((prev) => ({
-        state: { ...prev.state, rest: { ...prev.state.rest, endsAt: nowMs } },
+        state: {
+          ...prev.state,
+          rest: {
+            ...prev.state.rest,
+            endsAt: Math.max(nowMs, prev.state.rest.endsAt - sec * 1000),
+          },
+        },
       }));
   };
 
@@ -58,6 +67,15 @@ export default function DebugPanel({
         <button className="hv" style={btnSmall} onClick={fastForward}>
           ≫ ff
         </button>
+        <input
+          type="number"
+          min={1}
+          value={ffMin}
+          onChange={(e) => setFfMin(Number(e.target.value) || 1)}
+          style={numInput}
+          title="빨리감기 분"
+        />
+        <span>m</span>
         <TabBtn label="stats" on={panel === 'stats'} onClick={() => toggle('stats')} />
         <TabBtn label="tools" on={panel === 'tools'} onClick={() => toggle('tools')} />
         <TabBtn label="mem" on={panel === 'mem'} onClick={() => toggle('mem')} />
@@ -267,11 +285,12 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       },
     }));
 
+  const [careAmt, setCareAmt] = useState(5);
   const addCare = () =>
     appStore.setState((prev) => ({
       state: {
         ...prev.state,
-        care: { ...prev.state.care, points: prev.state.care.points + 5 },
+        care: { ...prev.state.care, points: prev.state.care.points + careAmt },
       },
     }));
 
@@ -291,8 +310,16 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
           force ending
         </button>
         <button className="hv" style={btnSmall} onClick={addCare}>
-          +5 care
+          +care
         </button>
+        <input
+          type="number"
+          min={1}
+          value={careAmt}
+          onChange={(e) => setCareAmt(Number(e.target.value) || 1)}
+          style={numInput}
+          title="추가할 정성"
+        />
         <button className="hv" style={btnSmall} onClick={() => void wipe()}>
           wipe save
         </button>
@@ -493,6 +520,16 @@ const panelStyle = {
   overflowY: 'auto' as const,
   color: '#c9c0d4',
   lineHeight: 1.5,
+};
+
+const numInput = {
+  width: 44,
+  border: '1px solid #6b6178',
+  background: 'transparent',
+  color: '#c9c0d4',
+  fontFamily: 'inherit',
+  fontSize: 11,
+  padding: '2px 4px',
 };
 
 const rowWrap = {
