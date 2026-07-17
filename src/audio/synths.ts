@@ -10,12 +10,22 @@ export interface LayerHandle {
   stop(): void;
 }
 
-/** 공용 화이트노이즈 버퍼 (2초 루프) */
-function whiteBuffer(ctx: AudioContext, seconds = 2): AudioBuffer {
-  const len = Math.floor(ctx.sampleRate * seconds);
+/**
+ * 공용 화이트노이즈 버퍼 — 컨텍스트당 1개를 만들어 재사용한다.
+ * noiseBurst가 발소리·비질처럼 ~0.7초 간격으로 도는 레이어에서 호출마다
+ * 새 AudioBuffer를 만들면 모바일 장시간 세션에서 GC 압박이 된다.
+ * 노이즈라 같은 버퍼를 재사용해도 청감 차이가 없다 (리뷰 반영).
+ */
+const sharedWhite = new WeakMap<AudioContext, AudioBuffer>();
+
+function whiteBuffer(ctx: AudioContext): AudioBuffer {
+  const cached = sharedWhite.get(ctx);
+  if (cached) return cached;
+  const len = Math.floor(ctx.sampleRate * 2);
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
   const d = buf.getChannelData(0);
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  sharedWhite.set(ctx, buf);
   return buf;
 }
 
@@ -113,7 +123,7 @@ function noiseBurst(
   try {
     const { band, dur, vol, attack = 0.01 } = opts;
     const src = a.ctx.createBufferSource();
-    src.buffer = whiteBuffer(a.ctx, Math.max(0.5, dur + 0.1));
+    src.buffer = whiteBuffer(a.ctx); // 공용 2초 버퍼 — dur에서 stop으로 잘라 쓴다
     const f = a.ctx.createBiquadFilter();
     if (opts.lowpass) {
       f.type = 'lowpass';
