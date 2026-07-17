@@ -138,6 +138,7 @@ function normalizeState(state: GameState): GameState {
     lastTreeFindDate: state.lastTreeFindDate ?? null,
     treeBondDays: finiteOr(state.treeBondDays, 0),
     lastTreeBondDate: state.lastTreeBondDate ?? null,
+    treeBondToday: finiteOr(state.treeBondToday, 0),
     apart: { ...state.apart, held: state.apart?.held === true },
     // 날씨 필드 방어 (M12)
     weather: (['clear', 'rain', 'downpour', 'snow', 'petals', 'leaves'] as const).includes(state.weather)

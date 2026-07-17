@@ -232,6 +232,14 @@ export function migrateState(state: GameState): GameState | null {
       lastTreeBondDate: s.lastTreeBondDate ?? null,
     };
   }
+  // v19 → v20: 동행 보너스 하루 상한 — 오늘 획득분 추적 필드 추가.
+  if (s.schemaVersion === 19) {
+    s = {
+      ...s,
+      schemaVersion: 20,
+      treeBondToday: s.treeBondToday ?? 0,
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

@@ -140,6 +140,7 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       lastTreeFindDate: null,
       treeBondDays: 0,
       lastTreeBondDate: null,
+      treeBondToday: 0,
       stats: {
         ...s.stats,
         affection: BALANCE.AFFECTION_TIERS[BALANCE.AFFECTION_TIERS.length - 1],
@@ -167,6 +168,7 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       lastTreeFindDate: null,
       treeBondDays: 0,
       lastTreeBondDate: null,
+      treeBondToday: 0,
     }));
 
   // 2차 동거: 의존도 중간에서 시작
@@ -229,6 +231,7 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       lastTreeFindDate: null,
       treeBondDays: 0,
       lastTreeBondDate: null,
+      treeBondToday: 0,
       visitBlockedUntil: null,
     }));
 

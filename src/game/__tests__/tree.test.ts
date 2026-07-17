@@ -28,18 +28,28 @@ function planted(daysAgo: number): GameState {
     sproutGrowth: 100,
   };
 }
-function session(s: GameState, at: number, rng?: Rng): GameState {
+function session(
+  s: GameState,
+  at: number,
+  rng?: Rng,
+  focusMin = 1,
+): GameState {
   return run(
     s,
-    [{ type: 'START_FOCUS', nowMs: at }, { type: 'END_FOCUS', nowMs: at + 60_000 }],
+    [
+      { type: 'START_FOCUS', nowMs: at },
+      { type: 'TICK', dtSec: focusMin * 60 },
+      { type: 'END_FOCUS', nowMs: at + focusMin * 60_000 },
+    ],
     rng ?? seq([0.9]),
   );
 }
-/** n일 연속으로 하루 한 세션 — 매일 오는 플레이어 */
+const FULL = 90; // 시간 보너스를 꽉 채우는 세션 (분)
+/** n일 연속으로 하루 한 번 90분 세션 — 매일 성실히 오는 플레이어 */
 function daily(s: GameState, days: number): GameState {
   let cur = s;
   for (let d = 0; d < days; d++) {
-    cur = session({ ...cur, phase: 'actionSelect' }, T0 + d * DAY);
+    cur = session({ ...cur, phase: 'actionSelect' }, T0 + d * DAY, undefined, FULL);
   }
   return cur;
 }
@@ -75,14 +85,31 @@ describe('나무 발견 — 전조→열매→흔들림→각성 체인 (M15b)',
   });
 
   it('매일 오는 플레이어: 나흘째에 각성 — 아이를 첫 주에 만난다', () => {
-    // day0 전조 → day1(나무일3) 열매 → day2(5) 흔들림 → day3(7) 각성
+    // 하루 90분: 보너스 +2/일 → day0 전조(2) → day1 열매(5) → day2 흔들림(8) → day3 각성
     const s = daily(planted(0), 4);
     expect('tree-fruit-swell' in s.memory).toBe(true);
     expect('tree-first-fruit' in s.memory).toBe(true);
     expect('tree-fruit-stir' in s.memory).toBe(true);
     expect('tree-awakening' in s.memory).toBe(true);
     expect('tree-awakening' in s.badges).toBe(true);
-    expect(s.treeBondDays).toBe(4);
+    expect(s.treeBondDays).toBe(8);
+  });
+
+  it('세션을 몰아친 날: 열매와 흔들림을 같은 날, 각성은 다음 날 (하루 상한 2)', () => {
+    // 심은 날: 90분×2 — 보너스는 상한 2에서 멈춰 열매(3)에 못 미친다 (전조만)
+    let s = session(planted(0), T0, undefined, FULL);
+    s = session({ ...s, phase: 'actionSelect' }, T0 + 4 * 3_600_000, undefined, FULL);
+    expect(finds(s)).toEqual(['tree-fruit-swell']);
+    expect(s.treeBondDays).toBe(2);
+    // 다음 날: 세션1에서 열매(나무일 5), 세션2에서 흔들림 — 체인은 하루 1개 제한을 넘는다
+    s = session({ ...s, phase: 'actionSelect' }, T0 + DAY, undefined, FULL);
+    expect('tree-first-fruit' in s.memory).toBe(true);
+    s = session({ ...s, phase: 'actionSelect' }, T0 + DAY + 4 * 3_600_000, undefined, FULL);
+    expect('tree-fruit-stir' in s.memory).toBe(true);
+    expect('tree-awakening' in s.memory).toBe(false); // 나무일 5 < 7
+    // 그다음 날: 각성 — 열매에서 각성까지 하루
+    s = session({ ...s, phase: 'actionSelect' }, T0 + 2 * DAY, undefined, FULL);
+    expect('tree-awakening' in s.memory).toBe(true);
   });
 
   it('단계를 건너뛰어도 체인 순서는 지켜진다 — 각성은 열매·흔들림 뒤', () => {
@@ -128,10 +155,10 @@ describe('동행자 (M15b) — 각성 발견을 만난 순간부터', () => {
 
   it('휴식 스킵 시 동행자가 걱정한다 — 돌이 하던 걱정을 이어받아', () => {
     let s = daily(planted(0), 4);
-    // 마지막 세션의 휴식이 끝나기 전에 바로 시작 → 스킵 (restMult 0.5)
+    // 마지막 세션(90분)의 휴식이 끝나기 전에 바로 시작 → 스킵 (restMult 0.5)
     s = run(
       { ...s, phase: 'actionSelect' },
-      [{ type: 'START_FOCUS', nowMs: T0 + 3 * DAY + 120_000 }],
+      [{ type: 'START_FOCUS', nowMs: T0 + 3 * DAY + FULL * 60_000 + 60_000 }],
       seq([0.9]),
     );
     expect(

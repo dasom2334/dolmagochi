@@ -1,9 +1,9 @@
 /**
  * 3차 — 나무 (M15, 페이싱 개편 M15b). 성장은 달력+동행이, 목격은 플레이가.
  * 심는 순간 나무는 개화 상태다 — 2차에서 돌 위에 핀 꽃이 그대로 뿌리내린다.
- * 나이는 나무일(tree-days) = 실제 경과일 + 동행일(세션을 마친 날마다 1):
- * 함께한 날은 나무에게 이틀이다. 안 와도 하루는 하루대로 흐른다.
- * 미세 변화(발견)는 접속해 세션을 마친 날에만 하루 1개 기록된다.
+ * 나이는 나무일(tree-days) = 실제 경과일 + 동행 보너스(출석 + 세션 시간 비례,
+ * 하루 상한): 함께한 날은 나무에게 이틀이 넘는다. 안 와도 하루는 하루대로 흐른다.
+ * 미세 변화(발견)는 세션을 마친 날 하루 1개 — 단, 각성 체인은 세션마다 잇는다.
  */
 import { BALANCE } from './balance';
 
@@ -15,9 +15,9 @@ export function treeDays(
   bondDays: number,
   nowMs: number,
 ): number {
-  return (
+  return Math.floor(
     Math.max(0, Math.floor((nowMs - plantedAt) / 86_400_000)) +
-    Math.max(0, bondDays)
+      Math.max(0, bondDays),
   );
 }
 

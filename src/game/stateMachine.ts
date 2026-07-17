@@ -64,7 +64,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 19;
+export const SCHEMA_VERSION = 20;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -132,6 +132,7 @@ export function createInitialState(
     lastTreeFindDate: null,
     treeBondDays: 0,
     lastTreeBondDate: null,
+    treeBondToday: 0,
     weather: 'clear',
     lastWeatherDate: null,
     pendingUmbrella: false,
@@ -1453,28 +1454,47 @@ function reduce(
         };
       }
 
-      // ── 3차: 동행 가속 (M15b) — 세션을 마친 날은 나무에게 이틀
+      // ── 3차: 동행 가속 (M15b) — 출석(하루 첫 세션 +1) + 세션 시간 비례
+      // (min(분,90)/90), 하루 합산 상한 2. 많이 온 날은 나무가 더 자란다
       let treeBondDays = next.treeBondDays;
       let lastTreeBondDate = next.lastTreeBondDate;
-      if (planted && lastTreeBondDate !== today) {
-        treeBondDays += 1;
-        lastTreeBondDate = today;
+      let treeBondToday = next.treeBondToday;
+      if (planted) {
+        if (lastTreeBondDate !== today) {
+          treeBondToday = 0;
+          lastTreeBondDate = today;
+        }
+        const attend = treeBondToday === 0 ? BALANCE.TREE_BOND_ATTEND : 0;
+        const sessionBond = Math.min(
+          1,
+          cappedMins / BALANCE.TREE_BOND_SESSION_MINS,
+        );
+        const gain = Math.min(
+          BALANCE.TREE_BOND_DAILY_MAX - treeBondToday,
+          attend + sessionBond,
+        );
+        if (gain > 0) {
+          treeBondDays += gain;
+          treeBondToday += gain;
+        }
       }
       // ── 3차: 나무 발견 (M15/M15b) — 성장은 달력+동행이, 목격은 플레이가.
-      // 세션을 마친 날에만 하루 1개. 단계·계절·선행(after)이 맞는 미발견 후보 중
-      // 단계 높은 것 우선, 동률은 데이터 순서 — 심은 세션의 전조(꽃자리)부터
-      // 열매 → 흔들림 → 각성 체인이 순서대로 도달한다
+      // 필러는 하루 1개, 각성 체인(priority)은 세션마다 잇는다 — 열심히 온 날은
+      // 열매와 흔들림을 같은 날 겪고, 열매 다음 날 각성에 닿을 수 있다.
+      // 단계·계절·선행(after)이 맞는 미발견 후보 중 우선순위 → 단계 순
       let lastTreeFindDate = next.lastTreeFindDate;
-      if (planted && plantedAt !== null && lastTreeFindDate !== today) {
+      if (planted && plantedAt !== null) {
         const stage = treeStage(plantedAt, treeBondDays, event.nowMs);
         const season = resolveSeason(next.settings, event.nowMs);
+        const dailyOpen = lastTreeFindDate !== today;
         const cands = data.treeFinds
           .filter(
             (f) =>
               stage >= f.minStage &&
               (f.season === undefined || f.season === season) &&
               !(`tree-${f.id}` in memory) &&
-              (f.after === undefined || `tree-${f.after}` in memory),
+              (f.after === undefined || `tree-${f.after}` in memory) &&
+              ((f.priority ?? 0) > 0 || dailyOpen),
           )
           .sort(
             (a, b) =>
@@ -1537,6 +1557,7 @@ function reduce(
         lastTreeFindDate,
         treeBondDays,
         lastTreeBondDate,
+        treeBondToday,
         relationTier,
         lastTierUpDate,
         pendingCrisis,
