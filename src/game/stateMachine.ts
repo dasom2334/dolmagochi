@@ -47,6 +47,7 @@ import {
   isBalanced,
 } from './security';
 import { presentState, startAbsence } from './absence';
+import { resolveSeason } from './timeOfDay';
 import { pickMoment, settleBadges } from './badges';
 import {
   applyOutcome,
@@ -146,6 +147,7 @@ export function createInitialState(
       noiseMuted: [],
       theme: 'auto',
       timeOfDay: 'auto',
+      season: 'auto',
       notifAsked: false,
       locale: 'ko',
       notify: { ...DEFAULT_NOTIFY_SETTINGS },
@@ -178,20 +180,32 @@ function emptySession(): GameState['session'] {
   };
 }
 
-/** 자연 날씨 추첨 (M12) — 달력일당 1회, 가중 확률표 */
-function rollWeather(rng: Rng): GameState['weather'] {
-  const total = BALANCE.WEATHER_NATURAL.reduce((a, [, w]) => a + w, 0);
+/** 이 계절에 가능한 날씨 목록 (M12) — 눈=겨울, 꽃잎비=봄, 낙엽비=가을 */
+export function weathersOfSeason(season: string): GameState['weather'][] {
+  return (BALANCE.WEATHER_BY_SEASON[season] ?? []).map(
+    ([kind]) => kind as GameState['weather'],
+  );
+}
+
+/** 자연 날씨 추첨 (M12) — 달력일당 1회, 계절별 가중 확률표 */
+function rollWeather(season: string, rng: Rng): GameState['weather'] {
+  const table = BALANCE.WEATHER_BY_SEASON[season] ?? [['clear', 1]];
+  const total = table.reduce((a, [, w]) => a + w, 0);
   let r = rng() * total;
-  for (const [kind, w] of BALANCE.WEATHER_NATURAL) {
+  for (const [kind, w] of table) {
     r -= w;
     if (r <= 0) return kind as GameState['weather'];
   }
   return 'clear';
 }
 
-/** 비 오는 산책인가 — 우산 플로우·젖음 판정 공용 (M12) */
+/** 비 오는 산책인가 — 우산 플로우·젖음 판정 공용 (M12).
+ * 꽃잎비·낙엽비는 마른 날씨 — 우산도 젖음도 없다. */
 function wetOutdoor(weather: GameState['weather'], actionId: ActionId): boolean {
-  return actionId === 'walk' && weather !== 'clear';
+  return (
+    actionId === 'walk' &&
+    (weather === 'rain' || weather === 'downpour' || weather === 'snow')
+  );
 }
 
 /**
@@ -513,10 +527,15 @@ function reduce(
         state.lastSessionEndAt,
         event.nowMs,
       );
-      // 자연 날씨 변화 (M12) — 달력일당 1회 추첨. 수동 변경은 다음 날까지 유지된다.
+      // 자연 날씨 변화 (M12) — 달력일당 1회, 계절표에서 추첨.
+      // 수동 변경은 다음 날까지 유지되되, 계절이 바뀌어 무효가 되면 재추첨된다.
       const today = dateKey(event.nowMs);
+      const season = resolveSeason(state.settings, event.nowMs);
+      const allowed = weathersOfSeason(season);
       const weather =
-        state.lastWeatherDate === today ? state.weather : rollWeather(rng);
+        state.lastWeatherDate === today && allowed.includes(state.weather)
+          ? state.weather
+          : rollWeather(season, rng);
       return {
         ...state,
         stats: settled.stats,
@@ -1872,6 +1891,13 @@ function reduce(
       if (state.phase !== 'rest' && state.phase !== 'actionSelect') return state;
       if (event.weather === state.weather) return state;
       if (state.care.points < BALANCE.WEATHER_CHANGE_COST) return state;
+      // 계절 의존 (M12): 이 계절에 없는 날씨는 살 수 없다 (눈은 겨울에만)
+      if (
+        !weathersOfSeason(
+          resolveSeason(state.settings, event.nowMs),
+        ).includes(event.weather)
+      )
+        return state;
       return {
         ...state,
         weather: event.weather,
@@ -1887,6 +1913,16 @@ function reduce(
           ),
         },
       };
+    }
+
+    case 'SET_SEASON': {
+      // 계절 고정/자동 (M12) — 바뀐 계절에 현재 날씨가 무효면 그 계절 날씨로 재추첨
+      const settings = { ...state.settings, season: event.mode };
+      const season = resolveSeason(settings, event.nowMs);
+      const weather = weathersOfSeason(season).includes(state.weather)
+        ? state.weather
+        : rollWeather(season, rng);
+      return { ...state, settings, weather };
     }
 
     case 'SET_TIME_OF_DAY': {

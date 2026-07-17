@@ -3,17 +3,17 @@
  * 추후 도트 에셋 교체를 위해 개별 컴포넌트로 분리. image-rendering 유지.
  * 입자 배치는 인덱스 기반 유사난수 — 리렌더에도 흔들리지 않는다.
  */
-export function WeatherFx({ kind }: { kind: 'rain' | 'downpour' | 'snow' }) {
+export function WeatherFx({ kind }: { kind: 'rain' | 'downpour' | 'snow' | 'petals' | 'leaves' }) {
+  const drifting = kind === 'snow' || kind === 'petals' || kind === 'leaves';
   const count = kind === 'downpour' ? 26 : kind === 'rain' ? 14 : 18;
   const drops = Array.from({ length: count }, (_, i) => {
     const left = ((i * 37) % 100) + ((i * 13) % 7) / 10;
     const delay = ((i * 53) % 20) / 10;
-    const dur =
-      kind === 'snow'
-        ? 4 + ((i * 29) % 30) / 10
-        : kind === 'downpour'
-          ? 0.55 + ((i * 17) % 10) / 40
-          : 0.9 + ((i * 23) % 12) / 30;
+    const dur = drifting
+      ? 4 + ((i * 29) % 30) / 10
+      : kind === 'downpour'
+        ? 0.55 + ((i * 17) % 10) / 40
+        : 0.9 + ((i * 23) % 12) / 30;
     return { left, delay, dur, key: i };
   });
   return (
@@ -26,16 +26,21 @@ export function WeatherFx({ kind }: { kind: 'rain' | 'downpour' | 'snow' }) {
       }}
     >
       {drops.map((d) =>
-        kind === 'snow' ? (
+        drifting ? (
           <div
             key={d.key}
             style={{
               position: 'absolute',
               left: `${d.left}%`,
               top: -4,
-              width: 3,
-              height: 3,
-              background: 'rgba(232,238,244,0.85)',
+              width: kind === 'leaves' ? 4 : 3,
+              height: kind === 'leaves' ? 2 : 3,
+              background:
+                kind === 'petals'
+                  ? 'rgba(240,182,200,0.85)' // 꽃잎 — 봄
+                  : kind === 'leaves'
+                    ? 'rgba(200,134,63,0.85)' // 낙엽 — 가을
+                    : 'rgba(232,238,244,0.85)', // 눈 — 겨울
               animation: `snowFall ${d.dur}s linear ${d.delay}s infinite`,
             }}
           />

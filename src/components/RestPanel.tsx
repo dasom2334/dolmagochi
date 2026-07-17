@@ -3,7 +3,8 @@ import type { GameState, Remembrance, RestStep } from '../game/types';
 import type { ShopItemData } from '../data/schema';
 import { gameData } from '../store/gameStore';
 import { acquiredBadges } from '../game/badges';
-import { isItemAvailable, isRockPresent } from '../game/stateMachine';
+import { isItemAvailable, isRockPresent, weathersOfSeason } from '../game/stateMachine';
+import { resolveSeason } from '../game/timeOfDay';
 import { needsBand } from '../game/stats';
 import { BALANCE } from '../game/balance';
 import { dispatch, now, t, tf } from '../store/appStore';
@@ -303,8 +304,10 @@ function ownedList(state: GameState) {
 
 /** 날씨 줄 (M12) — 현재 날씨 표시 + 정성 지불 순환 변경. 자연 변화는 무료 */
 function WeatherRow({ state }: { state: GameState }) {
-  const order = ['clear', 'rain', 'downpour', 'snow'] as const;
-  const next = order[(order.indexOf(state.weather) + 1) % order.length];
+  // 계절 가용 날씨 안에서만 순환 (M12: 눈=겨울, 꽃잎비=봄, 낙엽비=가을)
+  const order = weathersOfSeason(resolveSeason(state.settings, now()));
+  const idx = order.indexOf(state.weather);
+  const next = order[(idx + 1) % Math.max(1, order.length)] ?? 'clear';
   const poor = state.care.points < BALANCE.WEATHER_CHANGE_COST;
   return (
     <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--hint)' }}>

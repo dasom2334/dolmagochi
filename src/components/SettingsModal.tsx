@@ -274,6 +274,21 @@ export function SettingsModal({
           {t(UI.weatherUi.timeModes[state.settings.timeOfDay])}
         </button>
 
+        {/* 계절 (M12) — 자동(기기 날짜) 또는 고정. 날씨 가용성이 계절에 의존 */}
+        <button
+          className="hv-text"
+          style={settingBtn}
+          onClick={() => {
+            const order = ['auto', 'spring', 'summer', 'autumn', 'winter'] as const;
+            const next =
+              order[(order.indexOf(state.settings.season) + 1) % order.length];
+            dispatch({ type: 'SET_SEASON', mode: next, nowMs: now() });
+          }}
+        >
+          * {t(UI.weatherUi.seasonSetting)} —{' '}
+          {t(UI.weatherUi.seasonModes[state.settings.season])}
+        </button>
+
         <button className="hv-text" style={settingBtn} onClick={doExport}>
           * {t(UI.buttons.exportSave)}
         </button>

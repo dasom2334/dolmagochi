@@ -182,7 +182,11 @@ export function migrateState(state: GameState): GameState | null {
         umbrella: s.session.umbrella ?? false,
         wetness: s.session.wetness ?? null,
       },
-      settings: { ...s.settings, timeOfDay: s.settings.timeOfDay ?? 'auto' },
+      settings: {
+        ...s.settings,
+        timeOfDay: s.settings.timeOfDay ?? 'auto',
+        season: s.settings.season ?? 'auto',
+      },
     };
   }
   // v15 → v16: 2차 독립기(M14) — 묘목 성장·붙잡기 스펙트럼 필드.

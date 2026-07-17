@@ -143,9 +143,7 @@ export function SceneView({ state }: { state: GameState }) {
         />
       )}
       {outdoor && state.weather !== 'clear' && (
-        <WeatherFx
-          kind={state.weather === 'snow' ? 'snow' : state.weather === 'downpour' ? 'downpour' : 'rain'}
-        />
+        <WeatherFx kind={state.weather} />
       )}
       {outdoor && <TimeTint tod={tod} />}
       <div
