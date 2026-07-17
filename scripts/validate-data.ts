@@ -331,6 +331,46 @@ export function validateGameData(
   ref(e.cohabitTransitionId, 'endings.cohabitTransition');
   ref(e.farewellFromCohabitId, 'endings.farewellFromCohabit');
 
+  // ── badges (M11a) ──
+  const milestoneIds = new Set(data.events.milestones.map((m) => m.id));
+  const badgeIds = new Set<string>();
+  (data.badges ?? []).forEach((b, i) => {
+    if (badgeIds.has(b.id)) errors.push(`중복 badge.id "${b.id}"`);
+    badgeIds.add(b.id);
+    ref(b.nameId, `badges[${i}].name`);
+    ref(b.lineId, `badges[${i}].line`);
+    const w = b.when ?? {};
+    const keys = Object.keys(w);
+    if (keys.length !== 1)
+      errors.push(`badges[${i}] "${b.id}": when은 정확히 한 필드여야 함`);
+    if (w.milestone !== undefined && !milestoneIds.has(w.milestone))
+      errors.push(`badges[${i}] "${b.id}": 알 수 없는 milestone "${w.milestone}"`);
+    if (w.crisisArc !== undefined && !['retreat', 'sick'].includes(w.crisisArc))
+      errors.push(`badges[${i}] "${b.id}": 알 수 없는 crisisArc "${w.crisisArc}"`);
+    if (
+      w.quadrantSeen !== undefined &&
+      !['clingy', 'avoidant', 'chaotic'].includes(w.quadrantSeen)
+    )
+      errors.push(`badges[${i}] "${b.id}": 알 수 없는 quadrantSeen "${w.quadrantSeen}"`);
+  });
+
+  // ── moments (M11a) ──
+  const restActKeys = new Set(data.restActs.map((a) => a.key));
+  const momentIds = new Set<string>();
+  (data.moments ?? []).forEach((m, i) => {
+    if (momentIds.has(m.id)) errors.push(`중복 moment.id "${m.id}"`);
+    momentIds.add(m.id);
+    ref(m.summaryId, `moments[${i}].summary`);
+    ref(m.revealId, `moments[${i}].reveal`);
+    if (m.restAct !== undefined && m.when !== undefined)
+      errors.push(`moments[${i}] "${m.id}": when과 restAct는 상호배타`);
+    if (m.restAct !== undefined && !restActKeys.has(m.restAct))
+      errors.push(`moments[${i}] "${m.id}": 알 수 없는 restAct "${m.restAct}"`);
+    checkCondition(m.when, `moments[${i}] "${m.id}"`);
+    if (m.weight !== undefined && m.weight <= 0)
+      errors.push(`moments[${i}] "${m.id}": weight는 0보다 커야 함`);
+  });
+
   // ── 코드(SYS/UI)만 참조하는 textId도 카탈로그에 존재해야 함 ──
   // (구조 파일이 아닌 코드가 쓰는 id: sys.notification.restEnd, ui.buttons.* 등이
   //  삭제/오타나면 런타임에 '[MISSING TEXT]'가 뜨므로 여기서 잡는다)

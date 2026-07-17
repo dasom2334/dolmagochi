@@ -22,6 +22,12 @@ export const BALANCE = {
   // 대화
   FORESHADOW_PROB: 0.45,
 
+  // 추억 순간 (M11a) — 희소해야 추억답다: 세션당 최대 1회.
+  // 반추 틱(자유행동 5분·그 외 10분)마다 굴려 50분 세션 발동률 ~10~18%,
+  // 1회차(~66세션) 기대 획득 ~12-15개 — 절반 이상은 놓친다.
+  MOMENT_PROB_PER_TICK: 0.02,
+  MOMENT_PROB_REST_ACT: 0.1, // 휴식 작은 행동 1회당
+
   // 기억 항목 (종류별 단일 항목 — 소멸하지 않는다)
   MEMORY_WEIGHT_FLOOR: 0.5, // 감쇠 바닥값 — 이 밑으로 내려가지 않음
   MEMORY_WEIGHT_MAX: 10, // 강화 상한

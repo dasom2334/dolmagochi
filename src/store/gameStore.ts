@@ -17,6 +17,8 @@ import reflections from '../data/reflections.json';
 import restActs from '../data/restActs.json';
 import timeMarks from '../data/timeMarks.json';
 import endings from '../data/endings.json';
+import badges from '../data/badges.json';
+import moments from '../data/moments.json';
 import ko from '../data/locales/ko.json';
 
 /** 로케일 카탈로그 — 현재 ko만. 언어 추가 = 카탈로그 파일 추가 */
@@ -35,6 +37,8 @@ export function buildGameData(locale = 'ko'): GameData {
     restActs,
     timeMarks,
     endings,
+    badges,
+    moments,
     text: catalogs[locale] ?? catalogs['ko'],
   } as unknown as GameData;
 }

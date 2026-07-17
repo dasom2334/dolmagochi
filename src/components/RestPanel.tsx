@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import type { GameState, RestStep } from '../game/types';
+import type { GameState, Remembrance, RestStep } from '../game/types';
+import type { ShopItemData } from '../data/schema';
 import { gameData } from '../store/gameStore';
+import { acquiredBadges } from '../game/badges';
 import { isItemAvailable, isRockPresent } from '../game/stateMachine';
 import { needsBand } from '../game/stats';
 import { dispatch, now, t, tf } from '../store/appStore';
@@ -297,8 +299,13 @@ function ownedList(state: GameState) {
   );
 }
 
+/** 도감(기억) 행 — 뱃지 또는 추억. 미획득분은 목록에 아예 없다 (숫자·실루엣 비노출) */
+type MemoryEntryRow =
+  | { kind: 'badge'; at: number; nameId: string; lineId: string }
+  | { kind: 'rem'; at: number; rem: Remembrance };
+
 function RestShop({ state }: { state: GameState }) {
-  const [sub, setSub] = useState<'store' | 'owned'>('store');
+  const [sub, setSub] = useState<'store' | 'owned' | 'memories'>('store');
   const [page, setPage] = useState(0);
   const pending = state.pendingPlacement;
 
@@ -348,14 +355,36 @@ function RestShop({ state }: { state: GameState }) {
     );
   }
 
-  const all = sub === 'store' ? storeItems(state) : ownedList(state);
+  // 도감(기억): 획득 뱃지 + 추억을 시각순으로 — 미획득분은 존재 자체 비노출
+  const memoryEntries: MemoryEntryRow[] =
+    sub === 'memories'
+      ? [
+          ...acquiredBadges(gameData.badges, state).map((b) => ({
+            kind: 'badge' as const,
+            at: b.at,
+            nameId: b.def.nameId,
+            lineId: b.def.lineId,
+          })),
+          ...state.remembrances.map((r) => ({
+            kind: 'rem' as const,
+            at: r.at,
+            rem: r,
+          })),
+        ].sort((a, b) => a.at - b.at)
+      : [];
+  const all =
+    sub === 'memories'
+      ? memoryEntries
+      : sub === 'store'
+        ? storeItems(state)
+        : ownedList(state);
   const pages = Math.max(1, Math.ceil(all.length / 3));
   const p = Math.min(page, pages - 1);
   const items = all.slice(p * 3, p * 3 + 3);
   return (
     <>
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-        {(['store', 'owned'] as const).map((k) => {
+        {(['store', 'owned', 'memories'] as const).map((k) => {
           const on = sub === k;
           return (
             <button
@@ -375,7 +404,13 @@ function RestShop({ state }: { state: GameState }) {
                 setPage(0);
               }}
             >
-              {t(k === 'store' ? UI.shop.subStore : UI.shop.subOwned)}
+              {t(
+                k === 'store'
+                  ? UI.shop.subStore
+                  : k === 'owned'
+                    ? UI.shop.subOwned
+                    : UI.shop.subBadges,
+              )}
             </button>
           );
         })}
@@ -383,10 +418,47 @@ function RestShop({ state }: { state: GameState }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {items.length === 0 && (
           <p style={{ margin: 0, fontSize: 11, color: 'var(--hint)' }}>
-            * {t(sub === 'owned' ? UI.shop.ownedEmpty : UI.shop.storeEmpty)}
+            *{' '}
+            {t(
+              sub === 'memories'
+                ? UI.shop.badgesEmpty
+                : sub === 'owned'
+                  ? UI.shop.ownedEmpty
+                  : UI.shop.storeEmpty,
+            )}
           </p>
         )}
-        {items.map((it) => {
+        {sub === 'memories' &&
+          (items as MemoryEntryRow[]).map((row) =>
+            row.kind === 'badge' ? (
+              <div
+                key={row.nameId}
+                style={{ fontSize: 12, color: 'var(--text-soft)', lineHeight: 1.6, padding: '4px 4px' }}
+              >
+                ◆ {t(row.nameId)}{' '}
+                <span style={{ color: 'var(--hint)' }}>{t(row.lineId)}</span>
+              </div>
+            ) : (
+              <div
+                key={row.rem.id}
+                style={{ fontSize: 12, color: 'var(--text-soft)', lineHeight: 1.6, padding: '4px 4px' }}
+              >
+                ◇ {t(row.rem.summaryId)}
+                {row.rem.pickedLabelId && (
+                  <span style={{ color: 'var(--hint)' }}>
+                    {' '}
+                    {tf(SYS.remembrance.choice, { label: t(row.rem.pickedLabelId) })}
+                  </span>
+                )}{' '}
+                <span style={{ color: 'var(--hint-dim)' }}>
+                  {state.era === 'apart'
+                    ? t(row.rem.revealId)
+                    : t(SYS.remembrance.locked)}
+                </span>
+              </div>
+            ),
+          )}
+        {sub !== 'memories' && (items as ShopItemData[]).map((it) => {
           if (sub === 'owned') {
             // 소장품: 배치/보관 조절 (소모품 포함 — 재고가 방에 보인다)
             const isPlaced = !!state.items[it.id]?.placed;

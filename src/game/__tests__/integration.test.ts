@@ -129,9 +129,12 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
 
     dispatch({ type: 'TALK' }); // 떠난 뒤의 대화 = 추억 회상 (reveal이 처음 붙는다)
     expect(get().rest.talkState?.kind).toBe('recall');
+    // rng 0 → 첫 자유행동 세션에서 추억 순간(mo-free-hum)이 먼저 기록되고,
+    // 회상도 rng 0이라 그 첫 추억을 뽑는다 (M11a)
+    expect(get().remembrances.map((r) => r.id)).toContain('fore-bird');
     expect(get().rest.talkState?.pages).toEqual([
-      T('rem.fore-bird.summary'),
-      T('rem.fore-bird.reveal'),
+      T('rem.mo-free-hum.summary'),
+      T('rem.mo-free-hum.reveal'),
     ]);
   });
 });

@@ -1,0 +1,12 @@
+[
+  { "id": "mo-lie-breath", "when": { "action": "lie" }, "summaryId": "rem.mo-lie-breath.summary", "revealId": "rem.mo-lie-breath.reveal" },
+  { "id": "mo-read-line", "when": { "action": "read" }, "summaryId": "rem.mo-read-line.summary", "revealId": "rem.mo-read-line.reveal" },
+  { "id": "mo-sun-dust", "when": { "action": "sun" }, "summaryId": "rem.mo-sun-dust.summary", "revealId": "rem.mo-sun-dust.reveal" },
+  { "id": "mo-walk-wind", "when": { "action": "walk" }, "summaryId": "rem.mo-walk-wind.summary", "revealId": "rem.mo-walk-wind.reveal" },
+  { "id": "mo-cook-steam", "when": { "action": "cook" }, "summaryId": "rem.mo-cook-steam.summary", "revealId": "rem.mo-cook-steam.reveal" },
+  { "id": "mo-chore-corner", "when": { "action": "chore" }, "summaryId": "rem.mo-chore-corner.summary", "revealId": "rem.mo-chore-corner.reveal" },
+  { "id": "mo-free-hum", "when": { "action": "free" }, "summaryId": "rem.mo-free-hum.summary", "revealId": "rem.mo-free-hum.reveal" },
+  { "id": "mo-fan-breeze", "when": { "placedItems": ["fan"] }, "summaryId": "rem.mo-fan-breeze.summary", "revealId": "rem.mo-fan-breeze.reveal" },
+  { "id": "mo-rest-water", "restAct": "water", "summaryId": "rem.mo-rest-water.summary", "revealId": "rem.mo-rest-water.reveal" },
+  { "id": "mo-rest-glance", "restAct": "glance", "summaryId": "rem.mo-rest-glance.summary", "revealId": "rem.mo-rest-glance.reveal" }
+]
