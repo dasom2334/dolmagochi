@@ -45,6 +45,7 @@ export const SYS = {
     gotWet: 'sys.journal.gotWet',
     gotSnowy: 'sys.journal.gotSnowy',
     bloom: 'sys.journal.bloom',
+    bloomAfar: 'sys.journal.bloomAfar',
     farewell2: 'sys.journal.farewell2',
     witherEase: 'sys.journal.witherEase',
     restShort: 'sys.journal.restShort',

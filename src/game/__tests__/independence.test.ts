@@ -219,7 +219,7 @@ describe('apart 제2의 이별 (M14b) — 붙잡기 사다리 한계·방문 차
     expect(s.witherLevel).toBeLessThan(1);
     expect(
       s.session.journal.some((j) =>
-        j.text.includes('묘목이 조금 기운을 차렸다'),
+        j.text.includes('기운을 차리고 있을지도'),
       ),
     ).toBe(true);
   });

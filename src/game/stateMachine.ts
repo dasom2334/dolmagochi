@@ -1322,11 +1322,19 @@ function reduce(
           crisisArcsFired = [...crisisArcsFired, 'farewell2'];
         }
       }
-      // 개화 목격 (2차 게이트 재료) — 일지에 한 번 남는다
+      // 개화 목격 (2차 게이트 재료) — 일지에 한 번 남는다.
+      // apart의 성장은 돌이 오지 않은 세션에서만 진행되므로 개화도 부재중에
+      // 일어난다 — 눈앞의 목격이 아니라 멀리서의 짐작 문구를 쓴다
       let bloomLine: string | null = null;
       if (!bloomSeen && sproutGrowth >= BALANCE.SPROUT_BLOOM_AT) {
         bloomSeen = true;
-        bloomLine = joinPages(pickText(data.text, SYS.journal.bloom, rng));
+        bloomLine = joinPages(
+          pickText(
+            data.text,
+            next.era === 'apart' ? SYS.journal.bloomAfar : SYS.journal.bloom,
+            rng,
+          ),
+        );
       }
 
       if (bloomLine) journal = addJournal(journal, elapsed, bloomLine);
