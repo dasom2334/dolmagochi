@@ -5,6 +5,7 @@ import { SYS, UI } from '../game/text';
 import { exportSaveJson, importSaveJson } from '../persistence/exportImport';
 import { requestNotifyPermission } from '../notifications';
 import { cloneFlowtime } from '../game/timer';
+import { ALL_LAYERS } from '../audio/layers';
 
 const numInput = {
   width: 42,
@@ -337,6 +338,25 @@ export function SettingsModal({
               : SYS.settings.noiseOff,
           )}
         </button>
+        {/* 소리풍경 레이어별 음소거 (M9) — 마스터가 켜져 있을 때만 노출 */}
+        {state.settings.noiseOn &&
+          ALL_LAYERS.map((layer) => (
+            <button
+              key={layer}
+              className="hv-text"
+              style={{ ...settingBtn, fontSize: 12, color: '#c8bdd0', paddingLeft: 12 }}
+              onClick={() =>
+                dispatch({
+                  type: 'SET_NOISE_LAYER',
+                  layer,
+                  muted: !state.settings.noiseMuted.includes(layer),
+                })
+              }
+            >
+              - {t(UI.noiseLayers[layer])} —{' '}
+              {onOff(!state.settings.noiseMuted.includes(layer))}
+            </button>
+          ))}
       </SubSheet>
     )}
 

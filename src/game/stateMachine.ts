@@ -58,7 +58,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -125,6 +125,7 @@ export function createInitialState(
     lastDecayDate: dateKey(nowMs),
     settings: {
       noiseOn: false,
+      noiseMuted: [],
       notifAsked: false,
       locale: 'ko',
       notify: { ...DEFAULT_NOTIFY_SETTINGS },
@@ -1562,6 +1563,17 @@ export function transition(
 
     case 'SET_NOISE': {
       return { ...state, settings: { ...state.settings, noiseOn: event.on } };
+    }
+
+    case 'SET_NOISE_LAYER': {
+      // 소리풍경 레이어 음소거 토글 (M9) — 중복 없이 목록 유지
+      const cur = state.settings.noiseMuted;
+      const noiseMuted = event.muted
+        ? cur.includes(event.layer)
+          ? cur
+          : [...cur, event.layer]
+        : cur.filter((l) => l !== event.layer);
+      return { ...state, settings: { ...state.settings, noiseMuted } };
     }
 
     case 'SET_NOTIFY': {
