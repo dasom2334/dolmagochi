@@ -1054,7 +1054,7 @@ describe('apart(빈자리) 시대', () => {
       ...toRest(),
       era: 'apart' as const,
       phase: 'actionSelect' as const,
-      apart: { visiting: false, visitSessionsLeft: 0, leavePending: false, holdCount: 0 },
+      apart: { visiting: false, visitSessionsLeft: 0, leavePending: false, holdCount: 0, held: false },
       remembrances: [
         {
           id: 'walk-pause',

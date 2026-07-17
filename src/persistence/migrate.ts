@@ -185,6 +185,23 @@ export function migrateState(state: GameState): GameState | null {
       settings: { ...s.settings, timeOfDay: s.settings.timeOfDay ?? 'auto' },
     };
   }
+  // v15 → v16: 2차 독립기(M14) — 묘목 성장·붙잡기 스펙트럼 필드.
+  // 기존 apart/cohabit 세이브는 성장 0에서 시작 (2차가 이제 막 생긴 것)
+  if (s.schemaVersion === 15) {
+    s = {
+      ...s,
+      schemaVersion: 16,
+      sproutGrowth: s.sproutGrowth ?? 0,
+      witherLevel: s.witherLevel ?? 0,
+      letGoCount: s.letGoCount ?? 0,
+      bloomSeen: s.bloomSeen ?? false,
+      balancedSeen: s.balancedSeen ?? false,
+      planted: s.planted ?? false,
+      plantedAt: s.plantedAt ?? null,
+      highThreatStreak: s.highThreatStreak ?? 0,
+      apart: { ...s.apart, held: s.apart.held ?? false },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }
