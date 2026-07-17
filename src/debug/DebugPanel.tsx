@@ -208,11 +208,18 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       visitBlockedUntil: null,
     }));
 
-  // 3차: 하루 경과 — 심은 시각을 하루 당기고 오늘의 발견을 다시 연다
-  const treePlusDay = () =>
+  // 다음날: 하루 1회 게이트를 전부 다시 연다 — 티어 승급·엔딩 전 대화·
+  // 나무 발견·날씨 리롤이 같은 날에도 한 번 더 진행된다.
+  // 심은 나무가 있으면 수령도 하루 늘려 달력을 일관되게 민다.
+  // (lastDecayDate는 건드리지 않는다 — 욕구 감쇠까지 당기면 스탯이 떨어져
+  //  진행 확인이 아니라 회복 노동이 된다)
+  const nextDay = () =>
     patch((s) => ({
-      plantedAt: (s.plantedAt ?? nowMs) - DAY_MS,
+      lastTierUpDate: null,
+      lastEndingTalkDate: null,
       lastTreeFindDate: null,
+      lastWeatherDate: null,
+      plantedAt: s.plantedAt !== null ? s.plantedAt - DAY_MS : null,
     }));
 
   const toggleAbsence = () =>
@@ -310,6 +317,9 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
         <button className="hv" style={btnSmall} onClick={sproutReady}>
           심기직전
         </button>
+        <button className="hv" style={btnSmall} onClick={nextDay}>
+          다음날
+        </button>
       </div>
       <Section label="tree (3차)" />
       <div style={rowWrap}>
@@ -318,9 +328,6 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
             d{d}
           </button>
         ))}
-        <button className="hv" style={btnSmall} onClick={treePlusDay}>
-          +1d
-        </button>
       </div>
       <Section label="milestone preview" />
       <div style={rowWrap}>
