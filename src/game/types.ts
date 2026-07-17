@@ -39,6 +39,8 @@ export interface Condition {
   action?: ActionId;
   /** 이 행동들에서는 통과하지 않음 (예: 산책 약속 포섀도는 산책 중 부적합) */
   notActions?: ActionId[];
+  /** 전부 기억(memory)에 있어야 하는 토큰 — 돌이 실제 겪은 일에만 반응하는 줄 */
+  hasTokens?: string[];
   minNeeds?: Partial<Record<NeedId, number>>;
   minSecurity?: number;
   minMood?: number;

@@ -647,6 +647,44 @@
     {
       "textId": "dlg.companion.6",
       "intimacy": 1
+    },
+    {
+      "textId": "dlg.companion.7",
+      "intimacy": 1,
+      "when": { "hasTokens": ["read"] }
+    },
+    {
+      "textId": "dlg.companion.8",
+      "intimacy": 1,
+      "when": { "hasTokens": ["walk"] }
+    },
+    {
+      "textId": "dlg.companion.9",
+      "intimacy": 1,
+      "when": { "hasTokens": ["cook"] }
+    },
+    {
+      "textId": "dlg.companion.10",
+      "intimacy": 1,
+      "when": { "hasTokens": ["chore"] }
+    },
+    {
+      "textId": "dlg.companion.11",
+      "intimacy": 1,
+      "when": { "hasTokens": ["lie"] }
+    },
+    {
+      "textId": "dlg.companion.12",
+      "intimacy": 1,
+      "when": { "hasTokens": ["personalWork"] }
+    },
+    {
+      "textId": "dlg.companion.13",
+      "intimacy": 1
+    },
+    {
+      "textId": "dlg.companion.14",
+      "intimacy": 1
     }
   ]
 }
