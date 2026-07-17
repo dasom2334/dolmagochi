@@ -369,3 +369,96 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
     }
   }, 300_000);
 });
+
+/** ── 2차 독립기 시뮬 (M14) — 심기까지 시간·붙잡기 스펙트럼 검증 ── */
+interface Phase2Result {
+  hBloom: number | null;
+  hPlant: number | null;
+  dPlant: number | null;
+  letGo: number;
+  holds: number;
+  visits: number;
+  endWither: number;
+  endDependence: number;
+  hoursSimmed: number;
+}
+
+function simulatePhase2(
+  policy: { holdAlways: boolean; sessionMin: number; dailyFocusMin: number },
+  seed: number,
+  maxFocusHours = 80,
+): Phase2Result {
+  const rng: Rng = mulberry32(seed);
+  const dispatch = (s: GameState, e: GameEvent) =>
+    transition(s, e, { rng, data: gameData });
+  let s: GameState = {
+    ...createInitialState(T0, 'lie'),
+    era: 'apart',
+    phase: 'actionSelect',
+  };
+  let now = T0;
+  let dayFocus = 0;
+  const res: Phase2Result = {
+    hBloom: null, hPlant: null, dPlant: null,
+    letGo: 0, holds: 0, visits: 0, endWither: 0, endDependence: 0, hoursSimmed: 0,
+  };
+  const focusH = () => s.totals.focusSeconds / 3600;
+
+  while (focusH() < maxFocusHours && !s.planted) {
+    s = dispatch(s, { type: 'SETTLE', nowMs: now });
+    const wasVisiting = s.apart.visiting;
+    s = dispatch(s, { type: 'SELECT_ACTION', actionId: 'lie' });
+    s = dispatch(s, { type: 'START_FOCUS', nowMs: now });
+    if (s.apart.visiting && !wasVisiting) res.visits++;
+    const totalSec = policy.sessionMin * 60;
+    for (let t = 0; t < totalSec; t += 30) s = dispatch(s, { type: 'TICK', dtSec: 30 });
+    now += totalSec * 1000;
+    s = dispatch(s, { type: 'END_FOCUS', nowMs: now });
+    if (res.hBloom === null && s.bloomSeen) res.hBloom = focusH();
+    if (s.apart.leavePending) {
+      s = dispatch(s, { type: 'VISIT_HOLD', hold: policy.holdAlways });
+      if (policy.holdAlways) res.holds++;
+      else res.letGo++;
+    }
+    if (s.planted) {
+      res.hPlant = focusH();
+      res.dPlant = Math.round((now - T0) / DAY);
+      break;
+    }
+    const restSec = s.rest.totalSec;
+    s = dispatch(s, { type: 'REST_END' });
+    now += restSec * 1000;
+    dayFocus += policy.sessionMin;
+    if (dayFocus >= policy.dailyFocusMin) {
+      dayFocus = 0;
+      const nd = new Date(now);
+      nd.setDate(nd.getDate() + 1);
+      nd.setHours(9, 0, 0, 0);
+      now = nd.getTime();
+    }
+  }
+  res.endWither = s.witherLevel;
+  res.endDependence = s.stats.dependence;
+  res.hoursSimmed = focusH();
+  return res;
+}
+
+describe('2차 독립기 시뮬 (M14)', () => {
+  it('보내주기 플레이 vs 붙잡기 남용', () => {
+    for (const [name, holdAlways] of [['보내주기(정상)', false], ['붙잡기 남용', true]] as const) {
+      const runs = [1, 2, 3, 4, 5, 6, 7, 8].map((sd) =>
+        simulatePhase2({ holdAlways, sessionMin: 50, dailyFocusMin: 240 }, sd),
+      );
+      const avg = (get: (r: Phase2Result) => number | null) => {
+        const vs = runs.map(get).filter((v): v is number => v !== null);
+        return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
+      };
+      const reach = runs.filter((r) => r.hPlant !== null).length;
+      console.log(
+        `\n=== 2차: ${name} (50분·4h/day, 시드 8) ===\n` +
+        `개화 ${fmt(avg((r) => r.hBloom))}h | 심기 ${fmt(avg((r) => r.hPlant))}h / ${fmt(avg((r) => r.dPlant))}일차 (${reach}/8)\n` +
+        `방문 ${fmt(avg((r) => r.visits))} | 보내줌 ${fmt(avg((r) => r.letGo))} | 붙잡음 ${fmt(avg((r) => r.holds))} | 종료 시듦 ${fmt(avg((r) => r.endWither))} | 의존도 ${fmt(avg((r) => r.endDependence))} | 시뮬 ${fmt(avg((r) => r.hoursSimmed))}h`,
+      );
+    }
+  }, 300_000);
+});
