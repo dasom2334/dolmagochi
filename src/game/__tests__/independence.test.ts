@@ -133,3 +133,30 @@ describe('2차 독립기 (M14) — 묘목 성장·붙잡기 스펙트럼', () =>
     expect(s.rest.talkState?.kind).toBe('farewell2');
   });
 });
+
+describe('2차 도감 뱃지 (M14)', () => {
+  it('보내주기·개화·심기·제2의 이별이 뱃지로 정산된다', () => {
+    let s: GameState = {
+      ...apartBase(),
+      letGoCount: 1,
+      bloomSeen: true,
+      sproutGrowth: 99,
+    };
+    s = session(s, T0); // 완주 + 게이트 → 심기까지
+    expect('let-go' in s.badges).toBe(true);
+    expect('bloom' in s.badges).toBe(true);
+    expect('planted' in s.badges).toBe(true);
+    // 제2의 이별
+    const base = createInitialState(T0, 'lie');
+    let f: GameState = {
+      ...base,
+      era: 'cohabit',
+      phase: 'actionSelect',
+      highThreatStreak: BALANCE.FAREWELL2_STREAK - 1,
+      stats: { ...base.stats, abandonment: 0, intimacyThreat: 95, security: 5 },
+    };
+    f = session(f, T0);
+    expect(f.crisisArcsFired).toContain('farewell2');
+    expect('second-farewell' in f.badges).toBe(true);
+  });
+});

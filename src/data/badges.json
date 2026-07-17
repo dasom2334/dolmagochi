@@ -334,5 +334,45 @@
     "when": {
       "quadrantSeen": "chaotic"
     }
+  },
+  {
+    "id": "let-go",
+    "nameId": "badge.let-go.name",
+    "lineId": "badge.let-go.line",
+    "when": {
+      "minLetGo": 1
+    }
+  },
+  {
+    "id": "bloom",
+    "nameId": "badge.bloom.name",
+    "lineId": "badge.bloom.line",
+    "when": {
+      "bloomSeen": true
+    }
+  },
+  {
+    "id": "balanced",
+    "nameId": "badge.balanced.name",
+    "lineId": "badge.balanced.line",
+    "when": {
+      "balancedSeen": true
+    }
+  },
+  {
+    "id": "second-farewell",
+    "nameId": "badge.second-farewell.name",
+    "lineId": "badge.second-farewell.line",
+    "when": {
+      "crisisArc": "farewell2"
+    }
+  },
+  {
+    "id": "planted",
+    "nameId": "badge.planted.name",
+    "lineId": "badge.planted.line",
+    "when": {
+      "planted": true
+    }
   }
 ]

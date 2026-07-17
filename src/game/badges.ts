@@ -22,6 +22,10 @@ export function badgeEarned(def: BadgeDef, state: GameState): boolean {
   if (w.minTier !== undefined) return state.relationTier >= w.minTier;
   if (w.quadrantSeen !== undefined)
     return state.quadrantsSeen.includes(w.quadrantSeen);
+  if (w.minLetGo !== undefined) return state.letGoCount >= w.minLetGo;
+  if (w.bloomSeen !== undefined) return state.bloomSeen === w.bloomSeen;
+  if (w.balancedSeen !== undefined) return state.balancedSeen === w.balancedSeen;
+  if (w.planted !== undefined) return state.planted === w.planted;
   return false;
 }
 

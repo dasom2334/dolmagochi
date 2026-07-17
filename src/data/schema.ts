@@ -224,6 +224,14 @@ export interface BadgeWhen {
   minTier?: number;
   /** 급성 애착 4분면 목격 기록 (quadrantsSeen) */
   quadrantSeen?: string;
+  /** 2차 (M14): 보내주기 횟수 이상 */
+  minLetGo?: number;
+  /** 2차 (M14): 개화 목격 */
+  bloomSeen?: boolean;
+  /** 2차 (M14): 동거 균형 애착 목격 */
+  balancedSeen?: boolean;
+  /** 2차 (M14): 심기 완료 */
+  planted?: boolean;
 }
 
 export interface BadgeDef {

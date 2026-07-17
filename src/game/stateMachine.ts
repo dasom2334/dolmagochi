@@ -1304,6 +1304,7 @@ function reduce(
           farewell2 = true;
           era = 'apart';
           highThreatStreak = 0;
+          crisisArcsFired = [...crisisArcsFired, 'farewell2'];
         }
       }
       // 개화 목격 (2차 게이트 재료) — 일지에 한 번 남는다
