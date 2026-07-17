@@ -7,6 +7,8 @@ import {
   selectDialoguePool,
 } from '../dialogue';
 import { mulberry32 } from '../rng';
+import { BALANCE } from '../balance';
+import { SYS } from '../text';
 import { gameData } from '../../store/gameStore';
 import { createInitialState } from '../stateMachine';
 import type { DialogueContext } from '../dialogue';
@@ -68,24 +70,29 @@ describe('selectDialoguePool — 이원화(관계/상태/4분면) 라우팅', ()
     expect(selectDialoguePool(d, ctx({ era: 'apart' }))).toBeNull();
   });
 
-  it('affectionTier — 누적 호감도 → 1~7 (개정 v4 임계 [0,8,30,55,78,100,122])', () => {
-    expect(affectionTier(0)).toBe(1);
-    expect(affectionTier(7)).toBe(1);
-    expect(affectionTier(8)).toBe(2);
-    expect(affectionTier(1000)).toBe(7);
+  // 임계값을 여기 다시 적지 않는다 — BALANCE.AFFECTION_TIERS에서 파생해 검증한다.
+  // (밸런스 조정과 콘텐츠 브랜치가 병렬로 가도 테스트가 어긋나지 않게)
+  it('affectionTier — 각 임계에서 승급, 직전에는 이전 티어 (임계 = BALANCE 파생)', () => {
+    const tiers = BALANCE.AFFECTION_TIERS;
+    tiers.forEach((threshold, i) => {
+      expect(affectionTier(threshold)).toBe(i + 1);
+      if (i > 0) expect(affectionTier(threshold - 0.1)).toBe(i);
+    });
+    expect(affectionTier(tiers[tiers.length - 1] + 1000)).toBe(tiers.length);
   });
 
-  it('trustStep — 화자 관찰 문구는 호감도 7티어와 1:1 (티어 묶음 공유 없음)', () => {
-    // 경계값 = BALANCE.AFFECTION_TIERS(개정 v4: [0,8,30,55,78,100,122]) —
-    // 티어 임계 변경 시 여기도 따라간다
-    expect(trustStep(0)).toBe(0); // 티어 1 — 관심 없음
-    expect(trustStep(8)).toBe(1); // 티어 2 — 관찰 중
-    expect(trustStep(30)).toBe(2); // 티어 3 — 밀어내지 않음
-    expect(trustStep(55)).toBe(3); // 티어 4 — 신뢰(아마도)
-    expect(trustStep(78)).toBe(4); // 티어 5 — 속을 툭, 아닌 척
-    expect(trustStep(100)).toBe(5); // 티어 6 — 곁이 편함
-    expect(trustStep(122)).toBe(6); // 티어 7 — 좋아함
-    expect(trustStep(7.9)).toBe(0); // 경계 직전은 이전 티어
+  it('trustStep — 화자 관찰 문구는 호감도 티어와 1:1 (티어 묶음 공유 없음)', () => {
+    BALANCE.AFFECTION_TIERS.forEach((threshold, i) => {
+      expect(trustStep(threshold)).toBe(i);
+      if (i > 0) expect(trustStep(threshold - 0.1)).toBe(i - 1);
+    });
+  });
+
+  it('불변식: 신뢰 문구 수·관계 대사 풀 수 = 티어 수 (임계 변경 시 콘텐츠도 따라와야 한다)', () => {
+    expect(SYS.trustLadder.length).toBe(BALANCE.AFFECTION_TIERS.length);
+    expect(gameData.dialogues.relationTiers.length).toBe(
+      BALANCE.AFFECTION_TIERS.length,
+    );
   });
 });
 
