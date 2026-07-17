@@ -28,6 +28,32 @@ export const BALANCE = {
   MOMENT_PROB_PER_TICK: 0.02,
   MOMENT_PROB_REST_ACT: 0.1, // 휴식 작은 행동 1회당
 
+  // 날씨 (M12) — 게이지 무영향. 변경 비용은 §7 예약 예산(1~2pt) 중 1로 시작.
+  WEATHER_CHANGE_COST: 1,
+  // 계절별 날씨 가용성·자연 변화 확률 (달력일당 1회 추첨) — 눈=겨울 필수 의존,
+  // 꽃잎비=봄, 낙엽비=가을, 장대비=여름. 표에 없는 날씨는 그 계절에 선택 불가.
+  WEATHER_BY_SEASON: {
+    spring: [
+      ['clear', 0.5],
+      ['rain', 0.2],
+      ['petals', 0.3],
+    ],
+    summer: [
+      ['clear', 0.55],
+      ['rain', 0.25],
+      ['downpour', 0.2],
+    ],
+    autumn: [
+      ['clear', 0.5],
+      ['rain', 0.2],
+      ['leaves', 0.3],
+    ],
+    winter: [
+      ['clear', 0.6],
+      ['snow', 0.4],
+    ],
+  } as Record<string, ReadonlyArray<readonly [string, number]>>,
+
   // 기억 항목 (종류별 단일 항목 — 소멸하지 않는다)
   MEMORY_WEIGHT_FLOOR: 0.5, // 감쇠 바닥값 — 이 밑으로 내려가지 않음
   MEMORY_WEIGHT_MAX: 10, // 강화 상한

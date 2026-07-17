@@ -8,9 +8,12 @@ import { Sprout } from './Sprout';
 export function RockSprite({
   moss,
   sprout,
+  wetness = null,
 }: {
   moss: boolean;
   sprout: SproutStage | null;
+  /** 야외에서 젖음/눈쌓임 (M12) — 다음 세션 시작에 사라진다 */
+  wetness?: 'wet' | 'snowy' | null;
 }) {
   return (
     <div
@@ -21,6 +24,34 @@ export function RockSprite({
         transform: 'translateX(-50%)',
       }}
     >
+      {wetness === 'wet' && (
+        <div
+          style={{
+            position: 'absolute',
+            left: -4,
+            top: -28,
+            width: 68,
+            height: 38,
+            background: 'rgba(88,116,176,0.16)',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+      {wetness === 'snowy' && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 14,
+            top: -30,
+            width: 8,
+            height: 4,
+            background: '#e8eef4',
+            boxShadow:
+              '10px 0 0 #e8eef4,20px 2px 0 #dfe6ee,28px 0 0 #e8eef4,-6px 8px 0 #dfe6ee,34px 8px 0 #dfe6ee',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       <div
         style={{
           width: 8,

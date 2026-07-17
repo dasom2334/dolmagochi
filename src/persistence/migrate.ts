@@ -169,6 +169,26 @@ export function migrateState(state: GameState): GameState | null {
       session: { ...s.session, momentFired: s.session.momentFired ?? false },
     };
   }
+  // v14 → v15: 날씨·시간대(M12) — 상태·설정·세션 필드 추가.
+  if (s.schemaVersion === 14) {
+    s = {
+      ...s,
+      schemaVersion: 15,
+      weather: s.weather ?? 'clear',
+      lastWeatherDate: s.lastWeatherDate ?? null,
+      pendingUmbrella: false,
+      session: {
+        ...s.session,
+        umbrella: s.session.umbrella ?? false,
+        wetness: s.session.wetness ?? null,
+      },
+      settings: {
+        ...s.settings,
+        timeOfDay: s.settings.timeOfDay ?? 'auto',
+        season: s.settings.season ?? 'auto',
+      },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

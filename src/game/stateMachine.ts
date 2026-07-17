@@ -46,6 +46,7 @@ import {
   isBalanced,
 } from './security';
 import { presentState, startAbsence } from './absence';
+import { resolveSeason } from './timeOfDay';
 import { pickMoment, settleBadges } from './badges';
 import {
   applyOutcome,
@@ -61,7 +62,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -116,6 +117,9 @@ export function createInitialState(
     crisisArcsFired: [],
     quadrantsSeen: [],
     badges: {},
+    weather: 'clear',
+    lastWeatherDate: null,
+    pendingUmbrella: false,
     care: { points: 0, carryMinutes: 0 },
     items: {},
     supplies: {},
@@ -132,6 +136,8 @@ export function createInitialState(
       noiseOn: false,
       noiseMuted: [],
       theme: 'auto',
+      timeOfDay: 'auto',
+      season: 'auto',
       notifAsked: false,
       locale: 'ko',
       notify: { ...DEFAULT_NOTIFY_SETTINGS },
@@ -159,7 +165,37 @@ function emptySession(): GameState['session'] {
     freeWorked: false,
     restMult: 1,
     momentFired: false,
+    umbrella: false,
+    wetness: null,
   };
+}
+
+/** 이 계절에 가능한 날씨 목록 (M12) — 눈=겨울, 꽃잎비=봄, 낙엽비=가을 */
+export function weathersOfSeason(season: string): GameState['weather'][] {
+  return (BALANCE.WEATHER_BY_SEASON[season] ?? []).map(
+    ([kind]) => kind as GameState['weather'],
+  );
+}
+
+/** 자연 날씨 추첨 (M12) — 달력일당 1회, 계절별 가중 확률표 */
+function rollWeather(season: string, rng: Rng): GameState['weather'] {
+  const table = BALANCE.WEATHER_BY_SEASON[season] ?? [['clear', 1]];
+  const total = table.reduce((a, [, w]) => a + w, 0);
+  let r = rng() * total;
+  for (const [kind, w] of table) {
+    r -= w;
+    if (r <= 0) return kind as GameState['weather'];
+  }
+  return 'clear';
+}
+
+/** 비 오는 산책인가 — 우산 플로우·젖음 판정 공용 (M12).
+ * 꽃잎비·낙엽비는 마른 날씨 — 우산도 젖음도 없다. */
+function wetOutdoor(weather: GameState['weather'], actionId: ActionId): boolean {
+  return (
+    actionId === 'walk' &&
+    (weather === 'rain' || weather === 'downpour' || weather === 'snow')
+  );
 }
 
 /**
@@ -481,10 +517,21 @@ function reduce(
         state.lastSessionEndAt,
         event.nowMs,
       );
+      // 자연 날씨 변화 (M12) — 달력일당 1회, 계절표에서 추첨.
+      // 수동 변경은 다음 날까지 유지되되, 계절이 바뀌어 무효가 되면 재추첨된다.
+      const today = dateKey(event.nowMs);
+      const season = resolveSeason(state.settings, event.nowMs);
+      const allowed = weathersOfSeason(season);
+      const weather =
+        state.lastWeatherDate === today && allowed.includes(state.weather)
+          ? state.weather
+          : rollWeather(season, rng);
       return {
         ...state,
         stats: settled.stats,
         lastDecayDate: settled.lastDecayDate,
+        weather,
+        lastWeatherDate: today,
       };
     }
 
@@ -492,7 +539,7 @@ function reduce(
       if (state.phase !== 'actionSelect' && state.phase !== 'rest') return state;
       const action = actionOf(data, event.actionId);
       if (!action || !isActionAvailable(action, state)) return state;
-      return { ...state, selectedAction: event.actionId };
+      return { ...state, selectedAction: event.actionId, pendingUmbrella: false };
     }
 
     case 'START_FOCUS': {
@@ -502,6 +549,16 @@ function reduce(
       // 선택된 행동이 지금 가용한지 검증 — 회복 후 남은 'nurse'나
       // 마이그레이션으로 잠긴 행동으로 세션이 시작되는 것을 막는다.
       if (!isActionAvailable(action, state)) return state;
+
+      // 우산 선택 (M12): 비·눈 오는 산책 + 우산 보유 + 아직 결정 안 함 → 대기.
+      // UI가 pendingUmbrella를 보고 두 버튼을 띄운 뒤 umbrella를 실어 재디스패치한다.
+      if (
+        wetOutdoor(state.weather, action.id) &&
+        'umbrella' in state.items &&
+        event.umbrella === undefined
+      ) {
+        return { ...state, pendingUmbrella: true };
+      }
 
       // rest 탈출 공통 정리 (응답 없는 떠나려는 기색 = 보내주기)
       const exited = exitRest(state, data, rng);
@@ -609,6 +666,7 @@ function reduce(
       return {
         ...next,
         phase: 'focus',
+        pendingUmbrella: false,
         session: {
           ...emptySession(),
           supply,
@@ -619,6 +677,10 @@ function reduce(
               : joinPages(absentAmb ?? [startLine]),
           journal,
           restMult,
+          umbrella:
+            event.umbrella === true &&
+            'umbrella' in state.items &&
+            wetOutdoor(state.weather, action.id),
         },
       };
     }
@@ -1145,6 +1207,28 @@ function reduce(
       // 소모품 사용 대사 — 종류별 문구를 일지에 남긴다
       if (supplyLine) journal = addJournal(journal, elapsed, supplyLine);
 
+      // 젖음/눈쌓임 (M12) — 게이지 무영향(개정 v4-13), 연출·관찰 문장만.
+      // 다음 세션 시작(emptySession)에 자연히 사라진다 = 휴식이 끝나면 마른다.
+      let wetness: GameState['session']['wetness'] = null;
+      if (
+        sessionHadRock &&
+        wetOutdoor(state.weather, action.id) &&
+        !state.session.umbrella
+      ) {
+        wetness = state.weather === 'snow' ? 'snowy' : 'wet';
+        journal = addJournal(
+          journal,
+          elapsed,
+          joinPages(
+            pickText(
+              data.text,
+              wetness === 'snowy' ? SYS.journal.gotSnowy : SYS.journal.gotWet,
+              rng,
+            ),
+          ),
+        );
+      }
+
       // apart: 방문 기간 소진 → 바로 떠나지 않고 떠나려는 기색 (붙잡기/보내주기)
       let apart = next.apart;
       if (next.era === 'apart' && apart.visiting && !apart.leavePending) {
@@ -1263,6 +1347,7 @@ function reduce(
         session: {
           ...state.session,
           freeWorked,
+          wetness,
           journal,
           narratorLine: joinPages(
             fillPages(
@@ -1676,6 +1761,52 @@ function reduce(
 
     case 'SET_NOISE': {
       return { ...state, settings: { ...state.settings, noiseOn: event.on } };
+    }
+
+    case 'SET_WEATHER': {
+      // 날씨 변경 (M12) — 정성 지불. 자연 변화는 무료(SETTLE), 원할 때만 산다.
+      if (state.phase !== 'rest' && state.phase !== 'actionSelect') return state;
+      if (event.weather === state.weather) return state;
+      if (state.care.points < BALANCE.WEATHER_CHANGE_COST) return state;
+      // 계절 의존 (M12): 이 계절에 없는 날씨는 살 수 없다 (눈은 겨울에만)
+      if (
+        !weathersOfSeason(
+          resolveSeason(state.settings, event.nowMs),
+        ).includes(event.weather)
+      )
+        return state;
+      return {
+        ...state,
+        weather: event.weather,
+        lastWeatherDate: dateKey(event.nowMs),
+        care: {
+          ...state.care,
+          points: state.care.points - BALANCE.WEATHER_CHANGE_COST,
+        },
+        session: {
+          ...state.session,
+          narratorLine: joinPages(
+            pickText(data.text, SYS.weather[event.weather], rng),
+          ),
+        },
+      };
+    }
+
+    case 'SET_SEASON': {
+      // 계절 고정/자동 (M12) — 바뀐 계절에 현재 날씨가 무효면 그 계절 날씨로 재추첨
+      const settings = { ...state.settings, season: event.mode };
+      const season = resolveSeason(settings, event.nowMs);
+      const weather = weathersOfSeason(season).includes(state.weather)
+        ? state.weather
+        : rollWeather(season, rng);
+      return { ...state, settings, weather };
+    }
+
+    case 'SET_TIME_OF_DAY': {
+      return {
+        ...state,
+        settings: { ...state.settings, timeOfDay: event.mode },
+      };
     }
 
     case 'SET_THEME': {

@@ -1,4 +1,7 @@
-export function DaySun() {
+/** 낮의 해 / 밤의 달 (M12: variant) — 같은 자리, 색만 바뀐다 */
+export function DaySun({ variant = 'sun' }: { variant?: 'sun' | 'moon' }) {
+  const c1 = variant === 'moon' ? '#cdd6e8' : '#e8d088';
+  const c2 = variant === 'moon' ? '#aab6d0' : '#d8c078';
   return (
     <div
       style={{
@@ -7,9 +10,9 @@ export function DaySun() {
         top: '14%',
         width: 6,
         height: 6,
-        background: '#e8d088',
+        background: c1,
         boxShadow:
-          '6px 0 0 #e8d088,0 6px 0 #e8d088,6px 6px 0 #e8d088,-6px 0 0 #d8c078,12px 6px 0 #d8c078,0 -6px 0 #d8c078,6px 12px 0 #d8c078',
+          `6px 0 0 ${c1},0 6px 0 ${c1},6px 6px 0 ${c1},-6px 0 0 ${c2},12px 6px 0 ${c2},0 -6px 0 ${c2},6px 12px 0 ${c2}`,
       }}
     />
   );

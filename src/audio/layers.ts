@@ -13,7 +13,11 @@ export type LayerId =
   | 'rockingChair' // 책읽기 + rockingchair 보유 — 끼익
   | 'pageWriting' // 자유행동 + desk 보유 — 페이지·필기
   | 'cooking' // 요리 — 도마·보글
-  | 'sweeping'; // 집안일 — 빗자루
+  | 'sweeping' // 집안일 — 빗자루
+  | 'rainSoft' // 실내에서 듣는 창밖 빗소리 (M12)
+  | 'rainHard' // 야외 빗소리 (M12)
+  | 'umbrellaRain' // 우산 위 빗방울 (M12)
+  | 'cicadas'; // 여름 매미 (M12 계절) — 낮·황혼에만, 밤에는 울지 않는다
 
 /** 설정 UI 노출 순서 — 전 레이어 개별 음소거 대상 */
 export const ALL_LAYERS: readonly LayerId[] = [
@@ -26,6 +30,10 @@ export const ALL_LAYERS: readonly LayerId[] = [
   'rockingChair',
   'cooking',
   'sweeping',
+  'rainSoft',
+  'rainHard',
+  'umbrellaRain',
+  'cicadas',
 ];
 
 export interface SoundSituation {
@@ -34,6 +42,13 @@ export interface SoundSituation {
   actionId: string | null;
   /** 보유 아이템 id 목록 (배치 여부 무관 — 기획 초안 "구매되어 있으면") */
   ownedItems: readonly string[];
+  /** 현재 날씨 (M12) — 비·장대비면 빗소리 레이어 추가 */
+  weather?: 'clear' | 'rain' | 'downpour' | 'snow' | 'petals' | 'leaves';
+  /** 이번 산책에 우산을 썼는가 (M12) — 야외 빗소리가 우산 위 소리로 바뀐다 */
+  umbrella?: boolean;
+  /** 계절 (M12) — 여름 낮·황혼이면 매미가 운다 */
+  season?: 'spring' | 'summer' | 'autumn' | 'winter';
+  timeOfDay?: 'day' | 'twilight' | 'night';
 }
 
 /** 야외 풍경 행동 — 실내 기본음 대신 야외 레이어 */
@@ -55,7 +70,13 @@ export function deriveLayers(sit: SoundSituation): LayerId[] {
     if (owned.has('fireplace')) layers.push('fireplace');
   }
 
-  if (sit.phase !== 'focus') return layers;
+  const rainy = sit.weather === 'rain' || sit.weather === 'downpour';
+  if (sit.phase !== 'focus') {
+    if (rainy) layers.push('rainSoft'); // 방에서 듣는 창밖의 비 (M12)
+    else if (sit.season === 'summer' && sit.timeOfDay !== 'night')
+      layers.push('cicadas'); // 방에서도 창 너머 매미 (M12 계절)
+    return layers;
+  }
 
   switch (sit.actionId) {
     case 'walk':
@@ -79,6 +100,22 @@ export function deriveLayers(sit: SoundSituation): LayerId[] {
       break;
     default:
       break; // lie·nurse·기타: 실내 기본만
+  }
+
+  // 날씨 레이어 (M12) — 비·장대비일 때만. 눈은 시각·서술 담당 (소리는 고요가 연출)
+  if (rainy) {
+    if (indoor) {
+      layers.push('rainSoft');
+    } else {
+      // 야외 빗속에서는 새소리가 물러난다
+      const i = layers.indexOf('birdsWind');
+      if (i >= 0) layers.splice(i, 1);
+      layers.push(sit.umbrella ? 'umbrellaRain' : 'rainHard');
+    }
+  }
+  // 여름 매미 (M12 계절) — 낮·황혼, 비가 오지 않을 때. 실내에도 창 너머로 들린다
+  if (sit.season === 'summer' && sit.timeOfDay !== 'night' && !rainy) {
+    layers.push('cicadas');
   }
   return layers;
 }

@@ -335,6 +335,79 @@ function sweeping(a: Ambience): void {
   });
 }
 
+function rainSoft(a: Ambience): void {
+  // 창 너머의 비 — 좁은 대역, 낮은 게인, 느린 스웰
+  const g = noiseLoop(a, brownBuffer(a.ctx), { lowpass: 900, gain: 0.03 });
+  try {
+    const lfo = a.ctx.createOscillator();
+    const lg = a.ctx.createGain();
+    lfo.frequency.value = 0.05;
+    lg.gain.value = 0.008;
+    lfo.connect(lg).connect(g.gain);
+    lfo.start();
+    a.nodes.push(lfo, lg);
+  } catch {
+    /* 무시 */
+  }
+}
+
+function rainHard(a: Ambience): void {
+  // 빗속 — 넓은 대역 노이즈 + 굵은 빗방울 틱
+  noiseLoop(a, whiteBuffer(a.ctx), { lowpass: 2400, gain: 0.045 });
+  every(a, 90, 260, () =>
+    noiseBurst(a, {
+      band: [700, 2600],
+      dur: 0.02 + Math.random() * 0.03,
+      vol: 0.04 + Math.random() * 0.05,
+      attack: 0.002,
+    }),
+  );
+}
+
+function umbrellaRain(a: Ambience): void {
+  // 우산 위 빗방울 — 가깝고 높은 톡톡 + 멀리 깔리는 비
+  noiseLoop(a, whiteBuffer(a.ctx), { lowpass: 1400, gain: 0.025 });
+  every(a, 70, 200, () =>
+    noiseBurst(a, {
+      band: [1800, 5200],
+      dur: 0.015 + Math.random() * 0.02,
+      vol: 0.05 + Math.random() * 0.06,
+      attack: 0.001,
+    }),
+  );
+}
+
+function cicadas(a: Ambience): void {
+  // 매미 합창 — 고역 노이즈에 빠른 트레몰로(맴맴 질감) + 느린 스웰
+  const g = noiseLoop(a, whiteBuffer(a.ctx), { bandpass: [4200, 6400], gain: 0.02 });
+  try {
+    const trem = a.ctx.createOscillator();
+    const tg = a.ctx.createGain();
+    trem.frequency.value = 27; // 빠른 진동 — 매미 특유의 지글거림
+    tg.gain.value = 0.012;
+    trem.connect(tg).connect(g.gain);
+    trem.start();
+    const swell = a.ctx.createOscillator();
+    const sg = a.ctx.createGain();
+    swell.frequency.value = 0.06; // 무리 전체가 커졌다 작아졌다
+    sg.gain.value = 0.006;
+    swell.connect(sg).connect(g.gain);
+    swell.start();
+    a.nodes.push(trem, tg, swell, sg);
+  } catch {
+    /* 무시 */
+  }
+  // 이따금 한 마리가 가까이서 — 짧고 또렷한 맴맴 프레이즈
+  every(a, 9000, 22000, () =>
+    noiseBurst(a, {
+      band: [4800, 7200],
+      dur: 0.8 + Math.random() * 0.9,
+      vol: 0.035,
+      attack: 0.15,
+    }),
+  );
+}
+
 const SYNTHS: Record<LayerId, (a: Ambience) => void> = {
   roomBase,
   fireplace,
@@ -345,6 +418,10 @@ const SYNTHS: Record<LayerId, (a: Ambience) => void> = {
   rockingChair,
   cooking,
   sweeping,
+  rainSoft,
+  rainHard,
+  umbrellaRain,
+  cicadas,
 };
 
 /** 레이어 시작 — 핸들의 stop()으로 정리. 실패 시 무음 핸들. */

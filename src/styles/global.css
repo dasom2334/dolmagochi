@@ -94,6 +94,12 @@ button { image-rendering: pixelated; }
   100% { transform: translateY(-70px); opacity: 0; }
 }
 @keyframes logFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rainFall { from { transform: translateY(0); } to { transform: translateY(200px); } }
+@keyframes snowFall {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(4px, 100px); }
+  100% { transform: translate(-2px, 200px); }
+}
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
 /* 디자인의 style-hover 속성 이관 — 인라인 스타일 위에서 동작해야 하므로 !important */

@@ -124,6 +124,12 @@ function normalizeState(state: GameState): GameState {
       freeWorked: state.session?.freeWorked === true,
       restMult: finiteOr(state.session?.restMult, 1),
     },
+    // 날씨 필드 방어 (M12)
+    weather: (['clear', 'rain', 'downpour', 'snow', 'petals', 'leaves'] as const).includes(state.weather)
+      ? state.weather
+      : 'clear',
+    lastWeatherDate: state.lastWeatherDate ?? null,
+    pendingUmbrella: state.pendingUmbrella === true,
     // 도감 필드 방어 (M11a)
     badges: isRecordSafe(state.badges) ? state.badges : {},
     quadrantsSeen: Array.isArray(state.quadrantsSeen) ? state.quadrantsSeen : [],
@@ -146,6 +152,12 @@ function normalizeState(state: GameState): GameState {
     settings: {
       ...state.settings,
       flowtime,
+      // 계절 방어 (M12)
+      season: (['auto', 'spring', 'summer', 'autumn', 'winter'] as const).includes(
+        state.settings.season,
+      )
+        ? state.settings.season
+        : 'auto',
       notify: normalizeNotify(state.settings.notify, flowtime.bounds.length),
       // 소리풍경 음소거 목록 방어 (M9) — 손상 세이브가 배열이 아니면 초기화
       noiseMuted: Array.isArray(state.settings.noiseMuted)
