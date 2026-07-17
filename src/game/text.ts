@@ -45,7 +45,9 @@ export const SYS = {
     gotWet: 'sys.journal.gotWet',
     gotSnowy: 'sys.journal.gotSnowy',
     bloom: 'sys.journal.bloom',
+    bloomAfar: 'sys.journal.bloomAfar',
     farewell2: 'sys.journal.farewell2',
+    witherEase: 'sys.journal.witherEase',
     restShort: 'sys.journal.restShort',
     restSkipped: 'sys.journal.restSkipped',
     visitStart: 'sys.journal.visitStart',
@@ -133,6 +135,7 @@ export const SYS = {
   ],
   planting: 'sys.planting',
   farewell2: 'sys.farewell2',
+  farewell2Apart: 'sys.farewell2.apart',
   trustAbsent: 'sys.trustAbsent',
   restIncomplete: 'sys.restIncomplete.prompt',
   /** 추억의 선택 기록 재생 (M11a) — {label} */
