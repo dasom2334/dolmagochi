@@ -214,6 +214,14 @@ export function migrateState(state: GameState): GameState | null {
       visitBlockedUntil: s.visitBlockedUntil ?? null,
     };
   }
+  // v17 → v18: 3차 나무(M15) — 발견 기록일 추가.
+  if (s.schemaVersion === 17) {
+    s = {
+      ...s,
+      schemaVersion: 18,
+      lastTreeFindDate: s.lastTreeFindDate ?? null,
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

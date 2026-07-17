@@ -135,6 +135,7 @@ function normalizeState(state: GameState): GameState {
     highThreatStreak: finiteOr(state.highThreatStreak, 0),
     visitBlockedUntil:
       typeof state.visitBlockedUntil === 'number' ? state.visitBlockedUntil : null,
+    lastTreeFindDate: state.lastTreeFindDate ?? null,
     apart: { ...state.apart, held: state.apart?.held === true },
     // 날씨 필드 방어 (M12)
     weather: (['clear', 'rain', 'downpour', 'snow', 'petals', 'leaves'] as const).includes(state.weather)

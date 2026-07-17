@@ -374,5 +374,85 @@
     "when": {
       "planted": true
     }
+  },
+  {
+    "id": "tree-first-leaf",
+    "nameId": "badge.tree-first-leaf.name",
+    "lineId": "tree.find.first-leaf",
+    "when": {
+      "token": "tree-first-leaf"
+    }
+  },
+  {
+    "id": "tree-first-branch",
+    "nameId": "badge.tree-first-branch.name",
+    "lineId": "tree.find.first-branch",
+    "when": {
+      "token": "tree-first-branch"
+    }
+  },
+  {
+    "id": "tree-nest",
+    "nameId": "badge.tree-nest.name",
+    "lineId": "tree.find.nest",
+    "when": {
+      "token": "tree-nest"
+    }
+  },
+  {
+    "id": "tree-cicada-shell",
+    "nameId": "badge.tree-cicada-shell.name",
+    "lineId": "tree.find.cicada-shell",
+    "when": {
+      "token": "tree-cicada-shell"
+    }
+  },
+  {
+    "id": "tree-autumn-tint",
+    "nameId": "badge.tree-autumn-tint.name",
+    "lineId": "tree.find.autumn-tint",
+    "when": {
+      "token": "tree-autumn-tint"
+    }
+  },
+  {
+    "id": "tree-snow-branch",
+    "nameId": "badge.tree-snow-branch.name",
+    "lineId": "tree.find.snow-branch",
+    "when": {
+      "token": "tree-snow-branch"
+    }
+  },
+  {
+    "id": "tree-first-flower",
+    "nameId": "badge.tree-first-flower.name",
+    "lineId": "tree.find.first-flower",
+    "when": {
+      "token": "tree-first-flower"
+    }
+  },
+  {
+    "id": "tree-first-fruit",
+    "nameId": "badge.tree-first-fruit.name",
+    "lineId": "tree.find.first-fruit",
+    "when": {
+      "token": "tree-first-fruit"
+    }
+  },
+  {
+    "id": "tree-awakening",
+    "nameId": "badge.tree-awakening.name",
+    "lineId": "tree.find.awakening",
+    "when": {
+      "token": "tree-awakening"
+    }
+  },
+  {
+    "id": "tree-full-grown",
+    "nameId": "badge.tree-full-grown.name",
+    "lineId": "tree.find.full-grown",
+    "when": {
+      "token": "tree-full-grown"
+    }
   }
 ]

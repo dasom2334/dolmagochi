@@ -77,6 +77,8 @@ export interface DialoguesData {
   apartVisit: DialogueLine[];
   /** apart — 돌 없는 방, 회상할 추억도 없을 때의 폴백 */
   apart: DialogueLine[];
+  /** 3차 — 동행자(씨앗의 아이) 대화 (M15). 각성(무성 단계) 후 */
+  companion: DialogueLine[];
   absentReturn: { lineId: TextId; yesId: TextId; noId: TextId };
   /** apart — 방문이 끝나려 할 때: 붙잡기(죄책감)/보내주기.
    * holdResultId의 변형 인덱스 = 붙잡은 횟수 (붙잡을수록 무거워진다) */
@@ -257,6 +259,18 @@ export interface MomentDef {
   weight?: number;
 }
 
+// ── treeFinds.json — 3차 나무 발견 (M15) ──────────────────────
+/**
+ * 접속해 세션을 마친 날에만 하루 1개 발견된다. minStage 도달 + 계절 일치 +
+ * 미발견인 후보 중 단계가 높은 것 우선 — 각성·성목 같은 이벤트형도 같은 풀.
+ */
+export interface TreeFindDef {
+  id: string;
+  minStage: number;
+  season?: string;
+  textId: TextId;
+}
+
 // ── 통합 ──────────────────────────────────────────────────────
 export interface GameData {
   actions: ActionData[];
@@ -269,6 +283,7 @@ export interface GameData {
   endings: EndingsData;
   badges: BadgeDef[];
   moments: MomentDef[];
+  treeFinds: TreeFindDef[];
   /** 현재 로케일로 해석된 텍스트 카탈로그 */
   text: TextCatalog;
 }

@@ -354,6 +354,21 @@ export function validateGameData(
       errors.push(`badges[${i}] "${b.id}": 알 수 없는 quadrantSeen "${w.quadrantSeen}"`);
   });
 
+  // ── treeFinds (M15) ──
+  const treeFindIds = new Set<string>();
+  (data.treeFinds ?? []).forEach((f, i) => {
+    if (treeFindIds.has(f.id)) errors.push(`중복 treeFind.id "${f.id}"`);
+    treeFindIds.add(f.id);
+    ref(f.textId, `treeFinds[${i}]`);
+    if (typeof f.minStage !== 'number' || f.minStage < 0 || f.minStage > 5)
+      errors.push(`treeFinds[${i}] "${f.id}": minStage는 0~5`);
+    if (
+      f.season !== undefined &&
+      !['spring', 'summer', 'autumn', 'winter'].includes(f.season)
+    )
+      errors.push(`treeFinds[${i}] "${f.id}": 알 수 없는 season "${f.season}"`);
+  });
+
   // ── moments (M11a) ──
   const restActKeys = new Set(data.restActs.map((a) => a.key));
   const momentIds = new Set<string>();

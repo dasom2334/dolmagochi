@@ -1,0 +1,12 @@
+[
+  { "id": "first-leaf", "minStage": 1, "textId": "tree.find.first-leaf" },
+  { "id": "first-branch", "minStage": 2, "textId": "tree.find.first-branch" },
+  { "id": "nest", "minStage": 2, "season": "spring", "textId": "tree.find.nest" },
+  { "id": "cicada-shell", "minStage": 2, "season": "summer", "textId": "tree.find.cicada-shell" },
+  { "id": "autumn-tint", "minStage": 1, "season": "autumn", "textId": "tree.find.autumn-tint" },
+  { "id": "snow-branch", "minStage": 1, "season": "winter", "textId": "tree.find.snow-branch" },
+  { "id": "first-flower", "minStage": 3, "textId": "tree.find.first-flower" },
+  { "id": "first-fruit", "minStage": 4, "textId": "tree.find.first-fruit" },
+  { "id": "awakening", "minStage": 4, "textId": "tree.find.awakening" },
+  { "id": "full-grown", "minStage": 5, "textId": "tree.find.full-grown" }
+]

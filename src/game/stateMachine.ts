@@ -48,6 +48,7 @@ import {
 } from './security';
 import { presentState, startAbsence } from './absence';
 import { resolveSeason } from './timeOfDay';
+import { companionAwake, treeStage } from './tree';
 import { pickMoment, settleBadges } from './badges';
 import {
   applyOutcome,
@@ -63,7 +64,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 17;
+export const SCHEMA_VERSION = 18;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -128,6 +129,7 @@ export function createInitialState(
     plantedAt: null,
     highThreatStreak: 0,
     visitBlockedUntil: null,
+    lastTreeFindDate: null,
     weather: 'clear',
     lastWeatherDate: null,
     pendingUmbrella: false,
@@ -605,6 +607,7 @@ function reduce(
       // 제2의 이별(M14b) 후에는 차단 기간 동안 오지 않는다.
       if (
         next.era === 'apart' &&
+        !next.planted && // 3차(M15): 돌은 나무가 되었다 — 방문 시스템 종료
         !next.apart.visiting &&
         (next.visitBlockedUntil === null || event.nowMs >= next.visitBlockedUntil)
       ) {
@@ -671,7 +674,12 @@ function reduce(
                 rng,
               ),
             )
-          : null;
+          : restMult < 1 &&
+              state.planted &&
+              companionAwake(state.plantedAt, event.nowMs)
+            ? // 3차 (M15): 돌이 하던 걱정을 이제 동행자가 한다
+              joinPages(pickText(data.text, SYS.journal.companionWorry, rng))
+            : null;
       let journal: JournalEntry[] = [];
       // '돌이 떠났다' 기록은 새 세션 일지 맨 앞에 보존한다
       if (exited.visitEndLine) journal = addJournal(journal, 0, exited.visitEndLine);
@@ -1331,6 +1339,32 @@ function reduce(
 
       if (bloomLine) journal = addJournal(journal, elapsed, bloomLine);
       if (witherEaseLine) journal = addJournal(journal, elapsed, witherEaseLine);
+
+      // ── 3차: 나무 발견 (M15) — 성장은 달력이, 목격은 플레이가.
+      // 접속해 세션을 마친 날에만 하루 1개, 단계·계절이 맞는 미발견 후보 중
+      // 단계 높은 것 우선 (각성·성목 같은 이벤트형이 도달 날 먼저 발견된다).
+      let lastTreeFindDate = next.lastTreeFindDate;
+      let treeFindLine: string | null = null;
+      let treeFindToken: string | null = null;
+      if (next.planted && next.plantedAt !== null && lastTreeFindDate !== today) {
+        const stage = treeStage(next.plantedAt, event.nowMs);
+        const season = resolveSeason(next.settings, event.nowMs);
+        const cands = data.treeFinds
+          .filter(
+            (f) =>
+              stage >= f.minStage &&
+              (f.season === undefined || f.season === season) &&
+              !(`tree-${f.id}` in next.memory),
+          )
+          .sort((a, b) => b.minStage - a.minStage);
+        if (cands.length > 0) {
+          const found = cands[0];
+          treeFindToken = `tree-${found.id}`;
+          treeFindLine = joinPages(pickText(data.text, found.textId, rng));
+          lastTreeFindDate = today;
+          journal = addJournal(journal, elapsed, treeFindLine);
+        }
+      }
       if (farewell2) {
         journal = addJournal(
           journal,
@@ -1370,6 +1404,15 @@ function reduce(
           memory,
           usedSupplyToken,
           BALANCE.MEMORY_WEIGHT_PURCHASE,
+          event.nowMs,
+        );
+      }
+      // 나무 발견 토큰 (M15) — 도감 재료
+      if (treeFindToken) {
+        memory = remember(
+          memory,
+          treeFindToken,
+          BALANCE.MEMORY_WEIGHT_ACTION,
           event.nowMs,
         );
       }
@@ -1471,6 +1514,7 @@ function reduce(
         planted,
         plantedAt,
         highThreatStreak,
+        lastTreeFindDate,
         relationTier,
         lastTierUpDate,
         pendingCrisis,
@@ -1715,7 +1759,7 @@ function reduce(
         return serveTalkPool(state, data, rng, 'absent', data.dialogues.absent);
       }
 
-      // 3) apart: 방문 중이면 방문 대화, 아니면 추억 회상
+      // 3) apart: 방문 중이면 방문 대화, 아니면 (3차) 동행자·추억 회상
       if (state.era === 'apart') {
         if (state.apart.visiting)
           return serveTalkPool(
@@ -1725,6 +1769,20 @@ function reduce(
             'apartVisit',
             data.dialogues.apartVisit,
           );
+        // 3차 (M15): 동행자(씨앗의 아이)가 깨어난 뒤에는 회상과 번갈아 곁에 있다
+        if (
+          state.planted &&
+          companionAwake(state.plantedAt, state.rest.endsAt) &&
+          rng() < 0.5
+        ) {
+          return serveTalkPool(
+            state,
+            data,
+            rng,
+            'companion',
+            data.dialogues.companion,
+          );
+        }
         const recall = recallRemembrance(state, data, rng);
         if (recall) {
           return {

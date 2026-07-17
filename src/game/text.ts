@@ -47,6 +47,7 @@ export const SYS = {
     bloom: 'sys.journal.bloom',
     farewell2: 'sys.journal.farewell2',
     witherEase: 'sys.journal.witherEase',
+    companionWorry: 'sys.journal.companionWorry',
     restShort: 'sys.journal.restShort',
     restSkipped: 'sys.journal.restSkipped',
     visitStart: 'sys.journal.visitStart',
@@ -77,6 +78,7 @@ export const SYS = {
     restRoom: 'sys.captions.restRoom',
     restRoomAbsent: 'sys.captions.restRoomAbsent',
     apartRoom: 'sys.captions.apartRoom',
+    treeRoom: 'sys.captions.treeRoom',
   },
   notification: {
     restEnd: 'sys.notification.restEnd',

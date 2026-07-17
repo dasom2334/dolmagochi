@@ -287,6 +287,8 @@ export interface GameState {
   highThreatStreak: number;
   /** apart 제2의 이별 후 방문 차단 시각 (ms) — 그때까지 돌이 오지 않는다 */
   visitBlockedUntil: number | null;
+  /** 3차: 나무 발견을 기록한 마지막 달력일 — 하루 1개 (M15) */
+  lastTreeFindDate: string | null;
   /** 현재 날씨 (M12) — 자연 변화는 달력일당 1회, 정성 지불로 즉시 변경 */
   weather: WeatherKind;
   /** 자연 날씨 추첨을 마친 달력일 */
