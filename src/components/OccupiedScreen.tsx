@@ -28,13 +28,14 @@ export function OccupiedScreen() {
           width: 480,
           maxWidth: '100%',
           aspectRatio: '320/180',
-          background: 'var(--bg-deep)',
+          // 미니 씬 내부는 도트 씬 — 테마 토큰 미적용 (B23). 프레임(border)만 크롬.
+          background: '#262031',
           border: '3px solid var(--text)',
           overflow: 'hidden',
           boxSizing: 'border-box',
         }}
       >
-        <Floor bg="var(--panel-2)" line="var(--panel-hi)" />
+        <Floor bg="#332b40" line="#453a56" />
         <RockShadow />
       </div>
       <div

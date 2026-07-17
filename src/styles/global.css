@@ -7,7 +7,7 @@
  */
 :root {
   --bg: #2b2433;
-  --bg-deep: #262031;
+  --bg-deep: #262031; /* ⚠️ App.tsx theme-color 메타와 수동 동기화 (라이트 쪽도 동일) */
   --panel: #332b3d;
   --panel-2: #332b40;
   --panel-3: #241e2c;
@@ -33,7 +33,7 @@
 
 :root[data-theme='light'] {
   --bg: #efe7d8;
-  --bg-deep: #e7decb;
+  --bg-deep: #e7decb; /* ⚠️ App.tsx theme-color 메타와 수동 동기화 */
   --panel: #f6f0e2;
   --panel-2: #f6f0e4;
   --panel-3: #f9f4e8;

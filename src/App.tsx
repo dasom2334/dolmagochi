@@ -188,6 +188,8 @@ export function App() {
       document.documentElement.dataset.theme = resolved;
       document
         .querySelector('meta[name="theme-color"]')
+        // ⚠️ 이 hex는 global.css의 --bg-deep(다크/라이트)과 수동 동기화 —
+        // 라이트 팔레트 검수로 CSS 토큰을 바꾸면 여기도 같이 고칠 것.
         ?.setAttribute('content', resolved === 'light' ? '#e7decb' : '#262031');
     };
     apply();
