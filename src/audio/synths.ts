@@ -335,6 +335,48 @@ function sweeping(a: Ambience): void {
   });
 }
 
+function rainSoft(a: Ambience): void {
+  // 창 너머의 비 — 좁은 대역, 낮은 게인, 느린 스웰
+  const g = noiseLoop(a, brownBuffer(a.ctx), { lowpass: 900, gain: 0.03 });
+  try {
+    const lfo = a.ctx.createOscillator();
+    const lg = a.ctx.createGain();
+    lfo.frequency.value = 0.05;
+    lg.gain.value = 0.008;
+    lfo.connect(lg).connect(g.gain);
+    lfo.start();
+    a.nodes.push(lfo, lg);
+  } catch {
+    /* 무시 */
+  }
+}
+
+function rainHard(a: Ambience): void {
+  // 빗속 — 넓은 대역 노이즈 + 굵은 빗방울 틱
+  noiseLoop(a, whiteBuffer(a.ctx), { lowpass: 2400, gain: 0.045 });
+  every(a, 90, 260, () =>
+    noiseBurst(a, {
+      band: [700, 2600],
+      dur: 0.02 + Math.random() * 0.03,
+      vol: 0.04 + Math.random() * 0.05,
+      attack: 0.002,
+    }),
+  );
+}
+
+function umbrellaRain(a: Ambience): void {
+  // 우산 위 빗방울 — 가깝고 높은 톡톡 + 멀리 깔리는 비
+  noiseLoop(a, whiteBuffer(a.ctx), { lowpass: 1400, gain: 0.025 });
+  every(a, 70, 200, () =>
+    noiseBurst(a, {
+      band: [1800, 5200],
+      dur: 0.015 + Math.random() * 0.02,
+      vol: 0.05 + Math.random() * 0.06,
+      attack: 0.001,
+    }),
+  );
+}
+
 const SYNTHS: Record<LayerId, (a: Ambience) => void> = {
   roomBase,
   fireplace,
@@ -345,6 +387,9 @@ const SYNTHS: Record<LayerId, (a: Ambience) => void> = {
   rockingChair,
   cooking,
   sweeping,
+  rainSoft,
+  rainHard,
+  umbrellaRain,
 };
 
 /** 레이어 시작 — 핸들의 stop()으로 정리. 실패 시 무음 핸들. */

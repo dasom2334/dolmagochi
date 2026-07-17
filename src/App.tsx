@@ -29,6 +29,37 @@ const DebugPanel = import.meta.env.DEV
   ? lazy(() => import('./debug/DebugPanel'))
   : null;
 
+/** 우산 선택 (M12) — 비·눈 오는 산책 + 우산 보유 시 START_FOCUS가 세운 대기 */
+function UmbrellaPrompt() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+      <p style={{ margin: 0, fontSize: 12, color: 'var(--text-soft)' }}>
+        * {t(UI.weatherUi.umbrellaAsk)}
+      </p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          className="hv"
+          style={btnDashed}
+          onClick={() =>
+            dispatch({ type: 'START_FOCUS', nowMs: now(), umbrella: true })
+          }
+        >
+          {t(UI.weatherUi.umbrellaYes)}
+        </button>
+        <button
+          className="hv"
+          style={btnDashed}
+          onClick={() =>
+            dispatch({ type: 'START_FOCUS', nowMs: now(), umbrella: false })
+          }
+        >
+          {t(UI.weatherUi.umbrellaNo)}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const state = useGame((s) => s.state);
   const [nowMs, setNowMs] = useState(() => now());
@@ -162,6 +193,8 @@ export function App() {
         phase: state.phase === 'focus' ? 'focus' : 'room',
         actionId: state.phase === 'focus' ? state.selectedAction : null,
         ownedItems: ownedKey ? ownedKey.split(',') : [],
+        weather: state.weather,
+        umbrella: state.session.umbrella,
       }),
       muted: state.settings.noiseMuted,
     });
@@ -171,6 +204,8 @@ export function App() {
     state.phase,
     state.selectedAction,
     ownedKey,
+    state.weather,
+    state.session.umbrella,
   ]);
   useEffect(() => stopSoundscape, []);
 
@@ -337,15 +372,19 @@ export function App() {
                 >
                   <ActionGrid state={state} />
                 </div>
-                <button
-                  className="hv"
-                  style={btnDashed}
-                  onClick={() => dispatch({ type: 'START_FOCUS', nowMs: now() })}
-                >
-                  {tf(UI.buttons.startFocus, {
-                    action: t(action?.nameId ?? ''),
-                  })}
-                </button>
+                {state.pendingUmbrella ? (
+                  <UmbrellaPrompt />
+                ) : (
+                  <button
+                    className="hv"
+                    style={btnDashed}
+                    onClick={() => dispatch({ type: 'START_FOCUS', nowMs: now() })}
+                  >
+                    {tf(UI.buttons.startFocus, {
+                      action: t(action?.nameId ?? ''),
+                    })}
+                  </button>
+                )}
               </div>
             )}
           </>

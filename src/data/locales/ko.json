@@ -3005,5 +3005,131 @@
     [
       "돌은 알고 있었다. 그리고 그 시선이 싫지 않았다. 처음 있는 일이었다."
     ]
+  ],
+  "sys.weather.clear": [
+    [
+      "당신은 하늘을 개게 했다. 정성이 조금 들었다. 그럴 가치가 있는 하늘이다."
+    ]
+  ],
+  "sys.weather.rain": [
+    [
+      "당신은 비를 불렀다. 창밖이 차분해진다. 돌도 빗소리를 듣는 것 같다."
+    ]
+  ],
+  "sys.weather.downpour": [
+    [
+      "당신은 장대비를 불렀다. 세상이 물소리로 가득하다. 공부하기엔 나쁘지 않다."
+    ]
+  ],
+  "sys.weather.snow": [
+    [
+      "당신은 눈을 불렀다. 소리가 먼저 조용해진다. 돌은 창 쪽을 보는 것 같다."
+    ]
+  ],
+  "sys.journal.gotWet": [
+    [
+      "우산 없이 걸었다. 돌이 젖었다. 돌은 개의치 않는 눈치지만, 당신이 조금 개의한다."
+    ],
+    [
+      "빗속을 그냥 걸었다. 둘 다 젖었다. 나쁘지 않은 산책이었다. 아마."
+    ]
+  ],
+  "sys.journal.gotSnowy": [
+    [
+      "돌 위에 눈이 소복하게 쌓였다. 작은 모자 같다. 돌은 자랑스러워하는 것 같다."
+    ],
+    [
+      "눈길을 걸었다. 돌에 눈이 앉았다. 털어줄까 하다가, 조금 두고 보기로 했다."
+    ]
+  ],
+  "ui.weather.now": [
+    [
+      "바깥 날씨"
+    ]
+  ],
+  "ui.weather.change": [
+    [
+      "바꾸기 — 정성 {price}"
+    ]
+  ],
+  "ui.weather.kind.clear": [
+    [
+      "맑음"
+    ]
+  ],
+  "ui.weather.kind.rain": [
+    [
+      "비"
+    ]
+  ],
+  "ui.weather.kind.downpour": [
+    [
+      "장대비"
+    ]
+  ],
+  "ui.weather.kind.snow": [
+    [
+      "눈"
+    ]
+  ],
+  "ui.weather.umbrellaAsk": [
+    [
+      "비가 온다. 우산을 챙길까."
+    ]
+  ],
+  "ui.weather.umbrellaYes": [
+    [
+      "우산을 쓴다"
+    ]
+  ],
+  "ui.weather.umbrellaNo": [
+    [
+      "그냥 나선다"
+    ]
+  ],
+  "ui.time.setting": [
+    [
+      "시간대"
+    ]
+  ],
+  "ui.time.auto": [
+    [
+      "실시간"
+    ]
+  ],
+  "ui.time.day": [
+    [
+      "한낮"
+    ]
+  ],
+  "ui.time.twilight": [
+    [
+      "동틀녘·해질녘"
+    ]
+  ],
+  "ui.time.night": [
+    [
+      "밤"
+    ]
+  ],
+  "act.sun.nameNight": [
+    [
+      "달빛쬐기"
+    ]
+  ],
+  "ui.noise.rainSoft": [
+    [
+      "창밖의 비"
+    ]
+  ],
+  "ui.noise.rainHard": [
+    [
+      "빗속"
+    ]
+  ],
+  "ui.noise.umbrellaRain": [
+    [
+      "우산 위 빗방울"
+    ]
   ]
 }

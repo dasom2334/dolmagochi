@@ -28,6 +28,16 @@ export const BALANCE = {
   MOMENT_PROB_PER_TICK: 0.02,
   MOMENT_PROB_REST_ACT: 0.1, // 휴식 작은 행동 1회당
 
+  // 날씨 (M12) — 게이지 무영향. 변경 비용은 §7 예약 예산(1~2pt) 중 1로 시작.
+  WEATHER_CHANGE_COST: 1,
+  // 자연 변화 확률 (달력일당 1회 추첨)
+  WEATHER_NATURAL: [
+    ['clear', 0.6],
+    ['rain', 0.2],
+    ['downpour', 0.08],
+    ['snow', 0.12],
+  ] as ReadonlyArray<readonly [string, number]>,
+
   // 기억 항목 (종류별 단일 항목 — 소멸하지 않는다)
   MEMORY_WEIGHT_FLOOR: 0.5, // 감쇠 바닥값 — 이 밑으로 내려가지 않음
   MEMORY_WEIGHT_MAX: 10, // 강화 상한

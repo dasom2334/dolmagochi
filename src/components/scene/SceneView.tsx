@@ -1,11 +1,13 @@
 import type { GameState } from '../../game/types';
 import { isRockPresent } from '../../game/stateMachine';
 import { gameData } from '../../store/gameStore';
-import { t } from '../../store/appStore';
+import { now, t } from '../../store/appStore';
 import { SYS } from '../../game/text';
 import { Floor } from './Floor';
 import { WindowSprite } from './WindowSprite';
 import { DaySun } from './DaySun';
+import { TimeTint, WeatherFx } from './WeatherFx';
+import { resolveTimeOfDay } from '../../game/timeOfDay';
 import { SunPatch } from './SunPatch';
 import { GrassTufts } from './GrassTufts';
 import { RockSprite, RockShadow } from './RockSprite';
@@ -54,7 +56,22 @@ export function SceneView({ state }: { state: GameState }) {
 
   const placed = (id: string) => !!state.items[id]?.placed;
   const showWindow = !(isFocus && sceneId === 'walk');
-  const glassColor = isFocus && sceneId === 'sun' ? '#ffd878' : '#c9a86a';
+  // 시간대·날씨 (M12) — 씬 축 (UI 테마와 독립, B23). 창 유리색이 바깥을 비춘다.
+  const tod = resolveTimeOfDay(state.settings, now());
+  const outdoor = isFocus && sceneId === 'walk';
+  const wet = state.weather === 'rain' || state.weather === 'downpour';
+  const glassColor =
+    state.weather === 'snow'
+      ? '#dfe6ee'
+      : wet
+        ? '#9db3c9'
+        : tod === 'night'
+          ? '#8b95c0'
+          : tod === 'twilight'
+            ? '#e8a05c'
+            : isFocus && sceneId === 'sun'
+              ? '#ffd878'
+              : '#c9a86a';
   const showBook = (isFocus && sceneId === 'read') || placed('book2');
 
   const caption = isFocus
@@ -79,7 +96,7 @@ export function SceneView({ state }: { state: GameState }) {
       }}
     >
       {showWindow && <WindowSprite glassColor={glassColor} />}
-      {isFocus && sceneId === 'walk' && <DaySun />}
+      {outdoor && <DaySun variant={tod === 'night' ? 'moon' : 'sun'} />}
       <Floor bg={colors.floor} line={colors.line} />
       {isFocus && sceneId === 'sun' && <SunPatch />}
       {isFocus && sceneId === 'walk' && <GrassTufts />}
@@ -87,6 +104,7 @@ export function SceneView({ state }: { state: GameState }) {
         <RockSprite
           moss={placed('moss')}
           sprout={sproutStageOf(state, gameData.dialogues)}
+          wetness={state.session.wetness}
         />
       ) : (
         <RockShadow />
@@ -124,6 +142,12 @@ export function SceneView({ state }: { state: GameState }) {
           variant={state.session.supply.variant}
         />
       )}
+      {outdoor && state.weather !== 'clear' && (
+        <WeatherFx
+          kind={state.weather === 'snow' ? 'snow' : state.weather === 'downpour' ? 'downpour' : 'rain'}
+        />
+      )}
+      {outdoor && <TimeTint tod={tod} />}
       <div
         style={{
           position: 'absolute',

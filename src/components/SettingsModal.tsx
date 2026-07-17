@@ -259,6 +259,21 @@ export function SettingsModal({
           * {t(UI.theme.setting)} — {t(UI.theme[state.settings.theme])}
         </button>
 
+        {/* 시간대 (M12) — 씬·소리 축, 테마와 독립 (B23) */}
+        <button
+          className="hv-text"
+          style={settingBtn}
+          onClick={() => {
+            const order = ['auto', 'day', 'twilight', 'night'] as const;
+            const next =
+              order[(order.indexOf(state.settings.timeOfDay) + 1) % order.length];
+            dispatch({ type: 'SET_TIME_OF_DAY', mode: next });
+          }}
+        >
+          * {t(UI.weatherUi.timeSetting)} —{' '}
+          {t(UI.weatherUi.timeModes[state.settings.timeOfDay])}
+        </button>
+
         <button className="hv-text" style={settingBtn} onClick={doExport}>
           * {t(UI.buttons.exportSave)}
         </button>

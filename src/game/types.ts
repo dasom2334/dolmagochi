@@ -7,6 +7,10 @@ export type Phase = 'actionSelect' | 'focus' | 'rest' | 'ending' | 'epilogue';
 export type RestStep = 'journal' | 'talk' | 'select' | 'shop';
 export type Era = 'raising' | 'cohabit' | 'apart';
 export type Presence = 'present' | 'absent';
+/** 날씨 (M12) — 게이지 무영향(개정 v4-13): 연출·소리·대사 조건만 */
+export type WeatherKind = 'clear' | 'rain' | 'downpour' | 'snow';
+/** 시간대 (M12) — 씬·소리 축. UI 테마(M10)와 완전 독립 (B23) */
+export type TimeOfDay = 'day' | 'twilight' | 'night';
 
 /** 명명된 욕구 게이지 (자아실현은 별도 게이지) — 순서가 매슬로 단계 */
 export type NeedId = 'physiological' | 'safety' | 'belonging' | 'esteem';
@@ -215,6 +219,10 @@ export interface GameState {
     restMult: number;
     /** 이번 세션에 추억 순간이 이미 발동했는가 (세션당 1회, M11a) */
     momentFired: boolean;
+    /** 이번 산책에 우산을 썼는가 (M12) */
+    umbrella: boolean;
+    /** 야외에서 젖음/눈쌓임 — 다음 세션 시작에 사라진다 (M12, 연출·서술만) */
+    wetness: 'wet' | 'snowy' | null;
   };
   rest: {
     endsAt: number;
@@ -256,6 +264,12 @@ export interface GameState {
   quadrantsSeen: string[];
   /** 도감 뱃지 획득 기록 — 최초 충족 시각 (M11a). 숫자는 UI 비노출 */
   badges: Record<string, { at: number }>;
+  /** 현재 날씨 (M12) — 자연 변화는 달력일당 1회, 정성 지불로 즉시 변경 */
+  weather: WeatherKind;
+  /** 자연 날씨 추첨을 마친 달력일 */
+  lastWeatherDate: string | null;
+  /** 우산 선택 대기 (M12) — 비 오는 산책 + 우산 보유 시 START_FOCUS가 세운다 */
+  pendingUmbrella: boolean;
   care: { points: number; carryMinutes: number };
   /** 구매 물품 — 배치 여부 분리 */
   items: Record<ItemId, { placed: boolean }>;
@@ -281,6 +295,8 @@ export interface GameState {
     noiseMuted: string[];
     /** UI 테마 (M10) — 도트 씬은 영향받지 않는다(B23). auto = prefers-color-scheme */
     theme: 'auto' | 'light' | 'dark';
+    /** 시간대 (M12) — auto = 실시간, 그 외 고정 */
+    timeOfDay: 'auto' | TimeOfDay;
     notifAsked: boolean;
     locale: string;
     /** 알림 설정. enabled=전체 스위치, 나머지는 개별. 포그라운드=토스트 / 백그라운드=OS 알림. */
@@ -314,7 +330,7 @@ export interface FlowtimeSettings {
 export type GameEvent =
   | { type: 'SETTLE'; nowMs: number }
   | { type: 'SELECT_ACTION'; actionId: ActionId }
-  | { type: 'START_FOCUS'; nowMs: number }
+  | { type: 'START_FOCUS'; nowMs: number; umbrella?: boolean }
   | { type: 'TICK'; dtSec: number }
   | { type: 'SET_PAUSED'; paused: boolean }
   | { type: 'CHOICE_PICKED'; optionIndex: number; nowMs: number }
@@ -329,6 +345,8 @@ export type GameEvent =
   | { type: 'SET_NOISE'; on: boolean }
   | { type: 'SET_NOISE_LAYER'; layer: string; muted: boolean }
   | { type: 'SET_THEME'; theme: 'auto' | 'light' | 'dark' }
+  | { type: 'SET_WEATHER'; weather: WeatherKind; nowMs: number }
+  | { type: 'SET_TIME_OF_DAY'; mode: 'auto' | TimeOfDay }
   | { type: 'SET_NOTIFY'; key: 'enabled' | 'restEnd'; on: boolean }
   | { type: 'SET_FOCUS_NOTIFY'; index: number; on: boolean }
   | { type: 'SET_FLOWTIME'; flowtime: FlowtimeSettings }

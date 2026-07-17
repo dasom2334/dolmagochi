@@ -1,4 +1,5 @@
 import type { GameState } from '../game/types';
+import { resolveTimeOfDay } from '../game/timeOfDay';
 import { gameData } from '../store/gameStore';
 import { isActionAvailable } from '../game/stateMachine';
 import { dispatch, t } from '../store/appStore';
@@ -18,6 +19,8 @@ function displayActions(state: GameState) {
 
 /** 행동 카드 그리드 — 잠긴 행동은 자물쇠 대신 (잠김) 라벨 (디자인 데모 방식) */
 export function ActionGrid({ state }: { state: GameState }) {
+  // 시간대 (M12) — 밤에는 햇빛쬐기가 달빛쬐기로 표기된다 (별도 행동 아님)
+  const tod = resolveTimeOfDay(state.settings, Date.now());
   return (
     <div
       style={{
@@ -48,7 +51,7 @@ export function ActionGrid({ state }: { state: GameState }) {
             }}
             onClick={() => dispatch({ type: 'SELECT_ACTION', actionId: a.id })}
           >
-            {t(a.nameId)}
+            {a.id === 'sun' && tod === 'night' ? t('act.sun.nameNight') : t(a.nameId)}
             {locked ? ` ${t(UI.labels.locked)}` : ''}
           </button>
         );

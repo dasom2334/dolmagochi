@@ -42,6 +42,8 @@ export const SYS = {
     rockRecovered: 'sys.journal.rockRecovered',
     crisisRetreat: 'sys.journal.crisisRetreat',
     crisisSick: 'sys.journal.crisisSick',
+    gotWet: 'sys.journal.gotWet',
+    gotSnowy: 'sys.journal.gotSnowy',
     restShort: 'sys.journal.restShort',
     restSkipped: 'sys.journal.restSkipped',
     visitStart: 'sys.journal.visitStart',
@@ -134,6 +136,13 @@ export const SYS = {
     choice: 'sys.remembrance.choice',
     locked: 'sys.remembrance.locked',
   },
+  /** 날씨 변경 서술 (M12) — 종류별 */
+  weather: {
+    clear: 'sys.weather.clear',
+    rain: 'sys.weather.rain',
+    downpour: 'sys.weather.downpour',
+    snow: 'sys.weather.snow',
+  } as Record<string, string>,
 } as const;
 
 /** 순수 UI 단문 id 상수 (M2에서 사용) */
@@ -149,7 +158,31 @@ export const UI = {
     rockingChair: 'ui.noise.rockingChair',
     cooking: 'ui.noise.cooking',
     sweeping: 'ui.noise.sweeping',
+    rainSoft: 'ui.noise.rainSoft',
+    rainHard: 'ui.noise.rainHard',
+    umbrellaRain: 'ui.noise.umbrellaRain',
   } satisfies Record<LayerId, string>,
+  /** 날씨·시간대 라벨 (M12) */
+  weatherUi: {
+    now: 'ui.weather.now',
+    change: 'ui.weather.change', // {price}
+    kinds: {
+      clear: 'ui.weather.kind.clear',
+      rain: 'ui.weather.kind.rain',
+      downpour: 'ui.weather.kind.downpour',
+      snow: 'ui.weather.kind.snow',
+    } as Record<string, string>,
+    umbrellaAsk: 'ui.weather.umbrellaAsk',
+    umbrellaYes: 'ui.weather.umbrellaYes',
+    umbrellaNo: 'ui.weather.umbrellaNo',
+    timeSetting: 'ui.time.setting',
+    timeModes: {
+      auto: 'ui.time.auto',
+      day: 'ui.time.day',
+      twilight: 'ui.time.twilight',
+      night: 'ui.time.night',
+    } as Record<string, string>,
+  },
   /** 테마 라벨 (M10) */
   theme: {
     setting: 'ui.theme.setting',

@@ -124,6 +124,12 @@ function normalizeState(state: GameState): GameState {
       freeWorked: state.session?.freeWorked === true,
       restMult: finiteOr(state.session?.restMult, 1),
     },
+    // 날씨 필드 방어 (M12)
+    weather: (['clear', 'rain', 'downpour', 'snow'] as const).includes(state.weather)
+      ? state.weather
+      : 'clear',
+    lastWeatherDate: state.lastWeatherDate ?? null,
+    pendingUmbrella: state.pendingUmbrella === true,
     // 도감 필드 방어 (M11a)
     badges: isRecordSafe(state.badges) ? state.badges : {},
     quadrantsSeen: Array.isArray(state.quadrantsSeen) ? state.quadrantsSeen : [],
