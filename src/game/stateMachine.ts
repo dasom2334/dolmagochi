@@ -63,7 +63,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 16;
+export const SCHEMA_VERSION = 17;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -127,6 +127,7 @@ export function createInitialState(
     planted: false,
     plantedAt: null,
     highThreatStreak: 0,
+    visitBlockedUntil: null,
     weather: 'clear',
     lastWeatherDate: null,
     pendingUmbrella: false,
@@ -600,8 +601,13 @@ function reduce(
       let next = applyIntimacy(arcState, action.intimacy, rng);
       let visitJournal: string | null = null;
 
-      // apart: 돌이 놀러올 확률 — 오면 며칠(1~N세션) 머문다
-      if (next.era === 'apart' && !next.apart.visiting) {
+      // apart: 돌이 놀러올 확률 — 오면 며칠(1~N세션) 머문다.
+      // 제2의 이별(M14b) 후에는 차단 기간 동안 오지 않는다.
+      if (
+        next.era === 'apart' &&
+        !next.apart.visiting &&
+        (next.visitBlockedUntil === null || event.nowMs >= next.visitBlockedUntil)
+      ) {
         if (rng() < BALANCE.VISIT_PROB) {
           next = {
             ...next,
@@ -1262,13 +1268,22 @@ function reduce(
       let highThreatStreak = next.highThreatStreak;
       let era = next.era;
       let farewell2 = false;
+      let witherEaseLine: string | null = null;
       if (!next.planted && next.era === 'apart') {
         if (!apart.visiting) {
           sproutGrowth = Math.min(
             100,
             sproutGrowth + BALANCE.SPROUT_GROWTH_PER_UNIT * units,
           );
+          const prevWither = witherLevel;
           witherLevel = Math.max(0, witherLevel - BALANCE.SPROUT_RECOVER);
+          // 회복 힌트 (M14b): 돌이 없는 날들에 묘목이 나아진다 —
+          // '놔줘야 자아실현이 가능하다'를 숫자 없이 알려주는 관찰 문장
+          if (prevWither >= 1 && witherLevel < 1) {
+            witherEaseLine = joinPages(
+              pickText(data.text, SYS.journal.witherEase, rng),
+            );
+          }
         } else if (apart.held) {
           witherLevel = Math.min(3, witherLevel + BALANCE.SPROUT_WITHER_HELD);
           stats = {
@@ -1315,6 +1330,7 @@ function reduce(
       }
 
       if (bloomLine) journal = addJournal(journal, elapsed, bloomLine);
+      if (witherEaseLine) journal = addJournal(journal, elapsed, witherEaseLine);
       if (farewell2) {
         journal = addJournal(
           journal,
@@ -1396,7 +1412,8 @@ function reduce(
         era !== 'raising' &&
         sproutGrowth >= 100 &&
         bloomSeen &&
-        (next.letGoCount >= 1 || balancedSeen)
+        // 자기 손으로 보내준 적이 없으면 2차 엔딩은 열리지 않는다 (M14b 확정)
+        next.letGoCount >= 1
       ) {
         planted = true;
         plantedAt = event.nowMs;
@@ -1568,6 +1585,46 @@ function reduce(
       )
         return state;
       if (event.hold) {
+        // 사다리 소진 (M14b): 최고조 대사까지 다 쓴 뒤의 붙잡기는 닿지 않는다 —
+        // 돌이 스스로 떠나고(apart판 제2의 이별), 한동안 방문이 끊긴다.
+        const ladderMax =
+          data.text[data.dialogues.visitLeave.holdResultId]?.length ?? 3;
+        if (state.apart.holdCount >= ladderMax) {
+          const gone = joinPages(pickText(data.text, SYS.farewell2Apart, rng));
+          return {
+            ...state,
+            apart: {
+              ...state.apart,
+              visiting: false,
+              leavePending: false,
+              held: false,
+            },
+            visitBlockedUntil:
+              state.rest.endsAt + BALANCE.VISIT_BLOCK_DAYS * 86_400_000,
+            crisisArcsFired: state.crisisArcsFired.includes('farewell2')
+              ? state.crisisArcsFired
+              : [...state.crisisArcsFired, 'farewell2'],
+            rest: {
+              ...state.rest,
+              talkPressed: true,
+              talkState: {
+                kind: 'farewell2',
+                pages: pickText(data.text, SYS.farewell2Apart, rng),
+                hasChoice: false,
+                done: false,
+              },
+            },
+            session: {
+              ...state.session,
+              narratorLine: gone,
+              journal: addJournal(
+                state.session.journal,
+                state.session.elapsedSec,
+                gone,
+              ),
+            },
+          };
+        }
         // 붙잡기: 기간 연장, 죄책감 — 붙잡을수록 문구가 무거워진다 (변형 인덱스)
         const pages = fillPages(
           textVariantAt(

@@ -206,6 +206,14 @@ export function migrateState(state: GameState): GameState | null {
       apart: { ...s.apart, held: s.apart.held ?? false },
     };
   }
+  // v16 → v17: apart 제2의 이별(M14b) — 방문 차단 시각 추가.
+  if (s.schemaVersion === 16) {
+    s = {
+      ...s,
+      schemaVersion: 17,
+      visitBlockedUntil: s.visitBlockedUntil ?? null,
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

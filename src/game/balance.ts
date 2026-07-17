@@ -169,7 +169,10 @@ export const BALANCE = {
   SPROUT_WITHER_COHABIT: 0.25, // 동거 불안정 애착 세션당 시듦
   SPROUT_RECOVER: 0.25, // 자연/자발 세션당 회복
   DEPENDENCE_PER_HELD_SESSION: 2, // 강제 체류 = 임시 동거: 의존도 상승
-  FAREWELL2_STREAK: 6, // 친밀위협 급성 연속 세션 임계 → 제2의 이별
+  FAREWELL2_STREAK: 6, // 친밀위협 급성 연속 세션 임계 → 제2의 이별 (동거)
+  // apart 제2의 이별: 붙잡기 대사 사다리(holdResult 변형 수)가 최대 누적 횟수 —
+  // 사다리를 다 쓰고도 또 붙잡으면 돌이 스스로 떠나고, 한동안 방문이 끊긴다.
+  VISIT_BLOCK_DAYS: 7,
 
   // apart (빈자리) — 돌의 방문
   VISIT_PROB: 0.25, // 세션 시작 시 돌이 놀러올 확률

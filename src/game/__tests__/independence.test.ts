@@ -160,3 +160,67 @@ describe('2차 도감 뱃지 (M14)', () => {
     expect('second-farewell' in f.badges).toBe(true);
   });
 });
+
+describe('apart 제2의 이별 (M14b) — 붙잡기 사다리 한계·방문 차단·게이트', () => {
+  const ladderMax = gameData.text['dlg.visitLeave.holdResult'].length;
+
+  function pendingVisit(holdCount: number): GameState {
+    return {
+      ...apartBase(),
+      phase: 'rest',
+      rest: { ...apartBase().rest, endsAt: T0 },
+      apart: { visiting: true, visitSessionsLeft: 0, leavePending: true, holdCount, held: true },
+    };
+  }
+
+  it('사다리 안에서는 단계별 대사로 붙잡기, 소진 후엔 돌이 스스로 떠난다', () => {
+    // 아직 사다리 안 — 정상 붙잡기
+    const held = run(pendingVisit(ladderMax - 1), [{ type: 'VISIT_HOLD', hold: true }]);
+    expect(held.apart.visiting).toBe(true);
+    expect(held.apart.holdCount).toBe(ladderMax);
+    // 소진 후 — 만류가 닿지 않는다
+    const gone = run(pendingVisit(ladderMax), [{ type: 'VISIT_HOLD', hold: true }]);
+    expect(gone.apart.visiting).toBe(false);
+    expect(gone.visitBlockedUntil).toBe(T0 + BALANCE.VISIT_BLOCK_DAYS * 86_400_000);
+    expect(gone.crisisArcsFired).toContain('farewell2');
+    expect(gone.rest.talkState?.kind).toBe('farewell2');
+    // 다음 시각 이벤트(SETTLE)에서 '두 번째 이별' 뱃지가 정산된다
+    expect('second-farewell' in run(gone, [{ type: 'SETTLE', nowMs: T0 }]).badges).toBe(true);
+  });
+
+  it('차단 기간에는 방문이 오지 않고, 지나면 다시 온다', () => {
+    const blocked: GameState = {
+      ...apartBase(),
+      visitBlockedUntil: T0 + 3 * 86_400_000,
+    };
+    // rng 0.0 → 방문 확정 조건이지만 차단 중이라 안 온다
+    let s = run(blocked, [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.0, 0.9]));
+    expect(s.apart.visiting).toBe(false);
+    // 차단 만료 후엔 온다
+    let after: GameState = { ...blocked, phase: 'actionSelect' };
+    after = run(after, [{ type: 'START_FOCUS', nowMs: T0 + 4 * 86_400_000 }], seq([0.0, 0.9]));
+    expect(after.apart.visiting).toBe(true);
+  });
+
+  it('심기 게이트: 보내주기 없이는 균형 목격만으로 열리지 않는다 (M14b)', () => {
+    let s: GameState = {
+      ...apartBase(),
+      sproutGrowth: 99,
+      bloomSeen: true,
+      balancedSeen: true, // 균형 목격만으로는 부족
+    };
+    s = session(s, T0);
+    expect(s.planted).toBe(false);
+  });
+
+  it('시듦 회복이 1 경계를 내려오면 힌트 관찰 문장이 남는다', () => {
+    let s: GameState = { ...apartBase(), witherLevel: 1.1 };
+    s = session(s, T0);
+    expect(s.witherLevel).toBeLessThan(1);
+    expect(
+      s.session.journal.some((j) =>
+        j.text.includes('묘목이 조금 기운을 차렸다'),
+      ),
+    ).toBe(true);
+  });
+});
