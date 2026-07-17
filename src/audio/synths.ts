@@ -377,6 +377,37 @@ function umbrellaRain(a: Ambience): void {
   );
 }
 
+function cicadas(a: Ambience): void {
+  // 매미 합창 — 고역 노이즈에 빠른 트레몰로(맴맴 질감) + 느린 스웰
+  const g = noiseLoop(a, whiteBuffer(a.ctx), { bandpass: [4200, 6400], gain: 0.02 });
+  try {
+    const trem = a.ctx.createOscillator();
+    const tg = a.ctx.createGain();
+    trem.frequency.value = 27; // 빠른 진동 — 매미 특유의 지글거림
+    tg.gain.value = 0.012;
+    trem.connect(tg).connect(g.gain);
+    trem.start();
+    const swell = a.ctx.createOscillator();
+    const sg = a.ctx.createGain();
+    swell.frequency.value = 0.06; // 무리 전체가 커졌다 작아졌다
+    sg.gain.value = 0.006;
+    swell.connect(sg).connect(g.gain);
+    swell.start();
+    a.nodes.push(trem, tg, swell, sg);
+  } catch {
+    /* 무시 */
+  }
+  // 이따금 한 마리가 가까이서 — 짧고 또렷한 맴맴 프레이즈
+  every(a, 9000, 22000, () =>
+    noiseBurst(a, {
+      band: [4800, 7200],
+      dur: 0.8 + Math.random() * 0.9,
+      vol: 0.035,
+      attack: 0.15,
+    }),
+  );
+}
+
 const SYNTHS: Record<LayerId, (a: Ambience) => void> = {
   roomBase,
   fireplace,
@@ -390,6 +421,7 @@ const SYNTHS: Record<LayerId, (a: Ambience) => void> = {
   rainSoft,
   rainHard,
   umbrellaRain,
+  cicadas,
 };
 
 /** 레이어 시작 — 핸들의 stop()으로 정리. 실패 시 무음 핸들. */

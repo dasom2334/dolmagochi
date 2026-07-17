@@ -167,6 +167,7 @@ export const UI = {
     rainSoft: 'ui.noise.rainSoft',
     rainHard: 'ui.noise.rainHard',
     umbrellaRain: 'ui.noise.umbrellaRain',
+    cicadas: 'ui.noise.cicadas',
   } satisfies Record<LayerId, string>,
   /** 날씨·시간대 라벨 (M12) */
   weatherUi: {

@@ -16,7 +16,8 @@ export type LayerId =
   | 'sweeping' // 집안일 — 빗자루
   | 'rainSoft' // 실내에서 듣는 창밖 빗소리 (M12)
   | 'rainHard' // 야외 빗소리 (M12)
-  | 'umbrellaRain'; // 우산 위 빗방울 (M12)
+  | 'umbrellaRain' // 우산 위 빗방울 (M12)
+  | 'cicadas'; // 여름 매미 (M12 계절) — 낮·황혼에만, 밤에는 울지 않는다
 
 /** 설정 UI 노출 순서 — 전 레이어 개별 음소거 대상 */
 export const ALL_LAYERS: readonly LayerId[] = [
@@ -32,6 +33,7 @@ export const ALL_LAYERS: readonly LayerId[] = [
   'rainSoft',
   'rainHard',
   'umbrellaRain',
+  'cicadas',
 ];
 
 export interface SoundSituation {
@@ -44,6 +46,9 @@ export interface SoundSituation {
   weather?: 'clear' | 'rain' | 'downpour' | 'snow' | 'petals' | 'leaves';
   /** 이번 산책에 우산을 썼는가 (M12) — 야외 빗소리가 우산 위 소리로 바뀐다 */
   umbrella?: boolean;
+  /** 계절 (M12) — 여름 낮·황혼이면 매미가 운다 */
+  season?: 'spring' | 'summer' | 'autumn' | 'winter';
+  timeOfDay?: 'day' | 'twilight' | 'night';
 }
 
 /** 야외 풍경 행동 — 실내 기본음 대신 야외 레이어 */
@@ -68,6 +73,8 @@ export function deriveLayers(sit: SoundSituation): LayerId[] {
   const rainy = sit.weather === 'rain' || sit.weather === 'downpour';
   if (sit.phase !== 'focus') {
     if (rainy) layers.push('rainSoft'); // 방에서 듣는 창밖의 비 (M12)
+    else if (sit.season === 'summer' && sit.timeOfDay !== 'night')
+      layers.push('cicadas'); // 방에서도 창 너머 매미 (M12 계절)
     return layers;
   }
 
@@ -105,6 +112,10 @@ export function deriveLayers(sit: SoundSituation): LayerId[] {
       if (i >= 0) layers.splice(i, 1);
       layers.push(sit.umbrella ? 'umbrellaRain' : 'rainHard');
     }
+  }
+  // 여름 매미 (M12 계절) — 낮·황혼, 비가 오지 않을 때. 실내에도 창 너머로 들린다
+  if (sit.season === 'summer' && sit.timeOfDay !== 'night' && !rainy) {
+    layers.push('cicadas');
   }
   return layers;
 }
