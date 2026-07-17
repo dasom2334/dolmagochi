@@ -3131,5 +3131,55 @@
     [
       "우산 위 빗방울"
     ]
+  ],
+  "sys.weather.petals": [
+    [
+      "당신은 꽃잎비를 불렀다. 분홍이 흩날린다. 돌 위에도 한 장 앉았다. 잘 어울린다."
+    ]
+  ],
+  "sys.weather.leaves": [
+    [
+      "당신은 낙엽비를 불렀다. 마른 잎이 천천히 진다. 돌은 가을을 아는 표정이다. 표정은 없지만."
+    ]
+  ],
+  "ui.weather.kind.petals": [
+    [
+      "꽃잎비"
+    ]
+  ],
+  "ui.weather.kind.leaves": [
+    [
+      "낙엽비"
+    ]
+  ],
+  "ui.season.setting": [
+    [
+      "계절"
+    ]
+  ],
+  "ui.season.auto": [
+    [
+      "자동(기기 날짜)"
+    ]
+  ],
+  "ui.season.spring": [
+    [
+      "봄"
+    ]
+  ],
+  "ui.season.summer": [
+    [
+      "여름"
+    ]
+  ],
+  "ui.season.autumn": [
+    [
+      "가을"
+    ]
+  ],
+  "ui.season.winter": [
+    [
+      "겨울"
+    ]
   ]
 }

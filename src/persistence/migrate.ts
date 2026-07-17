@@ -182,7 +182,11 @@ export function migrateState(state: GameState): GameState | null {
         umbrella: s.session.umbrella ?? false,
         wetness: s.session.wetness ?? null,
       },
-      settings: { ...s.settings, timeOfDay: s.settings.timeOfDay ?? 'auto' },
+      settings: {
+        ...s.settings,
+        timeOfDay: s.settings.timeOfDay ?? 'auto',
+        season: s.settings.season ?? 'auto',
+      },
     };
   }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;

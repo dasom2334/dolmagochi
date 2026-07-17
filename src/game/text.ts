@@ -142,6 +142,8 @@ export const SYS = {
     rain: 'sys.weather.rain',
     downpour: 'sys.weather.downpour',
     snow: 'sys.weather.snow',
+    petals: 'sys.weather.petals',
+    leaves: 'sys.weather.leaves',
   } as Record<string, string>,
 } as const;
 
@@ -181,6 +183,14 @@ export const UI = {
       day: 'ui.time.day',
       twilight: 'ui.time.twilight',
       night: 'ui.time.night',
+    } as Record<string, string>,
+    seasonSetting: 'ui.season.setting',
+    seasonModes: {
+      auto: 'ui.season.auto',
+      spring: 'ui.season.spring',
+      summer: 'ui.season.summer',
+      autumn: 'ui.season.autumn',
+      winter: 'ui.season.winter',
     } as Record<string, string>,
   },
   /** 테마 라벨 (M10) */

@@ -7,8 +7,11 @@ export type Phase = 'actionSelect' | 'focus' | 'rest' | 'ending' | 'epilogue';
 export type RestStep = 'journal' | 'talk' | 'select' | 'shop';
 export type Era = 'raising' | 'cohabit' | 'apart';
 export type Presence = 'present' | 'absent';
-/** 날씨 (M12) — 게이지 무영향(개정 v4-13): 연출·소리·대사 조건만 */
-export type WeatherKind = 'clear' | 'rain' | 'downpour' | 'snow';
+/** 날씨 (M12) — 게이지 무영향(개정 v4-13): 연출·소리·대사 조건만.
+ * petals(꽃잎비)=봄, leaves(낙엽비)=가을, snow=겨울 — 계절 의존은 WEATHER_BY_SEASON */
+export type WeatherKind = 'clear' | 'rain' | 'downpour' | 'snow' | 'petals' | 'leaves';
+/** 계절 (M12) — 기본은 기기 날짜 자동, 설정으로 고정 가능 */
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 /** 시간대 (M12) — 씬·소리 축. UI 테마(M10)와 완전 독립 (B23) */
 export type TimeOfDay = 'day' | 'twilight' | 'night';
 
@@ -297,6 +300,8 @@ export interface GameState {
     theme: 'auto' | 'light' | 'dark';
     /** 시간대 (M12) — auto = 실시간, 그 외 고정 */
     timeOfDay: 'auto' | TimeOfDay;
+    /** 계절 (M12) — auto = 기기 날짜, 그 외 고정. 날씨 가용성이 계절에 의존한다 */
+    season: 'auto' | Season;
     notifAsked: boolean;
     locale: string;
     /** 알림 설정. enabled=전체 스위치, 나머지는 개별. 포그라운드=토스트 / 백그라운드=OS 알림. */
@@ -347,6 +352,7 @@ export type GameEvent =
   | { type: 'SET_THEME'; theme: 'auto' | 'light' | 'dark' }
   | { type: 'SET_WEATHER'; weather: WeatherKind; nowMs: number }
   | { type: 'SET_TIME_OF_DAY'; mode: 'auto' | TimeOfDay }
+  | { type: 'SET_SEASON'; mode: 'auto' | Season; nowMs: number }
   | { type: 'SET_NOTIFY'; key: 'enabled' | 'restEnd'; on: boolean }
   | { type: 'SET_FOCUS_NOTIFY'; index: number; on: boolean }
   | { type: 'SET_FLOWTIME'; flowtime: FlowtimeSettings }
