@@ -209,6 +209,46 @@ export interface EndingsData {
   farewellFromCohabitId: TextId; // {hours}
 }
 
+// ── badges.json — 도감 뱃지 (M11a) ────────────────────────────
+/** 뱃지 획득 조건 — 명시된 필드 하나로 판정 (놓칠 수 없는 재료만 게이트에 쓴다) */
+export interface BadgeWhen {
+  /** memory에 이 토큰이 존재 */
+  token?: string;
+  /** 이 접두로 시작하는 토큰이 하나라도 존재 (예: buy-) */
+  tokenPrefix?: string;
+  /** milestonesFired 포함 */
+  milestone?: string;
+  /** crisisArcsFired 포함 (retreat/sick) */
+  crisisArc?: string;
+  /** 확정 관계 티어 이상 */
+  minTier?: number;
+  /** 급성 애착 4분면 목격 기록 (quadrantsSeen) */
+  quadrantSeen?: string;
+}
+
+export interface BadgeDef {
+  id: string;
+  nameId: TextId;
+  lineId: TextId;
+  when: BadgeWhen;
+}
+
+// ── moments.json — 추억 순간 풀 (M11a 훅, 콘텐츠는 M11b) ──────
+/**
+ * 조건부 추억 순간: 집중 세션 반추 틱(확률·세션당 1회) 또는 휴식 작은 행동에서
+ * 추첨된다. 발동 시 remembrance로 기록 — summary는 즉시, reveal은 apart부터.
+ */
+export interface MomentDef {
+  id: string;
+  /** 집중 세션 순간의 조건 (행동·배치 소품 등). restAct와 상호배타 */
+  when?: Condition;
+  /** 휴식 작은 행동 키 (glance/water/breath/posture) — 지정 시 그 행동에서만 */
+  restAct?: string;
+  summaryId: TextId;
+  revealId: TextId;
+  weight?: number;
+}
+
 // ── 통합 ──────────────────────────────────────────────────────
 export interface GameData {
   actions: ActionData[];
@@ -219,6 +259,8 @@ export interface GameData {
   restActs: RestActData[];
   timeMarks: TimeMarksData;
   endings: EndingsData;
+  badges: BadgeDef[];
+  moments: MomentDef[];
   /** 현재 로케일로 해석된 텍스트 카탈로그 */
   text: TextCatalog;
 }

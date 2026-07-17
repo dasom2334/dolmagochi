@@ -6,6 +6,7 @@ import type {
   GameState,
   JournalEntry,
   NeedId,
+  Remembrance,
   TalkState,
 } from './types';
 import type { Rng } from './rng';
@@ -38,12 +39,14 @@ import {
   settleCalendar,
 } from './stats';
 import {
+  acuteQuadrant,
   convergeStep,
   derivedSecurity,
   intimacyOutcome,
   isBalanced,
 } from './security';
 import { presentState, startAbsence } from './absence';
+import { pickMoment, settleBadges } from './badges';
 import {
   applyOutcome,
   checkCondition,
@@ -58,7 +61,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -111,6 +114,8 @@ export function createInitialState(
     lastTierUpDate: null,
     pendingCrisis: null,
     crisisArcsFired: [],
+    quadrantsSeen: [],
+    badges: {},
     care: { points: 0, carryMinutes: 0 },
     items: {},
     supplies: {},
@@ -153,6 +158,7 @@ function emptySession(): GameState['session'] {
     freeCareVia: null,
     freeWorked: false,
     restMult: 1,
+    momentFired: false,
   };
 }
 
@@ -294,7 +300,10 @@ function resolveOption(
   const picked = pickChoiceOutcome(option.outcomes, state, rng);
   let next = applyIntimacy(state, option.intimacy, rng);
   next = applyOutcome(next, picked.outcome, nowMs);
-  next = recordRemembrance(next, picked.remembrance, nowMs);
+  next = recordRemembrance(next, picked.remembrance, nowMs, {
+    labelId: option.labelId,
+    resultId: picked.resultId,
+  });
   const text = joinPages(pickText(data.text, picked.resultId, rng));
   return {
     ...next,
@@ -324,9 +333,16 @@ function recallRemembrance(
   const avail = state.remembrances.filter((r) => !recalled.includes(r.id));
   const picked = avail[Math.floor(rng() * avail.length)];
   if (!picked) return null;
+  // 선택지 유래 추억: 그때의 선택을 summary와 reveal 사이에 재생 (M11a)
+  const choicePages = picked.pickedLabelId
+    ? fillPages(pickText(data.text, SYS.remembrance.choice, rng), {
+        label: joinPages(pickText(data.text, picked.pickedLabelId, rng)),
+      })
+    : [];
   return {
     pages: [
       ...pickText(data.text, picked.summaryId, rng),
+      ...choicePages,
       ...pickText(data.text, picked.revealId, rng),
     ],
     recalled: [...recalled, picked.id],
@@ -433,7 +449,24 @@ function serveTalkPool(
   };
 }
 
+/**
+ * 리듀서 진입점 — reduce 결과에 도감 뱃지 정산(M11a)을 얹는다.
+ * 시각(nowMs)을 가진 이벤트 뒤에만 스탬프한다 — TALK 등 시각 없는 이벤트의
+ * 획득은 다음 시각 이벤트에서 정산된다 (도감 정렬용이라 지연 무해).
+ */
 export function transition(
+  state: GameState,
+  event: GameEvent,
+  ctx: TransitionCtx,
+): GameState {
+  const next = reduce(state, event, ctx);
+  if ('nowMs' in event && next !== state) {
+    return settleBadges(next, ctx.data.badges, event.nowMs);
+  }
+  return next;
+}
+
+function reduce(
   state: GameState,
   event: GameEvent,
   ctx: TransitionCtx,
@@ -681,8 +714,32 @@ export function transition(
         let recalled = next.remembrancesRecalled;
         let careNowNeed: NeedId | null = null;
         let careNowVia: string | null = null;
+        let momentNow: Remembrance | null = null;
 
-        if (next.era === 'apart' && !next.apart.visiting) {
+        // 추억 순간 (M11a): 낮은 확률·세션당 1회 — 이 틱의 반추를 대신한다.
+        // 육성 시대 · 돌이 곁에 있을 때만 (추억은 함께 있어야 생긴다).
+        if (
+          next.era === 'raising' &&
+          present &&
+          !next.session.momentFired &&
+          rng() < BALANCE.MOMENT_PROB_PER_TICK
+        ) {
+          const mo = pickMoment(data.moments, next, rng);
+          if (mo) {
+            momentNow = {
+              id: mo.id,
+              summaryId: mo.summaryId,
+              revealId: mo.revealId,
+              // TICK에는 시각이 없다 — 세션 시작 근사치로 스탬프 (도감 정렬용)
+              at: (next.lastSessionEndAt ?? 0) + el * 1000,
+            };
+            line = joinPages(pickText(data.text, mo.summaryId, rng));
+          }
+        }
+
+        if (momentNow) {
+          // 순간이 발동한 틱은 다른 반추를 덮는다 (line은 위에서 확정)
+        } else if (next.era === 'apart' && !next.apart.visiting) {
           // 빈자리: 추억 회상 — 당시 미표시 정보(reveal)가 드러난다.
           // 회상할 추억이 없으면 돌 반추 대신 부재 전용 반추 (돌 언급 누출 방지)
           const recall = recallRemembrance(next, data, rng);
@@ -745,19 +802,26 @@ export function transition(
 
         // 선택지가 떠 있어도 자유행동 반추 서술은 계속 흐른다(선택지는 아래 별도 박스).
         // 단, 이번 틱에 시간 문턱이 발화하면 반추 서술은 억제(수치는 위에서 이미 적용).
-        const showAsNarrator = action.id === 'free' && present && !timeMarkFiring;
+        // 추억 순간은 문턱보다 우선해 서술로 남긴다 (놓치면 아까운 한 줄).
+        const showAsNarrator =
+          momentNow !== null ||
+          (action.id === 'free' && present && !timeMarkFiring);
         next = {
           ...next,
           memory,
           stats,
           remembrancesRecalled: recalled,
+          remembrances: momentNow
+            ? [...next.remembrances, momentNow]
+            : next.remembrances,
           session: {
             ...next.session,
+            momentFired: next.session.momentFired || momentNow !== null,
             lastReflectAtSec: el,
             freeCare: next.session.freeCare ?? careNowNeed,
             freeCareVia: next.session.freeCareVia ?? careNowVia,
             journal:
-              line && !timeMarkFiring
+              line && (momentNow !== null || !timeMarkFiring)
                 ? addJournal(next.session.journal, el, line)
                 : next.session.journal,
             narratorLine:
@@ -910,6 +974,7 @@ export function transition(
       }
       const supplyUse = state.session.supply;
       let supplyLine: string | null = null;
+      let usedSupplyToken: string | null = null;
       if (supplyUse) {
         const it = data.shop.find((i) => i.id === supplyUse.itemId);
         if (it?.boosts === 'personalWork' && !freeWorked) {
@@ -925,6 +990,8 @@ export function transition(
           );
           if (variant) {
             addBonus(variant.bonusNeeds);
+            // 소모품 사용 토큰 (M11a) — 도감 '작은 취향'의 재료
+            usedSupplyToken = `use-${supplyUse.itemId}-${supplyUse.variant}`;
             const useId = `shop.${supplyUse.itemId}.use.${supplyUse.variant}`;
             if (data.text[useId]) {
               supplyLine = joinPages(pickText(data.text, useId, rng));
@@ -1010,6 +1077,13 @@ export function transition(
           abandonment: ab,
           security: derivedSecurity(ab, stats.intimacyThreat),
         };
+      }
+
+      // 급성 애착 4분면 목격 기록 (M11a 도감 재료) — 수치는 비노출, 목격 사실만
+      let quadrantsSeen = next.quadrantsSeen;
+      if (next.era === 'raising') {
+        const q = acuteQuadrant(stats.abandonment, stats.intimacyThreat);
+        if (q && !quadrantsSeen.includes(q)) quadrantsSeen = [...quadrantsSeen, q];
       }
 
       // 애착 위기 루프 (육성): 잠수(부재)·병간호(sick) 모두 두 축을 균형으로 수렴시켜
@@ -1107,6 +1181,15 @@ export function transition(
           event.nowMs,
         );
       }
+      // 소모품 사용 토큰 (M11a)
+      if (usedSupplyToken) {
+        memory = remember(
+          memory,
+          usedSupplyToken,
+          BALANCE.MEMORY_WEIGHT_PURCHASE,
+          event.nowMs,
+        );
+      }
 
       // 엔딩 전 대화 — 서로 다른 날 하루 1개, 휴식 진입 시 자동 노출 (개정 v4-7/9).
       // 조건이 다 갖춰진 뒤에는 대화 버튼을 누르지 않는 유저도 이별에 도달한다.
@@ -1169,6 +1252,7 @@ export function transition(
         lastTierUpDate,
         pendingCrisis,
         crisisArcsFired,
+        quadrantsSeen,
         endingTalksSeen,
         lastEndingTalkDate,
         totals: {
@@ -1223,19 +1307,47 @@ export function transition(
       const act = data.restActs.find((a) => a.key === event.key);
       if (!act) return state;
       // 돌이 없으면(잠수/빈자리) 부재 전용 문구 — 돌 언급 누출 방지
-      const linesId = isRockPresent(state) ? act.linesId : act.absentLinesId;
+      const present = isRockPresent(state);
+      const linesId = present ? act.linesId : act.absentLinesId;
       const line = joinPages(pickText(data.text, linesId, rng));
+      // 추억 순간 (M11a): 휴식 작은 행동에서도 낮은 확률로 순간이 남는다
+      let remembrances = state.remembrances;
+      let momentLine: string | null = null;
+      if (
+        state.era === 'raising' &&
+        present &&
+        rng() < BALANCE.MOMENT_PROB_REST_ACT
+      ) {
+        const mo = pickMoment(data.moments, state, rng, event.key);
+        if (mo) {
+          remembrances = [
+            ...remembrances,
+            {
+              id: mo.id,
+              summaryId: mo.summaryId,
+              revealId: mo.revealId,
+              // REST_ACT에는 시각이 없다 — 직전 세션 종료 근사치 (도감 정렬용)
+              at: state.lastSessionEndAt ?? 0,
+            },
+          ];
+          momentLine = joinPages(pickText(data.text, mo.summaryId, rng));
+        }
+      }
+      let journal = addJournal(
+        state.session.journal,
+        state.session.elapsedSec,
+        line,
+      );
+      if (momentLine)
+        journal = addJournal(journal, state.session.elapsedSec, momentLine);
       return {
         ...state,
+        remembrances,
         rest: { ...state.rest, actUsed: true },
         session: {
           ...state.session,
-          narratorLine: line,
-          journal: addJournal(
-            state.session.journal,
-            state.session.elapsedSec,
-            line,
-          ),
+          narratorLine: momentLine ?? line,
+          journal,
         },
       };
     }

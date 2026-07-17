@@ -58,16 +58,29 @@ export function applyOutcome(
   };
 }
 
-/** 추억 기록 적립 (같은 id는 1회만) */
+/**
+ * 추억 기록 적립 (같은 id는 1회만).
+ * picked(M11a): 선택지 유래 추억은 그때 고른 라벨·결과 textId를 함께 저장 —
+ * "무슨 선택을 했고 돌이 어떻게 반응했는지"가 도감·회상에서 재생된다.
+ */
 export function recordRemembrance(
   state: GameState,
   remembrance: RemembranceData | undefined,
   atMs: number,
+  picked?: { labelId: string; resultId: string },
 ): GameState {
   if (!remembrance) return state;
   if (state.remembrances.some((r) => r.id === remembrance.id)) return state;
   return {
     ...state,
-    remembrances: [...state.remembrances, { ...remembrance, at: atMs }],
+    remembrances: [
+      ...state.remembrances,
+      {
+        ...remembrance,
+        at: atMs,
+        pickedLabelId: picked?.labelId,
+        resultId: picked?.resultId,
+      },
+    ],
   };
 }

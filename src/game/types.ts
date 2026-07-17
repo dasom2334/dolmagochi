@@ -168,6 +168,10 @@ export interface PresenceState {
 /** 발생한 추억 기록 (영구) */
 export interface Remembrance extends RemembranceData {
   at: number;
+  /** 선택지 유래 추억: 그때 고른 선택지 라벨 (M11a — 도감·회상에서 재생) */
+  pickedLabelId?: TextId;
+  /** 선택지 유래 추억: 그때 돌의 반응(결과) 텍스트 */
+  resultId?: TextId;
 }
 
 /** apart 시대: 돌의 방문 상태 */
@@ -209,6 +213,8 @@ export interface GameState {
     freeWorked: boolean;
     /** 직전 휴식 준수 배율 (개정 v4-4) — 이번 세션 게이지 정산에 곱한다. 정성 제외 */
     restMult: number;
+    /** 이번 세션에 추억 순간이 이미 발동했는가 (세션당 1회, M11a) */
+    momentFired: boolean;
   };
   rest: {
     endsAt: number;
@@ -246,6 +252,10 @@ export interface GameState {
   pendingCrisis: 'retreat' | 'sick' | null;
   /** 이미 발동한 보장 위기 아크 (retreat/sick — 게임당 1회) */
   crisisArcsFired: string[];
+  /** 목격한 급성 애착 4분면 (도감 재료, M11a) */
+  quadrantsSeen: string[];
+  /** 도감 뱃지 획득 기록 — 최초 충족 시각 (M11a). 숫자는 UI 비노출 */
+  badges: Record<string, { at: number }>;
   care: { points: number; carryMinutes: number };
   /** 구매 물품 — 배치 여부 분리 */
   items: Record<ItemId, { placed: boolean }>;

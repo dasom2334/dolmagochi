@@ -96,6 +96,10 @@ function finiteOr(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 }
 
+function isRecordSafe(v: unknown): v is Record<string, { at: number }> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
 function normalizeState(state: GameState): GameState {
   const flowtime = normalizeFlowtime(state.settings.flowtime);
   // 애착 2축 방어 — 누락/NaN이면 기본값으로, 안정감은 재계산(NaN 전파 차단)
@@ -120,6 +124,9 @@ function normalizeState(state: GameState): GameState {
       freeWorked: state.session?.freeWorked === true,
       restMult: finiteOr(state.session?.restMult, 1),
     },
+    // 도감 필드 방어 (M11a)
+    badges: isRecordSafe(state.badges) ? state.badges : {},
+    quadrantsSeen: Array.isArray(state.quadrantsSeen) ? state.quadrantsSeen : [],
     // 개정 v4 필드 방어 — 구 세이브 백필
     relationTier: finiteOr(state.relationTier, 1),
     lastTierUpDate: state.lastTierUpDate ?? null,

@@ -207,7 +207,8 @@ describe('작은 행동 — 집중 세션이 끝난 뒤 1회', () => {
 
     s = run(s, [{ type: 'END_FOCUS', nowMs: T0 }]);
     const before = s.session.journal.length;
-    s = run(s, [{ type: 'REST_ACT', key: 'glance' }]);
+    // rng 0.9 → 추억 순간(M11a) 미발동 경로로 고정
+    s = run(s, [{ type: 'REST_ACT', key: 'glance' }], seq([0.9]));
     expect(s.rest.actUsed).toBe(true);
     expect(s.session.journal).toHaveLength(before + 1);
     expect(variantsOf('restAct.glance.lines')).toContain(

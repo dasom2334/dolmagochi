@@ -129,6 +129,11 @@ export const SYS = {
   ],
   trustAbsent: 'sys.trustAbsent',
   restIncomplete: 'sys.restIncomplete.prompt',
+  /** 추억의 선택 기록 재생 (M11a) — {label} */
+  remembrance: {
+    choice: 'sys.remembrance.choice',
+    locked: 'sys.remembrance.locked',
+  },
 } as const;
 
 /** 순수 UI 단문 id 상수 (M2에서 사용) */
@@ -192,6 +197,8 @@ export const UI = {
   shop: {
     subStore: 'ui.shop.subStore', // 물건 탭 내부: 진열대(지금 살 수 있는 것만)
     subOwned: 'ui.shop.subOwned', // 물건 탭 내부: 소장품(보유·재고 + 배치/보관)
+    subBadges: 'ui.shop.subBadges', // 물건 탭 내부: 기억(도감 — 뱃지·추억, M11a)
+    badgesEmpty: 'ui.shop.badgesEmpty', // 도감 빈 상태
     ownedEmpty: 'ui.shop.ownedEmpty', // 소장품 빈 상태
     storeEmpty: 'ui.shop.storeEmpty', // 진열대 빈 상태 (전부 보유/재고)
     poor: 'ui.shop.poor',

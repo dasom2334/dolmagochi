@@ -158,6 +158,17 @@ export function migrateState(state: GameState): GameState | null {
       settings: { ...s.settings, theme: s.settings.theme ?? 'auto' },
     };
   }
+  // v13 → v14: 도감(M11a) — 뱃지 획득 기록·4분면 목격 추가.
+  // 뱃지는 다음 시각 이벤트에서 현 상태 기준으로 자연 정산된다 (백필 불필요).
+  if (s.schemaVersion === 13) {
+    s = {
+      ...s,
+      schemaVersion: 14,
+      badges: s.badges ?? {},
+      quadrantsSeen: s.quadrantsSeen ?? [],
+      session: { ...s.session, momentFired: s.session.momentFired ?? false },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }
