@@ -27,8 +27,8 @@ export function TimerCard({
   return (
     <div
       style={{
-        border: '3px solid #f2ead8',
-        background: '#332b3d',
+        border: '3px solid var(--text)',
+        background: 'var(--panel)',
         padding: '12px 14px',
         display: 'flex',
         flexDirection: 'column',
@@ -44,7 +44,7 @@ export function TimerCard({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <span style={{ fontSize: 13, color: isRest ? '#9fce82' : '#e8a55c' }}>
+          <span style={{ fontSize: 13, color: isRest ? 'var(--ok-hi)' : 'var(--warn)' }}>
             ◆ {isRest ? t(UI.labels.modeRest) : t(UI.labels.modeFocus)}
           </span>
           <span
@@ -52,14 +52,14 @@ export function TimerCard({
               fontSize: 26,
               fontVariantNumeric: 'tabular-nums',
               letterSpacing: 2,
-              color: '#fdf8ec',
+              color: 'var(--text-hi)',
             }}
           >
             {timerText}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: '#ffd866' }}>
+          <span style={{ fontSize: 12, color: 'var(--accent)' }}>
             {tf(UI.labels.care, { points: state.care.points })}
           </span>
           <button className="hv" style={btnSmall} onClick={onOpenSettings}>
@@ -76,15 +76,15 @@ export function TimerCard({
             gap: 12,
           }}
         >
-          <span style={{ fontSize: 11, color: '#8a7f96' }}>
+          <span style={{ fontSize: 11, color: 'var(--hint)' }}>
             {t(SYS.hints.flowtime)}
           </span>
           <button
             className="hv"
             style={{
-              border: '2px solid #f2ead8',
+              border: '2px solid var(--text)',
               background: 'transparent',
-              color: '#f2ead8',
+              color: 'var(--text)',
               fontFamily: 'inherit',
               fontSize: 13,
               padding: '7px 16px',
@@ -100,15 +100,15 @@ export function TimerCard({
         <div
           style={{
             height: 8,
-            border: '2px solid #f2ead8',
-            background: '#241e2c',
+            border: '2px solid var(--text)',
+            background: 'var(--panel-3)',
             padding: 1,
           }}
         >
           <div
             style={{
               height: '100%',
-              background: '#9fce82',
+              background: 'var(--ok-hi)',
               transition: 'width 1s linear',
               width: `${restPct}%`,
             }}

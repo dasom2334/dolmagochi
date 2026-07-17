@@ -30,14 +30,14 @@ export function NarratorLog({ state }: { state: GameState }) {
         style={{
           margin: 0,
           fontSize: 14,
-          color: '#f2ead8',
+          color: 'var(--text)',
           lineHeight: 1.8,
           animation: 'logFade .4s steps(3) both',
         }}
       >
         {state.session.narratorLine ? `* ${state.session.narratorLine}` : ''}
       </p>
-      <p style={{ margin: 0, fontSize: 11, color: '#8a7f96' }}>
+      <p style={{ margin: 0, fontSize: 11, color: 'var(--hint)' }}>
         * {trustText}
       </p>
     </div>

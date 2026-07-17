@@ -9,9 +9,9 @@ import { ALL_LAYERS } from '../audio/layers';
 
 const numInput = {
   width: 42,
-  background: '#241d30',
-  border: '2px solid #6b6178',
-  color: '#f2ead8',
+  background: 'var(--panel-4)',
+  border: '2px solid var(--hint-dim)',
+  color: 'var(--text)',
   fontFamily: 'inherit',
   fontSize: 12,
   padding: '3px 4px',
@@ -65,7 +65,7 @@ const settingBtn = {
   textAlign: 'left' as const,
   border: 'none',
   background: 'none',
-  color: '#e0d6c4',
+  color: 'var(--text-soft)',
   fontFamily: 'inherit',
   fontSize: 13,
   padding: '4px 0',
@@ -76,7 +76,7 @@ const overlayStyle = (zIndex: number) =>
   ({
     position: 'fixed',
     inset: 0,
-    background: 'rgba(20,16,26,.72)',
+    background: 'var(--overlay)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -86,8 +86,8 @@ const overlayStyle = (zIndex: number) =>
 const panelStyle = {
   width: 400,
   maxWidth: '88vw',
-  background: '#332b3d',
-  border: '3px solid #f2ead8',
+  background: 'var(--panel)',
+  border: '3px solid var(--text)',
   padding: 22,
   display: 'flex',
   flexDirection: 'column' as const,
@@ -95,9 +95,9 @@ const panelStyle = {
 };
 
 const closeBtn = {
-  border: '2px solid #f2ead8',
+  border: '2px solid var(--text)',
   background: 'transparent',
-  color: '#f2ead8',
+  color: 'var(--text)',
   fontFamily: 'inherit',
   fontSize: 13,
   padding: '6px 18px',
@@ -117,11 +117,11 @@ function SubSheet({
   return (
     <div style={overlayStyle(11)}>
       <div style={panelStyle}>
-        <div style={{ fontSize: 17, color: '#fdf8ec' }}>* {t(titleId)}</div>
+        <div style={{ fontSize: 17, color: 'var(--text-hi)' }}>* {t(titleId)}</div>
         {children}
         <div
           style={{
-            borderTop: '2px solid #4a4156',
+            borderTop: '2px solid var(--line)',
             paddingTop: 11,
             display: 'flex',
             justifyContent: 'flex-end',
@@ -213,7 +213,7 @@ export function SettingsModal({
     <>
     <div style={overlayStyle(10)}>
       <div style={panelStyle}>
-        <div style={{ fontSize: 17, color: '#fdf8ec' }}>
+        <div style={{ fontSize: 17, color: 'var(--text-hi)' }}>
           * {t(UI.buttons.settings)}
         </div>
 
@@ -245,6 +245,20 @@ export function SettingsModal({
           * {t(UI.labels.pauseOnHide)} — {onOff(state.settings.pauseOnHide)}
         </button>
 
+        {/* 테마 (M10) — 자동 → 라이트 → 다크 순환. 도트 씬은 영향받지 않는다 */}
+        <button
+          className="hv-text"
+          style={settingBtn}
+          onClick={() => {
+            const order = ['auto', 'light', 'dark'] as const;
+            const next =
+              order[(order.indexOf(state.settings.theme) + 1) % order.length];
+            dispatch({ type: 'SET_THEME', theme: next });
+          }}
+        >
+          * {t(UI.theme.setting)} — {t(UI.theme[state.settings.theme])}
+        </button>
+
         <button className="hv-text" style={settingBtn} onClick={doExport}>
           * {t(UI.buttons.exportSave)}
         </button>
@@ -265,14 +279,14 @@ export function SettingsModal({
         {msg && (
           <p
             className="pre-line"
-            style={{ margin: 0, fontSize: 11, color: '#a8c491', lineHeight: 1.5 }}
+            style={{ margin: 0, fontSize: 11, color: 'var(--ok)', lineHeight: 1.5 }}
           >
             * {msg}
           </p>
         )}
         <div
           style={{
-            borderTop: '2px solid #4a4156',
+            borderTop: '2px solid var(--line)',
             paddingTop: 11,
             display: 'flex',
             justifyContent: 'space-between',
@@ -283,7 +297,7 @@ export function SettingsModal({
           {state.era === 'cohabit' ? (
             <button
               className="hv-text"
-              style={{ ...settingBtn, color: '#8a7f96', fontSize: 11 }}
+              style={{ ...settingBtn, color: 'var(--hint)', fontSize: 11 }}
               onClick={() => {
                 dispatch({ type: 'FAREWELL_FROM_COHABIT' });
                 onClose();
@@ -297,9 +311,9 @@ export function SettingsModal({
           <button
             className="hv"
             style={{
-              border: '2px solid #f2ead8',
+              border: '2px solid var(--text)',
               background: 'transparent',
-              color: '#f2ead8',
+              color: 'var(--text)',
               fontFamily: 'inherit',
               fontSize: 13,
               padding: '6px 18px',
@@ -344,7 +358,7 @@ export function SettingsModal({
             <button
               key={layer}
               className="hv-text"
-              style={{ ...settingBtn, fontSize: 12, color: '#c8bdd0', paddingLeft: 12 }}
+              style={{ ...settingBtn, fontSize: 12, color: 'var(--ink)', paddingLeft: 12 }}
               onClick={() =>
                 dispatch({
                   type: 'SET_NOISE_LAYER',
@@ -373,20 +387,20 @@ export function SettingsModal({
         {nf.enabled && (
           <button
             className="hv-text"
-            style={{ ...settingBtn, fontSize: 12, color: '#c8bdd0', paddingLeft: 12 }}
+            style={{ ...settingBtn, fontSize: 12, color: 'var(--ink)', paddingLeft: 12 }}
             onClick={() => toggleNotify('restEnd')}
           >
             - {t(UI.labels.notifyRest)} — {onOff(nf.restEnd)}
           </button>
         )}
 
-        <div style={{ height: 2, background: '#4a4156', margin: '4px 0' }} />
+        <div style={{ height: 2, background: 'var(--line)', margin: '4px 0' }} />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <div style={{ fontSize: 13, color: '#e0d6c4' }}>
+          <div style={{ fontSize: 13, color: 'var(--text-soft)' }}>
             * {t(UI.labels.flowtime.title)}
           </div>
-          <div style={{ fontSize: 11, color: '#8a7f96' }}>
+          <div style={{ fontSize: 11, color: 'var(--hint)' }}>
             {t(UI.labels.flowtime.hint)}
           </div>
           {ft.rests.map((rest, i) => (
@@ -398,7 +412,7 @@ export function SettingsModal({
                 flexWrap: 'wrap',
                 gap: 5,
                 fontSize: 12,
-                color: '#c8bdd0',
+                color: 'var(--ink)',
                 paddingLeft: 12,
               }}
             >
@@ -438,10 +452,10 @@ export function SettingsModal({
                     cursor: 'pointer',
                     marginLeft: 'auto',
                     color: !nf.enabled
-                      ? '#4a4156'
+                      ? 'var(--line)'
                       : nf.focusMarks[i]
-                        ? '#a8c491'
-                        : '#6b6178',
+                        ? 'var(--ok)'
+                        : 'var(--hint-dim)',
                   }}
                   onClick={() => toggleFocusMark(i)}
                 >
@@ -452,7 +466,7 @@ export function SettingsModal({
           ))}
           <button
             className="hv-text"
-            style={{ ...settingBtn, fontSize: 12, color: '#a8c491', paddingLeft: 12 }}
+            style={{ ...settingBtn, fontSize: 12, color: 'var(--ok)', paddingLeft: 12 }}
             onClick={() =>
               dispatch({ type: 'SET_FLOWTIME', flowtime: cloneFlowtime() })
             }

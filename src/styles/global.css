@@ -1,5 +1,62 @@
 /* 디자인 원본(design/돌 키우기 뽀모도로.html)의 전역 스타일 이관 — 값 변경 금지 */
 
+/*
+ * 테마 토큰 (M10) — UI 크롬 전용. 다크 = 디자인 원본 값 그대로(시각 회귀 0).
+ * 도트 씬(components/scene)은 테마의 영향을 받지 않는다 (B23 — 시간대 축은 M12).
+ * 라이트 팔레트는 시안(검수 대상): 크림 종이 위 자두색 잉크 — 다크의 반전 정체성.
+ */
+:root {
+  --bg: #2b2433;
+  --bg-deep: #262031; /* ⚠️ App.tsx theme-color 메타와 수동 동기화 (라이트 쪽도 동일) */
+  --panel: #332b3d;
+  --panel-2: #332b40;
+  --panel-3: #241e2c;
+  --panel-4: #241d30;
+  --panel-hi: #453a56;
+  --line: #4a4156;
+  --text: #f2ead8;
+  --text-hi: #fdf8ec;
+  --text-soft: #e0d6c4;
+  --text-mute: #d8cdb8;
+  --text-faint: #c2b6a0;
+  --ink: #c8bdd0;
+  --ink-soft: #a89cb4;
+  --hint: #8a7f96;
+  --hint-dim: #6b6178;
+  --accent: #ffd866;
+  --accent-hi: #fff2b3;
+  --ok: #a8c491;
+  --ok-hi: #9fce82;
+  --warn: #e8a55c;
+  --overlay: rgba(20, 16, 26, 0.72);
+}
+
+:root[data-theme='light'] {
+  --bg: #efe7d8;
+  --bg-deep: #e7decb; /* ⚠️ App.tsx theme-color 메타와 수동 동기화 */
+  --panel: #f6f0e2;
+  --panel-2: #f6f0e4;
+  --panel-3: #f9f4e8;
+  --panel-4: #f9f5ea;
+  --panel-hi: #e8dfc9;
+  --line: #c9bda4;
+  --text: #3a3344;
+  --text-hi: #2b2433;
+  --text-soft: #4a4156;
+  --text-mute: #5a5064;
+  --text-faint: #6b6178;
+  --ink: #5f5570;
+  --ink-soft: #756a84;
+  --hint: #8a7f96;
+  --hint-dim: #a89cb4;
+  --accent: #9c7500;
+  --accent-hi: #7a5b00;
+  --ok: #5d7d46;
+  --ok-hi: #4d7036;
+  --warn: #a55f1d;
+  --overlay: rgba(58, 51, 68, 0.4);
+}
+
 @font-face {
   font-family: Galmuri11;
   font-style: normal;
@@ -19,13 +76,13 @@
 
 body {
   margin: 0;
-  background: #2b2433;
+  background: var(--bg);
   font-family: 'Galmuri11', monospace;
-  color: #f2ead8;
+  color: var(--text);
   image-rendering: pixelated;
 }
-a { color: #ffd866; }
-a:hover { color: #fff2b3; }
+a { color: var(--accent); }
+a:hover { color: var(--accent-hi); }
 button { image-rendering: pixelated; }
 
 @keyframes swayS { from { transform: rotate(-5deg); } to { transform: rotate(6deg); } }
@@ -40,8 +97,8 @@ button { image-rendering: pixelated; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
 /* 디자인의 style-hover 속성 이관 — 인라인 스타일 위에서 동작해야 하므로 !important */
-.hv:hover { border-color: #ffd866 !important; color: #ffd866 !important; }
-.hv-text:hover { color: #ffd866 !important; }
+.hv:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+.hv-text:hover { color: var(--accent) !important; }
 
 /* 페이지 내 줄바꿈(\n) 렌더링 */
 .pre-line { white-space: pre-line; }

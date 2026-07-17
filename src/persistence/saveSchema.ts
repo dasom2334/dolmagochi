@@ -144,6 +144,10 @@ function normalizeState(state: GameState): GameState {
       noiseMuted: Array.isArray(state.settings.noiseMuted)
         ? state.settings.noiseMuted.filter((l): l is string => typeof l === 'string')
         : [],
+      // 테마 방어 (M10) — 알 수 없는 값은 자동으로
+      theme: (['auto', 'light', 'dark'] as const).includes(state.settings.theme)
+        ? state.settings.theme
+        : 'auto',
     },
   };
 }
