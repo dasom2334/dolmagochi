@@ -222,6 +222,16 @@ export function migrateState(state: GameState): GameState | null {
       lastTreeFindDate: s.lastTreeFindDate ?? null,
     };
   }
+  // v18 → v19: 3차 페이싱 개편(M15b) — 동행일 가산 필드 추가.
+  // 기존 심은 세이브는 동행일 0에서 시작 (경과일만큼은 이미 자라 있다)
+  if (s.schemaVersion === 18) {
+    s = {
+      ...s,
+      schemaVersion: 19,
+      treeBondDays: s.treeBondDays ?? 0,
+      lastTreeBondDate: s.lastTreeBondDate ?? null,
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

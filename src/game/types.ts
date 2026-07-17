@@ -291,6 +291,10 @@ export interface GameState {
   visitBlockedUntil: number | null;
   /** 3차: 나무 발견을 기록한 마지막 달력일 — 하루 1개 (M15) */
   lastTreeFindDate: string | null;
+  /** 3차: 동행일 수 — 세션을 마친 날마다 1, 나무일에 가산 (M15b) */
+  treeBondDays: number;
+  /** 동행일을 센 마지막 달력일 */
+  lastTreeBondDate: string | null;
   /** 현재 날씨 (M12) — 자연 변화는 달력일당 1회, 정성 지불로 즉시 변경 */
   weather: WeatherKind;
   /** 자연 날씨 추첨을 마친 달력일 */

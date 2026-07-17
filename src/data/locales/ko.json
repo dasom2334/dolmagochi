@@ -3309,9 +3309,14 @@
       "가지 위에 눈이 한 줄로 쌓였다.\n그 아래 어딘가에서, 돌은 따뜻할 것이다. 아마."
     ]
   ],
-  "tree.find.first-flower": [
+  "tree.find.fruit-swell": [
     [
-      "꽃이 피었다.\n당신은 한참을 서 있었다. 백 일쯤 걸렸다. 그럴 만한 백 일이었다."
+      "꽃 진 자리가 조그맣게 부풀어 있다.\n안에서 무언가가 준비되고 있다. 서두르지 않는 방식으로 — 아는 방식이다."
+    ]
+  ],
+  "tree.find.fruit-stir": [
+    [
+      "바람이 없는데, 열매 하나가 흔들렸다.\n안에서 두드린 것 같다. 당신은 오래 서서 지켜보았다.\n내일도 이 자리에 와야겠다고, 이유 없이 생각했다."
     ]
   ],
   "tree.find.first-fruit": [
@@ -3439,9 +3444,14 @@
       "눈의 가지"
     ]
   ],
-  "badge.tree-first-flower.name": [
+  "badge.tree-fruit-swell.name": [
     [
-      "백 일의 꽃"
+      "부푼 꽃자리"
+    ]
+  ],
+  "badge.tree-fruit-stir.name": [
+    [
+      "흔들린 열매"
     ]
   ],
   "badge.tree-first-fruit.name": [

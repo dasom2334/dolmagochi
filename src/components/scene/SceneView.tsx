@@ -106,7 +106,7 @@ export function SceneView({ state }: { state: GameState }) {
       {isFocus && sceneId === 'walk' && <GrassTufts />}
       {state.planted && state.plantedAt !== null ? (
         // 3차 (M15): 돌의 자리에 나무가 자란다 — 성장은 달력이 정한다
-        <TreeSprite stage={treeStage(state.plantedAt, now())} />
+        <TreeSprite stage={treeStage(state.plantedAt, state.treeBondDays, now())} />
       ) : present ? (
         <RockSprite
           moss={placed('moss')}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { companionAwake, treeStage } from '../tree';
+import { companionMet, treeDays, treeStage } from '../tree';
 import { createInitialState, transition } from '../stateMachine';
 import type { GameEvent, GameState } from '../types';
 import { mulberry32, type Rng } from '../rng';
@@ -35,48 +35,67 @@ function session(s: GameState, at: number, rng?: Rng): GameState {
     rng ?? seq([0.9]),
   );
 }
+/** n일 연속으로 하루 한 세션 — 매일 오는 플레이어 */
+function daily(s: GameState, days: number): GameState {
+  let cur = s;
+  for (let d = 0; d < days; d++) {
+    cur = session({ ...cur, phase: 'actionSelect' }, T0 + d * DAY);
+  }
+  return cur;
+}
+const finds = (s: GameState) =>
+  Object.keys(s.memory).filter((k) => k.startsWith('tree-'));
 
-describe('treeStage — 성장은 달력이 (M15)', () => {
-  it('단계 경계: 0심음/7활착/30어린나무/100자람/200무성/365성목', () => {
+describe('treeStage — 나무일 = 경과일 + 동행일 (M15b)', () => {
+  it('단계 경계: 0개화/3열매/7각성기/30무성/90울창/180성목', () => {
     const p = T0;
-    expect(treeStage(p, p)).toBe(0);
-    expect(treeStage(p, p + 6 * DAY)).toBe(0);
-    expect(treeStage(p, p + 7 * DAY)).toBe(1);
-    expect(treeStage(p, p + 30 * DAY)).toBe(2);
-    expect(treeStage(p, p + 100 * DAY)).toBe(3);
-    expect(treeStage(p, p + 200 * DAY)).toBe(4);
-    expect(treeStage(p, p + 365 * DAY)).toBe(5);
-    expect(companionAwake(p, p + 199 * DAY)).toBe(false);
-    expect(companionAwake(p, p + 200 * DAY)).toBe(true);
+    expect(treeStage(p, 0, p)).toBe(0);
+    expect(treeStage(p, 0, p + 2 * DAY)).toBe(0);
+    expect(treeStage(p, 0, p + 3 * DAY)).toBe(1);
+    expect(treeStage(p, 0, p + 7 * DAY)).toBe(2);
+    expect(treeStage(p, 0, p + 30 * DAY)).toBe(3);
+    expect(treeStage(p, 0, p + 90 * DAY)).toBe(4);
+    expect(treeStage(p, 0, p + 180 * DAY)).toBe(5);
+  });
+
+  it('동행일이 나무일에 가산된다 — 함께한 날은 이틀', () => {
+    const p = T0;
+    expect(treeDays(p, 2, p + 1 * DAY)).toBe(3);
+    expect(treeStage(p, 2, p + 1 * DAY)).toBe(1); // 경과 1 + 동행 2 = 열매
   });
 });
 
-describe('나무 발견 — 목격은 플레이가 (M15)', () => {
-  it('세션을 마친 날 하루 1개, 단계 게이트·이벤트형 우선', () => {
-    // 심은 지 8일: 활착(1) — first-leaf만 후보 (겨울이라 snow-branch도 후보)
-    let s = session(planted(8), T0);
-    // 겨울(T0=1월): snow-branch(minStage 1)와 first-leaf(1) 중 정렬 동률 — 하나 발견
-    const found = Object.keys(s.memory).filter((k) => k.startsWith('tree-'));
-    expect(found).toHaveLength(1);
-    expect(s.lastTreeFindDate).not.toBeNull();
+describe('나무 발견 — 전조→열매→흔들림→각성 체인 (M15b)', () => {
+  it('심은 지 0일: 첫 발견은 전조(부푼 꽃자리)', () => {
+    const s = session(planted(0), T0);
+    expect('tree-fruit-swell' in s.memory).toBe(true);
     // 같은 날 두 번째 세션 — 더 발견되지 않는다
     const again = session({ ...s, phase: 'actionSelect' }, T0 + 3_600_000);
-    expect(
-      Object.keys(again.memory).filter((k) => k.startsWith('tree-')),
-    ).toHaveLength(1);
-    // 다음 날 — 남은 후보 발견
-    const next = session({ ...again, phase: 'actionSelect' }, T0 + DAY);
-    expect(
-      Object.keys(next.memory).filter((k) => k.startsWith('tree-')),
-    ).toHaveLength(2);
+    expect(finds(again)).toHaveLength(1);
   });
 
-  it('무성 도달: 첫날 열매, 다음 날 각성 — 열매에서 씨앗이 나온다 (서사 순서)', () => {
-    const day1 = session(planted(200), T0);
-    expect('tree-first-fruit' in day1.memory).toBe(true);
-    const day2 = session({ ...day1, phase: 'actionSelect' }, T0 + DAY);
-    expect('tree-awakening' in day2.memory).toBe(true);
-    expect('tree-awakening' in day2.badges).toBe(true);
+  it('매일 오는 플레이어: 나흘째에 각성 — 아이를 첫 주에 만난다', () => {
+    // day0 전조 → day1(나무일3) 열매 → day2(5) 흔들림 → day3(7) 각성
+    const s = daily(planted(0), 4);
+    expect('tree-fruit-swell' in s.memory).toBe(true);
+    expect('tree-first-fruit' in s.memory).toBe(true);
+    expect('tree-fruit-stir' in s.memory).toBe(true);
+    expect('tree-awakening' in s.memory).toBe(true);
+    expect('tree-awakening' in s.badges).toBe(true);
+    expect(s.treeBondDays).toBe(4);
+  });
+
+  it('단계를 건너뛰어도 체인 순서는 지켜진다 — 각성은 열매·흔들림 뒤', () => {
+    // 심어놓고 30일 방치 후 복귀: 무성(3)이지만 전조부터 순서대로
+    let s = session(planted(30), T0);
+    expect('tree-awakening' in s.memory).toBe(false);
+    expect('tree-fruit-swell' in s.memory).toBe(true);
+    s = session({ ...s, phase: 'actionSelect' }, T0 + DAY);
+    expect('tree-first-fruit' in s.memory).toBe(true);
+    s = session({ ...s, phase: 'actionSelect' }, T0 + 2 * DAY);
+    expect('tree-fruit-stir' in s.memory).toBe(true);
+    s = session({ ...s, phase: 'actionSelect' }, T0 + 3 * DAY);
+    expect('tree-awakening' in s.memory).toBe(true);
   });
 
   it('심기 후에는 방문이 오지 않는다 — 돌은 나무가 되었다', () => {
@@ -86,10 +105,20 @@ describe('나무 발견 — 목격은 플레이가 (M15)', () => {
   });
 });
 
-describe('동행자 (M15) — 씨앗의 각성 이후', () => {
+describe('동행자 (M15b) — 각성 발견을 만난 순간부터', () => {
+  it('각성 전에는 나무 나이가 많아도 동행자 대화가 나오지 않는다', () => {
+    const s = session(planted(200), T0);
+    expect(companionMet(s.memory)).toBe(false);
+    const talked = run(s, [{ type: 'TALK' }], seq([0.0, 0.0]));
+    const companionTexts = gameData.dialogues.companion.map((l) =>
+      (gameData.text[l.textId]?.[0] ?? []).join('\n'),
+    );
+    expect(companionTexts).not.toContain(talked.rest.talkState!.pages.join('\n'));
+  });
+
   it('각성 후 대화 슬롯에 동행자 풀이 나온다 (회상과 번갈아)', () => {
-    let s = session(planted(210), T0);
-    // rng 0.0 → 동행자 풀 선택
+    let s = daily(planted(0), 4);
+    expect(companionMet(s.memory)).toBe(true);
     s = run(s, [{ type: 'TALK' }], seq([0.0, 0.0]));
     const companionTexts = gameData.dialogues.companion.map((l) =>
       (gameData.text[l.textId]?.[0] ?? []).join('\n'),
@@ -98,11 +127,11 @@ describe('동행자 (M15) — 씨앗의 각성 이후', () => {
   });
 
   it('휴식 스킵 시 동행자가 걱정한다 — 돌이 하던 걱정을 이어받아', () => {
-    let s = session(planted(210), T0);
-    // 휴식 스킵으로 바로 시작 (restMult 0.5)
+    let s = daily(planted(0), 4);
+    // 마지막 세션의 휴식이 끝나기 전에 바로 시작 → 스킵 (restMult 0.5)
     s = run(
       { ...s, phase: 'actionSelect' },
-      [{ type: 'START_FOCUS', nowMs: T0 + 60_000 }],
+      [{ type: 'START_FOCUS', nowMs: T0 + 3 * DAY + 120_000 }],
       seq([0.9]),
     );
     expect(

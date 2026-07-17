@@ -138,6 +138,8 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       letGoCount: 0,
       visitBlockedUntil: null,
       lastTreeFindDate: null,
+      treeBondDays: 0,
+      lastTreeBondDate: null,
       stats: {
         ...s.stats,
         affection: BALANCE.AFFECTION_TIERS[BALANCE.AFFECTION_TIERS.length - 1],
@@ -163,6 +165,8 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       bloomSeen: false,
       visitBlockedUntil: null,
       lastTreeFindDate: null,
+      treeBondDays: 0,
+      lastTreeBondDate: null,
     }));
 
   // 2차 동거: 의존도 중간에서 시작
@@ -223,6 +227,8 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       bloomSeen: true,
       letGoCount: Math.max(1, s.letGoCount),
       lastTreeFindDate: null,
+      treeBondDays: 0,
+      lastTreeBondDate: null,
       visitBlockedUntil: null,
     }));
 
@@ -236,6 +242,7 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       lastTierUpDate: null,
       lastEndingTalkDate: null,
       lastTreeFindDate: null,
+      lastTreeBondDate: null,
       lastWeatherDate: null,
       plantedAt: s.plantedAt !== null ? s.plantedAt - DAY_MS : null,
     }));
@@ -350,7 +357,7 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       </div>
       <Section label="tree (3차)" />
       <div style={rowWrap}>
-        {[0, 7, 30, 100, 200, 365].map((d) => (
+        {[0, 3, 7, 30, 90, 180].map((d) => (
           <button key={d} className="hv" style={btnSmall} onClick={() => treeAt(d)}>
             d{d}
           </button>

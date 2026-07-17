@@ -48,7 +48,7 @@ import {
 } from './security';
 import { presentState, startAbsence } from './absence';
 import { resolveSeason } from './timeOfDay';
-import { companionAwake, treeStage } from './tree';
+import { companionMet, treeStage } from './tree';
 import { pickMoment, settleBadges } from './badges';
 import {
   applyOutcome,
@@ -64,7 +64,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 19;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -130,6 +130,8 @@ export function createInitialState(
     highThreatStreak: 0,
     visitBlockedUntil: null,
     lastTreeFindDate: null,
+    treeBondDays: 0,
+    lastTreeBondDate: null,
     weather: 'clear',
     lastWeatherDate: null,
     pendingUmbrella: false,
@@ -676,7 +678,7 @@ function reduce(
             )
           : restMult < 1 &&
               state.planted &&
-              companionAwake(state.plantedAt, event.nowMs)
+              companionMet(state.memory)
             ? // 3차 (M15): 돌이 하던 걱정을 이제 동행자가 한다
               joinPages(pickText(data.text, SYS.journal.companionWorry, rng))
             : null;
@@ -1348,31 +1350,6 @@ function reduce(
       if (bloomLine) journal = addJournal(journal, elapsed, bloomLine);
       if (witherEaseLine) journal = addJournal(journal, elapsed, witherEaseLine);
 
-      // ── 3차: 나무 발견 (M15) — 성장은 달력이, 목격은 플레이가.
-      // 접속해 세션을 마친 날에만 하루 1개, 단계·계절이 맞는 미발견 후보 중
-      // 단계 높은 것 우선 (각성·성목 같은 이벤트형이 도달 날 먼저 발견된다).
-      let lastTreeFindDate = next.lastTreeFindDate;
-      let treeFindLine: string | null = null;
-      let treeFindToken: string | null = null;
-      if (next.planted && next.plantedAt !== null && lastTreeFindDate !== today) {
-        const stage = treeStage(next.plantedAt, event.nowMs);
-        const season = resolveSeason(next.settings, event.nowMs);
-        const cands = data.treeFinds
-          .filter(
-            (f) =>
-              stage >= f.minStage &&
-              (f.season === undefined || f.season === season) &&
-              !(`tree-${f.id}` in next.memory),
-          )
-          .sort((a, b) => b.minStage - a.minStage);
-        if (cands.length > 0) {
-          const found = cands[0];
-          treeFindToken = `tree-${found.id}`;
-          treeFindLine = joinPages(pickText(data.text, found.textId, rng));
-          lastTreeFindDate = today;
-          journal = addJournal(journal, elapsed, treeFindLine);
-        }
-      }
       if (farewell2) {
         journal = addJournal(
           journal,
@@ -1412,15 +1389,6 @@ function reduce(
           memory,
           usedSupplyToken,
           BALANCE.MEMORY_WEIGHT_PURCHASE,
-          event.nowMs,
-        );
-      }
-      // 나무 발견 토큰 (M15) — 도감 재료
-      if (treeFindToken) {
-        memory = remember(
-          memory,
-          treeFindToken,
-          BALANCE.MEMORY_WEIGHT_ACTION,
           event.nowMs,
         );
       }
@@ -1485,6 +1453,50 @@ function reduce(
         };
       }
 
+      // ── 3차: 동행 가속 (M15b) — 세션을 마친 날은 나무에게 이틀
+      let treeBondDays = next.treeBondDays;
+      let lastTreeBondDate = next.lastTreeBondDate;
+      if (planted && lastTreeBondDate !== today) {
+        treeBondDays += 1;
+        lastTreeBondDate = today;
+      }
+      // ── 3차: 나무 발견 (M15/M15b) — 성장은 달력+동행이, 목격은 플레이가.
+      // 세션을 마친 날에만 하루 1개. 단계·계절·선행(after)이 맞는 미발견 후보 중
+      // 단계 높은 것 우선, 동률은 데이터 순서 — 심은 세션의 전조(꽃자리)부터
+      // 열매 → 흔들림 → 각성 체인이 순서대로 도달한다
+      let lastTreeFindDate = next.lastTreeFindDate;
+      if (planted && plantedAt !== null && lastTreeFindDate !== today) {
+        const stage = treeStage(plantedAt, treeBondDays, event.nowMs);
+        const season = resolveSeason(next.settings, event.nowMs);
+        const cands = data.treeFinds
+          .filter(
+            (f) =>
+              stage >= f.minStage &&
+              (f.season === undefined || f.season === season) &&
+              !(`tree-${f.id}` in memory) &&
+              (f.after === undefined || `tree-${f.after}` in memory),
+          )
+          .sort(
+            (a, b) =>
+              (b.priority ?? 0) - (a.priority ?? 0) || b.minStage - a.minStage,
+          );
+        if (cands.length > 0) {
+          const found = cands[0];
+          memory = remember(
+            memory,
+            `tree-${found.id}`,
+            BALANCE.MEMORY_WEIGHT_ACTION,
+            event.nowMs,
+          );
+          lastTreeFindDate = today;
+          journal = addJournal(
+            journal,
+            elapsed,
+            joinPages(pickText(data.text, found.textId, rng)),
+          );
+        }
+      }
+
       // 휴식 길이 문턱 발화 — 배정된 휴식이 길수록 (긴 집중의 결과) 진입 시 1회.
       // 분 표기({mins})는 실제 배정된 휴식 길이 — 유저가 설정에서 바꾼 값이 그대로 들어간다
       const restSec = restMin * 60;
@@ -1523,6 +1535,8 @@ function reduce(
         plantedAt,
         highThreatStreak,
         lastTreeFindDate,
+        treeBondDays,
+        lastTreeBondDate,
         relationTier,
         lastTierUpDate,
         pendingCrisis,
@@ -1777,12 +1791,8 @@ function reduce(
             'apartVisit',
             data.dialogues.apartVisit,
           );
-        // 3차 (M15): 동행자(씨앗의 아이)가 깨어난 뒤에는 회상과 번갈아 곁에 있다
-        if (
-          state.planted &&
-          companionAwake(state.plantedAt, state.rest.endsAt) &&
-          rng() < 0.5
-        ) {
+        // 3차 (M15): 동행자(씨앗의 아이)를 만난 뒤에는 회상과 번갈아 곁에 있다
+        if (state.planted && companionMet(state.memory) && rng() < 0.5) {
           return serveTalkPool(
             state,
             data,

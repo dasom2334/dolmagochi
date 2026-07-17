@@ -424,11 +424,19 @@
     }
   },
   {
-    "id": "tree-first-flower",
-    "nameId": "badge.tree-first-flower.name",
-    "lineId": "tree.find.first-flower",
+    "id": "tree-fruit-swell",
+    "nameId": "badge.tree-fruit-swell.name",
+    "lineId": "tree.find.fruit-swell",
     "when": {
-      "token": "tree-first-flower"
+      "token": "tree-fruit-swell"
+    }
+  },
+  {
+    "id": "tree-fruit-stir",
+    "nameId": "badge.tree-fruit-stir.name",
+    "lineId": "tree.find.fruit-stir",
+    "when": {
+      "token": "tree-fruit-stir"
     }
   },
   {
