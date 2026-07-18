@@ -6,11 +6,13 @@ import { acquiredBadges } from '../game/badges';
 import { isItemAvailable, isRockPresent, weathersOfSeason } from '../game/stateMachine';
 import { resolveSeason } from '../game/timeOfDay';
 import { needsBand } from '../game/stats';
+import { careTargetNeed } from '../game/freeAction';
 import { BALANCE } from '../game/balance';
 import { dispatch, now, t, tf } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { btnDashed, btnOutline, btnSmall, card, PagesView } from './ui';
 import { ActionGrid } from './ActionGrid';
+import { UmbrellaPrompt } from './UmbrellaPrompt';
 
 const STEPS: RestStep[] = ['journal', 'talk', 'select', 'shop'];
 
@@ -131,6 +133,10 @@ export function RestPanel({
             </button>
           </div>
         </div>
+      ) : state.pendingUmbrella ? (
+        // M16: 휴식에서 산책을 시작해도 우산 대기가 여기 떠야 한다 —
+        // 없으면 START_FOCUS가 대기만 세우고 리턴해 버튼이 죽어 보인다
+        <UmbrellaPrompt />
       ) : (
         <button className="hv" style={btnDashed} onClick={startFocus}>
           {tf(UI.buttons.startFocus, { action: t(action?.nameId ?? '') })}
@@ -154,6 +160,15 @@ function RestJournal({ state }: { state: GameState }) {
         esteem: t(SYS.needsGlance.words.esteem[needsBand(state.stats.needs.esteem)]),
       })
     : null;
+  // 최결핍 강조 (M16): 자유행동 사다리를 막는 욕구가 바닥 밴드면 한 줄 더 —
+  // 수치 없이, 지금 어느 축부터 챙겨야 하는지만 짚어준다
+  const blocking = isRockPresent(state)
+    ? careTargetNeed(state.stats.needs)
+    : null;
+  const hint =
+    blocking && needsBand(state.stats.needs[blocking]) === 0
+      ? t(SYS.needsHint[blocking])
+      : null;
   return (
     <>
       <div
@@ -174,6 +189,9 @@ function RestJournal({ state }: { state: GameState }) {
         </div>
         {glance && (
           <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>* {glance}</div>
+        )}
+        {hint && (
+          <div style={{ fontSize: 12, color: 'var(--accent)' }}>* {hint}</div>
         )}
         {state.session.journal.map((j, i) => (
           <div

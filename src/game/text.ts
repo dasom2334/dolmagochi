@@ -125,6 +125,13 @@ export const SYS = {
       ],
     },
   },
+  /** 최결핍 욕구 강조 힌트 (M16) — 사다리를 막는 욕구가 바닥 밴드일 때 한 줄 */
+  needsHint: {
+    physiological: 'sys.needsHint.physiological',
+    safety: 'sys.needsHint.safety',
+    belonging: 'sys.needsHint.belonging',
+    esteem: 'sys.needsHint.esteem',
+  } as Record<string, string>,
   // 호감도 7티어와 1:1 — 티어마다 고유 관찰 문구 (인덱스 = 티어-1)
   trustLadder: [
     'sys.trust.0',
