@@ -1123,7 +1123,6 @@ describe('apart(빈자리) 시대', () => {
       seq([0.1, 0.0, 0.0]),
     );
     expect(s.apart.leavePending).toBe(true);
-    const moodBefore = s.stats.mood;
 
     // 1회차 붙잡기 — 이관된 원고
     s = run(s, [{ type: 'VISIT_HOLD', hold: true }]);
@@ -1133,7 +1132,6 @@ describe('apart(빈자리) 시대', () => {
       holdCount: 1,
       visitSessionsLeft: BALANCE.VISIT_HOLD_EXTEND,
     });
-    expect(s.stats.mood).toBe(moodBefore - BALANCE.HOLD_GUILT_MOOD);
     const firstHold = gameData.text['dlg.visitLeave.holdResult'][0].join('\n');
     expect(s.session.journal.map((j) => j.text)).toContain(firstHold);
     expect(firstHold).toContain('돌은 당신의 만류에 거절할 수 없었다.');
@@ -1238,13 +1236,11 @@ describe('설정', () => {
 });
 
 describe('달력일 정산 이벤트', () => {
-  it('SETTLE: 경과일 감쇠가 상태에 반영', () => {
+  it('SETTLE: 경과일이 정산일에 반영된다 (기분은 M17에서 삭제)', () => {
     const DAY = 86_400_000;
     const base: GameState = { ...init(), lastSessionEndAt: T0 };
     const s = run(base, [{ type: 'SETTLE', nowMs: T0 + 2 * DAY }]);
-    expect(s.stats.mood).toBe(
-      BALANCE.MOOD_START - 2 * BALANCE.MOOD_DECAY_PER_DAY,
-    );
+    expect(s.lastDecayDate).not.toBe(base.lastDecayDate);
   });
 });
 
@@ -1273,15 +1269,15 @@ describe('서사 비트 게이트 + 보장 위기 아크 (개정 v4-7/8)', () =>
       { type: 'END_FOCUS', nowMs: T0 + DAY },
     ]);
     expect(s.relationTier).toBe(3);
-    expect(s.pendingCrisis).toBe('retreat');
+    expect(s.pendingCrises).toContain('retreat');
   });
 
   it('3티어 잠수 아크: 다음 세션 시작에 돌이 물러난다 (1회성)', () => {
     const base = init();
-    let s: GameState = { ...base, relationTier: 3, pendingCrisis: 'retreat' };
+    let s: GameState = { ...base, relationTier: 3, pendingCrises: ['retreat'] };
     s = run(s, [{ type: 'START_FOCUS', nowMs: T0 }]);
     expect(isRockPresent(s)).toBe(false);
-    expect(s.pendingCrisis).toBeNull();
+    expect(s.pendingCrises).not.toContain('retreat');
     expect(s.crisisArcsFired).toContain('retreat');
     expect(
       s.session.journal.some((j) =>
@@ -1292,13 +1288,13 @@ describe('서사 비트 게이트 + 보장 위기 아크 (개정 v4-7/8)', () =>
 
   it('5티어 병간호 아크: 세션 종료에 앓아눕는다 → 병간호만 가능', () => {
     const base = init();
-    let s: GameState = { ...base, relationTier: 5, pendingCrisis: 'sick' };
+    let s: GameState = { ...base, relationTier: 5, pendingCrises: ['sick'] };
     s = run(s, [
       { type: 'START_FOCUS', nowMs: T0 },
       { type: 'END_FOCUS', nowMs: T0 },
     ]);
     expect(s.presence.sick).toBe(true);
-    expect(s.pendingCrisis).toBeNull();
+    expect(s.pendingCrises).not.toContain('sick');
     expect(s.crisisArcsFired).toContain('sick');
     const nurse = gameData.actions.find((a) => a.id === 'nurse')!;
     expect(isActionAvailable(nurse, s)).toBe(true);

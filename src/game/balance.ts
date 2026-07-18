@@ -99,14 +99,12 @@ export const BALANCE = {
   RETURN_LOW_INTIMACY_MAX: 2, // 이 친밀도 이하 행동 세션만 복귀 누적에 카운트
 
   // 달력일 정산
-  MOOD_DECAY_PER_DAY: 8,
   NEGLECT_DAYS_PER_REGRESS: 3, // 이 일수마다 욕구 1단계 퇴행 (하한 1, 죽지 않음)
   NEGLECT_ABANDONMENT_PER_STEP: 20, // 방치 퇴행 1스텝당 유기불안 상승 (오래 안 오면 불안해진다)
 
   // 상태값 공통
   STAT_MIN: 0,
   STAT_MAX: 100,
-  MOOD_START: 50,
 
   // 욕구 게이지 (명명 분리 — 단계는 파생값)
   NEED_FILLED_THRESHOLD: 60, // 이 값 이상이면 해당 욕구 '충족' — 단계 파생 기준
@@ -191,5 +189,4 @@ export const BALANCE = {
   VISIT_STAY_MIN: 1, // 머무는 세션 수
   VISIT_STAY_MAX: 3,
   VISIT_HOLD_EXTEND: 1, // 붙잡기로 연장되는 세션 수
-  HOLD_GUILT_MOOD: 5, // 붙잡기 죄책감 — 기분 하락량
 } as const;

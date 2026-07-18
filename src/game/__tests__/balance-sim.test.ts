@@ -4,7 +4,7 @@
  * 플레이 스타일별 타임라인을 측정한다. 수치 재튜닝 시 이 하네스로 재검증한다.
  * (어서션 없이 콘솔 표를 남기는 관측용 테스트 — 상세 근거는 docs/plans/기획서-개정초안.)
  */
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
 import { createInitialState, transition } from '../stateMachine';
 import type { ActionId, GameEvent, GameState, NeedId } from '../types';
@@ -321,6 +321,58 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
       },
       SEEDS,
     );
+  }, 300_000);
+
+  // 개정 v4-8 불변식 (M17): 어떤 플레이 스타일이든 엔딩 전에 보장 아크
+  // 잠수·병간호가 각 1회 이상 발동해야 한다 (3/5티어 예약 → 큐). 큐화 이전엔
+  // 3티어 잠수가 5티어 병간호에 덮여 사라질 수 있었다.
+  it('보장 아크 불변식: 엔딩 도달 런은 잠수·병간호를 각 1회 이상 겪는다', () => {
+    const POLICIES: Policy[] = [
+      {
+        name: 'A. 균형',
+        sessionMin: 50,
+        dailyFocusMin: 240,
+        answerChoices: true,
+        doTalk: true,
+        skipRest: false,
+        buyOrder: ALL_ITEMS,
+        rebuyConsumables: ['apitoken'],
+      },
+      {
+        name: 'B. 러시',
+        sessionMin: 90,
+        dailyFocusMin: 360,
+        answerChoices: false,
+        doTalk: true,
+        skipRest: false,
+        buyOrder: ALL_ITEMS,
+        rebuyConsumables: ['apitoken'],
+      },
+      {
+        name: 'D. 캐주얼',
+        sessionMin: 25,
+        dailyFocusMin: 120,
+        answerChoices: false,
+        doTalk: true,
+        skipRest: false,
+        buyOrder: ALL_ITEMS,
+        rebuyConsumables: ['apitoken'],
+      },
+    ];
+    for (const policy of POLICIES) {
+      for (const seed of SEEDS) {
+        const r = simulate(policy, seed);
+        if (r.hEnding === null) continue; // 엔딩 미도달 런은 대상 아님
+        expect(
+          r.arcRetreat,
+          `${policy.name} seed ${seed}: 잠수 아크 미발동`,
+        ).toBe(1);
+        expect(
+          r.arcSick,
+          `${policy.name} seed ${seed}: 병간호 아크 미발동`,
+        ).toBe(1);
+      }
+    }
   }, 300_000);
 
   it('튜닝 실험: GAIN·표류', () => {

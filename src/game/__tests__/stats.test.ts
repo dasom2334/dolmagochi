@@ -63,15 +63,9 @@ describe('needsLevelOf — 파생 욕구 단계', () => {
 });
 
 describe('settleCalendar — 달력일 정산', () => {
-  it('1일 경과 → 기분 감쇠 1회', () => {
+  it('1일 경과 → 정산일 갱신 (기분은 M17에서 삭제됨)', () => {
     const r = settleCalendar(initialStats(), dateKey(T0), T0, T0 + DAY);
-    expect(r.stats.mood).toBe(BALANCE.MOOD_START - BALANCE.MOOD_DECAY_PER_DAY);
     expect(r.lastDecayDate).toBe(dateKey(T0 + DAY));
-  });
-
-  it('다일 경과 → 일수만큼 감쇠, 하한 0', () => {
-    const r = settleCalendar(initialStats(), dateKey(T0), T0, T0 + 30 * DAY);
-    expect(r.stats.mood).toBe(0);
   });
 
   it('같은 날 재정산은 아무 것도 하지 않는다 (멱등)', () => {
@@ -119,7 +113,7 @@ describe('settleCalendar — 달력일 정산', () => {
 });
 
 describe('applyStatOutcome', () => {
-  it('기분/호감도/욕구/자아실현 반영과 클램프 (하위 욕구 80 이상이어야 상위가 찬다)', () => {
+  it('호감도/욕구/자아실현 반영과 클램프 (하위 욕구 80 이상이어야 상위가 찬다)', () => {
     // 안정 상태(안정감 100)에서 호감도가 온전히 오르도록.
     // 소속·존중이 오르려면 아래 욕구들이 상승 게이트(80)를 넘어 있어야 한다 (개정 v4-5).
     const base = {
@@ -135,11 +129,10 @@ describe('applyStatOutcome', () => {
       },
     };
     const r = applyStatOutcome(base, {
-      stats: { mood: 100, affection: 2 },
+      stats: { affection: 2 },
       needs: { belonging: 30, esteem: 500 },
       selfActualization: 15,
     });
-    expect(r.mood).toBe(100);
     expect(r.affection).toBe(2); // 안정감 100 → 비례 래칫 온전 상승
     expect(r.needs.belonging).toBe(30);
     // 존중은 소속(30 < 80)이 게이트 미달이라 오르지 않는다

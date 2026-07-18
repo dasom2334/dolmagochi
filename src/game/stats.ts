@@ -57,9 +57,9 @@ export interface SettleResult {
 }
 
 /**
- * 달력일 정산: 경과일만큼 기분 감쇠, 방치 일수 문턱마다
- * 최상위 충족 욕구 게이지 하락(→ 파생 단계가 자연히 내려간다).
- * 같은 날 재호출은 아무 것도 하지 않는다(멱등). 돌은 죽지 않는다.
+ * 달력일 정산: 방치 일수 문턱마다 최상위 충족 욕구 게이지 하락
+ * (→ 파생 단계가 자연히 내려간다). 같은 날 재호출은 아무 것도 하지 않는다(멱등).
+ * 돌은 죽지 않는다. (기분 감쇠는 M17에서 삭제 — mood 자체가 없어짐)
  */
 export function settleCalendar(
   stats: Stats,
@@ -72,7 +72,6 @@ export function settleCalendar(
   if (elapsed <= 0) return { stats, lastDecayDate, regressed: false };
 
   const next: Stats = { ...stats, needs: { ...stats.needs } };
-  next.mood = clampStat(next.mood - BALANCE.MOOD_DECAY_PER_DAY * elapsed);
 
   const levelBefore = needsLevelOf(next.needs);
   if (lastSessionEndAt !== null) {
@@ -168,7 +167,6 @@ export function applyStatOutcome(
   if (!outcome) return stats;
   const next: Stats = { ...stats, needs: { ...stats.needs } };
   if (outcome.stats) {
-    next.mood = clampStat(next.mood + (outcome.stats.mood ?? 0));
     // 애착 2축 태그 적용 → 안정감(파생) 재계산
     next.abandonment = clampStat(
       next.abandonment + (outcome.stats.abandonment ?? 0),
@@ -206,7 +204,6 @@ export function applyStatOutcome(
 
 export function initialStats(): Stats {
   return {
-    mood: BALANCE.MOOD_START,
     affection: 0,
     needs: { physiological: 0, safety: 0, belonging: 0, esteem: 0 },
     abandonment: BALANCE.ABANDONMENT_START,

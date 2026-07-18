@@ -261,6 +261,17 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       },
     }));
 
+  // 보장 위기 아크 강제 예약 (M17) — 다음 세션 경계에서 발동한다.
+  // 티어 점프·구세이브 백필로 예약 조건을 지나쳐 아크를 못 보는 경우를 위해.
+  const queueArc = (arc: 'retreat' | 'sick') =>
+    patch((s) => ({
+      era: 'raising',
+      pendingCrises: s.pendingCrises.includes(arc)
+        ? s.pendingCrises
+        : [...s.pendingCrises, arc],
+      crisisArcsFired: s.crisisArcsFired.filter((c) => c !== arc),
+    }));
+
   // 엔딩 강제: 자아실현 완성 + 엔딩 전 대화 소진으로 두고 엔딩 이벤트로 점프
   const forceEnding = () =>
     appStore.setState((prev) => ({
@@ -333,6 +344,18 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
         <button className="hv" style={btnSmall} onClick={() => void wipe()}>
           wipe save
         </button>
+      </div>
+      <Section label="crisis arc (다음 세션 발동)" />
+      <div style={rowWrap}>
+        <button className="hv" style={btnSmall} onClick={() => queueArc('retreat')}>
+          잠수(회피)
+        </button>
+        <button className="hv" style={btnSmall} onClick={() => queueArc('sick')}>
+          병간호(집착)
+        </button>
+        <span style={{ color: '#8a7f96' }}>
+          queued: {state.pendingCrises.join(',') || '—'}
+        </span>
       </div>
       <Section label="phase jump" />
       <div style={rowWrap}>
@@ -447,7 +470,6 @@ function DebugStats({ state }: { state: GameState }) {
       <Row k="→ level" v={needsLevelOf(st.needs)} />
 
       <Section label="stats" />
-      <Row k="mood" v={st.mood} />
       <Row k="affection" v={`${st.affection.toFixed(1)} (tier ${affectionTier(st.affection)}/7)`} />
       <Row k="abandon." v={st.abandonment} />
       <Row k="intiThreat" v={st.intimacyThreat} />

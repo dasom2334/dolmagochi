@@ -6,6 +6,8 @@ export type ItemId = string;
 export type Phase = 'actionSelect' | 'focus' | 'rest' | 'ending' | 'epilogue';
 export type RestStep = 'journal' | 'talk' | 'select' | 'shop';
 export type Era = 'raising' | 'cohabit' | 'apart';
+/** 보장 위기 아크 종류 (개정 v4-8) — 잠수(3티어)·성장통 병간호(5티어) */
+export type CrisisKind = 'retreat' | 'sick';
 export type Presence = 'present' | 'absent';
 /** 날씨 (M12) — 게이지 무영향(개정 v4-13): 연출·소리·대사 조건만.
  * petals(꽃잎비)=봄, leaves(낙엽비)=가을, snow=겨울 — 계절 의존은 WEATHER_BY_SEASON */
@@ -43,7 +45,6 @@ export interface Condition {
   hasTokens?: string[];
   minNeeds?: Partial<Record<NeedId, number>>;
   minSecurity?: number;
-  minMood?: number;
   minAffection?: number;
   /** 파생 욕구 단계 (needsLevelOf) */
   minLevel?: number;
@@ -59,7 +60,6 @@ export interface Condition {
 /** 상태에 남기는 영향 — 선택지·행동완료·구매가 공유하는 명시적 타입 */
 export interface Outcome {
   stats?: {
-    mood?: number;
     affection?: number;
     security?: number;
     /** 애착 2축 태그 (대사·선택지가 명시적으로 조절) */
@@ -144,8 +144,6 @@ export interface MemoryEntry {
 }
 
 export interface Stats {
-  /** 0–100 단기값. 달력일 감쇠 */
-  mood: number;
   /** 장기 누적값 */
   affection: number;
   /** 명명된 욕구 게이지 0–100 */
@@ -263,8 +261,10 @@ export interface GameState {
   relationTier: number;
   /** 티어 승급이 일어난 마지막 달력일 */
   lastTierUpDate: string | null;
-  /** 예약된 위기 아크 — 티어 승급이 잡고, 다음 세션 경계에서 발동 (개정 v4-8) */
-  pendingCrisis: 'retreat' | 'sick' | null;
+  /** 예약된 보장 위기 아크 큐 (선입선출) — 티어 승급이 잡고, 다음 세션 경계에서
+   * 발동 (개정 v4-8). 단일 슬롯이던 것을 큐로 (M17): 3티어 잠수가 발동 전에
+   * 5티어 승급을 만나도 덮이지 않고 둘 다 남는다 */
+  pendingCrises: CrisisKind[];
   /** 이미 발동한 보장 위기 아크 (retreat/sick — 게임당 1회) */
   crisisArcsFired: string[];
   /** 목격한 급성 애착 4분면 (도감 재료, M11a) */
