@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ROOM, propVisibleInRoom, roomOfItem, stepRoom } from '../rooms';
+import { DEFAULT_ROOM, focusRoomOf, propVisibleInRoom, roomOfItem, stepRoom } from '../rooms';
 import { gameData } from '../../store/gameStore';
 
 const rooms = gameData.rooms;
@@ -48,5 +48,19 @@ describe('휴식 씬 3방 (개정 v5)', () => {
     expect(propVisibleInRoom(item('umbrella'), rooms, 'kitchen', false)).toBe(true);
     // 소속이 다른 방에서는 안 보인다
     expect(propVisibleInRoom(item('bed'), rooms, 'living', true)).toBe(false);
+  });
+});
+
+describe('집중 세션의 방 (focusRoomOf) — 행동이 일어나는 곳의 소품만', () => {
+  it('행동 → 방 매핑, walk는 야외(null)', () => {
+    expect(focusRoomOf('cook', rooms)).toBe('kitchen');
+    expect(focusRoomOf('chore', rooms)).toBe('kitchen');
+    expect(focusRoomOf('sun', rooms)).toBe('living');
+    expect(focusRoomOf('read', rooms)).toBe('living');
+    expect(focusRoomOf('lie', rooms)).toBe('bedroom');
+    expect(focusRoomOf('walk', rooms)).toBeNull();
+    // 계열 밖 행동은 거실(돌의 자리)
+    expect(focusRoomOf('free', rooms)).toBe('living');
+    expect(focusRoomOf('nurse', rooms)).toBe('living');
   });
 });

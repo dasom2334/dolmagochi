@@ -8,7 +8,7 @@ import { WindowSprite } from './WindowSprite';
 import { DaySun } from './DaySun';
 import { TimeTint, WeatherFx } from './WeatherFx';
 import { resolveTimeOfDay } from '../../game/timeOfDay';
-import { DEFAULT_ROOM, propVisibleInRoom, stepRoom } from '../../game/rooms';
+import { DEFAULT_ROOM, focusRoomOf, propVisibleInRoom, stepRoom } from '../../game/rooms';
 import { SunPatch } from './SunPatch';
 import { GrassTufts } from './GrassTufts';
 import { RockSprite, RockShadow } from './RockSprite';
@@ -68,13 +68,16 @@ export function SceneView({ state }: { state: GameState }) {
   const present = isRockPresent(state);
 
   const placed = (id: string) => !!state.items[id]?.placed;
-  // 휴식에서는 현재 방의 소품만 (부재 시 신발도 숨김 — v5 §4). 집중은 현행 유지.
+  // 소품은 그 장면의 방에 속한 것만 — 휴식은 현재 방, 집중은 행동의 방
+  // (walk는 야외 = 실내 소품 없음). 부재 시 신발 숨김은 공통 (v5 §4).
+  const sceneRoom = isFocus
+    ? focusRoomOf(state.selectedAction, gameData.rooms)
+    : currentRoom;
   const show = (id: string) => {
-    if (!placed(id)) return false;
-    if (isFocus) return true;
+    if (!placed(id) || sceneRoom === null) return false;
     const item = gameData.shop.find((i) => i.id === id);
     if (!item) return false;
-    return propVisibleInRoom(item, gameData.rooms, currentRoom, present);
+    return propVisibleInRoom(item, gameData.rooms, sceneRoom, present);
   };
   const setRoom = (dir: 1 | -1) =>
     appStore.setState((prev) => ({
@@ -158,7 +161,10 @@ export function SceneView({ state }: { state: GameState }) {
       {show('broom') && <BroomProp />}
       {show('pillow') && <PillowProp />}
       {show('bed') && <BedProp />}
-      {show('umbrella') && <UmbrellaProp />}
+      {(show('umbrella') ||
+        (isFocus && sceneId === 'walk' && state.session.umbrella)) && (
+        <UmbrellaProp />
+      )}
       {show('fireplace') && <FireplaceProp />}
       {show('rockingchair') && <RockingChairProp />}
       {show('brush') && <BrushProp />}

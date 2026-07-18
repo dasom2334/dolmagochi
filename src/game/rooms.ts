@@ -48,3 +48,16 @@ export function propVisibleInRoom(
   if (item.id === 'shoes' && !rockPresent) return false;
   return roomOfItem(item, rooms) === currentRoom;
 }
+
+/**
+ * 집중 세션 중의 방 — 행동이 일어나는 곳의 소품만 보인다 (v5: 집중 = 행동의 방).
+ * walk는 야외라 null(실내 소품 전부 숨김). free·nurse처럼 계열 밖 행동은 거실
+ * (돌의 자리)에서 일어난다.
+ */
+export function focusRoomOf(
+  actionId: string,
+  rooms: readonly RoomDef[],
+): RoomId | null {
+  if (actionId === 'walk') return null;
+  return rooms.find((r) => r.boosts.includes(actionId))?.id ?? DEFAULT_ROOM;
+}
