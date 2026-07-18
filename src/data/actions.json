@@ -397,6 +397,42 @@
     "captionId": "act.nurse.caption",
     "startLineId": "act.nurse.start",
     "ambientId": "act.nurse.ambient",
-    "choices": []
+    "choices": [
+      {
+        "promptId": "act.nurse.c0.prompt",
+        "intimacy": 1,
+        "options": [
+          {
+            "labelId": "act.nurse.c0.o0.label",
+            "intimacy": 1,
+            "outcomes": [
+              {
+                "resultId": "act.nurse.c0.o0.r0",
+                "outcome": {
+                  "stats": {
+                    "abandonment": -10
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "labelId": "act.nurse.c0.o1.label",
+            "intimacy": 1,
+            "outcomes": [
+              {
+                "resultId": "act.nurse.c0.o1.r0",
+                "outcome": {
+                  "stats": {
+                    "abandonment": -4,
+                    "intimacyThreat": -4
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]

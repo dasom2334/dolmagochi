@@ -295,14 +295,14 @@ function RestTalk({ state }: { state: GameState }) {
             <button
               className="hv"
               style={{ ...btnOutline, fontSize: 12, padding: '6px 20px' }}
-              onClick={() => dispatch({ type: 'TALK_CHOICE', yes: true })}
+              onClick={() => dispatch({ type: 'TALK_CHOICE', yes: true, nowMs: now() })}
             >
               {t(UI.buttons.yes)}
             </button>
             <button
               className="hv"
               style={{ ...btnOutline, fontSize: 12, padding: '6px 20px' }}
-              onClick={() => dispatch({ type: 'TALK_CHOICE', yes: false })}
+              onClick={() => dispatch({ type: 'TALK_CHOICE', yes: false, nowMs: now() })}
             >
               {t(UI.buttons.no)}
             </button>

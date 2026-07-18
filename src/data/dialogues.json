@@ -549,6 +549,42 @@
     {
       "textId": "dlg.absent.4",
       "intimacy": 1
+    },
+    {
+      "textId": "dlg.absent.care",
+      "intimacy": 1,
+      "choice": {
+        "yesId": "dlg.absent.care.yes",
+        "noId": "dlg.absent.care.no",
+        "yesOutcome": {
+          "stats": {
+            "intimacyThreat": -10
+          }
+        },
+        "noOutcome": {
+          "stats": {
+            "intimacyThreat": -4
+          }
+        }
+      }
+    },
+    {
+      "textId": "dlg.absent.search",
+      "intimacy": 1,
+      "choice": {
+        "yesId": "dlg.absent.search.yes",
+        "noId": "dlg.absent.search.no",
+        "yesOutcome": {
+          "stats": {
+            "intimacyThreat": 6
+          }
+        },
+        "noOutcome": {
+          "stats": {
+            "abandonment": -4
+          }
+        }
+      }
     }
   ],
   "apartVisit": [
@@ -651,32 +687,56 @@
     {
       "textId": "dlg.companion.7",
       "intimacy": 1,
-      "when": { "hasTokens": ["read"] }
+      "when": {
+        "hasTokens": [
+          "read"
+        ]
+      }
     },
     {
       "textId": "dlg.companion.8",
       "intimacy": 1,
-      "when": { "hasTokens": ["walk"] }
+      "when": {
+        "hasTokens": [
+          "walk"
+        ]
+      }
     },
     {
       "textId": "dlg.companion.9",
       "intimacy": 1,
-      "when": { "hasTokens": ["cook"] }
+      "when": {
+        "hasTokens": [
+          "cook"
+        ]
+      }
     },
     {
       "textId": "dlg.companion.10",
       "intimacy": 1,
-      "when": { "hasTokens": ["chore"] }
+      "when": {
+        "hasTokens": [
+          "chore"
+        ]
+      }
     },
     {
       "textId": "dlg.companion.11",
       "intimacy": 1,
-      "when": { "hasTokens": ["lie"] }
+      "when": {
+        "hasTokens": [
+          "lie"
+        ]
+      }
     },
     {
       "textId": "dlg.companion.12",
       "intimacy": 1,
-      "when": { "hasTokens": ["personalWork"] }
+      "when": {
+        "hasTokens": [
+          "personalWork"
+        ]
+      }
     },
     {
       "textId": "dlg.companion.13",

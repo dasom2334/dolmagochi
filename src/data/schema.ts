@@ -46,7 +46,14 @@ export interface DialogueLine {
   intimacy: number;
   /** 이 조건을 만족할 때만 후보 (없으면 항상). 예: 특정 소품을 언급하는 줄은 그 소품이 방에 있을 때만 */
   when?: Condition;
-  choice?: { yesId: TextId; noId: TextId };
+  /** 예/아니오 선택. yes/noOutcome(M19c): 답에 따른 상태 영향 — 위기 대응
+   * 선택지가 여기 실린다 (애착 축 델타는 attachRate 배율을 자동으로 탄다) */
+  choice?: {
+    yesId: TextId;
+    noId: TextId;
+    yesOutcome?: Outcome;
+    noOutcome?: Outcome;
+  };
 }
 
 export interface CohabitStage {

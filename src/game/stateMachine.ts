@@ -523,6 +523,8 @@ function serveTalkPool(
         done: false,
         yesId: entry.choice?.yesId,
         noId: entry.choice?.noId,
+        yesOutcome: entry.choice?.yesOutcome,
+        noOutcome: entry.choice?.noOutcome,
       },
     },
   };
@@ -539,7 +541,7 @@ export function transition(
   ctx: TransitionCtx,
 ): GameState {
   const next = reduce(state, event, ctx);
-  if ('nowMs' in event && next !== state) {
+  if ('nowMs' in event && event.nowMs !== undefined && next !== state) {
     return settleBadges(next, ctx.data.badges, event.nowMs);
   }
   return next;
@@ -2110,10 +2112,15 @@ function reduce(
       if (state.phase !== 'rest' || !ts || !ts.hasChoice || ts.done)
         return state;
       const answerId = event.yes ? ts.yesId : ts.noId;
+      // 위기 대응 (M19c): 답에 실린 영향 적용 — 애착 축은 attachRate 배율
+      const answerOutcome = event.yes ? ts.yesOutcome : ts.noOutcome;
+      const applied = answerOutcome
+        ? applyOutcome(state, answerOutcome, event.nowMs ?? 0)
+        : state;
       return {
-        ...state,
+        ...applied,
         rest: {
-          ...state.rest,
+          ...applied.rest,
           talkState: {
             ...ts,
             pages: answerId ? pickText(data.text, answerId, rng) : ts.pages,
