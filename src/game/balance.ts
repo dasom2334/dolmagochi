@@ -178,6 +178,12 @@ export const BALANCE = {
   SPROUT_GROWTH_PER_UNIT: 2.7,
   SPROUT_GROWTH_COHABIT_FACTOR: 0.5, // 동거는 균형 애착일 때만, 절반 속도 (잠식 역전)
   SPROUT_BLOOM_AT: 66, // 개화 임계 — 2차 게이트 재료
+  // 뿌리내림기 (M19b, v5 §6): 성장 절반부터 뿌리가 돌을 감싼다 — 불가역.
+  // 시듦은 이때부터 소멸 (막을 수 없는 진행에 페널티는 무의미), 85부터는
+  // 돌이 뒤덮여 더는 반응하지 않는다 (죽음의 암시 — 움직임의 소실)
+  ROOTING_AT: 50,
+  ROOTING_STILL_AT: 85,
+  SPROUT_HINT_TIER: 6, // 1차 새싹 전조 — 이 티어부터 돌 정수리에 아주 작은 싹
   SPROUT_WITHER_HELD: 0.5, // 강제 체류(붙잡기 연장) 세션당 시듦
   SPROUT_WITHER_COHABIT: 0.25, // 동거 불안정 애착 세션당 시듦
   SPROUT_RECOVER: 0.25, // 자연/자발 세션당 회복

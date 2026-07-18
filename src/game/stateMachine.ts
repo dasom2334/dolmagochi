@@ -362,6 +362,9 @@ function milestoneDue(m: MilestoneData, state: GameState): boolean {
     case 'firstReturn':
       // 복귀 대화는 returnPending 경로에서 처리·소진된다
       return false;
+    case 'minTier':
+      // 관계 서사 비트 (M19b) — 확정 티어 도달 (예: 새싹 전조)
+      return state.relationTier >= m.trigger.tier;
   }
 }
 
@@ -1392,7 +1395,11 @@ function reduce(
           witherLevel = Math.max(0, witherLevel - BALANCE.SPROUT_RECOVER);
           // 회복 힌트 (M14b): 돌이 없는 날들에 묘목이 나아진다 —
           // '놔줘야 자아실현이 가능하다'를 숫자 없이 알려주는 관찰 문장
-          if (prevWither >= 1 && witherLevel < 1) {
+          if (
+            prevWither >= 1 &&
+            witherLevel < 1 &&
+            sproutGrowth < BALANCE.ROOTING_AT
+          ) {
             witherEaseLine = joinPages(
               pickText(data.text, SYS.journal.witherEase, rng),
             );
@@ -1435,6 +1442,10 @@ function reduce(
           crisisArcsFired = [...crisisArcsFired, 'farewell2'];
         }
       }
+      // 뿌리내림기 (M19b, v5 §6): 성장 절반부터 시듦은 소멸한다 — 막을 수
+      // 없는 진행에 페널티는 무의미하다. 잎의 처짐 대신 불가역의 뿌리가 잇는다
+      if (!next.planted && sproutGrowth >= BALANCE.ROOTING_AT) witherLevel = 0;
+
       // 개화 목격 (2차 게이트 재료) — 일지에 한 번 남는다.
       // apart의 성장은 돌이 오지 않은 세션에서만 진행되므로 개화도 부재중에
       // 일어난다 — 눈앞의 목격이 아니라 멀리서의 짐작 문구를 쓴다
@@ -1554,6 +1565,52 @@ function reduce(
           hasChoice: false,
           done: false,
         };
+      }
+
+      // ── 뿌리내림기 이벤트 (M19b, v5 §6) ──
+      // 진입 1회: 잘라내 볼까 하는 선택 — 어느 쪽을 골라도 잘라낼 수 없음이
+      // 드러난다 (돌이 원치 않고, 뿌리가 이미 돌이 부서지지 않게 지탱한다)
+      if (
+        !endingTalk &&
+        !planted &&
+        era !== 'raising' &&
+        sproutGrowth >= BALANCE.ROOTING_AT &&
+        !('rooting-seen' in memory)
+      ) {
+        memory = remember(
+          memory,
+          'rooting-seen',
+          BALANCE.MEMORY_WEIGHT_ACTION,
+          event.nowMs,
+        );
+        endingTalk = {
+          kind: 'rooting',
+          pages: pickText(data.text, SYS.rooting.prompt, rng),
+          hasChoice: true,
+          done: false,
+          yesId: SYS.rooting.cut,
+          noId: SYS.rooting.leave,
+        };
+      }
+      // 뒤덮임 1회: 더는 반응하지 않는 돌 — 죽음의 암시는 대사가 아니라
+      // 익숙한 반응의 소실로 전달된다 (관찰 한 줄)
+      if (
+        !planted &&
+        era !== 'raising' &&
+        sproutGrowth >= BALANCE.ROOTING_STILL_AT &&
+        !('rooting-still' in memory)
+      ) {
+        memory = remember(
+          memory,
+          'rooting-still',
+          BALANCE.MEMORY_WEIGHT_ACTION,
+          event.nowMs,
+        );
+        journal = addJournal(
+          journal,
+          elapsed,
+          joinPages(pickText(data.text, SYS.journal.rootingStill, rng)),
+        );
       }
 
       // ── 3차: 동행 가속 (M15b) — 출석(하루 첫 세션 +1) + 세션 시간 비례
