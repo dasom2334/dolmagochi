@@ -44,13 +44,12 @@ export function applyOutcome(
   }
   const addUnique = (base: string[], adds: string[] | undefined) =>
     adds?.length ? [...new Set([...base, ...adds])] : base;
-  // 위기 루프(병간호·잠수) 중엔 욕구 상승 게이트 면제 (개정 v4-5)
-  const inCrisis =
-    state.era === 'raising' &&
-    (state.presence.sick || state.presence.state === 'absent');
+  // 욕구 상승 게이트(개정 v4-5)는 자유행동·자연 상승 경로에만 적용한다 (M16):
+  // 여기로 오는 Outcome은 전부 유저가 직접 고른 것(행동·선택지·구매)이라
+  // 게이트를 걸면 하위 욕구가 찰 때까지 플레이 시간이 무한정 늘어난다
   return {
     ...state,
-    stats: applyStatOutcome(state.stats, outcome, !inCrisis),
+    stats: applyStatOutcome(state.stats, outcome, false),
     memory,
     flags: addUnique(state.flags, outcome.flags),
     unlockedActions: addUnique(state.unlockedActions, outcome.unlockActions),

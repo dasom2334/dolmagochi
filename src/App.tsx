@@ -30,36 +30,7 @@ const DebugPanel = import.meta.env.DEV
   ? lazy(() => import('./debug/DebugPanel'))
   : null;
 
-/** 우산 선택 (M12) — 비·눈 오는 산책 + 우산 보유 시 START_FOCUS가 세운 대기 */
-function UmbrellaPrompt() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-      <p style={{ margin: 0, fontSize: 12, color: 'var(--text-soft)' }}>
-        * {t(UI.weatherUi.umbrellaAsk)}
-      </p>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          className="hv"
-          style={btnDashed}
-          onClick={() =>
-            dispatch({ type: 'START_FOCUS', nowMs: now(), umbrella: true })
-          }
-        >
-          {t(UI.weatherUi.umbrellaYes)}
-        </button>
-        <button
-          className="hv"
-          style={btnDashed}
-          onClick={() =>
-            dispatch({ type: 'START_FOCUS', nowMs: now(), umbrella: false })
-          }
-        >
-          {t(UI.weatherUi.umbrellaNo)}
-        </button>
-      </div>
-    </div>
-  );
-}
+import { UmbrellaPrompt } from './components/UmbrellaPrompt';
 
 export function App() {
   const state = useGame((s) => s.state);

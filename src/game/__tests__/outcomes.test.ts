@@ -108,7 +108,9 @@ describe('applyOutcome / recordRemembrance', () => {
         unlockActions: ['cook'],
         unlockItems: ['lamp'],
         memory: [{ k: 'choice', w: 2 }],
-        // 존중은 상위 욕구 — 상승 게이트(하위 80) 미달이라 오르지 않는다 (개정 v4-5)
+        // M16: 유저가 직접 고른 결과는 상승 게이트를 지나지 않는다 —
+        // 하위 욕구가 비어 있어도 상위(존중)가 오른다. 게이트는 자유행동·
+        // 아이템 패시브 경로(applyNeedsGated)에만 남는다
         needs: { physiological: 10, esteem: 10 },
       },
       T0,
@@ -118,7 +120,7 @@ describe('applyOutcome / recordRemembrance', () => {
     expect(s.unlockedActions).toEqual(['cook']);
     expect(s.unlockedItems).toEqual(['lamp']);
     expect(s.memory['choice']).toMatchObject({ w: 2, count: 1 });
-    expect(s.stats.needs.esteem).toBe(0);
+    expect(s.stats.needs.esteem).toBe(10);
     expect(s.stats.needs.physiological).toBeGreaterThan(0);
   });
 
