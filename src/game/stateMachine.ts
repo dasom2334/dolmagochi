@@ -2,6 +2,7 @@ import { BALANCE } from './balance';
 import type {
   ActionId,
   ChoiceOptionData,
+  CrisisKind,
   GameEvent,
   GameState,
   JournalEntry,
@@ -64,7 +65,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 20;
+export const SCHEMA_VERSION = 21;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -116,7 +117,7 @@ export function createInitialState(
     lastEndingTalkDate: null,
     relationTier: 1,
     lastTierUpDate: null,
-    pendingCrisis: null,
+    pendingCrises: [],
     crisisArcsFired: [],
     quadrantsSeen: [],
     badges: {},
@@ -590,14 +591,14 @@ function reduce(
       let crisisLine: string | null = null;
       if (
         arcState.era === 'raising' &&
-        arcState.pendingCrisis === 'retreat' &&
+        arcState.pendingCrises.includes('retreat') &&
         arcState.presence.state === 'present' &&
         !arcState.presence.sick
       ) {
         arcState = {
           ...arcState,
           presence: startAbsence(rng),
-          pendingCrisis: null,
+          pendingCrises: arcState.pendingCrises.filter((c) => c !== 'retreat'),
           crisisArcsFired: [...arcState.crisisArcsFired, 'retreat'],
         };
         crisisLine = joinPages(pickText(data.text, SYS.journal.crisisRetreat, rng));
@@ -1131,7 +1132,7 @@ function reduce(
       const today = dateKey(event.nowMs);
       let relationTier = next.relationTier;
       let lastTierUpDate = next.lastTierUpDate;
-      let pendingCrisis = next.pendingCrisis;
+      let pendingCrises = next.pendingCrises;
       let crisisArcsFired = next.crisisArcsFired;
       if (
         next.era === 'raising' &&
@@ -1140,15 +1141,18 @@ function reduce(
       ) {
         relationTier += 1;
         lastTierUpDate = today;
-        // 보장 위기 아크 예약 (개정 v4-8): 3티어 = 잠수, 5티어 = 병간호(성장통)
-        // TODO(v4-후속): pendingCrisis가 단일 슬롯이라, 3티어가 예약한 'retreat'가
-        // 발동 전(계속 부재/병중)에 5티어 승급을 만나면 'sick'이 덮어써 보장 잠수가
-        // 사라질 수 있다 (재예약 조건이 relationTier === 3 순간뿐). 발생 확률이 낮아
-        // 보류 — 고칠 때는 pendingCrisis를 큐로 바꾸거나 미발동 아크를 이월할 것.
-        if (relationTier === 3 && !crisisArcsFired.includes('retreat'))
-          pendingCrisis = 'retreat';
-        if (relationTier === 5 && !crisisArcsFired.includes('sick'))
-          pendingCrisis = 'sick';
+        // 보장 위기 아크 예약 (개정 v4-8): 3티어 = 잠수, 5티어 = 병간호(성장통).
+        // 큐라서 3티어 잠수가 아직 안 터졌는데 5티어에 닿아도 둘 다 남는다 (M17).
+        const enqueue = (c: CrisisKind, atTier: number) => {
+          if (
+            relationTier === atTier &&
+            !crisisArcsFired.includes(c) &&
+            !pendingCrises.includes(c)
+          )
+            pendingCrises = [...pendingCrises, c];
+        };
+        enqueue('retreat', 3);
+        enqueue('sick', 5);
       }
 
       // 약한 애착 표류 (개정 v4-8): 깊어진 관계 + 휴식 스킵이 유기불안을 서서히 쌓는다.
@@ -1213,11 +1217,11 @@ function reduce(
         presence.state === 'present' &&
         !presence.sick &&
         (stats.abandonment > BALANCE.ABANDONMENT_SICK_CEILING ||
-          pendingCrisis === 'sick')
+          pendingCrises.includes('sick'))
       ) {
         presence = { ...presence, sick: true };
-        if (pendingCrisis === 'sick') {
-          pendingCrisis = null;
+        if (pendingCrises.includes('sick')) {
+          pendingCrises = pendingCrises.filter((c) => c !== 'sick');
           crisisArcsFired = [...crisisArcsFired, 'sick'];
           journal = addJournal(
             journal,
@@ -1560,7 +1564,7 @@ function reduce(
         treeBondToday,
         relationTier,
         lastTierUpDate,
-        pendingCrisis,
+        pendingCrises,
         crisisArcsFired,
         quadrantsSeen,
         endingTalksSeen,
@@ -1731,10 +1735,6 @@ function reduce(
             visitSessionsLeft: BALANCE.VISIT_HOLD_EXTEND,
             holdCount: state.apart.holdCount + 1,
             held: true, // 강제 체류 = 임시 동거 (M14): 의존도↑·묘목 시듦
-          },
-          stats: {
-            ...state.stats,
-            mood: clampStat(state.stats.mood - BALANCE.HOLD_GUILT_MOOD),
           },
           session: {
             ...state.session,

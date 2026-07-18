@@ -1,4 +1,4 @@
-import type { GameState } from '../game/types';
+import type { CrisisKind, GameState } from '../game/types';
 import { DEFAULT_NOTIFY_SETTINGS, SCHEMA_VERSION } from '../game/stateMachine';
 import { cloneFlowtime } from '../game/timer';
 import { BALANCE } from '../game/balance';
@@ -133,7 +133,7 @@ export function migrateState(state: GameState): GameState | null {
       relationTier: tier,
       lastTierUpDate: null,
       lastEndingTalkDate: null,
-      pendingCrisis: null,
+      pendingCrises: [],
       crisisArcsFired: fired,
       session: {
         ...s.session,
@@ -238,6 +238,22 @@ export function migrateState(state: GameState): GameState | null {
       ...s,
       schemaVersion: 20,
       treeBondToday: s.treeBondToday ?? 0,
+    };
+  }
+  // v20 → v21: M17 — (1) 기분 삭제(A안): mood는 사실상 변하지 않아 플레이 영향이
+  // 없었다. 수치·델타·조건(minMood) 전부 제거. (2) pendingCrisis 단일 슬롯을
+  // pendingCrises 큐로 — 기존 예약분은 배열로 승격(미발동 아크 보존).
+  if (s.schemaVersion === 20) {
+    const { mood: _mood, ...stats } = s.stats as GameState['stats'] & {
+      mood?: number;
+    };
+    const legacy = (s as unknown as { pendingCrisis?: CrisisKind | null })
+      .pendingCrisis;
+    s = {
+      ...s,
+      schemaVersion: 21,
+      stats,
+      pendingCrises: s.pendingCrises ?? (legacy ? [legacy] : []),
     };
   }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;

@@ -27,7 +27,6 @@ export function checkCondition(
   }
   if (cond.minSecurity !== undefined && stats.security < cond.minSecurity)
     return false;
-  if (cond.minMood !== undefined && stats.mood < cond.minMood) return false;
   if (cond.minAffection !== undefined && stats.affection < cond.minAffection)
     return false;
   if (cond.minLevel !== undefined && needsLevelOf(stats.needs) < cond.minLevel)

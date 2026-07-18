@@ -153,7 +153,7 @@ function normalizeState(state: GameState): GameState {
     relationTier: finiteOr(state.relationTier, 1),
     lastTierUpDate: state.lastTierUpDate ?? null,
     lastEndingTalkDate: state.lastEndingTalkDate ?? null,
-    pendingCrisis: state.pendingCrisis ?? null,
+    pendingCrises: Array.isArray(state.pendingCrises) ? state.pendingCrises : [],
     crisisArcsFired: Array.isArray(state.crisisArcsFired)
       ? state.crisisArcsFired
       : [],

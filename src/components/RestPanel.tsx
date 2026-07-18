@@ -5,7 +5,8 @@ import { gameData } from '../store/gameStore';
 import { acquiredBadges } from '../game/badges';
 import { isItemAvailable, isRockPresent, weathersOfSeason } from '../game/stateMachine';
 import { resolveSeason } from '../game/timeOfDay';
-import { needsBand } from '../game/stats';
+import { dateKey, needsBand } from '../game/stats';
+import { dailyMoodLine } from '../game/mood';
 import { careTargetNeed } from '../game/freeAction';
 import { BALANCE } from '../game/balance';
 import { dispatch, now, t, tf } from '../store/appStore';
@@ -169,6 +170,10 @@ function RestJournal({ state }: { state: GameState }) {
     blocking && needsBand(state.stats.needs[blocking]) === 0
       ? t(SYS.needsHint[blocking])
       : null;
+  // 오늘의 기분 (M17): 수치 없는 순수 서술 — 날짜로 고정, 날씨가 가볍게 기운다
+  const mood = isRockPresent(state)
+    ? dailyMoodLine(gameData.text, dateKey(now()), state.weather)
+    : null;
   return (
     <>
       <div
@@ -187,6 +192,9 @@ function RestJournal({ state }: { state: GameState }) {
             earned: state.rest.summary.earned,
           })}
         </div>
+        {mood && (
+          <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>* {mood}</div>
+        )}
         {glance && (
           <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>* {glance}</div>
         )}

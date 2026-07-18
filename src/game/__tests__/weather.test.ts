@@ -122,13 +122,11 @@ describe('날씨 (M12) — 자연 변화·정성 변경·게이지 무영향', (
       selectedAction: 'walk',
       items: { shoes: { placed: false }, umbrella: { placed: false } },
     };
-    const moodBefore = start.stats.mood;
     let s = run(start, [
       { type: 'START_FOCUS', nowMs: T0, umbrella: false },
       { type: 'END_FOCUS', nowMs: T0 + 60_000 },
     ]);
-    expect(s.session.wetness).toBe('wet');
-    expect(s.stats.mood).toBeGreaterThanOrEqual(moodBefore); // B12: 게이지 무영향
+    expect(s.session.wetness).toBe('wet'); // B12: 날씨는 서술만, 게이지 무영향
     // 다음 세션 시작에 사라진다
     s = run(s, [{ type: 'REST_END' }, { type: 'START_FOCUS', nowMs: T0, umbrella: true }]);
     expect(s.session.wetness).toBeNull();

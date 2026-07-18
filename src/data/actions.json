@@ -8,7 +8,7 @@
     "captionId": "act.lie.caption",
     "startLineId": "act.lie.start",
     "ambientId": "act.lie.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "physiological": 5 } },
+    "outcome": { "stats": { "affection": 1 }, "needs": { "physiological": 5 } },
     "choices": [
       {
         "promptId": "act.lie.c0.prompt",
@@ -39,7 +39,7 @@
     "captionId": "act.read.caption",
     "startLineId": "act.read.start",
     "ambientId": "act.read.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "esteem": 5 } },
+    "outcome": { "stats": { "affection": 1 }, "needs": { "esteem": 5 } },
     "choices": [
       {
         "promptId": "act.read.c0.prompt",
@@ -86,7 +86,7 @@
     "captionId": "act.sun.caption",
     "startLineId": "act.sun.start",
     "ambientId": "act.sun.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5 } },
+    "outcome": { "stats": { "affection": 1 }, "needs": { "safety": 5 } },
     "choices": [
       {
         "promptId": "act.sun.c0.prompt",
@@ -117,7 +117,7 @@
     "captionId": "act.walk.caption",
     "startLineId": "act.walk.start",
     "ambientId": "act.walk.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5, "belonging": 2 } },
+    "outcome": { "stats": { "affection": 1 }, "needs": { "safety": 5, "belonging": 2 } },
     "choices": [
       {
         "promptId": "act.walk.c0.prompt",
@@ -154,7 +154,7 @@
     "captionId": "act.free.caption",
     "startLineId": "act.free.start",
     "ambientId": "act.free.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 } },
+    "outcome": { "stats": { "affection": 1 } },
     "choices": [
       {
         "promptId": "act.free.c0.prompt",
@@ -185,7 +185,7 @@
     "captionId": "act.cook.caption",
     "startLineId": "act.cook.start",
     "ambientId": "act.cook.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "physiological": 5, "belonging": 5 } },
+    "outcome": { "stats": { "affection": 1 }, "needs": { "physiological": 5, "belonging": 5 } },
     "choices": []
   },
   {
@@ -197,7 +197,7 @@
     "captionId": "act.chore.caption",
     "startLineId": "act.chore.start",
     "ambientId": "act.chore.ambient",
-    "outcome": { "stats": { "mood": 1, "affection": 1 }, "needs": { "safety": 5, "esteem": 5 } },
+    "outcome": { "stats": { "affection": 1 }, "needs": { "safety": 5, "esteem": 5 } },
     "choices": []
   },
   {
@@ -208,7 +208,6 @@
     "captionId": "act.nurse.caption",
     "startLineId": "act.nurse.start",
     "ambientId": "act.nurse.ambient",
-    "outcome": { "stats": { "mood": 1 } },
-    "choices": []
+        "choices": []
   }
 ]
