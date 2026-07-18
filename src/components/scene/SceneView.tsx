@@ -48,7 +48,7 @@ const SCENE_COLORS: Record<string, { bg: string; floor: string; line: string }> 
   lie: { bg: '#232030', floor: '#2d2838', line: '#3a3348' },
   nurse: { bg: '#2a2530', floor: '#37303c', line: '#463c4e' },
 };
-/** 방 팔레트는 rooms.json (개정 v5) — 페이저 순서 = 배열 순서(아침→노을→밤) */
+/** 방 팔레트는 rooms.json (개정 v5) — 미묘한 색조 변주만, 시간대는 전역 */
 const roomById = (id: string) =>
   gameData.rooms.find((r) => r.id === id) ?? gameData.rooms[1];
 

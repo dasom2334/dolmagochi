@@ -6,7 +6,7 @@ const rooms = gameData.rooms;
 const item = (id: string) => gameData.shop.find((i) => i.id === id)!;
 
 describe('휴식 씬 3방 (개정 v5)', () => {
-  it('방은 3개, 순서 = 아침 주방 → 노을 거실 → 밤 침실, 기본 living', () => {
+  it('방은 3개(주방→거실→침실), 기본 living — 시간대는 방 속성이 아니다', () => {
     expect(rooms.map((r) => r.id)).toEqual(['kitchen', 'living', 'bedroom']);
     expect(DEFAULT_ROOM).toBe('living');
     // 캡션은 카탈로그에 실재해야 한다 (하드코딩 금지 규칙)
