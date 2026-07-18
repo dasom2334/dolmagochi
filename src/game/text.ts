@@ -48,6 +48,7 @@ export const SYS = {
     bloomAfar: 'sys.journal.bloomAfar',
     farewell2: 'sys.journal.farewell2',
     witherEase: 'sys.journal.witherEase',
+    rootingStill: 'sys.journal.rootingStill',
     companionWorry: 'sys.journal.companionWorry',
     restShort: 'sys.journal.restShort',
     restSkipped: 'sys.journal.restSkipped',
@@ -143,6 +144,12 @@ export const SYS = {
     'sys.trust.6',
   ],
   planting: 'sys.planting',
+  /** 뿌리내림기 (M19b) — 진입 1회의 잘라내기 선택. 예=잘라내 본다 / 아니오=둔다 */
+  rooting: {
+    prompt: 'sys.rooting.prompt',
+    cut: 'sys.rooting.cut',
+    leave: 'sys.rooting.leave',
+  },
   farewell2: 'sys.farewell2',
   farewell2Apart: 'sys.farewell2.apart',
   trustAbsent: 'sys.trustAbsent',

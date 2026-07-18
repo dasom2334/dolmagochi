@@ -125,7 +125,7 @@ export interface ChoiceState {
 
 /** 휴식 대화 카드 상태 — pages: 배열 원소 = 페이지, 페이지 안 \n = 줄바꿈 */
 export interface TalkState {
-  kind: 'pool' | 'foreshadow' | 'return' | 'milestone' | 'ending' | 'recall' | 'planting' | 'farewell2';
+  kind: 'pool' | 'foreshadow' | 'return' | 'milestone' | 'ending' | 'recall' | 'planting' | 'farewell2' | 'rooting';
   pages: string[];
   hasChoice: boolean;
   done: boolean;

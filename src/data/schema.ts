@@ -96,7 +96,9 @@ export type MilestoneTrigger =
   | { type: 'firstAction'; action: string }
   | { type: 'stageUp'; level: number }
   | { type: 'totalHours'; hours: number }
-  | { type: 'firstReturn' };
+  | { type: 'firstReturn' }
+  /** 확정 관계 티어 도달 (M19b) — 새싹 전조 같은 관계 서사 비트 */
+  | { type: 'minTier'; tier: number };
 
 export interface MilestoneData {
   id: string;

@@ -1,17 +1,63 @@
 {
   "milestones": [
-    { "id": "first-walk", "trigger": { "type": "firstAction", "action": "walk" }, "textId": "evt.first-walk" },
-    { "id": "stage-up-2", "trigger": { "type": "stageUp", "level": 2 }, "textId": "evt.stage-up-2" },
-    { "id": "stage-up-3", "trigger": { "type": "stageUp", "level": 3 }, "textId": "evt.stage-up-3" },
-    { "id": "hours-50", "trigger": { "type": "totalHours", "hours": 50 }, "textId": "evt.hours-50" },
-    { "id": "first-return", "trigger": { "type": "firstReturn" }, "textId": "evt.first-return" }
+    {
+      "id": "first-walk",
+      "trigger": {
+        "type": "firstAction",
+        "action": "walk"
+      },
+      "textId": "evt.first-walk"
+    },
+    {
+      "id": "stage-up-2",
+      "trigger": {
+        "type": "stageUp",
+        "level": 2
+      },
+      "textId": "evt.stage-up-2"
+    },
+    {
+      "id": "stage-up-3",
+      "trigger": {
+        "type": "stageUp",
+        "level": 3
+      },
+      "textId": "evt.stage-up-3"
+    },
+    {
+      "id": "hours-50",
+      "trigger": {
+        "type": "totalHours",
+        "hours": 50
+      },
+      "textId": "evt.hours-50"
+    },
+    {
+      "id": "first-return",
+      "trigger": {
+        "type": "firstReturn"
+      },
+      "textId": "evt.first-return"
+    },
+    {
+      "id": "sprout-hint",
+      "trigger": {
+        "type": "minTier",
+        "tier": 6
+      },
+      "textId": "ms.sprout-hint"
+    }
   ],
   "foreshadow": [
     {
       "lineId": "fore.bird.line",
       "event": {
         "promptId": "fore.bird.prompt",
-        "when": { "notActions": ["walk"] },
+        "when": {
+          "notActions": [
+            "walk"
+          ]
+        },
         "options": [
           {
             "labelId": "fore.bird.o0.label",
@@ -30,7 +76,11 @@
           {
             "labelId": "fore.bird.o1.label",
             "intimacy": 1,
-            "outcomes": [{ "resultId": "fore.bird.o1.r0" }]
+            "outcomes": [
+              {
+                "resultId": "fore.bird.o1.r0"
+              }
+            ]
           }
         ]
       }
@@ -39,19 +89,34 @@
       "lineId": "fore.door.line",
       "event": {
         "promptId": "fore.door.prompt",
-        "when": { "notActions": ["walk"] },
+        "when": {
+          "notActions": [
+            "walk"
+          ]
+        },
         "options": [
           {
             "labelId": "fore.door.o0.label",
             "intimacy": 2,
             "outcomes": [
-              { "resultId": "fore.door.o0.r0", "outcome": { "flags": ["promised-walk"] } }
+              {
+                "resultId": "fore.door.o0.r0",
+                "outcome": {
+                  "flags": [
+                    "promised-walk"
+                  ]
+                }
+              }
             ]
           },
           {
             "labelId": "fore.door.o1.label",
             "intimacy": 2,
-            "outcomes": [{ "resultId": "fore.door.o1.r0" }]
+            "outcomes": [
+              {
+                "resultId": "fore.door.o1.r0"
+              }
+            ]
           }
         ]
       }
@@ -60,7 +125,11 @@
       "lineId": "fore.receipt.line",
       "event": {
         "promptId": "fore.receipt.prompt",
-        "when": { "notActions": ["walk"] },
+        "when": {
+          "notActions": [
+            "walk"
+          ]
+        },
         "options": [
           {
             "labelId": "fore.receipt.o0.label",
@@ -79,7 +148,11 @@
           {
             "labelId": "fore.receipt.o1.label",
             "intimacy": 1,
-            "outcomes": [{ "resultId": "fore.receipt.o1.r0" }]
+            "outcomes": [
+              {
+                "resultId": "fore.receipt.o1.r0"
+              }
+            ]
           }
         ]
       }

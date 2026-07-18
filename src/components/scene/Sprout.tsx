@@ -34,6 +34,31 @@ const WITHER: { core: string; shadow: string }[] = [
   },
 ];
 
+/** 1차 전조 (M19b) — 티어 6부터 정수리의 아주 작은 싹. 알아채는 사람만 안다 */
+const BUDDING = {
+  core: '#7fa066',
+  shadow: '0 -6px 0 #8fb075',
+};
+
+/** 뿌리내림기 (M19b, v5 §6) — 갈색 뿌리가 돌 쪽(아래)으로 뻗는다. 불가역 */
+const ROOTING1 = {
+  core: '#6f8f5a',
+  shadow:
+    '0 -6px 0 #7fa066,-6px -6px 0 #7fa066,6px -6px 0 #7fa066,0 -12px 0 #8fb075,' +
+    '0 6px 0 #6f5e3a,-6px 12px 0 #6f5e3a,6px 12px 0 #7c6a44',
+};
+
+/** 뒤덮임 — 뿌리가 넓게 감싸고, 위는 오히려 무성하다. 돌은 더는 반응하지 않는다 */
+const ROOTING2 = {
+  core: '#5f7f4d',
+  shadow:
+    '0 -6px 0 #6f8f5a,-6px -6px 0 #7fa066,6px -6px 0 #7fa066,0 -12px 0 #8fb075,' +
+    '-6px -12px 0 #8fb075,6px -12px 0 #8fb075,0 -18px 0 #9fc085,' +
+    '0 6px 0 #6f5e3a,-6px 6px 0 #6f5e3a,6px 6px 0 #6f5e3a,' +
+    '-12px 12px 0 #7c6a44,12px 12px 0 #7c6a44,-6px 18px 0 #6f5e3a,6px 18px 0 #6f5e3a,' +
+    '-18px 18px 0 #7c6a44,18px 18px 0 #7c6a44',
+};
+
 const THRIVING = {
   core: '#6f8f5a',
   shadow:
@@ -52,7 +77,15 @@ export function Sprout({ stage }: { stage: SproutStage }) {
     );
   }
   const look =
-    stage === 'thriving' ? THRIVING : WITHER[Math.min(stage, WITHER.length - 1)];
+    stage === 'budding'
+      ? BUDDING
+      : stage === 'rooting1'
+        ? ROOTING1
+        : stage === 'rooting2'
+          ? ROOTING2
+          : stage === 'thriving'
+            ? THRIVING
+            : WITHER[Math.min(stage, WITHER.length - 1)];
   return (
     <div
       style={{
