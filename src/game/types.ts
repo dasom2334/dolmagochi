@@ -336,6 +336,8 @@ export interface GameState {
     timeOfDay: 'auto' | TimeOfDay;
     /** 계절 (M12) — auto = 기기 날짜, 그 외 고정. 날씨 가용성이 계절에 의존한다 */
     season: 'auto' | Season;
+    /** 마지막으로 본 휴식 방 (개정 v5) — 페이저가 기억한다. 기본 living */
+    lastRoom: string;
     notifAsked: boolean;
     locale: string;
     /** 알림 설정. enabled=전체 스위치, 나머지는 개별. 포그라운드=토스트 / 백그라운드=OS 알림. */

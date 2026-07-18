@@ -1,0 +1,41 @@
+[
+  {
+    "id": "kitchen",
+    "palette": {
+      "bg": "#2b2330",
+      "floor": "#3a3143",
+      "line": "#4d4054"
+    },
+    "boosts": [
+      "cook",
+      "chore"
+    ],
+    "captionId": "room.kitchen.caption"
+  },
+  {
+    "id": "living",
+    "palette": {
+      "bg": "#262031",
+      "floor": "#332b40",
+      "line": "#453a56"
+    },
+    "boosts": [
+      "sun",
+      "read"
+    ],
+    "captionId": "room.living.caption"
+  },
+  {
+    "id": "bedroom",
+    "palette": {
+      "bg": "#221f32",
+      "floor": "#2e2a41",
+      "line": "#3e3857"
+    },
+    "boosts": [
+      "lie",
+      "personalWork"
+    ],
+    "captionId": "room.bedroom.caption"
+  }
+]

@@ -265,6 +265,14 @@ export function migrateState(state: GameState): GameState | null {
       pendingApproach: s.pendingApproach ?? null,
     };
   }
+  // v22 → v23: 휴식 씬 3방(개정 v5) — 마지막으로 본 방 저장.
+  if (s.schemaVersion === 22) {
+    s = {
+      ...s,
+      schemaVersion: 23,
+      settings: { ...s.settings, lastRoom: s.settings.lastRoom ?? 'living' },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }
