@@ -30,7 +30,9 @@ export function volatility(abandonment: number, intimacyThreat: number): number 
  *  최상위 밴드 80–100은 두 축의 차이 ≤20, 즉 secure 판정과 맞물린다.)
  */
 export function allowedIntimacy(security: number): number {
-  return Math.min(5, Math.max(1, 1 + Math.floor(security / 20)));
+  // M18: 하한 2 — 위기 중에도 기본 행동 로테이션은 막히지 않는다
+  // (시작 경계형이 2였다 — 아무리 흔들려도 그 아래로는 닫히지 않는 사이)
+  return Math.min(5, Math.max(2, 1 + Math.floor(security / 20)));
 }
 
 /** 애착 4분면 — 상태 대사·기분 스크립트 선별의 기준 */
@@ -83,19 +85,45 @@ export interface IntimacyOutcome {
  * - 허용치 +RETREAT_GAP 이상 (과한 접근) → 친밀위협 상승, 확률적 잠수
  *   (변동성이 높을수록 잠수 확률이 커진다)
  */
+/**
+ * 애착 변동률 (M18): 잠복 축적 → 개막 → 위기 감쇠.
+ * 개막(ONSET_TIER) 전엔 PRE_RATE로 조용히 쌓이고, 개막 후엔 티어가 깊을수록
+ * 크게, 위기를 겪을수록 무디게 움직인다. 모든 축 델타(진정·포크·선택지)에 곱한다.
+ */
+export function attachRate(
+  relationTier: number,
+  crisesWeathered: number,
+): number {
+  if (relationTier < BALANCE.ATTACH_ONSET_TIER) return BALANCE.ATTACH_PRE_RATE;
+  const tierScale =
+    1 + BALANCE.ATTACH_TIER_SCALE * (relationTier - BALANCE.ATTACH_ONSET_TIER);
+  const decay = Math.max(
+    BALANCE.ATTACH_RATE_FLOOR,
+    1 - BALANCE.ATTACH_CRISIS_DECAY * crisesWeathered,
+  );
+  return tierScale * decay;
+}
+
 export function intimacyOutcome(
   abandonment: number,
   intimacyThreat: number,
   intimacy: number,
   rng: Rng,
+  /** 축 변동률 (attachRate) — 진정·위협 상승 모두 이 배율로 */
+  rate = 1,
+  /** 진정 허용 여부 — 세션당 1회(행동 경로)만 진정한다 (M18: 과대 적용 수정) */
+  allowSoothe = true,
+  /** 잠수 판정 허용 — 개막(ONSET_TIER) 전엔 위기가 터지지 않는다 */
+  allowRetreat = true,
 ): IntimacyOutcome {
   const security = derivedSecurity(abandonment, intimacyThreat);
   const gap = intimacy - allowedIntimacy(security);
   if (gap <= 0) {
+    const soothe = allowSoothe ? BALANCE.ATTACH_SOOTHE * rate : 0;
     return {
       retreat: false,
-      abandonmentDelta: -BALANCE.ATTACH_SOOTHE,
-      intimacyThreatDelta: -BALANCE.ATTACH_SOOTHE,
+      abandonmentDelta: -soothe,
+      intimacyThreatDelta: -soothe,
     };
   }
   if (gap < BALANCE.RETREAT_GAP) {
@@ -105,9 +133,9 @@ export function intimacyOutcome(
   const retreatProb =
     BALANCE.RETREAT_PROB * (1 + BALANCE.RETREAT_VOL_SCALE * (vol / 100));
   return {
-    retreat: rng() < retreatProb,
+    retreat: allowRetreat && rng() < retreatProb,
     abandonmentDelta: 0,
-    intimacyThreatDelta: BALANCE.ATTACH_THREAT_UP,
+    intimacyThreatDelta: BALANCE.ATTACH_THREAT_UP * rate,
   };
 }
 

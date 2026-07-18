@@ -24,6 +24,8 @@ interface Policy {
   skipRest: boolean; // true면 휴식을 전부 스킵 (배율 ×0.5)
   buyOrder: string[];
   rebuyConsumables: string[];
+  /** 세션 포크 성향 (M18): alternate=번갈아(균형), near=늘 곁에, apart=늘 거리 */
+  approach?: 'alternate' | 'near' | 'apart';
 }
 
 const NEED_ACTION: Record<NeedId, ActionId[]> = {
@@ -82,6 +84,9 @@ interface RunResult {
   organicSicks: number;
   endSecurity: number;
   hoursSimmed: number;
+  maxAb: number;
+  maxIt: number;
+  quads: string[];
 }
 
 function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult {
@@ -93,6 +98,7 @@ function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult 
   let now = T0;
   let dayFocus = 0;
   let choiceAnswered = false;
+  let sessionCount = 0;
   let wasAbsent = false;
   let wasSick = false;
   const res: RunResult = {
@@ -108,6 +114,9 @@ function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult 
     organicSicks: 0,
     endSecurity: 0,
     hoursSimmed: 0,
+    maxAb: 0,
+    maxIt: 0,
+    quads: [],
   };
 
   const focusH = () => s.totals.focusSeconds / 3600;
@@ -122,7 +131,21 @@ function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult 
     else act = needFillAction(s) ?? missingTokenAction(s) ?? 'free';
     if (!s.presence.sick && !available(s, act)) act = 'lie';
     s = dispatch(s, { type: 'SELECT_ACTION', actionId: act });
-    s = dispatch(s, { type: 'START_FOCUS', nowMs: now });
+    const forkActive =
+      s.era === 'raising' &&
+      s.presence.state === 'present' &&
+      !s.presence.sick &&
+      s.relationTier >= BALANCE.ATTACH_ONSET_TIER;
+    const mode = policy.approach ?? 'alternate';
+    const approach = !forkActive
+      ? undefined
+      : mode === 'alternate'
+        ? sessionCount % 2 === 0
+          ? ('near' as const)
+          : ('apart' as const)
+        : mode;
+    sessionCount++;
+    s = dispatch(s, { type: 'START_FOCUS', nowMs: now, approach });
     if (s.phase === 'ending') break;
 
     if (s.presence.state === 'absent' && !wasAbsent) {
@@ -174,6 +197,9 @@ function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult 
       else res.organicSicks++;
     }
     wasSick = s.presence.sick;
+    res.maxAb = Math.max(res.maxAb, s.stats.abandonment);
+    res.maxIt = Math.max(res.maxIt, s.stats.intimacyThreat);
+    for (const q of s.quadrantsSeen) if (!res.quads.includes(q)) res.quads.push(q);
 
     if (res.hTier7 === null && s.relationTier >= topTier) {
       res.hTier7 = focusH();
@@ -248,6 +274,9 @@ function report(policy: Policy, seeds: number[]) {
   );
   console.log(
     `위기: 보장아크 잠수 ${fmt(avg((r) => r.arcRetreat))} 병간호 ${fmt(avg((r) => r.arcSick))} | 유기적 잠수 ${fmt(avg((r) => r.organicRetreats))} 병간호 ${fmt(avg((r) => r.organicSicks))} | 종료 안정감 ${fmt(avg((r) => r.endSecurity))} | 시뮬 ${fmt(avg((r) => r.hoursSimmed))}h`,
+  );
+  console.log(
+    `애착: 유기불안 max ${fmt(avg((r) => r.maxAb))} | 친밀위협 max ${fmt(avg((r) => r.maxIt))} | 급성 목격 ${runs.map((r) => r.quads.length).join(',')}종`,
   );
 }
 
@@ -371,6 +400,15 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
           r.arcSick,
           `${policy.name} seed ${seed}: 병간호 아크 미발동`,
         ).toBe(1);
+        // M18: 개막·성장통 스파이크가 급성 4분면 목격을 보장한다
+        expect(
+          r.quads,
+          `${policy.name} seed ${seed}: 회피 급성 미목격`,
+        ).toContain('avoidant');
+        expect(
+          r.quads,
+          `${policy.name} seed ${seed}: 집착 급성 미목격`,
+        ).toContain('clingy');
       }
     }
   }, 300_000);

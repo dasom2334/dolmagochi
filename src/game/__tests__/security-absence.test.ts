@@ -16,8 +16,9 @@ const fixed = (v: number): Rng => () => v;
 
 describe('allowedIntimacy — 안정감에 따른 허용 친밀도', () => {
   it('구간 매핑 1~5 (균등 20폭 밴드)', () => {
-    expect(allowedIntimacy(0)).toBe(1);
-    expect(allowedIntimacy(19)).toBe(1);
+    // M18: 하한 2 — 위기 중에도 기본 로테이션은 닫히지 않는다
+    expect(allowedIntimacy(0)).toBe(2);
+    expect(allowedIntimacy(19)).toBe(2);
     expect(allowedIntimacy(20)).toBe(2);
     expect(allowedIntimacy(30)).toBe(2); // 시작값
     expect(allowedIntimacy(59)).toBe(3);

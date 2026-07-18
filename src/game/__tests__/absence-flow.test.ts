@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BALANCE } from '../balance';
 import { createInitialState, isRockPresent, transition } from '../stateMachine';
 import type { GameData } from '../../data/schema';
 import type { GameEvent, GameState } from '../types';
@@ -29,7 +30,11 @@ function riskyData(): GameData {
 describe('잠수 플로우 (absence)', () => {
   it('발동→부재 게임 계속→저친밀 복귀→복귀 대화→first-return 1회성, 호감도 무손실', () => {
     const data = riskyData();
-    const init = { ...createInitialState(T0, 'read'), items: { book: { placed: false } } };
+    const init = {
+      ...createInitialState(T0, 'read'),
+      relationTier: BALANCE.ATTACH_ONSET_TIER, // 개막 후에만 잠수가 터진다 (M18)
+      items: { book: { placed: false } },
+    };
     const affection0 = init.stats.affection;
 
     // 발동: 고친밀(read=4) 접근 → 확률 판정 통과(0.1<0.35), 부재 1세션(0.0)
@@ -96,7 +101,11 @@ describe('잠수 플로우 (absence)', () => {
   it('부재 중 휴식 대화는 부재 풀만 — 없는 돌이 말을 걸지 않는다', () => {
     const data = riskyData();
     const s = run(
-      { ...createInitialState(T0, 'read'), items: { book: { placed: false } } },
+      {
+        ...createInitialState(T0, 'read'),
+        relationTier: BALANCE.ATTACH_ONSET_TIER,
+        items: { book: { placed: false } },
+      },
       [
         { type: 'START_FOCUS', nowMs: T0 },
         { type: 'END_FOCUS', nowMs: T0 },

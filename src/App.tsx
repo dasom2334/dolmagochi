@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { appStore, dispatch, now, t, tf, useGame } from './store/appStore';
 import { gameData } from './store/gameStore';
 import { isRockPresent } from './game/stateMachine';
-import { SYS, UI } from './game/text';
+import { SYS } from './game/text';
 import { bootRestore, flushSave, startAutosave } from './persistence/persist';
 import { claimSingleTab } from './persistence/singleTab';
 import { OccupiedScreen } from './components/OccupiedScreen';
@@ -22,7 +22,6 @@ import { ActionGrid } from './components/ActionGrid';
 import { RestPanel } from './components/RestPanel';
 import { EndingScreen, EpilogueScreen } from './components/EndingScreens';
 import { SettingsModal } from './components/SettingsModal';
-import { btnDashed } from './components/ui';
 
 // 디버그 패널은 DEV 전용 — 프로덕션 빌드에서는 import.meta.env.DEV가 false로 치환되어
 // 아래 동적 import가 죽은 코드가 되고, 번들에서 완전히 제외된다.
@@ -30,7 +29,7 @@ const DebugPanel = import.meta.env.DEV
   ? lazy(() => import('./debug/DebugPanel'))
   : null;
 
-import { UmbrellaPrompt } from './components/UmbrellaPrompt';
+import { StartFocusControl } from './components/StartFocusControl';
 
 export function App() {
   const state = useGame((s) => s.state);
@@ -348,19 +347,10 @@ export function App() {
                 >
                   <ActionGrid state={state} />
                 </div>
-                {state.pendingUmbrella ? (
-                  <UmbrellaPrompt />
-                ) : (
-                  <button
-                    className="hv"
-                    style={btnDashed}
-                    onClick={() => dispatch({ type: 'START_FOCUS', nowMs: now() })}
-                  >
-                    {tf(UI.buttons.startFocus, {
-                      action: t(action?.nameId ?? ''),
-                    })}
-                  </button>
-                )}
+                <StartFocusControl
+                  state={state}
+                  actionName={t(action?.nameId ?? '')}
+                />
               </div>
             )}
           </>

@@ -5,7 +5,7 @@ import { gameData } from '../store/gameStore';
 import { pickText } from '../game/text';
 import { needsLevelOf } from '../game/stats';
 import { affectionTier } from '../game/dialogue';
-import { allowedIntimacy, attachQuadrant } from '../game/security';
+import { allowedIntimacy, attachQuadrant, attachRate } from '../game/security';
 import { startAbsence, presentState } from '../game/absence';
 import { wipeSave } from '../persistence/persist';
 import { BALANCE } from '../game/balance';
@@ -478,6 +478,10 @@ function DebugStats({ state }: { state: GameState }) {
         v={`${st.security} (allow≤${allowedIntimacy(st.security)}, ${attachQuadrant(st.abandonment, st.intimacyThreat)})`}
       />
       <Row k="selfActual." v={st.selfActualization} />
+      <Row
+        k="attach"
+        v={`crises ${state.crisesWeathered} · rate ${attachRate(state.relationTier, state.crisesWeathered).toFixed(2)}${state.relationTier < BALANCE.ATTACH_ONSET_TIER ? ' (잠복)' : ''}`}
+      />
       <Row k="dependence" v={st.dependence} />
 
       <Section label="care" />
