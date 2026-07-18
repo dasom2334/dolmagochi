@@ -20,6 +20,7 @@ import endings from '../data/endings.json';
 import badges from '../data/badges.json';
 import moments from '../data/moments.json';
 import treeFinds from '../data/treeFinds.json';
+import rooms from '../data/rooms.json';
 import ko from '../data/locales/ko.json';
 
 /** 로케일 카탈로그 — 현재 ko만. 언어 추가 = 카탈로그 파일 추가 */
@@ -41,6 +42,7 @@ export function buildGameData(locale = 'ko'): GameData {
     badges,
     moments,
     treeFinds,
+    rooms,
     text: catalogs[locale] ?? catalogs['ko'],
   } as unknown as GameData;
 }

@@ -144,6 +144,8 @@ export interface ShopItemData {
   bonusPersonalWork?: number;
   /** 소모품 정의 — 있으면 재고(0/1)로 반복 구매, 세션 1회 소모, 랜덤 종류 */
   consumable?: { variants: ConsumableVariant[] };
+  /** 소속 방 명시 (개정 v5) — boosts로 파생 불가한 잡화·walk 계열용 */
+  room?: string;
 }
 
 // ── reflections.json — 문맥형 반추 ────────────────────────────
@@ -276,6 +278,16 @@ export interface TreeFindDef {
   textId: TextId;
 }
 
+// ── rooms.json — 휴식 씬 3방 (개정 v5 §2) ─────────────────────
+/** 방 정의 — 순서가 페이저 순서(아침→노을→밤). 팔레트·캡션은 방 고정 */
+export interface RoomDef {
+  id: string;
+  palette: { bg: string; floor: string; line: string };
+  /** 이 방이 담당하는 행동 계열 — 소품 방 파생(roomOfItem)의 기준 */
+  boosts: string[];
+  captionId: TextId;
+}
+
 // ── 통합 ──────────────────────────────────────────────────────
 export interface GameData {
   actions: ActionData[];
@@ -289,6 +301,7 @@ export interface GameData {
   badges: BadgeDef[];
   moments: MomentDef[];
   treeFinds: TreeFindDef[];
+  rooms: RoomDef[];
   /** 현재 로케일로 해석된 텍스트 카탈로그 */
   text: TextCatalog;
 }

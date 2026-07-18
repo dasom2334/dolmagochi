@@ -1,0 +1,20 @@
+[
+  {
+    "id": "kitchen",
+    "palette": { "bg": "#3b332c", "floor": "#4a4034", "line": "#5c5040" },
+    "boosts": ["cook", "chore"],
+    "captionId": "room.kitchen.caption"
+  },
+  {
+    "id": "living",
+    "palette": { "bg": "#262031", "floor": "#332b40", "line": "#453a56" },
+    "boosts": ["sun", "read"],
+    "captionId": "room.living.caption"
+  },
+  {
+    "id": "bedroom",
+    "palette": { "bg": "#1d1b2b", "floor": "#272438", "line": "#353150" },
+    "boosts": ["lie", "personalWork"],
+    "captionId": "room.bedroom.caption"
+  }
+]

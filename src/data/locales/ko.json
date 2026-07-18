@@ -2217,6 +2217,21 @@
       "세이브를 내보냈다. 돌과의 시간을 어딘가에 적어 둔 셈이다."
     ]
   ],
+  "room.kitchen.caption": [
+    [
+      "주방. 아침 빛."
+    ]
+  ],
+  "room.living.caption": [
+    [
+      "거실. 노을."
+    ]
+  ],
+  "room.bedroom.caption": [
+    [
+      "침실. 밤."
+    ]
+  ],
   "sys.captions.restRoom": [
     [
       "돌의 방. 휴식."
