@@ -267,6 +267,8 @@ export interface GameState {
   pendingCrises: CrisisKind[];
   /** 이미 발동한 보장 위기 아크 (retreat/sick — 게임당 1회) */
   crisisArcsFired: string[];
+  /** 함께 겪은 위기 총수 (보장+유기, M18) — 많을수록 축 변동이 무뎌진다 */
+  crisesWeathered: number;
   /** 목격한 급성 애착 4분면 (도감 재료, M11a) */
   quadrantsSeen: string[];
   /** 도감 뱃지 획득 기록 — 최초 충족 시각 (M11a). 숫자는 UI 비노출 */
@@ -303,6 +305,8 @@ export interface GameState {
   lastWeatherDate: string | null;
   /** 우산 선택 대기 (M12) — 비 오는 산책 + 우산 보유 시 START_FOCUS가 세운다 */
   pendingUmbrella: boolean;
+  /** 우산 대기로 넘어갈 때 보존하는 세션 포크 선택 (M18) */
+  pendingApproach: 'near' | 'apart' | null;
   care: { points: number; carryMinutes: number };
   /** 구매 물품 — 배치 여부 분리 */
   items: Record<ItemId, { placed: boolean }>;
@@ -365,7 +369,13 @@ export interface FlowtimeSettings {
 export type GameEvent =
   | { type: 'SETTLE'; nowMs: number }
   | { type: 'SELECT_ACTION'; actionId: ActionId }
-  | { type: 'START_FOCUS'; nowMs: number; umbrella?: boolean }
+  | {
+      type: 'START_FOCUS';
+      nowMs: number;
+      umbrella?: boolean;
+      /** 세션 포크 (M18, 개막 후): 곁에서(near) / 한 발 떨어져(apart) */
+      approach?: 'near' | 'apart';
+    }
   | { type: 'TICK'; dtSec: number }
   | { type: 'SET_PAUSED'; paused: boolean }
   | { type: 'CHOICE_PICKED'; optionIndex: number; nowMs: number }

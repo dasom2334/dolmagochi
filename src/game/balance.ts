@@ -70,8 +70,22 @@ export const BALANCE = {
   INTIMACY_THREAT_START: 70, // 친밀위협 시작 → 안정감 30 → 허용 친밀도 2(경계형 시작)
   ATTACH_BALANCED_GAP: 20, // |유기불안−친밀위협| 이 값 미만이면 '균형'(안정/혼란 구분)
   ATTACH_CHAOTIC_SUM: 120, // 균형이면서 합산이 이 값 이상이면 '혼란'
-  ATTACH_SOOTHE: 3, // 적정/거리 존중 접근 시 두 축 동시 진정량
+  ATTACH_SOOTHE: 3, // 적정/거리 존중 접근 시 두 축 동시 진정량 (세션 1회, 행동 경로만)
   ATTACH_THREAT_UP: 5, // 과한 접근 시 친밀위협 상승량
+
+  // ── 애착 활성화 곡선 (M18): 잠복 축적 → 개막 → 위기 감쇠 ──
+  // 1~2티어: 모든 축 변동 ×PRE_RATE로 조용히 쌓인다 (위기 발동은 차단).
+  // 3티어 보장 잠수 = 개막 — 숨겨온 축이 급성으로 드러나고, 이후 변동률 최대.
+  // 위기를 겪을수록 감쇠 — 함께 흔들려 본 사이는 웬만한 일로 흔들리지 않는다.
+  ATTACH_ONSET_TIER: 3, // 이 티어의 보장 잠수가 2축의 개막 이벤트
+  ATTACH_PRE_RATE: 0.25, // 개막 전 축 변동 배율 (잠복 축적)
+  ATTACH_TIER_SCALE: 0.1, // 개막 후 티어당 가산 — 깊은 관계일수록 크게 흔들린다
+  ATTACH_CRISIS_DECAY: 0.25, // 겪은 위기 1회당 변동률 −25%
+  ATTACH_RATE_FLOOR: 0.3, // 감쇠 하한 — 무뎌져도 무감해지진 않는다
+  RETREAT_SPIKE: 90, // 개막·잠수 아크: 친밀위협을 이 값까지 끌어올린다 (회피 급성)
+  SICK_SPIKE: 88, // 병간호 아크: 유기불안 스파이크 (집착 급성)
+  ATTACH_FORK_DELTA: 12, // 세션 포크가 미는 축 상승량 (rate 적용 전)
+  ATTACH_FORK_RELIEF: 12, // 반대 축 하강량 — 상승과 같아 '이동'이다: 번갈면 중립, 치우치면 축적
   RETREAT_VOL_SCALE: 1.0, // 잠수 확률 = RETREAT_PROB × (1 + SCALE × 변동성/100)
   // 4분면 '상태 대사'는 급성일 때만 뜬다 (baseline 회피는 일반 풀 유지):
   ATTACH_CLINGY_ACUTE: 60, // 유기불안이 이 값 이상이면 집착 상태 대사
@@ -81,15 +95,16 @@ export const BALANCE = {
   // 세션마다 유기불안 += PER_TIER×티어 (+ 휴식 스킵 시 ON_SKIP).
   // 접근(세션 시작/선택지/대화)의 진정 −3이 이를 상쇄 — 성실 플레이어는 체감 0,
   // 무심·스킵 플레이어만 서서히 쌓여 유기적 위기(병간호)로 이어진다.
-  // 시뮬 확정(v4): 1.0이면 성실 플레이어 0회, 무심·캐주얼 1~3회의 유기 위기.
-  ATTACH_DRIFT_PER_TIER: 1.0,
+  // M18 재조정: 진정이 세션 1회로 줄며 1.0은 과잉(성실 플레이도 병간호 루프) —
+  // 0.4 + attachRate 배율로 방치·스킵 채널만 남긴다 (시뮬 재확정).
+  ATTACH_DRIFT_PER_TIER: 0.4,
   ATTACH_DRIFT_ON_SKIP: 3,
   ATTACH_RETURN_GAP: 20, // 위기 루프에서 |유기불안−친밀위협| 이 값 미만이면 복귀
   ABANDONMENT_SICK_CEILING: 85, // 유기불안이 이 값 초과면 돌이 아파짐 → 강제 병간호
 
   SECURITY_START: 25, // (파생 초기값 참고용 — 실제 값은 위 두 축에서 계산)
   RETREAT_GAP: 2, // 허용치 대비 이만큼 이상 초과하면 잠수 판정 (기획서 명시)
-  RETREAT_PROB: 0.35,
+  RETREAT_PROB: 0.25, // M18 하향 — 축이 상시 살아 판정 기회 자체가 늘었다
   SECURITY_GAIN_MATCHED: 3,
   SECURITY_LOSS_BREACH: 5,
 
@@ -130,9 +145,9 @@ export const BALANCE = {
   MEMORY_WEIGHT_SELF_ACTION: 1, // 돌이 스스로 한 행동의 기억 약강화 (개정 v4-6)
 
   // 호감도 7티어 임계 (관계 대사 축) — 누적 호감도가 각 값 이상이면 그 티어.
-  // 개정 v4: 실측 래칫(안정감이 7~20h에 100 포화, 실효 ~0.9) 기반 재조정 —
-  // 시간당 ~2.2~2.5 → 7티어(122) ≈ 53h, 엔딩 ≈ 55h+ (balance-sim 검증).
-  AFFECTION_TIERS: [0, 8, 30, 55, 78, 100, 122],
+  // M18 재조정: 래칫 바닥 0.5 도입으로 실효 시급이 ~22% 하락 — 표를 ×0.78로
+  // 축소해 원 목표 복원 (균형 티어7 57.6h·엔딩 64.4h/15일, balance-sim 확정).
+  AFFECTION_TIERS: [0, 6, 23, 43, 61, 78, 95],
   // 티어 '승급'은 하루 1회 (서사 비트 달력 게이트, 개정 v4-7) — 초과분은 이월.
 
   // 욕구 개편 (개정 v4-5)

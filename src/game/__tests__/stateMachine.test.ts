@@ -222,9 +222,9 @@ describe('작은 행동 — 집중 세션이 끝난 뒤 1회', () => {
   it('돌이 없을 때(잠수)는 부재 전용 문구를 쓴다', () => {
     const data: GameData = structuredClone(gameData);
     data.actions.find((a) => a.id === 'read')!.intimacy = 4; // 잠수 유발
-    // 잠수 발동 → 세션 종료 → 휴식에서 작은 행동
+    // 잠수 발동 → 세션 종료 → 휴식에서 작은 행동 (개막 후 — M18)
     let s = run(
-      init(),
+      { ...init(), relationTier: BALANCE.ATTACH_ONSET_TIER },
       [{ type: 'START_FOCUS', nowMs: T0 }, { type: 'END_FOCUS', nowMs: T0 }],
       seq([0.1, 0.0]),
       data,
@@ -466,6 +466,11 @@ describe('휴식 대화', () => {
 });
 
 describe('잠수(부재) 분기', () => {
+  // 개막(3티어) 후에만 잠수가 터진다 (M18) — 이 분기 전체는 개막 상태에서 검증
+  const onset = (): GameState => ({
+    ...init(),
+    relationTier: BALANCE.ATTACH_ONSET_TIER,
+  });
   function riskyData(): GameData {
     const d: GameData = structuredClone(gameData);
     d.actions.find((a) => a.id === 'read')!.intimacy = 4;
@@ -474,17 +479,17 @@ describe('잠수(부재) 분기', () => {
 
   it('허용치 2레벨 초과 접근 시에만 확률 발동', () => {
     const data = riskyData();
-    const s = run(init(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.1, 0.0]), data);
+    const s = run(onset(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.1, 0.0]), data);
     expect(s.presence.state).toBe('absent');
     expect(s.session.journal[0].text).toBe(T('sys.journal.sessionStartAbsent'));
 
-    const miss = run(init(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.9]), data);
+    const miss = run(onset(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.9]), data);
     expect(miss.presence.state).toBe('present');
 
     const rng = mulberry32(3);
     for (let i = 0; i < 50; i++) {
       const safe = run(
-        init(),
+        onset(),
         [
           { type: 'SELECT_ACTION', actionId: 'free' },
           { type: 'START_FOCUS', nowMs: T0 },
@@ -498,7 +503,7 @@ describe('잠수(부재) 분기', () => {
   it('부재 중에도 게임은 계속: 선택지만 등장하지 않음', () => {
     const data = riskyData();
     let s = run(
-      init(),
+      onset(),
       [{ type: 'START_FOCUS', nowMs: T0 }, ...ticks(BALANCE.CHOICE_FIRST_AT_SEC + 60)],
       seq([0.1, 0.0, 0.5]),
       data,
@@ -513,7 +518,7 @@ describe('잠수(부재) 분기', () => {
     const data = riskyData();
     // 잠수 발동 후 세션 종료 → 휴식
     const s = run(
-      init(),
+      onset(),
       [
         { type: 'START_FOCUS', nowMs: T0 },
         { type: 'END_FOCUS', nowMs: T0 },
@@ -532,7 +537,7 @@ describe('잠수(부재) 분기', () => {
   it('잠수 세션 종료 문구는 부재 변형 — "돌은 옆에 있었다"가 새지 않는다', () => {
     const data = riskyData();
     const s = run(
-      init(),
+      onset(),
       [
         { type: 'START_FOCUS', nowMs: T0 },
         ...ticks(100),
@@ -554,7 +559,7 @@ describe('잠수(부재) 분기', () => {
   it('잠수 중 반추는 부재 전용 문장만 — 재석 전제 문장이 새지 않는다', () => {
     const data = riskyData();
     const s = run(
-      init(),
+      onset(),
       [
         { type: 'START_FOCUS', nowMs: T0 },
         ...ticks(BALANCE.REFLECT_INTERVAL_SEC),
@@ -575,7 +580,7 @@ describe('잠수(부재) 분기', () => {
 
   it('저친밀 누적으로만 복귀 — 호감도 삭감 없음, first-return 1회성', () => {
     const data = riskyData();
-    let s = run(init(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.1, 0.0]), data);
+    let s = run(onset(), [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.1, 0.0]), data);
     const affectionAtAbsence = s.stats.affection;
 
     s = run(s, [{ type: 'END_FOCUS', nowMs: T0 }, { type: 'REST_END' }], seq([0.9]), data);
@@ -670,11 +675,13 @@ describe('자유행동 게이지 — END_FOCUS 시간 정산', () => {
 });
 
 describe('병간호 (애착 위기 — 유기불안 극단)', () => {
-  // 유기불안 상한 초과 상태를 만든다 (안정감 = 100 − |95−20| = 25)
+  // 유기불안 상한 초과 상태를 만든다 (안정감 = 100 − |95−20| = 25).
+  // 유기 병간호는 개막(3티어) 후에만 터진다 (M18)
   function sickProneInit(): GameState {
     const s = init();
     return {
       ...s,
+      relationTier: BALANCE.ATTACH_ONSET_TIER,
       stats: { ...s.stats, abandonment: 95, intimacyThreat: 20, security: 25 },
     };
   }

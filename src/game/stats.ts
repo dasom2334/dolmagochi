@@ -163,24 +163,32 @@ export function applyStatOutcome(
   outcome: Outcome | undefined,
   /** 욕구 상승 게이트 적용 여부 — 위기 루프 중엔 false (개정 v4-5) */
   gateNeeds = true,
+  /** 애착 축 델타 배율 (M18 attachRate) — 잠복기 축소·개막 후 확대·위기 감쇠 */
+  attachScale = 1,
 ): Stats {
   if (!outcome) return stats;
   const next: Stats = { ...stats, needs: { ...stats.needs } };
   if (outcome.stats) {
     // 애착 2축 태그 적용 → 안정감(파생) 재계산
     next.abandonment = clampStat(
-      next.abandonment + (outcome.stats.abandonment ?? 0),
+      next.abandonment + (outcome.stats.abandonment ?? 0) * attachScale,
     );
     next.intimacyThreat = clampStat(
       next.intimacyThreat +
-        (outcome.stats.intimacyThreat ?? 0) +
-        // 하위호환: 구 security 델타는 부호를 뒤집어 친밀위협에 반영(양=안정↑=위협↓)
-        -(outcome.stats.security ?? 0),
+        ((outcome.stats.intimacyThreat ?? 0) +
+          // 하위호환: 구 security 델타는 부호를 뒤집어 친밀위협에 반영(양=안정↑=위협↓)
+          -(outcome.stats.security ?? 0)) *
+          attachScale,
     );
     next.security = derivedSecurity(next.abandonment, next.intimacyThreat);
     // B13 호감도 비례 래칫: 안정할수록 상승분이 커진다. 하락 없음.
+    // M18: 바닥 0.5 — 축이 상시 살아있는 새 밸런스에서 흔들리는 관계에도
+    // 정은 절반은 쌓인다 (래칫 0 붕괴로 페이싱이 밀리는 것 방지)
     const affDelta = outcome.stats.affection ?? 0;
-    const scaled = affDelta > 0 ? affDelta * (next.security / BALANCE.STAT_MAX) : affDelta;
+    const scaled =
+      affDelta > 0
+        ? affDelta * (0.5 + 0.5 * (next.security / BALANCE.STAT_MAX))
+        : affDelta;
     next.affection = Math.max(0, next.affection + scaled);
   }
   if (outcome.needs) {

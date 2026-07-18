@@ -217,6 +217,11 @@ export const UI = {
     light: 'ui.theme.light',
     dark: 'ui.theme.dark',
   },
+  /** 세션 포크 (M18) — 개막 후 집중 시작이 둘로 갈라진다. {action} */
+  approach: {
+    near: 'ui.approach.near',
+    apart: 'ui.approach.apart',
+  },
   buttons: {
     endFocus: 'ui.buttons.endFocus',
     startFocus: 'ui.buttons.startFocus',

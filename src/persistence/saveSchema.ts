@@ -146,6 +146,10 @@ function normalizeState(state: GameState): GameState {
       : 'clear',
     lastWeatherDate: state.lastWeatherDate ?? null,
     pendingUmbrella: state.pendingUmbrella === true,
+    pendingApproach:
+      state.pendingApproach === 'near' || state.pendingApproach === 'apart'
+        ? state.pendingApproach
+        : null,
     // 도감 필드 방어 (M11a)
     badges: isRecordSafe(state.badges) ? state.badges : {},
     quadrantsSeen: Array.isArray(state.quadrantsSeen) ? state.quadrantsSeen : [],
@@ -157,6 +161,7 @@ function normalizeState(state: GameState): GameState {
     crisisArcsFired: Array.isArray(state.crisisArcsFired)
       ? state.crisisArcsFired
       : [],
+    crisesWeathered: finiteOr(state.crisesWeathered, 0),
     // 소모품 진열/종류 필드 방어 — 구 v10 세이브 백필
     rest: { ...state.rest, offers: state.rest?.offers ?? {} },
     supplyVariants: state.supplyVariants ?? {},

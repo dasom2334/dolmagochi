@@ -13,7 +13,7 @@ import { dispatch, now, t, tf } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { btnDashed, btnOutline, btnSmall, card, PagesView } from './ui';
 import { ActionGrid } from './ActionGrid';
-import { UmbrellaPrompt } from './UmbrellaPrompt';
+import { StartFocusControl } from './StartFocusControl';
 
 const STEPS: RestStep[] = ['journal', 'talk', 'select', 'shop'];
 
@@ -28,10 +28,14 @@ export function RestPanel({
   // 휴식 타이머가 아직 다 흐르지 않았으면(권장 휴식 미완료) 시작 전 되묻는다
   const restIncomplete = state.rest.endsAt > 0 && nowMs < state.rest.endsAt;
   const [confirming, setConfirming] = useState(false);
+  // 미완주 확인을 거치는 동안 포크 선택(M18)을 보존한다
+  const [heldApproach, setHeldApproach] = useState<'near' | 'apart' | undefined>();
 
-  const startFocus = () => {
-    if (restIncomplete) setConfirming(true);
-    else dispatch({ type: 'START_FOCUS', nowMs: now() });
+  const startFocus = (approach?: 'near' | 'apart') => {
+    if (restIncomplete) {
+      setHeldApproach(approach);
+      setConfirming(true);
+    } else dispatch({ type: 'START_FOCUS', nowMs: now(), approach });
   };
 
   return (
@@ -120,7 +124,11 @@ export function RestPanel({
               style={{ ...btnOutline, minHeight: 44 }}
               onClick={() => {
                 setConfirming(false);
-                dispatch({ type: 'START_FOCUS', nowMs: now() });
+                dispatch({
+                  type: 'START_FOCUS',
+                  nowMs: now(),
+                  approach: heldApproach,
+                });
               }}
             >
               {t(UI.buttons.startAnyway)}
@@ -134,14 +142,13 @@ export function RestPanel({
             </button>
           </div>
         </div>
-      ) : state.pendingUmbrella ? (
-        // M16: 휴식에서 산책을 시작해도 우산 대기가 여기 떠야 한다 —
-        // 없으면 START_FOCUS가 대기만 세우고 리턴해 버튼이 죽어 보인다
-        <UmbrellaPrompt />
       ) : (
-        <button className="hv" style={btnDashed} onClick={startFocus}>
-          {tf(UI.buttons.startFocus, { action: t(action?.nameId ?? '') })}
-        </button>
+        // 우산 대기(M16)·세션 포크(M18)·단일 시작을 공용 컨트롤이 처리한다
+        <StartFocusControl
+          state={state}
+          actionName={t(action?.nameId ?? '')}
+          onStart={startFocus}
+        />
       )}
     </div>
   );

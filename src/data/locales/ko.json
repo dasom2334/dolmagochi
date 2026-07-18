@@ -2476,6 +2476,16 @@
       "▸ 집중 시작 — {action}"
     ]
   ],
+  "ui.approach.near": [
+    [
+      "▸ 곁에서 함께 — {action}"
+    ]
+  ],
+  "ui.approach.apart": [
+    [
+      "▸ 한 발 떨어져 — {action}"
+    ]
+  ],
   "ui.buttons.talk": [
     [
       "♥ 말 걸기"

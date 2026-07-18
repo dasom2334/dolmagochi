@@ -5,6 +5,7 @@ import type {
   RemembranceData,
 } from './types';
 import { applyStatOutcome } from './stats';
+import { attachRate } from './security';
 import { remember } from './memory';
 import { checkCondition } from './conditions';
 import type { Rng } from './rng';
@@ -46,10 +47,16 @@ export function applyOutcome(
     adds?.length ? [...new Set([...base, ...adds])] : base;
   // 욕구 상승 게이트(개정 v4-5)는 자유행동·자연 상승 경로에만 적용한다 (M16):
   // 여기로 오는 Outcome은 전부 유저가 직접 고른 것(행동·선택지·구매)이라
-  // 게이트를 걸면 하위 욕구가 찰 때까지 플레이 시간이 무한정 늘어난다
+  // 게이트를 걸면 하위 욕구가 찰 때까지 플레이 시간이 무한정 늘어난다.
+  // 애착 축 델타는 잠복/개막/감쇠 곡선(attachRate)을 곱한다 (M18)
   return {
     ...state,
-    stats: applyStatOutcome(state.stats, outcome, false),
+    stats: applyStatOutcome(
+      state.stats,
+      outcome,
+      false,
+      attachRate(state.relationTier, state.crisesWeathered),
+    ),
     memory,
     flags: addUnique(state.flags, outcome.flags),
     unlockedActions: addUnique(state.unlockedActions, outcome.unlockActions),

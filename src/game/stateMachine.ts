@@ -42,6 +42,7 @@ import {
 import {
   acuteQuadrant,
   attachQuadrant,
+  attachRate,
   convergeStep,
   derivedSecurity,
   intimacyOutcome,
@@ -65,7 +66,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 21;
+export const SCHEMA_VERSION = 22;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -118,6 +119,7 @@ export function createInitialState(
     relationTier: 1,
     lastTierUpDate: null,
     pendingCrises: [],
+    crisesWeathered: 0,
     crisisArcsFired: [],
     quadrantsSeen: [],
     badges: {},
@@ -137,6 +139,7 @@ export function createInitialState(
     weather: 'clear',
     lastWeatherDate: null,
     pendingUmbrella: false,
+    pendingApproach: null,
     care: { points: 0, carryMinutes: 0 },
     items: {},
     supplies: {},
@@ -305,10 +308,25 @@ function supplySelfActBonus(state: GameState, data: GameData): number {
   return v?.bonusSelfAct ?? 0;
 }
 
-function applyIntimacy(state: GameState, intimacy: number, rng: Rng): GameState {
+function applyIntimacy(
+  state: GameState,
+  intimacy: number,
+  rng: Rng,
+  /** 진정 허용 — 세션당 1회(행동 경로)만 걸린다 (M18 과대 적용 수정) */
+  allowSoothe = false,
+): GameState {
   if (state.era !== 'raising' || state.presence.state === 'absent') return state;
   const { abandonment, intimacyThreat } = state.stats;
-  const oc = intimacyOutcome(abandonment, intimacyThreat, intimacy, rng);
+  const oc = intimacyOutcome(
+    abandonment,
+    intimacyThreat,
+    intimacy,
+    rng,
+    attachRate(state.relationTier, state.crisesWeathered),
+    allowSoothe,
+    // 개막 전엔 위기가 터지지 않는다 — 조용히 쌓일 뿐 (M18)
+    state.relationTier >= BALANCE.ATTACH_ONSET_TIER,
+  );
   const ab = clampStat(abandonment + oc.abandonmentDelta);
   const it = clampStat(intimacyThreat + oc.intimacyThreatDelta);
   let next: GameState = {
@@ -321,7 +339,11 @@ function applyIntimacy(state: GameState, intimacy: number, rng: Rng): GameState 
     },
   };
   if (oc.retreat) {
-    next = { ...next, presence: startAbsence(rng) };
+    next = {
+      ...next,
+      presence: startAbsence(rng),
+      crisesWeathered: next.crisesWeathered + 1,
+    };
   }
   return next;
 }
@@ -556,7 +578,12 @@ function reduce(
       if (state.phase !== 'actionSelect' && state.phase !== 'rest') return state;
       const action = actionOf(data, event.actionId);
       if (!action || !isActionAvailable(action, state)) return state;
-      return { ...state, selectedAction: event.actionId, pendingUmbrella: false };
+      return {
+        ...state,
+        selectedAction: event.actionId,
+        pendingUmbrella: false,
+        pendingApproach: null,
+      };
     }
 
     case 'START_FOCUS': {
@@ -574,7 +601,12 @@ function reduce(
         'umbrella' in state.items &&
         event.umbrella === undefined
       ) {
-        return { ...state, pendingUmbrella: true };
+        return {
+          ...state,
+          pendingUmbrella: true,
+          // 포크 선택은 우산 질문을 건너 살아남는다 (M18)
+          pendingApproach: event.approach ?? null,
+        };
       }
 
       // rest 탈출 공통 정리 (응답 없는 떠나려는 기색 = 보내주기)
@@ -595,16 +627,65 @@ function reduce(
         arcState.presence.state === 'present' &&
         !arcState.presence.sick
       ) {
+        // 개막 스파이크 (M18): 잠복기에 쌓아온 친밀위협이 급성으로 드러난다 —
+        // "마음을 열어버린 자신에게 놀란" 순간. 쌓인 유기불안은 그대로 남아
+        // 위기의 깊이와 회복 후 자리를 잠복기 플레이가 결정한다.
+        const spikedIt = Math.max(
+          arcState.stats.intimacyThreat,
+          BALANCE.RETREAT_SPIKE,
+        );
         arcState = {
           ...arcState,
           presence: startAbsence(rng),
           pendingCrises: arcState.pendingCrises.filter((c) => c !== 'retreat'),
           crisisArcsFired: [...arcState.crisisArcsFired, 'retreat'],
+          crisesWeathered: arcState.crisesWeathered + 1,
+          // 급성 회피 목격 보장 — 스파이크 순간이 곧 4분면의 첫 대면이다
+          quadrantsSeen: arcState.quadrantsSeen.includes('avoidant')
+            ? arcState.quadrantsSeen
+            : [...arcState.quadrantsSeen, 'avoidant'],
+          stats: {
+            ...arcState.stats,
+            intimacyThreat: spikedIt,
+            security: derivedSecurity(arcState.stats.abandonment, spikedIt),
+          },
         };
         crisisLine = joinPages(pickText(data.text, SYS.journal.crisisRetreat, rng));
       }
 
-      let next = applyIntimacy(arcState, action.intimacy, rng);
+      // 행동 경로만 진정이 걸린다 (세션 1회) — 선택지·대화는 축적만 (M18)
+      let next = applyIntimacy(arcState, action.intimacy, rng, true);
+
+      // 세션 포크 (M18, 개막 후): 곁에서 = 친밀위협↑ / 한 발 떨어져 = 유기불안↑.
+      // 매 세션 한 축은 오른다 — 균형은 유지하는 것이지 도달하는 것이 아니다.
+      // 우산 질문을 거쳐 온 재디스패치는 pendingApproach에 보존된 선택을 쓴다
+      const approach = event.approach ?? state.pendingApproach ?? undefined;
+      if (
+        approach !== undefined &&
+        next.era === 'raising' &&
+        next.presence.state === 'present' &&
+        !next.presence.sick &&
+        next.relationTier >= BALANCE.ATTACH_ONSET_TIER
+      ) {
+        const rate = attachRate(next.relationTier, next.crisesWeathered);
+        const up = BALANCE.ATTACH_FORK_DELTA * rate;
+        const down = BALANCE.ATTACH_FORK_RELIEF * rate;
+        const ab = clampStat(
+          next.stats.abandonment + (approach === 'apart' ? up : -down),
+        );
+        const it = clampStat(
+          next.stats.intimacyThreat + (approach === 'near' ? up : -down),
+        );
+        next = {
+          ...next,
+          stats: {
+            ...next.stats,
+            abandonment: ab,
+            intimacyThreat: it,
+            security: derivedSecurity(ab, it),
+          },
+        };
+      }
       let visitJournal: string | null = null;
 
       // apart: 돌이 놀러올 확률 — 오면 며칠(1~N세션) 머문다.
@@ -696,6 +777,7 @@ function reduce(
         ...next,
         phase: 'focus',
         pendingUmbrella: false,
+        pendingApproach: null,
         session: {
           ...emptySession(),
           supply,
@@ -1134,6 +1216,7 @@ function reduce(
       let lastTierUpDate = next.lastTierUpDate;
       let pendingCrises = next.pendingCrises;
       let crisisArcsFired = next.crisisArcsFired;
+      let crisesWeathered = next.crisesWeathered;
       if (
         next.era === 'raising' &&
         affectionTier(stats.affection) > relationTier &&
@@ -1163,8 +1246,9 @@ function reduce(
         !next.presence.sick
       ) {
         const drift =
-          BALANCE.ATTACH_DRIFT_PER_TIER * relationTier +
-          (restMult < 1 ? BALANCE.ATTACH_DRIFT_ON_SKIP : 0);
+          (BALANCE.ATTACH_DRIFT_PER_TIER * relationTier +
+            (restMult < 1 ? BALANCE.ATTACH_DRIFT_ON_SKIP : 0)) *
+          attachRate(relationTier, crisesWeathered);
         const ab = clampStat(stats.abandonment + drift);
         stats = {
           ...stats,
@@ -1213,14 +1297,27 @@ function reduce(
       } else if (
         // 병간호 발동: 유기불안이 상한을 넘으면 돌이 아파진다 (재석 중, 육성).
         // 보장 아크(개정 v4-8): 5티어 승급이 예약한 성장통도 여기서 발동한다.
+        // 유기 발동은 개막(3티어) 후에만 — 잠복기엔 쌓일 뿐 터지지 않는다 (M18)
         next.era === 'raising' &&
         presence.state === 'present' &&
         !presence.sick &&
-        (stats.abandonment > BALANCE.ABANDONMENT_SICK_CEILING ||
+        ((relationTier >= BALANCE.ATTACH_ONSET_TIER &&
+          stats.abandonment > BALANCE.ABANDONMENT_SICK_CEILING) ||
           pendingCrises.includes('sick'))
       ) {
         presence = { ...presence, sick: true };
+        crisesWeathered += 1;
         if (pendingCrises.includes('sick')) {
+          // 집착 스파이크 (M18): 쌓아온 유기불안이 급성으로 드러나는 성장통
+          const spikedAb = Math.max(stats.abandonment, BALANCE.SICK_SPIKE);
+          stats = {
+            ...stats,
+            abandonment: spikedAb,
+            security: derivedSecurity(spikedAb, stats.intimacyThreat),
+          };
+          // 급성 집착 목격 보장 (스파이크 순간)
+          if (!quadrantsSeen.includes('clingy'))
+            quadrantsSeen = [...quadrantsSeen, 'clingy'];
           pendingCrises = pendingCrises.filter((c) => c !== 'sick');
           crisisArcsFired = [...crisisArcsFired, 'sick'];
           journal = addJournal(
@@ -1566,6 +1663,7 @@ function reduce(
         lastTierUpDate,
         pendingCrises,
         crisisArcsFired,
+        crisesWeathered,
         quadrantsSeen,
         endingTalksSeen,
         lastEndingTalkDate,

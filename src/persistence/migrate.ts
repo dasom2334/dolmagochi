@@ -256,6 +256,15 @@ export function migrateState(state: GameState): GameState | null {
       pendingCrises: s.pendingCrises ?? (legacy ? [legacy] : []),
     };
   }
+  // v21 → v22: 애착 재설계(M18) — 함께 겪은 위기 수. 보장 아크 발동 기록으로 백필.
+  if (s.schemaVersion === 21) {
+    s = {
+      ...s,
+      schemaVersion: 22,
+      crisesWeathered: s.crisesWeathered ?? s.crisisArcsFired.length,
+      pendingApproach: s.pendingApproach ?? null,
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

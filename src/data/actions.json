@@ -8,7 +8,14 @@
     "captionId": "act.lie.caption",
     "startLineId": "act.lie.start",
     "ambientId": "act.lie.ambient",
-    "outcome": { "stats": { "affection": 1 }, "needs": { "physiological": 5 } },
+    "outcome": {
+      "stats": {
+        "affection": 1
+      },
+      "needs": {
+        "physiological": 5
+      }
+    },
     "choices": [
       {
         "promptId": "act.lie.c0.prompt",
@@ -18,13 +25,34 @@
             "labelId": "act.lie.c0.o0.label",
             "intimacy": 2,
             "outcomes": [
-              { "resultId": "act.lie.c0.o0.r0", "outcome": { "needs": { "physiological": 2 } } }
+              {
+                "resultId": "act.lie.c0.o0.r0",
+                "outcome": {
+                  "needs": {
+                    "physiological": 2
+                  },
+                  "stats": {
+                    "intimacyThreat": 8,
+                    "abandonment": -8
+                  }
+                }
+              }
             ]
           },
           {
             "labelId": "act.lie.c0.o1.label",
             "intimacy": 1,
-            "outcomes": [{ "resultId": "act.lie.c0.o1.r0" }]
+            "outcomes": [
+              {
+                "resultId": "act.lie.c0.o1.r0",
+                "outcome": {
+                  "stats": {
+                    "abandonment": 8,
+                    "intimacyThreat": -8
+                  }
+                }
+              }
+            ]
           }
         ]
       }
@@ -33,13 +61,24 @@
   {
     "id": "read",
     "nameId": "act.read.name",
-    "unlock": { "ownedItems": ["book"] },
+    "unlock": {
+      "ownedItems": [
+        "book"
+      ]
+    },
     "intimacy": 2,
     "sceneId": "read",
     "captionId": "act.read.caption",
     "startLineId": "act.read.start",
     "ambientId": "act.read.ambient",
-    "outcome": { "stats": { "affection": 1 }, "needs": { "esteem": 5 } },
+    "outcome": {
+      "stats": {
+        "affection": 1
+      },
+      "needs": {
+        "esteem": 5
+      }
+    },
     "choices": [
       {
         "promptId": "act.read.c0.prompt",
@@ -49,13 +88,34 @@
             "labelId": "act.read.c0.o0.label",
             "intimacy": 3,
             "outcomes": [
-              { "resultId": "act.read.c0.o0.r0", "outcome": { "needs": { "esteem": 2 } } }
+              {
+                "resultId": "act.read.c0.o0.r0",
+                "outcome": {
+                  "needs": {
+                    "esteem": 2
+                  },
+                  "stats": {
+                    "intimacyThreat": 8,
+                    "abandonment": -8
+                  }
+                }
+              }
             ]
           },
           {
             "labelId": "act.read.c0.o1.label",
             "intimacy": 2,
-            "outcomes": [{ "resultId": "act.read.c0.o1.r0" }]
+            "outcomes": [
+              {
+                "resultId": "act.read.c0.o1.r0",
+                "outcome": {
+                  "stats": {
+                    "abandonment": 8,
+                    "intimacyThreat": -8
+                  }
+                }
+              }
+            ]
           }
         ]
       },
@@ -66,12 +126,32 @@
           {
             "labelId": "act.read.c1.o0.label",
             "intimacy": 3,
-            "outcomes": [{ "resultId": "act.read.c1.o0.r0" }]
+            "outcomes": [
+              {
+                "resultId": "act.read.c1.o0.r0",
+                "outcome": {
+                  "stats": {
+                    "intimacyThreat": 8,
+                    "abandonment": -8
+                  }
+                }
+              }
+            ]
           },
           {
             "labelId": "act.read.c1.o1.label",
             "intimacy": 1,
-            "outcomes": [{ "resultId": "act.read.c1.o1.r0" }]
+            "outcomes": [
+              {
+                "resultId": "act.read.c1.o1.r0",
+                "outcome": {
+                  "stats": {
+                    "abandonment": 8,
+                    "intimacyThreat": -8
+                  }
+                }
+              }
+            ]
           }
         ]
       }
@@ -80,13 +160,24 @@
   {
     "id": "sun",
     "nameId": "act.sun.name",
-    "unlock": { "ownedItems": ["cushion"] },
+    "unlock": {
+      "ownedItems": [
+        "cushion"
+      ]
+    },
     "intimacy": 1,
     "sceneId": "sun",
     "captionId": "act.sun.caption",
     "startLineId": "act.sun.start",
     "ambientId": "act.sun.ambient",
-    "outcome": { "stats": { "affection": 1 }, "needs": { "safety": 5 } },
+    "outcome": {
+      "stats": {
+        "affection": 1
+      },
+      "needs": {
+        "safety": 5
+      }
+    },
     "choices": [
       {
         "promptId": "act.sun.c0.prompt",
@@ -96,13 +187,34 @@
             "labelId": "act.sun.c0.o0.label",
             "intimacy": 3,
             "outcomes": [
-              { "resultId": "act.sun.c0.o0.r0", "outcome": { "needs": { "safety": 2 } } }
+              {
+                "resultId": "act.sun.c0.o0.r0",
+                "outcome": {
+                  "needs": {
+                    "safety": 2
+                  },
+                  "stats": {
+                    "intimacyThreat": 8,
+                    "abandonment": -8
+                  }
+                }
+              }
             ]
           },
           {
             "labelId": "act.sun.c0.o1.label",
             "intimacy": 1,
-            "outcomes": [{ "resultId": "act.sun.c0.o1.r0" }]
+            "outcomes": [
+              {
+                "resultId": "act.sun.c0.o1.r0",
+                "outcome": {
+                  "stats": {
+                    "abandonment": 8,
+                    "intimacyThreat": -8
+                  }
+                }
+              }
+            ]
           }
         ]
       }
@@ -111,13 +223,25 @@
   {
     "id": "walk",
     "nameId": "act.walk.name",
-    "unlock": { "ownedItems": ["shoes"] },
+    "unlock": {
+      "ownedItems": [
+        "shoes"
+      ]
+    },
     "intimacy": 2,
     "sceneId": "walk",
     "captionId": "act.walk.caption",
     "startLineId": "act.walk.start",
     "ambientId": "act.walk.ambient",
-    "outcome": { "stats": { "affection": 1 }, "needs": { "safety": 5, "belonging": 2 } },
+    "outcome": {
+      "stats": {
+        "affection": 1
+      },
+      "needs": {
+        "safety": 5,
+        "belonging": 2
+      }
+    },
     "choices": [
       {
         "promptId": "act.walk.c0.prompt",
@@ -133,6 +257,12 @@
                   "id": "walk-pause",
                   "summaryId": "rem.walk-pause.summary",
                   "revealId": "rem.walk-pause.reveal"
+                },
+                "outcome": {
+                  "stats": {
+                    "intimacyThreat": 8,
+                    "abandonment": -8
+                  }
                 }
               }
             ]
@@ -140,7 +270,17 @@
           {
             "labelId": "act.walk.c0.o1.label",
             "intimacy": 1,
-            "outcomes": [{ "resultId": "act.walk.c0.o1.r0" }]
+            "outcomes": [
+              {
+                "resultId": "act.walk.c0.o1.r0",
+                "outcome": {
+                  "stats": {
+                    "abandonment": 8,
+                    "intimacyThreat": -8
+                  }
+                }
+              }
+            ]
           }
         ]
       }
@@ -154,7 +294,11 @@
     "captionId": "act.free.caption",
     "startLineId": "act.free.start",
     "ambientId": "act.free.ambient",
-    "outcome": { "stats": { "affection": 1 } },
+    "outcome": {
+      "stats": {
+        "affection": 1
+      }
+    },
     "choices": [
       {
         "promptId": "act.free.c0.prompt",
@@ -164,13 +308,34 @@
             "labelId": "act.free.c0.o0.label",
             "intimacy": 3,
             "outcomes": [
-              { "resultId": "act.free.c0.o0.r0", "outcome": { "needs": { "belonging": 2 } } }
+              {
+                "resultId": "act.free.c0.o0.r0",
+                "outcome": {
+                  "needs": {
+                    "belonging": 2
+                  },
+                  "stats": {
+                    "intimacyThreat": 8,
+                    "abandonment": -8
+                  }
+                }
+              }
             ]
           },
           {
             "labelId": "act.free.c0.o1.label",
             "intimacy": 1,
-            "outcomes": [{ "resultId": "act.free.c0.o1.r0" }]
+            "outcomes": [
+              {
+                "resultId": "act.free.c0.o1.r0",
+                "outcome": {
+                  "stats": {
+                    "abandonment": 8,
+                    "intimacyThreat": -8
+                  }
+                }
+              }
+            ]
           }
         ]
       }
@@ -179,25 +344,49 @@
   {
     "id": "cook",
     "nameId": "act.cook.name",
-    "unlock": { "ownedItems": ["pot"] },
+    "unlock": {
+      "ownedItems": [
+        "pot"
+      ]
+    },
     "intimacy": 3,
     "sceneId": "cook",
     "captionId": "act.cook.caption",
     "startLineId": "act.cook.start",
     "ambientId": "act.cook.ambient",
-    "outcome": { "stats": { "affection": 1 }, "needs": { "physiological": 5, "belonging": 5 } },
+    "outcome": {
+      "stats": {
+        "affection": 1
+      },
+      "needs": {
+        "physiological": 5,
+        "belonging": 5
+      }
+    },
     "choices": []
   },
   {
     "id": "chore",
     "nameId": "act.chore.name",
-    "unlock": { "ownedItems": ["broom"] },
+    "unlock": {
+      "ownedItems": [
+        "broom"
+      ]
+    },
     "intimacy": 2,
     "sceneId": "chore",
     "captionId": "act.chore.caption",
     "startLineId": "act.chore.start",
     "ambientId": "act.chore.ambient",
-    "outcome": { "stats": { "affection": 1 }, "needs": { "safety": 5, "esteem": 5 } },
+    "outcome": {
+      "stats": {
+        "affection": 1
+      },
+      "needs": {
+        "safety": 5,
+        "esteem": 5
+      }
+    },
     "choices": []
   },
   {
@@ -208,6 +397,6 @@
     "captionId": "act.nurse.caption",
     "startLineId": "act.nurse.start",
     "ambientId": "act.nurse.ambient",
-        "choices": []
+    "choices": []
   }
 ]
