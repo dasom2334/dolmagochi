@@ -39,6 +39,7 @@ import { CupProp } from './props/CupProp';
 import { FanProp } from './props/FanProp';
 import { LampProp } from './props/LampProp';
 import { BookProp } from './props/BookProp';
+import { LivingRoomArt } from './LivingRoomArt';
 
 /** 행동별 풍경 색 (디자인 원본 값 그대로 — cook/chore 씬은 디자인 미정, 방 색으로 폴백) */
 const SCENE_COLORS: Record<string, { bg: string; floor: string; line: string }> = {
@@ -107,6 +108,8 @@ export function SceneView({ state }: { state: GameState }) {
               ? '#ffd878'
               : '#c9a86a';
   const showBook = (isFocus && sceneId === 'read') || show('book2');
+  // 거실 휴식 씬은 확정 PNG 아트로 렌더 (LivingRoomArt 참조) — 나머지는 SVG 유지
+  const pngLiving = !isFocus && currentRoom === 'living';
 
   const caption = isFocus
     ? t(action?.captionId ?? '')
@@ -131,6 +134,15 @@ export function SceneView({ state }: { state: GameState }) {
         boxSizing: 'border-box',
       }}
     >
+      {pngLiving ? (
+        <LivingRoomArt
+          glassColor={glassColor}
+          showRock={present && !state.planted}
+          showTree={state.planted && state.plantedAt !== null}
+          showPlant={show('plant')}
+        />
+      ) : (
+      <>
       {showWindow && <WindowSprite glassColor={glassColor} />}
       {outdoor && <DaySun variant={tod === 'night' ? 'moon' : 'sun'} />}
       <Floor bg={colors.floor} line={colors.line} />
@@ -188,6 +200,8 @@ export function SceneView({ state }: { state: GameState }) {
         <WeatherFx kind={state.weather} />
       )}
       {outdoor && <TimeTint tod={tod} />}
+      </>
+      )}
       <div
         style={{
           position: 'absolute',

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GameState } from '../game/types';
+import type { GameState, WeatherKind } from '../game/types';
 import { appStore, dispatch } from '../store/appStore';
 import { gameData } from '../store/gameStore';
 import { pickText } from '../game/text';
@@ -10,6 +10,7 @@ import { startAbsence, presentState } from '../game/absence';
 import { wipeSave } from '../persistence/persist';
 import { BALANCE } from '../game/balance';
 import { btnSmall } from '../components/ui';
+import { STOCK_PROP_IDS } from '../components/scene/StockProp';
 
 /**
  * 개발용 디버그 패널 — DEV 전용. App이 import.meta.env.DEV + ?debug=1 게이트로 동적 로드하므로
@@ -24,9 +25,11 @@ export default function DebugPanel({
   state: GameState;
   nowMs: number;
 }) {
-  const [panel, setPanel] = useState<'none' | 'stats' | 'tools' | 'mem'>('none');
+  const [panel, setPanel] = useState<'none' | 'stats' | 'tools' | 'mem' | 'layout'>(
+    'none',
+  );
   const [ffMin, setFfMin] = useState(5);
-  const toggle = (p: 'stats' | 'tools' | 'mem') =>
+  const toggle = (p: 'stats' | 'tools' | 'mem' | 'layout') =>
     setPanel((cur) => (cur === p ? 'none' : p));
 
   // 빨리감기 — 집중은 ffMin분 경과, 휴식은 ffMin분만큼 남은 시간 차감
@@ -79,6 +82,7 @@ export default function DebugPanel({
         <TabBtn label="stats" on={panel === 'stats'} onClick={() => toggle('stats')} />
         <TabBtn label="tools" on={panel === 'tools'} onClick={() => toggle('tools')} />
         <TabBtn label="mem" on={panel === 'mem'} onClick={() => toggle('mem')} />
+        <TabBtn label="layout" on={panel === 'layout'} onClick={() => toggle('layout')} />
         <span style={{ marginLeft: 'auto', color: '#6b6178' }}>
           {state.phase} · {state.era}
           {state.presence.state === 'absent' ? ' · absent' : ''}
@@ -87,6 +91,7 @@ export default function DebugPanel({
       {panel === 'stats' && <DebugStats state={state} />}
       {panel === 'tools' && <DebugTools state={state} nowMs={nowMs} />}
       {panel === 'mem' && <DebugMemory state={state} />}
+      {panel === 'layout' && <DebugLayout state={state} nowMs={nowMs} />}
     </div>
   );
 }
@@ -401,6 +406,162 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
             {m.id}
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 레이아웃 확인 모드 — 씬 합성에 영향을 주는 모든 축을 직접 세팅해 조합별
+ * 레이아웃 버그를 본다. 축: 씬(휴식/집중) · 방 · 시간대 · 계절 · 날씨 ·
+ * 소품 배치 · 돌 상태(부재/이끼/젖음/새싹/나무). 리듀서 우회 패치 (DEV 전용).
+ */
+function DebugLayout({ state, nowMs }: { state: GameState; nowMs: number }) {
+  const patch = (fn: (s: GameState) => Partial<GameState>) =>
+    appStore.setState((prev) => ({ state: { ...prev.state, ...fn(prev.state) } }));
+  const setSetting = (k: 'timeOfDay' | 'season' | 'lastRoom', v: string) =>
+    patch((s) => ({ settings: { ...s.settings, [k]: v } as GameState['settings'] }));
+
+  const goRest = () =>
+    patch((s) => ({ phase: 'rest', rest: { ...s.rest, endsAt: 0 } }));
+  const goFocus = (actionId: string) =>
+    patch(() => ({ phase: 'focus', selectedAction: actionId }));
+
+  const setItem = (id: string, placed: boolean) =>
+    patch((s) => ({
+      items: { ...s.items, [id]: { placed } },
+      supplies: STOCK_PROP_IDS.includes(id)
+        ? { ...s.supplies, [id]: placed ? 1 : 0 }
+        : s.supplies,
+    }));
+  const allItems = (placed: boolean) =>
+    patch((s) => ({
+      items: Object.fromEntries(gameData.shop.map((i) => [i.id, { placed }])),
+      supplies: {
+        ...s.supplies,
+        ...Object.fromEntries(STOCK_PROP_IDS.map((id) => [id, placed ? 1 : 0])),
+      },
+    }));
+
+  const setWetness = (w: 'wet' | 'snowy' | null) =>
+    patch((s) => ({ session: { ...s.session, wetness: w } }));
+  const togglePresence = () =>
+    patch((s) => ({
+      presence:
+        s.presence.state === 'absent'
+          ? presentState()
+          : startAbsence(() => Math.random()),
+    }));
+  // 새싹 단계 프리셋 — sproutStageOf의 분기 조건을 역으로 맞춘다
+  const sproutPreset = (p: 'none' | 'budding' | 'thriving' | 'wither' | 'rooting1' | 'rooting2') =>
+    patch((s) => ({
+      planted: false,
+      plantedAt: null,
+      era: p === 'none' || p === 'budding' ? 'raising' : p === 'wither' ? 'cohabit' : 'apart',
+      relationTier: p === 'budding' ? BALANCE.SPROUT_HINT_TIER : p === 'none' ? 1 : s.relationTier,
+      sproutGrowth:
+        p === 'rooting1' ? BALANCE.ROOTING_AT : p === 'rooting2' ? BALANCE.ROOTING_STILL_AT : 0,
+      stats: p === 'wither' ? { ...s.stats, dependence: 80 } : s.stats,
+    }));
+  const treePreset = (days: number) =>
+    patch(() => ({
+      planted: true,
+      plantedAt: nowMs - days * DAY_MS,
+      sproutGrowth: 100,
+    }));
+
+  const tod = state.settings.timeOfDay;
+  const season = state.settings.season;
+  const room = state.settings.lastRoom || 'living';
+  const chip = (
+    label: string,
+    on: boolean,
+    onClick: () => void,
+  ) => (
+    <button
+      key={label}
+      className="hv"
+      style={{ ...btnSmall, color: on ? '#ffd866' : '#a89cb4' }}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div style={panelStyle}>
+      <Section label="scene" />
+      <div style={rowWrap}>
+        {chip('rest(방)', state.phase === 'rest', goRest)}
+        {gameData.actions.map((a) =>
+          chip(
+            `focus:${a.id}`,
+            state.phase === 'focus' && state.selectedAction === a.id,
+            () => goFocus(a.id),
+          ),
+        )}
+      </div>
+      <Section label="room (휴식 페이저)" />
+      <div style={rowWrap}>
+        {gameData.rooms.map((r) => chip(r.id, room === r.id, () => setSetting('lastRoom', r.id)))}
+      </div>
+      <Section label="timeOfDay / season" />
+      <div style={rowWrap}>
+        {(['auto', 'day', 'twilight', 'night'] as const).map((v) =>
+          chip(v, tod === v, () => setSetting('timeOfDay', v)),
+        )}
+        <span style={{ color: '#4a4156' }}>|</span>
+        {(['auto', 'spring', 'summer', 'autumn', 'winter'] as const).map((v) =>
+          chip(v, season === v, () => setSetting('season', v)),
+        )}
+      </div>
+      <Section label="weather" />
+      <div style={rowWrap}>
+        {(['clear', 'rain', 'downpour', 'snow', 'petals', 'leaves'] as WeatherKind[]).map(
+          (w) => chip(w, state.weather === w, () => patch(() => ({ weather: w }))),
+        )}
+      </div>
+      <Section label="rock" />
+      <div style={rowWrap}>
+        {chip(
+          state.presence.state === 'absent' ? 'absent→present' : 'present→absent',
+          state.presence.state === 'absent',
+          togglePresence,
+        )}
+        {chip('moss', !!state.items['moss']?.placed, () =>
+          setItem('moss', !state.items['moss']?.placed),
+        )}
+        <span style={{ color: '#4a4156' }}>|</span>
+        {chip('dry', state.session.wetness === null, () => setWetness(null))}
+        {chip('wet', state.session.wetness === 'wet', () => setWetness('wet'))}
+        {chip('snowy', state.session.wetness === 'snowy', () => setWetness('snowy'))}
+      </div>
+      <div style={rowWrap}>
+        {(['none', 'budding', 'thriving', 'wither', 'rooting1', 'rooting2'] as const).map(
+          (p) => chip(`sprout:${p}`, false, () => sproutPreset(p)),
+        )}
+        <span style={{ color: '#4a4156' }}>|</span>
+        {[0, 3, 7, 30, 90, 180].map((d) =>
+          chip(
+            `tree d${d}`,
+            state.planted &&
+              state.plantedAt !== null &&
+              Math.round((nowMs - state.plantedAt) / DAY_MS) === d,
+            () => treePreset(d),
+          ),
+        )}
+      </div>
+      <Section label={`props (${gameData.shop.filter((i) => state.items[i.id]?.placed).length}/${gameData.shop.length})`} />
+      <div style={rowWrap}>
+        {chip('all on', false, () => allItems(true))}
+        {chip('all off', false, () => allItems(false))}
+      </div>
+      <div style={rowWrap}>
+        {gameData.shop.map((i) =>
+          chip(i.id, !!state.items[i.id]?.placed, () =>
+            setItem(i.id, !state.items[i.id]?.placed),
+          ),
+        )}
       </div>
     </div>
   );
