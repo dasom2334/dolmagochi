@@ -29,6 +29,8 @@ export function checkCondition(
     return false;
   if (cond.minAffection !== undefined && stats.affection < cond.minAffection)
     return false;
+  if (cond.minTier !== undefined && state.relationTier < cond.minTier)
+    return false;
   if (cond.minLevel !== undefined && needsLevelOf(stats.needs) < cond.minLevel)
     return false;
   if (cond.ownedItems && !cond.ownedItems.every((i) => i in state.items))

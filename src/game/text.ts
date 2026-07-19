@@ -84,6 +84,7 @@ export const SYS = {
   },
   notification: {
     restEnd: 'sys.notification.restEnd',
+    restEndAbsent: 'sys.notification.restEnd.absent',
     focusMark: 'sys.notification.focusMark', // {min}
   },
   singleTab: {

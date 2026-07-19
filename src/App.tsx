@@ -97,9 +97,14 @@ export function App() {
     // 포그라운드=인앱 종소리(효과음 설정과 무관한 알림 채널이라 force), 백그라운드=OS 알림.
     // (앱은 REST_END를 UI에서 쓰지 않고 rest→START_FOCUS 직행이므로 종료 신호는 워커가 담당)
     worker.onmessage = () => {
-      const nf = appStore.getState().state.settings.notify;
+      const s = appStore.getState().state;
+      const nf = s.settings.notify;
       if (!nf.enabled || !nf.restEnd) return;
-      if (document.hidden) notify(t(SYS.notification.restEnd));
+      // 돌이 곁에 없으면(잠수·2차 비방문·3차) '기다리고 있다' 대신 중립 문구
+      const here =
+        s.era === 'apart' ? s.apart.visiting : s.presence.state === 'present';
+      if (document.hidden)
+        notify(t(here ? SYS.notification.restEnd : SYS.notification.restEndAbsent));
       else playSound('rest', true);
     };
     workerRef.current = worker;

@@ -122,50 +122,14 @@
       }
     },
     {
-      "lineId": "fore.receipt.line",
-      "event": {
-        "promptId": "fore.receipt.prompt",
-        "when": {
-          "notActions": [
-            "walk"
-          ]
-        },
-        "options": [
-          {
-            "labelId": "fore.receipt.o0.label",
-            "intimacy": 2,
-            "outcomes": [
-              {
-                "resultId": "fore.receipt.o0.r0",
-                "remembrance": {
-                  "id": "fore-receipt",
-                  "summaryId": "rem.fore-receipt.summary",
-                  "revealId": "rem.fore-receipt.reveal"
-                }
-              }
-            ]
-          },
-          {
-            "labelId": "fore.receipt.o1.label",
-            "intimacy": 1,
-            "outcomes": [
-              {
-                "resultId": "fore.receipt.o1.r0"
-              }
-            ]
-          }
-        ]
-      },
-      "once": true
-    },
-    {
       "lineId": "fore.crack.line",
       "event": {
         "promptId": "fore.crack.prompt",
         "when": {
           "notActions": [
             "walk"
-          ]
+          ],
+          "minTier": 5
         },
         "options": [
           {
@@ -202,7 +166,8 @@
         "when": {
           "notActions": [
             "walk"
-          ]
+          ],
+          "minTier": 5
         },
         "options": [
           {
@@ -264,7 +229,8 @@
         "when": {
           "notActions": [
             "walk"
-          ]
+          ],
+          "minTier": 6
         },
         "options": [
           {
@@ -293,6 +259,42 @@
         ]
       },
       "once": true
+    },
+    {
+      "lineId": "fore.moon.line",
+      "event": {
+        "promptId": "fore.moon.prompt",
+        "when": {
+          "notActions": [
+            "walk"
+          ]
+        },
+        "options": [
+          {
+            "labelId": "fore.moon.o0.label",
+            "intimacy": 2,
+            "outcomes": [
+              {
+                "resultId": "fore.moon.o0.r0",
+                "remembrance": {
+                  "id": "fore-moon",
+                  "summaryId": "rem.fore-moon.summary",
+                  "revealId": "rem.fore-moon.reveal"
+                }
+              }
+            ]
+          },
+          {
+            "labelId": "fore.moon.o1.label",
+            "intimacy": 1,
+            "outcomes": [
+              {
+                "resultId": "fore.moon.o1.r0"
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

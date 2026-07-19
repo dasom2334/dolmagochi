@@ -1013,8 +1013,11 @@ function reduce(
       // 분 표기는 문구에 박지 않고 문턱값({mins})을 채운다 — 데이터 수정에도 어긋나지 않게
       data.timeMarks.focus.forEach((mark, i) => {
         if (el >= mark.minSec && !next.session.timeMarksFired.includes(i)) {
+          // 돌이 곁에 없으면(잠수·2차 비방문·3차) 부재 변형 — 돌 언급 누출 방지
+          const markTextId =
+            !present && mark.absentTextId ? mark.absentTextId : mark.textId;
           const markLine = joinPages(
-            fillPages(pickText(data.text, mark.textId, rng), {
+            fillPages(pickText(data.text, markTextId, rng), {
               mins: Math.round(mark.minSec / 60),
             }),
           );
@@ -1685,8 +1688,15 @@ function reduce(
         .filter((m) => restSec >= m.minSec)
         .pop();
       if (restMark) {
+        // 정산된 이후 상태 기준으로 곁에 있는지 판단 (locals — next는 아직 이전 presence)
+        const rockHere =
+          era === 'apart' ? apart.visiting : presence.state === 'present';
+        const restMarkTextId =
+          !rockHere && restMark.absentTextId
+            ? restMark.absentTextId
+            : restMark.textId;
         const markLine = joinPages(
-          fillPages(pickText(data.text, restMark.textId, rng), { mins: restMin }),
+          fillPages(pickText(data.text, restMarkTextId, rng), { mins: restMin }),
         );
         if (markLine) journal = addJournal(journal, state.session.elapsedSec, markLine);
       }
