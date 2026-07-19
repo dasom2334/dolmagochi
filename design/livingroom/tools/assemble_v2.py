@@ -207,7 +207,28 @@ masks = (
  '<rect x="60" y="57" width="4" height="7" fill="#bbb"/>'
  '</g></mask>')
 
-lights = masks + lights + lp_sun + lp_moon + lp_fire + lp_candle + lp_lamp
+# --- 대비 강화 그림자 레이어 ---
+# ① 비네트: 가장자리를 눌러 중앙(창·불) 광원으로 시선을 모은다 (도트답게 계단식)
+vign = ['<g id="shadow-vignette" style="mix-blend-mode:multiply">']
+for i,op in enumerate(('.34','.24','.16','.09','.04')):
+    m = i+1
+    vign.append(f'<rect x="0" y="{m-1}" width="96" height="1" fill="#0b0710" opacity="{op}"/>')
+    vign.append(f'<rect x="0" y="{72-m}" width="96" height="1" fill="#0b0710" opacity="{op}"/>')
+    vign.append(f'<rect x="{m-1}" y="0" width="1" height="72" fill="#0b0710" opacity="{op}"/>')
+    vign.append(f'<rect x="{96-m}" y="0" width="1" height="72" fill="#0b0710" opacity="{op}"/>')
+vign.append('</g>')
+
+# ② 방 안쪽 구석·벽 하단의 앰비언트 오클루전 (광원이 닿지 않는 곳을 더 눌러 대비를 벌림)
+ao = ('<g id="shadow-ao" style="mix-blend-mode:multiply">'
+      '<rect x="0" y="34" width="24" height="15" fill="#150c18" opacity=".22"/>'
+      '<rect x="0" y="34" width="14" height="15" fill="#150c18" opacity=".18"/>'
+      '<rect x="72" y="34" width="24" height="15" fill="#150c18" opacity=".20"/>'
+      '<rect x="82" y="34" width="14" height="15" fill="#150c18" opacity=".16"/>'
+      '<rect x="24" y="44" width="48" height="5" fill="#150c18" opacity=".16"/>'
+      '</g>')
+
+lights = masks + lights + ao + lp_sun + lp_moon + lp_fire + lp_candle + lp_lamp
+VIGNETTE = ''.join(vign)
 
 # --- 소품별 4레이어: p-shadow 주입 (base와 같은 그룹 안, multiply) ---
 def inject(gid, html_frag):
@@ -305,11 +326,16 @@ PROP_ORDER = ['bk-1','bk-2','bk-3','bk-4','bk-5','bk-6',
 props = {g: pull(g) for g in PROP_ORDER}
 art = art + ''.join(props[g] for g in PROP_ORDER)
 
+# 역광 림라이트: gen.py가 돌 실루엣대로 그려둔 것을 **광원 레이어**로 끌어올린다.
+# base에 굽지 않으므로 시간대 색(--wl/--ml)과 광원 on/off를 그대로 따른다.
+rims = ('<g id="rim-lights" style="mix-blend-mode:screen">'
+        + pull('rim-orb') + pull('rim-orb-rug') + '</g>')
+
 art = ('<!-- z-order(뒤→앞): [1]방구조(벽→바닥→창틀→벽난로→책장) '
        '[2]창밖(하늘→해→달→별→구름→나무→파티클→유리효과) '
        '[3]소품(책→촛대→화분→돌멩이→러그→스탠드→바닥소품) '
        '[3.5]창틀눈 [4]색감오버레이(시간→날씨) [5]광원(mask) [6]emission -->') + art
-lights = lights + emission
+lights = lights + rims + emission + VIGNETTE
 
 html = open('template_v2.html').read()
 html = html.replace(', sway 2.6s ease-in-out infinite','').replace(', sway 3.4s ease-in-out -1.2s infinite','')

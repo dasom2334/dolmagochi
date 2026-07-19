@@ -203,6 +203,16 @@
   #ov-weather:not(:checked) ~ .scene #light-rain,
   #ov-weather:not(:checked) ~ .scene #light-snow   { display: none !important; }
 
+  /* 역광 림라이트 = 창문 광원에 종속 (창빛/달빛 끄면 같이 꺼짐) */
+  #t-night:checked ~ .scene #rim-lights { --wl: var(--ml); }
+  #p-lsun:not(:checked)    ~ .scene #rim-lights,
+  #p-lmoon:not(:checked)   ~ .scene #rim-lights { opacity: 0; }
+  #op-sill:checked ~ .scene #rim-orb-rug { display: none; }
+  #op-rug:checked  ~ .scene #rim-orb     { display: none; }
+  #L-orb:not(:checked)     ~ .scene #rim-lights { display: none !important; }
+  #p-shade:not(:checked)   ~ .scene #shadow-vignette,
+  #p-shade:not(:checked)   ~ .scene #shadow-ao { display: none !important; }
+
   #p-lsun:not(:checked)    ~ .scene #lp-sun    { display: none !important; }
   #p-lmoon:not(:checked)   ~ .scene #lp-moon   { display: none !important; }
   #p-lfire:not(:checked)   ~ .scene #lp-fire   { display: none !important; }
@@ -348,6 +358,7 @@
   #L-fire:checked      ~ .panel label[for="L-fire"],
   #L-books:checked     ~ .panel label[for="L-books"],
   #L-lamp:checked      ~ .panel label[for="L-lamp"],
+  #p-shade:checked     ~ .panel label[for="p-shade"],
   #p-fx:checked        ~ .panel label[for="p-fx"] {
     background: #d98e4a;
     border-color: #d98e4a;
@@ -400,6 +411,7 @@
   <input class="ctl" type="checkbox" id="L-books" checked>
   <input class="ctl" type="checkbox" id="L-lamp" checked>
   <input class="ctl" type="checkbox" id="p-fx" checked>
+  <input class="ctl" type="checkbox" id="p-shade" checked>
 
   <div class="scene">
     <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="중립 베이스 위에 시간·날씨 색감 오버레이와 개별 광원을 합성하는 레이어 인스펙터 씬.">
@@ -483,6 +495,7 @@
     <div class="group">
       <span class="g-label">효과</span>
       <label for="p-fx">파티클·유리 효과</label>
+      <label for="p-shade">그림자·비네트</label>
       <span class="note">소품 = base + shadow(multiply) + emission(오버레이 위) + lightmask(SVG mask) 4레이어 — 발광체는 밤에도 어두워지지 않음</span>
     </div>
   </div>
