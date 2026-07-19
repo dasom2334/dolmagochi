@@ -65,7 +65,9 @@ def build_floor():
     for x,y in [(34,53),(74,57),(22,63),(58,68),(90,62)]: add(x,y,1,1,'var(--fbk)')
     add(0,49,96,1,'#000',.28); add(0,50,96,1,'#000',.12)
     return P
-groups['floor'] = build_floor()
+groups['floor'].append('<g class="p-shadow" style="mix-blend-mode:multiply">'
+    '<rect x="0" y="49" width="96" height="1" fill="#000" opacity=".25"/>'
+    '<rect x="0" y="50" width="96" height="1" fill="#000" opacity=".1"/></g>')
 groups['fireplace'].append('<g class="p-shadow" style="mix-blend-mode:multiply">'
     '<rect x="2" y="49" width="20" height="1" fill="#000" opacity=".2"/>'
     '<rect x="3" y="50" width="17" height="1" fill="#000" opacity=".1"/></g>')
