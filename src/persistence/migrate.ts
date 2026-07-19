@@ -284,6 +284,17 @@ export function migrateState(state: GameState): GameState | null {
       foreUsed: [],
     };
   }
+  // v24 → v25: 묘목 단계 게이트(피드백5) — 현재 성장에서 이미 통과한 게이트 수로 백필.
+  // (기존 세이브가 갑자기 뒤로 막히지 않게 한다)
+  if (s.schemaVersion === 24) {
+    s = {
+      ...s,
+      schemaVersion: 25,
+      sproutGatesCleared:
+        s.sproutGatesCleared ??
+        BALANCE.SPROUT_GATES.filter((g) => s.sproutGrowth >= g).length,
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }
