@@ -75,13 +75,18 @@ describe('2차 독립기 (M14) — 묘목 성장·붙잡기 스펙트럼', () =>
 
   it('개화 목격 → 일지, 완주 + 게이트(보내주기 1회) → 심기 이벤트·planted', () => {
     // 개화 직전
-    let s: GameState = { ...apartBase(), sproutGrowth: BALANCE.SPROUT_BLOOM_AT - 1 };
+    let s: GameState = {
+      ...apartBase(),
+      sproutGrowth: BALANCE.SPROUT_BLOOM_AT - 1,
+      sproutGatesCleared: BALANCE.SPROUT_GATES.length,
+    };
     s = session(s, T0);
     expect(s.bloomSeen).toBe(true);
     // 완주 + 게이트: 보내주기 이력 있음
     let g: GameState = {
       ...apartBase(),
       sproutGrowth: 99,
+      sproutGatesCleared: BALANCE.SPROUT_GATES.length,
       bloomSeen: true,
       letGoCount: 1,
     };
@@ -89,7 +94,12 @@ describe('2차 독립기 (M14) — 묘목 성장·붙잡기 스펙트럼', () =>
     expect(g.planted).toBe(true);
     expect(g.rest.talkState?.kind).toBe('planting');
     // 게이트 미충족(보내주기 0·균형 목격 0)이면 심지 않는다
-    let ng: GameState = { ...apartBase(), sproutGrowth: 99, bloomSeen: true };
+    let ng: GameState = {
+      ...apartBase(),
+      sproutGrowth: 99,
+      sproutGatesCleared: BALANCE.SPROUT_GATES.length,
+      bloomSeen: true,
+    };
     ng = session(ng, T0);
     expect(ng.planted).toBe(false);
   });
@@ -141,6 +151,7 @@ describe('2차 도감 뱃지 (M14)', () => {
       letGoCount: 1,
       bloomSeen: true,
       sproutGrowth: 99,
+      sproutGatesCleared: BALANCE.SPROUT_GATES.length,
     };
     s = session(s, T0); // 완주 + 게이트 → 심기까지
     expect('let-go' in s.badges).toBe(true);

@@ -90,6 +90,8 @@ export const SYS = {
     bloomAfar: 'sys.journal.bloomAfar',
     farewell2: 'sys.journal.farewell2',
     witherEase: 'sys.journal.witherEase',
+    gateWait: 'sys.journal.gateWait',
+    gateOpen: 'sys.journal.gateOpen',
     rootingStill: 'sys.journal.rootingStill',
     companionWorry: 'sys.journal.companionWorry',
     restShort: 'sys.journal.restShort',

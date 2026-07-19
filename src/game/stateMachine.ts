@@ -67,7 +67,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 24;
+export const SCHEMA_VERSION = 25;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -116,6 +116,7 @@ export function createInitialState(
     pendingEvent: null,
     foreUsed: [],
     awakeningPending: false,
+    sproutGatesCleared: 0,
     delegate: null,
     endingTalksSeen: 0,
     lastEndingTalkDate: null,
@@ -744,6 +745,16 @@ function reduce(
           visitJournal = joinPages(
             pickText(data.text, SYS.journal.visitStart, rng),
           );
+          // 단계 게이트 해제 (피드백5): 성장이 게이트에 걸려 멈춰 있었다면
+          // 이 방문이 다음 단계를 연다 — 한 단계마다 돌을 한 번은 만난다
+          const gate = BALANCE.SPROUT_GATES[next.sproutGatesCleared];
+          if (gate !== undefined && next.sproutGrowth >= gate) {
+            next = { ...next, sproutGatesCleared: next.sproutGatesCleared + 1 };
+            visitJournal = joinPages([
+              visitJournal,
+              joinPages(pickText(data.text, SYS.journal.gateOpen, rng)),
+            ]);
+          }
         }
       }
 
@@ -1430,12 +1441,22 @@ function reduce(
       let era = next.era;
       let farewell2 = false;
       let witherEaseLine: string | null = null;
+      let gateWaitLine: string | null = null;
+      // 단계 게이트 상한 (피드백5) — 열린 게이트까지만 자란다
+      const growthCap =
+        BALANCE.SPROUT_GATES[next.sproutGatesCleared] ?? 100;
+      let gateHeld = false;
       if (!next.planted && next.era === 'apart') {
         if (!apart.visiting) {
+          const before = sproutGrowth;
           sproutGrowth = Math.min(
-            100,
+            growthCap,
             sproutGrowth + BALANCE.SPROUT_GROWTH_PER_UNIT * units,
           );
+          // 상한에 걸려 더 못 자랐다 — 돌을 기다리는 중임을 관찰로 알린다.
+          // (이미 걸려 있던 세션도 포함: before === growthCap)
+          void before;
+          gateHeld = sproutGrowth >= growthCap && growthCap < 100;
           const prevWither = witherLevel;
           witherLevel = Math.max(0, witherLevel - BALANCE.SPROUT_RECOVER);
           // 회복 힌트 (M14b): 돌이 없는 날들에 묘목이 나아진다 —
@@ -1464,7 +1485,7 @@ function reduce(
         if (balanced) {
           balancedSeen = true;
           sproutGrowth = Math.min(
-            100,
+            growthCap,
             sproutGrowth +
               BALANCE.SPROUT_GROWTH_PER_UNIT *
                 BALANCE.SPROUT_GROWTH_COHABIT_FACTOR *
@@ -1487,6 +1508,11 @@ function reduce(
           crisisArcsFired = [...crisisArcsFired, 'farewell2'];
         }
       }
+      // 게이트 대기 관찰 (피드백5) — 진행이 멈춘 이유를 숫자 없이 알린다
+      if (gateHeld) {
+        gateWaitLine = joinPages(pickText(data.text, SYS.journal.gateWait, rng));
+      }
+
       // 뿌리내림기 (M19b, v5 §6): 성장 절반부터 시듦은 소멸한다 — 막을 수
       // 없는 진행에 페널티는 무의미하다. 잎의 처짐 대신 불가역의 뿌리가 잇는다
       if (!next.planted && sproutGrowth >= BALANCE.ROOTING_AT) witherLevel = 0;
@@ -1508,6 +1534,7 @@ function reduce(
 
       if (bloomLine) journal = addJournal(journal, elapsed, bloomLine);
       if (witherEaseLine) journal = addJournal(journal, elapsed, witherEaseLine);
+      if (gateWaitLine) journal = addJournal(journal, elapsed, gateWaitLine);
 
       if (farewell2) {
         journal = addJournal(

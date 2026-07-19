@@ -320,6 +320,8 @@ export interface GameState {
   pendingApproach: 'near' | 'apart' | null;
   /** 3차 각성 강제 이벤트 (피드백6) — 응답 전까지 휴식이 시작되지 않는다 */
   awakeningPending: boolean;
+  /** 방문으로 열린 묘목 단계 게이트 수 (피드백5) — 성장 상한을 정한다 */
+  sproutGatesCleared: number;
   /** 자유행동 위임 (피드백2) — 돌이 원하는 세션 공개 대기 상태 */
   delegate: DelegateState | null;
   care: { points: number; carryMinutes: number };
