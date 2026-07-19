@@ -131,6 +131,9 @@ export interface TalkState {
   done: boolean;
   yesId?: TextId;
   noId?: TextId;
+  /** 답에 따른 상태 영향 (M19c 위기 대응) — TALK_CHOICE가 적용한다 */
+  yesOutcome?: Outcome;
+  noOutcome?: Outcome;
 }
 
 /**
@@ -385,7 +388,7 @@ export type GameEvent =
   | { type: 'REST_STEP'; step: RestStep }
   | { type: 'REST_ACT'; key: string }
   | { type: 'TALK' }
-  | { type: 'TALK_CHOICE'; yes: boolean }
+  | { type: 'TALK_CHOICE'; yes: boolean; nowMs?: number }
   | { type: 'BUY'; itemId: ItemId; nowMs: number }
   | { type: 'SET_PLACEMENT'; itemId: ItemId; placed: boolean }
   | { type: 'VISIT_HOLD'; hold: boolean }

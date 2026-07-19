@@ -1,8 +1,9 @@
 import type { GameState } from '../game/types';
 import { BALANCE } from '../game/balance';
 import { isRockPresent } from '../game/stateMachine';
-import { dispatch, now, tf } from '../store/appStore';
+import { dispatch, now, t, tf } from '../store/appStore';
 import { UI } from '../game/text';
+import { gameData } from '../store/gameStore';
 import { btnDashed } from './ui';
 import { UmbrellaPrompt } from './UmbrellaPrompt';
 
@@ -42,13 +43,20 @@ export function StartFocusControl({
       </button>
     );
   }
+  // 행동별 변형 라벨 (M19c) — 카탈로그에 있으면 그 행동의 문구, 없으면 공용 폴백
+  const label = (side: 'near' | 'apart') => {
+    const specific = `ui.approach.${side}.${state.selectedAction}`;
+    return gameData.text[specific]
+      ? t(specific)
+      : tf(UI.approach[side], { action: actionName });
+  };
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
       <button className="hv" style={btnDashed} onClick={() => start('near')}>
-        {tf(UI.approach.near, { action: actionName })}
+        {label('near')}
       </button>
       <button className="hv" style={btnDashed} onClick={() => start('apart')}>
-        {tf(UI.approach.apart, { action: actionName })}
+        {label('apart')}
       </button>
     </div>
   );
