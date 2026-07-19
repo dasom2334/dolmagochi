@@ -25,13 +25,15 @@ export function RestPanel({
   nowMs: number;
 }) {
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
-  // 각성 강제 이벤트 (피드백6-1): 응답 전까지 휴식 탭 전체가 열리지 않는다
-  if (state.awakeningPending) return <AwakeningEvent />;
   // 휴식 타이머가 아직 다 흐르지 않았으면(권장 휴식 미완료) 시작 전 되묻는다
   const restIncomplete = state.rest.endsAt > 0 && nowMs < state.rest.endsAt;
   const [confirming, setConfirming] = useState(false);
   // 미완주 확인을 거치는 동안 포크 선택(M18)을 보존한다
   const [heldApproach, setHeldApproach] = useState<'near' | 'apart' | undefined>();
+  // 각성 강제 이벤트 (피드백6-1): 응답 전까지 휴식 탭 전체가 열리지 않는다.
+  // 훅을 전부 부른 뒤에 반환한다 — 이 컴포넌트는 각성 대기 상태로 마운트됐다가
+  // 응답으로 플래그만 꺼지므로, 위에서 반환하면 훅 개수가 렌더마다 달라진다.
+  if (state.awakeningPending) return <AwakeningEvent />;
 
   const startFocus = (approach?: 'near' | 'apart') => {
     if (restIncomplete) {
