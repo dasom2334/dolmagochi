@@ -112,6 +112,15 @@ describe('나무 발견 — 전조→열매→흔들림→각성 체인 (M15b)',
     expect('tree-awakening' in s.memory).toBe(true);
   });
 
+  it('방치 1주 후 복귀: 그날 안에 각성까지 닿는다 (M20 페이싱 표)', () => {
+    // 심어놓고 7일 방치 — 나무일 7 = 각성기. 체인은 세션마다 진행하므로
+    // 복귀한 날 네 세션이면 전조→열매→흔들림→각성을 그날 다 만난다.
+    let s = planted(7);
+    for (let i = 0; i < 4; i++)
+      s = session({ ...s, phase: 'actionSelect' }, T0 + i * 3_600_000);
+    expect('tree-awakening' in s.memory).toBe(true);
+  });
+
   it('단계를 건너뛰어도 체인 순서는 지켜진다 — 각성은 열매·흔들림 뒤', () => {
     // 심어놓고 30일 방치 후 복귀: 무성(3)이지만 전조부터 순서대로
     let s = session(planted(30), T0);

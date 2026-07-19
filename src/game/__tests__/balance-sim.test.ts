@@ -413,6 +413,42 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
     }
   }, 300_000);
 
+  // M20 불변식: 연출과-의도.md §2 페이싱 표 — 균형 플레이 티어7 ~57.6h ·
+  // 엔딩 ~64h/15일차, 휴식 스킵 ~1.7× 페널티(정직한 휴식이 곧 돌봄).
+  // 수치를 만지면 이 범위 안으로 되돌리거나, 표부터 고치고 여기를 갱신할 것.
+  it('1차 페이싱 불변식: 균형 플레이는 페이싱 표 범위에서 엔딩에 닿는다', () => {
+    const base: Policy = {
+      name: 'A. 균형',
+      sessionMin: 50,
+      dailyFocusMin: 240,
+      answerChoices: true,
+      doTalk: true,
+      skipRest: false,
+      buyOrder: ALL_ITEMS,
+      rebuyConsumables: ['apitoken'],
+    };
+    const avg = (runs: RunResult[], get: (r: RunResult) => number | null) => {
+      const vals = runs.map(get).filter((v): v is number => v !== null);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    const balanced = SEEDS.map((sd) => simulate(base, sd));
+    expect(balanced.every((r) => r.hEnding !== null), '전 시드 엔딩 도달').toBe(true);
+    const tier7 = avg(balanced, (r) => r.hTier7)!;
+    const endH = avg(balanced, (r) => r.hEnding)!;
+    const endD = avg(balanced, (r) => r.dEnding)!;
+    expect(tier7, '티어7 ~57.6h ±7h').toBeGreaterThan(50.6);
+    expect(tier7, '티어7 ~57.6h ±7h').toBeLessThan(64.6);
+    expect(endH, '엔딩 ~64h ±8h').toBeGreaterThan(56);
+    expect(endH, '엔딩 ~64h ±8h').toBeLessThan(72);
+    expect(endD, '엔딩 12~19일차').toBeGreaterThanOrEqual(12);
+    expect(endD, '엔딩 12~19일차').toBeLessThanOrEqual(19);
+
+    const skip = SEEDS.map((sd) => simulate({ ...base, name: 'F. 휴식 스킵', skipRest: true }, sd));
+    const skipH = avg(skip, (r) => r.hEnding);
+    if (skipH !== null)
+      expect(skipH / endH, '휴식 스킵 페널티 ≥1.4×').toBeGreaterThan(1.4);
+  }, 300_000);
+
   it('튜닝 실험: GAIN·표류', () => {
     const B = BALANCE as unknown as Record<string, number>;
     const saved = {
@@ -463,6 +499,8 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
 /** ── 2차 독립기 시뮬 (M14) — 심기까지 시간·붙잡기 스펙트럼 검증 ── */
 interface Phase2Result {
   hBloom: number | null;
+  hRoot1: number | null; // 뿌리내림기 진입 (성장 50, M19b)
+  hRoot2: number | null; // 무반응기 (성장 85)
   hPlant: number | null;
   dPlant: number | null;
   letGo: number;
@@ -489,7 +527,7 @@ function simulatePhase2(
   let now = T0;
   let dayFocus = 0;
   const res: Phase2Result = {
-    hBloom: null, hPlant: null, dPlant: null,
+    hBloom: null, hRoot1: null, hRoot2: null, hPlant: null, dPlant: null,
     letGo: 0, holds: 0, visits: 0, endWither: 0, endDependence: 0, hoursSimmed: 0,
   };
   const focusH = () => s.totals.focusSeconds / 3600;
@@ -505,6 +543,10 @@ function simulatePhase2(
     now += totalSec * 1000;
     s = dispatch(s, { type: 'END_FOCUS', nowMs: now });
     if (res.hBloom === null && s.bloomSeen) res.hBloom = focusH();
+    if (res.hRoot1 === null && s.sproutGrowth >= BALANCE.ROOTING_AT)
+      res.hRoot1 = focusH();
+    if (res.hRoot2 === null && s.sproutGrowth >= BALANCE.ROOTING_STILL_AT)
+      res.hRoot2 = focusH();
     if (s.apart.leavePending) {
       s = dispatch(s, { type: 'VISIT_HOLD', hold: policy.holdAlways });
       if (policy.holdAlways) res.holds++;
@@ -534,6 +576,8 @@ function simulatePhase2(
 }
 
 describe('2차 독립기 시뮬 (M14)', () => {
+  // M20 불변식: 연출과-의도.md §3 페이싱 표 — 보내주기 ~27.5h/6일,
+  // 붙잡기 남용은 심기 불가("시간이 아니라 태도가 벽").
   it('보내주기 플레이 vs 붙잡기 남용', () => {
     for (const [name, holdAlways] of [['보내주기(정상)', false], ['붙잡기 남용', true]] as const) {
       const runs = [1, 2, 3, 4, 5, 6, 7, 8].map((sd) =>
@@ -546,9 +590,28 @@ describe('2차 독립기 시뮬 (M14)', () => {
       const reach = runs.filter((r) => r.hPlant !== null).length;
       console.log(
         `\n=== 2차: ${name} (50분·4h/day, 시드 8) ===\n` +
-        `개화 ${fmt(avg((r) => r.hBloom))}h | 심기 ${fmt(avg((r) => r.hPlant))}h / ${fmt(avg((r) => r.dPlant))}일차 (${reach}/8)\n` +
+        `개화 ${fmt(avg((r) => r.hBloom))}h | 뿌리내림 ${fmt(avg((r) => r.hRoot1))}h → 무반응 ${fmt(avg((r) => r.hRoot2))}h | 심기 ${fmt(avg((r) => r.hPlant))}h / ${fmt(avg((r) => r.dPlant))}일차 (${reach}/8)\n` +
         `방문 ${fmt(avg((r) => r.visits))} | 보내줌 ${fmt(avg((r) => r.letGo))} | 붙잡음 ${fmt(avg((r) => r.holds))} | 종료 시듦 ${fmt(avg((r) => r.endWither))} | 의존도 ${fmt(avg((r) => r.endDependence))} | 시뮬 ${fmt(avg((r) => r.hoursSimmed))}h`,
       );
+
+      if (!holdAlways) {
+        expect(reach, '보내주기: 전 시드 심기 도달').toBe(runs.length);
+        const hPlant = avg((r) => r.hPlant)!;
+        const dPlant = avg((r) => r.dPlant)!;
+        expect(hPlant, '심기 시간 ~27.5h ±3h').toBeGreaterThan(24.5);
+        expect(hPlant, '심기 시간 ~27.5h ±3h').toBeLessThan(30.5);
+        expect(dPlant, '심기 5~8일차').toBeGreaterThanOrEqual(5);
+        expect(dPlant, '심기 5~8일차').toBeLessThanOrEqual(8);
+        for (const r of runs) {
+          // 뿌리내림기 연출은 심기 전 반드시 통과한다 (진입 → 무반응 → 심기)
+          expect(r.hRoot1).not.toBeNull();
+          expect(r.hRoot2).not.toBeNull();
+          expect(r.hRoot1!).toBeLessThanOrEqual(r.hRoot2!);
+          expect(r.hRoot2!).toBeLessThanOrEqual(r.hPlant!);
+        }
+      } else {
+        expect(reach, '붙잡기 남용: 심기 불가').toBe(0);
+      }
     }
   }, 300_000);
 });
