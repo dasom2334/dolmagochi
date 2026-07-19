@@ -303,7 +303,10 @@ export function validateGameData(
   });
 
   // ── timeMarks ──
-  const checkMarks = (marks: { minSec: number; textId: string }[], name: string) => {
+  const checkMarks = (
+    marks: { minSec: number; textId: string; absentTextId?: string }[],
+    name: string,
+  ) => {
     let prev = -Infinity;
     marks.forEach((m, i) => {
       if (m.minSec < prev) errors.push(`timeMarks.${name}[${i}] minSec 오름차순 아님`);

@@ -3615,7 +3615,8 @@
   ],
   "tree.find.awakening": [
     [
-      "열매 하나가 떨어진 자리에서, 작은 것이 당신을 보고 있었다.\n돌은 아니다. 그런데 돌의 눈빛이다. 눈은 없지만.\n그 아이는 도망가지 않았다. 처음부터, 아무것도 무서워하지 않는 아이였다."
+      "열매 하나가 떨어진 자리에서, 작은 것이 당신을 보고 있었다.",
+      "돌은 아니다. 그런데 돌의 눈빛이다. 눈은 없지만."
     ]
   ],
   "tree.find.full-grown": [
@@ -4122,6 +4123,135 @@
   "sys.notification.restEnd.absent": [
     [
       "휴식이 끝났다. 이어서 갈 시간이다."
+    ]
+  ],
+  "tree.awakening.o0.label": [
+    [
+      "천천히 눈높이를 맞춘다"
+    ]
+  ],
+  "tree.awakening.o0.r0": [
+    [
+      "무릎을 굽혀 눈을 맞췄다. 아이는 물러서지 않고, 당신을 마저 보았다.\n인사는 그걸로 충분했다."
+    ]
+  ],
+  "tree.awakening.o1.label": [
+    [
+      "손바닥을 내밀어 본다"
+    ]
+  ],
+  "tree.awakening.o1.r0": [
+    [
+      "손바닥을 내밀자, 아이가 잎끝으로 살짝 짚었다.\n악수라기엔 가볍고, 우연이라기엔 정확했다."
+    ]
+  ],
+  "dlg.companionMeet": [
+    [
+      "그 아이는 도망가지 않았다. 처음부터, 아무것도 무서워하지 않는 아이였다.",
+      "아이는 나무 아래와 당신 곁 사이 어디쯤에 자리를 정했다.\n오늘부터, 여기가 아이의 자리다."
+    ]
+  ],
+  "sys.journal.sessionStartCompanion": [
+    [
+      "창밖, 나무 곁의 아이가 이쪽을 향해 있는 방에서 당신은 시작했다."
+    ]
+  ],
+  "sys.absentAmbient.companion": [
+    [
+      "아이는 창밖 제 나무 곁에서 분주하다. 당신은 문제를 푼다. 각자의 오후다."
+    ],
+    [
+      "잎 흔들리는 소리가 창을 넘어온다. 아이가 잘 있다는 뜻이다. 당신은 다시 집중한다."
+    ]
+  ],
+  "sys.focusEnd.companion": [
+    [
+      "당신은 {mins}분을 집중했다. 창밖의 아이가 기지개를 켜듯 잎을 폈다."
+    ]
+  ],
+  "sys.notification.restEnd.companion": [
+    [
+      "휴식이 끝났다. 창밖의 아이가 이쪽을 보고 있다."
+    ]
+  ],
+  "sys.delegate.wants": [
+    [
+      "오늘 돌은 {action}를 하고 싶은 것 같다."
+    ]
+  ],
+  "sys.delegate.locked": [
+    [
+      "돌이 {action} 쪽을 자꾸 본다. 아직은 준비가 안 됐다 — {item}."
+    ]
+  ],
+  "sys.delegate.personal": [
+    [
+      "오늘 돌은 자기만의 작업을 하고 싶은 것 같다."
+    ]
+  ],
+  "ui.delegate.start": [
+    [
+      "▸ 오늘은 돌에게 맡긴다"
+    ]
+  ],
+  "ui.delegate.confirm": [
+    [
+      "알겠다"
+    ]
+  ],
+  "sys.delegate.wants.lie": [
+    [
+      "오늘 돌은 그냥 누워 있고 싶은 것 같다."
+    ]
+  ],
+  "sys.delegate.wants.read": [
+    [
+      "오늘 돌은 책을 읽고 싶은 것 같다."
+    ]
+  ],
+  "sys.delegate.wants.sun": [
+    [
+      "오늘 돌은 볕을 쬐고 싶은 것 같다."
+    ]
+  ],
+  "sys.delegate.wants.walk": [
+    [
+      "오늘 돌은 밖에 나가고 싶은 것 같다."
+    ]
+  ],
+  "sys.delegate.wants.cook": [
+    [
+      "오늘 돌은 부엌 쪽에 있고 싶은 것 같다."
+    ]
+  ],
+  "sys.delegate.wants.chore": [
+    [
+      "오늘 돌은 방이 정돈되는 걸 보고 싶은 것 같다."
+    ]
+  ],
+  "sys.delegate.locked.read": [
+    [
+      "돌이 자꾸 빈 손을 내려다본다. 읽을 것이 있어야 할 것 같다 — {item}."
+    ]
+  ],
+  "sys.delegate.locked.sun": [
+    [
+      "돌이 창가 쪽을 자꾸 본다. 앉을 자리가 없다 — {item}."
+    ]
+  ],
+  "sys.delegate.locked.walk": [
+    [
+      "돌이 문 쪽을 자꾸 본다. 같이 나가려면 필요한 것이 있다 — {item}."
+    ]
+  ],
+  "sys.delegate.locked.cook": [
+    [
+      "돌이 부엌 쪽으로 기울어 있다. 아직 끓일 것이 없다 — {item}."
+    ]
+  ],
+  "sys.delegate.locked.chore": [
+    [
+      "돌 주변의 먼지를 돌이 신경 쓰는 눈치다. 치울 도구가 없다 — {item}."
     ]
   ]
 }

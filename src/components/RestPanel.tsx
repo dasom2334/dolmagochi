@@ -25,6 +25,8 @@ export function RestPanel({
   nowMs: number;
 }) {
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
+  // 각성 강제 이벤트 (피드백6-1): 응답 전까지 휴식 탭 전체가 열리지 않는다
+  if (state.awakeningPending) return <AwakeningEvent />;
   // 휴식 타이머가 아직 다 흐르지 않았으면(권장 휴식 미완료) 시작 전 되묻는다
   const restIncomplete = state.rest.endsAt > 0 && nowMs < state.rest.endsAt;
   const [confirming, setConfirming] = useState(false);
@@ -588,6 +590,39 @@ function VisitLeavePrompt() {
         >
           {t(vl.letGoLabelId)}
         </button>
+      </div>
+    </div>
+  );
+}
+
+
+/** 3차 각성 — 강제 선택 이벤트 (피드백6-1). 선택 전까지 휴식이 시작되지 않는다 */
+function AwakeningEvent() {
+  const def = gameData.treeFinds.find((f) => f.id === 'awakening');
+  const pages = def ? (gameData.text[def.textId]?.[0] ?? []) : [];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+      <div style={card}>
+        <PagesView pages={pages}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[UI.awakening.option0, UI.awakening.option1].map((id, i) => (
+              <button
+                key={id}
+                className="hv"
+                style={btnDashed}
+                onClick={() =>
+                  dispatch({
+                    type: 'AWAKENING_CHOICE',
+                    optionIndex: i,
+                    nowMs: now(),
+                  })
+                }
+              >
+                {t(id)}
+              </button>
+            ))}
+          </div>
+        </PagesView>
       </div>
     </div>
   );
