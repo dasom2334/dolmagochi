@@ -178,10 +178,13 @@ describe('집중 중 조용한 선택지', () => {
       ...ticks(BALANCE.CHOICE_FIRST_AT_SEC),
       { type: 'CHOICE_PICKED', optionIndex: 1, nowMs: T0 },
     ]);
-    const expected = T('act.read.c0.o1.r0');
+    // 결과 문구는 변형 풀에서 추첨된다 — 어느 변형이든 서술·일지가 일치하면 된다
+    const variants = (gameData.text['act.read.c0.o1.r0'] ?? []).map((pages) =>
+      pages.join('\n'),
+    );
     expect(s.session.choiceState).toBeNull();
-    expect(s.session.narratorLine).toBe(expected);
-    expect(s.session.journal.map((j) => j.text)).toContain(expected);
+    expect(variants).toContain(s.session.narratorLine);
+    expect(s.session.journal.map((j) => j.text)).toContain(s.session.narratorLine);
     expect(s.memory['choice']).toBeDefined();
   });
 
@@ -336,7 +339,7 @@ describe('휴식 대화', () => {
 
   it('포섀도: 예약 → 다음 세션 이벤트 → 결과·플래그', () => {
     // foreshadow[1] (산책 약속 → promised-walk)을 지정 추첨
-    let s = run(toRest(), [{ type: 'TALK' }], seq([0.1, 0.34]));
+    let s = run(toRest(), [{ type: 'TALK' }], seq([0.1, 0.2]));
     expect(s.rest.talkState?.kind).toBe('foreshadow');
     expect(s.rest.talkState?.pages.join('\n')).toBe(T('fore.door.line'));
     expect(s.pendingEvent).not.toBeNull();
@@ -354,7 +357,7 @@ describe('휴식 대화', () => {
 
   it('행동 조건 포섀도: 예약된 뒤 산책 세션에선 등장하지 않고 대기, 이후 적합 세션에 등장', () => {
     // read 세션 → 휴식 → 문(door) 포섀도 예약 (when.notActions=['walk'])
-    let s = run(toRest(), [{ type: 'TALK' }], seq([0.1, 0.34]));
+    let s = run(toRest(), [{ type: 'TALK' }], seq([0.1, 0.2]));
     expect(s.rest.talkState?.pages.join('\n')).toBe(T('fore.door.line'));
     expect(s.pendingEvent?.when?.notActions).toContain('walk');
 
@@ -1141,7 +1144,7 @@ describe('apart(빈자리) 시대', () => {
     });
     const firstHold = gameData.text['dlg.visitLeave.holdResult'][0].join('\n');
     expect(s.session.journal.map((j) => j.text)).toContain(firstHold);
-    expect(firstHold).toContain('돌은 당신의 만류에 거절할 수 없었다.');
+    expect(firstHold).toContain('돌은 당신의 만류를 거절하지 못했다.');
 
     // 2회차 붙잡기 — 변형 인덱스 상승 (더 무거운 문구)
     s = run(s, [
