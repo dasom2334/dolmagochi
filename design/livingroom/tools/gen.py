@@ -1,6 +1,9 @@
-import numpy as np, colorsys
+import numpy as np, colorsys, sys
 
-g = np.load('refgrid.npy').astype(int)
+GRID = sys.argv[1] if len(sys.argv)>1 else 'refgrid.npy'
+SUF  = sys.argv[2] if len(sys.argv)>2 else ''
+g = np.load(GRID).astype(int)
+g0 = np.load('refgrid.npy').astype(int)   # 원본(발광체 마스크·색 추출용)
 GY, GX = 72, 96
 
 def hx(c): return f"#{int(c[0]):02x}{int(c[1]):02x}{int(c[2]):02x}"
@@ -53,8 +56,8 @@ for y in range(4,34):
 for y in range(12,21):
     for x in range(50,63):
         if layer[y,x]=='scene':
-            r,gr,b=g[y,x]
-            if r>240 and gr>160: layer[y,x]='sun'
+            r,gr,b=g0[y,x]
+            if r>200 and gr>165: layer[y,x]='sun'
 
 # 돌 (실루엣 수동)
 ORB = {26:(54,60),27:(53,61),28:(53,62),29:(53,63),30:(53,64),31:(52,64),
@@ -69,13 +72,13 @@ for y in range(38,49):
 # 벽난로 불꽃
 for y in range(39,48):
     for x in range(6,18):
-        r,gr,b=g[y,x]
+        r,gr,b=g0[y,x]
         if r>170 and r-b>80: layer[y,x]='fire'
 
 # 촛불
 for y in range(23,32):
     for x in range(3,8):
-        d = np.abs(g[y,x]-np.array([53,33,66])).sum()
+        d = np.abs(g0[y,x]-g0[26,10]).sum()
         if d>60: layer[y,x]='candle'
 
 # 창턱 화분
@@ -134,8 +137,12 @@ def cells_of(name):
     return [(y,x) for y in range(GY) for x in range(GX) if layer[y,x]==name]
 
 regions={}
-def quant(name,cells,k,prefix):
-    px=[g[y,x] for y,x in cells]
+def quant(name,cells,k,prefix,srcg=None):
+    if not cells:
+        regions[name]=dict(cells=[],C=np.zeros((k,3)),a=np.array([],int),prefix=prefix); return
+    sg = g if srcg is None else srcg
+    px=[sg[y,x] for y,x in cells]
+    k=min(k,len(px))
     C,a=kmeans(px,k)
     regions[name]=dict(cells=cells,C=C,a=a,prefix=prefix)
 
@@ -145,17 +152,21 @@ quant('sky',sky_cells,7,'k')
 quant('hill',hill_cells,4,'h')
 tree_cells=cells_of('tree')
 quant('tree',tree_cells,5,'t')
-quant('sun',cells_of('sun'),2,'sun')
+quant('sun',cells_of('sun'),2,'sun',srcg=g0)
 quant('orb',cells_of('orb'),7,'o')
 quant('rug',cells_of('rug'),5,'rg')
-quant('fire',cells_of('fire'),4,'f')
-quant('candle',cells_of('candle'),3,'cd')
+quant('fire',cells_of('fire'),4,'f',srcg=g0)
+quant('candle',cells_of('candle'),3,'cd',srcg=g0)
 quant('plant',cells_of('plant'),3,'pl')
 quant('props',cells_of('props'),5,'pp')
 for i in range(1,7):
     quant(f'book{i}',cells_of(f'book{i}'),2,f'b{i}x')
 static_cells=cells_of('static')
 quant('static',static_cells,26,'s')
+
+if SUF:
+    C=regions['orb']['C']; lum=C.mean(1,keepdims=True)
+    regions['orb']['C']=lum+(C-lum)*0.45
 
 # 돌 눈 제거: 어두운 돌 셀 → 이웃 톤
 oreg=regions['orb']; oc=oreg['cells']; oa=oreg['a']; oC=oreg['C']
@@ -244,7 +255,7 @@ svg += sprite('props','floor-props')
 svg += sprite('rug','rug')
 svg += sprite('orb','orb')
 
-with open('art_svg.txt','w') as f: f.write('\n'.join(svg))
+with open(f'art_svg{SUF}.txt','w') as f: f.write('\n'.join(svg))
 
 # ---------- 팔레트 CSS ----------
 def transform(c, mode):
@@ -273,7 +284,7 @@ for name,reg in regions.items():
         if name in THEMED:
             lines_day.append(f"{var_for(name,i)}: {hx(transform(c,'day'))};")
             lines_night.append(f"{var_for(name,i)}: {hx(transform(c,'night'))};")
-with open('palette_css.txt','w') as f:
+with open(f'palette_css{SUF}.txt','w') as f:
     f.write("/* BASE(노을=원본) */\n"+"\n".join(lines_base))
     f.write("\n\n/* DAY */\n"+"\n".join(lines_day))
     f.write("\n\n/* NIGHT */\n"+"\n".join(lines_night))
