@@ -28,6 +28,10 @@
     --snow-p:  #f4f6fb;
     --cloud-1: #9aa4b5;
     --cloud-2: #7e8899;
+    /* 광원: 창문 빛 / 벽난로 빛 / 촛불 빛 (색, 세기) */
+    --wl: #fff0c8; --wl-a: .20;
+    --fl: #ffa04a; --fl-a: .10;
+    --cl: #ffcf8a; --cl-a: .08;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -98,11 +102,13 @@
     --k0: #39203e; --k1: #562b3c; --k2: #ae653e; --k3: #a5456a;
     --k4: #d55850; --k5: #f57639; --k6: #fc9840;
     --sun0: #fca951; --sun1: #fcce8b;
+    --wl: #ff9a4a; --wl-a: .30; --fl-a: .16; --cl-a: .12;
   }
   #t-night:checked ~ .scene {
     --k0: #0e1430; --k1: #131a3a; --k2: #1a2348; --k3: #232e56;
     --k4: #2c3862; --k5: #364471; --k6: #41507e;
     --page-bg: #150e1d;
+    --wl: #a8bcf0; --wl-a: .16; --fl-a: .30; --cl-a: .18;
   }
   #t-night:checked ~ .scene #sun   { display: none; }
   #t-night:checked ~ .scene #moon  { display: inline; }
@@ -112,7 +118,13 @@
   #t-night:checked ~ .scene { --h0: #12172f; --h1: #1a2140; --h2: #242c52; --h3: #303a64; }
   #t-night:checked ~ #s-winter:checked ~ .scene { --h0: #3a4166; --h1: #4d5480; --h2: #6a729c; --h3: #8891b5; }
 
+  /* 계절이 광원에 관여하는 예: 겨울 낮의 창문 빛은 차가운 흰색 */
+  #t-day:checked ~ #s-winter:checked ~ .scene { --wl: #eef4fc; --wl-a: .24; }
+
   /* ===== 날씨 오버레이 (에셋 4: 맑음=없음, 구름은 흐림·비·눈 공용) ===== */
+  #w-cloud:checked ~ .scene { --wl: #c8d2e0; --wl-a: .10; }
+  #w-rain:checked  ~ .scene { --wl: #93a4bc; --wl-a: .07; }
+  #w-snow:checked  ~ .scene { --wl: #dde8f6; --wl-a: .16; }
   #w-cloud:checked ~ .scene #clouds,
   #w-rain:checked  ~ .scene #clouds,
   #w-snow:checked  ~ .scene #clouds { display: inline; }
@@ -129,6 +141,11 @@
   #p-light:checked ~ #w-cloud:checked  ~ .scene #light-cloud  { display: inline; }
   #p-light:checked ~ #w-rain:checked   ~ .scene #light-rain   { display: inline; }
   #p-light:checked ~ #w-snow:checked   ~ .scene #light-snow   { display: inline; }
+
+  /* ===== 광원 토글 ===== */
+  #p-lwin:not(:checked)    ~ .scene #lp-window { display: none; }
+  #p-lfire:not(:checked)   ~ .scene #lp-fire   { display: none; }
+  #p-lcandle:not(:checked) ~ .scene #lp-candle { display: none; }
 
   /* ===== 창문 효과 (에셋 3) ===== */
   #w-rain:checked   ~ .scene #fx-drops   { display: inline; }
@@ -161,6 +178,8 @@
   .firefly-a   { animation: twinkle 1.8s ease-in-out infinite; }
   .firefly-b   { animation: twinkle 2.6s ease-in-out -0.9s infinite; }
   .cloud-drift { animation: cloud-move 34s linear infinite alternate; }
+  .glow-flicker      { animation: glow-breathe 1.3s ease-in-out infinite; }
+  .glow-flicker-slow { animation: glow-breathe 2.2s ease-in-out -0.8s infinite; }
 
   @keyframes flick-soft   { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(.93); } }
   @keyframes flick-core   { 0%,100% { transform: scaleY(1); opacity: 1; } 50% { transform: scaleY(.84); opacity: .85; } }
@@ -169,6 +188,7 @@
   @keyframes fall-30      { to { transform: translateY(30px); } }
   @keyframes sway         { 0%,100% { margin-left: 0; } 50% { margin-left: 2px; } }
   @keyframes cloud-move   { from { transform: translateX(-2px); } to { transform: translateX(3px); } }
+  @keyframes glow-breathe { 0%,100% { opacity: 1; } 50% { opacity: .72; } }
 
   @media (prefers-reduced-motion: reduce) {
     .scene svg * { animation: none !important; }
@@ -211,7 +231,10 @@
   #w-cloud:checked  ~ .panel label[for="w-cloud"],
   #w-rain:checked   ~ .panel label[for="w-rain"],
   #w-snow:checked   ~ .panel label[for="w-snow"],
-  #p-light:checked  ~ .panel label[for="p-light"] {
+  #p-light:checked  ~ .panel label[for="p-light"],
+  #p-lwin:checked    ~ .panel label[for="p-lwin"],
+  #p-lfire:checked   ~ .panel label[for="p-lfire"],
+  #p-lcandle:checked ~ .panel label[for="p-lcandle"] {
     background: #d98e4a;
     border-color: #d98e4a;
     color: #2a1626;
@@ -222,6 +245,9 @@
 <body>
 
   <input class="ctl" type="checkbox" id="p-light" checked>
+  <input class="ctl" type="checkbox" id="p-lwin" checked>
+  <input class="ctl" type="checkbox" id="p-lfire" checked>
+  <input class="ctl" type="checkbox" id="p-lcandle" checked>
   <input class="ctl" type="radio" name="time" id="t-day" checked>
   <input class="ctl" type="radio" name="time" id="t-sunset">
   <input class="ctl" type="radio" name="time" id="t-night">
@@ -264,9 +290,15 @@
     </div>
     <div class="divider"></div>
     <div class="group">
+      <span class="g-label">광원</span>
+      <label for="p-lwin">창문 빛</label>
+      <label for="p-lfire">벽난로 빛</label>
+      <label for="p-lcandle">촛불 빛</label>
+    </div>
+    <div class="group">
       <span class="g-label">실험</span>
-      <label for="p-light">조명 오버레이</label>
-      <span class="note">끄면 고정 중립 방이 그대로 보임 — 조명 레이어의 기여를 A/B 비교</span>
+      <label for="p-light">앰비언트 오버레이</label>
+      <span class="note">광원은 개별 SVG 셰이프(screen 블렌드) — 시간·계절·날씨가 색과 세기를 바꿈</span>
     </div>
   </div>
 
