@@ -273,6 +273,17 @@ export function migrateState(state: GameState): GameState | null {
       settings: { ...s.settings, lastRoom: s.settings.lastRoom ?? 'living' },
     };
   }
+  // v23 → v24: 각성 강제 이벤트·자유행동 위임(플레이테스트 피드백) —
+  // 포섀도 풀 개편(영수증 삭제)으로 저장된 인덱스가 어긋나므로 foreUsed 리셋
+  if (s.schemaVersion === 23) {
+    s = {
+      ...s,
+      schemaVersion: 24,
+      awakeningPending: s.awakeningPending ?? false,
+      delegate: null,
+      foreUsed: [],
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

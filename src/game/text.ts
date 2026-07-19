@@ -37,6 +37,7 @@ export function fillPages(
 export const SYS = {
   journal: {
     sessionStartAbsent: 'sys.journal.sessionStartAbsent',
+    sessionStartCompanion: 'sys.journal.sessionStartCompanion',
     rockReturned: 'sys.journal.rockReturned',
     rockSick: 'sys.journal.rockSick',
     rockRecovered: 'sys.journal.rockRecovered',
@@ -56,8 +57,22 @@ export const SYS = {
     visitEnd: 'sys.journal.visitEnd',
   },
   absentAmbient: 'sys.absentAmbient',
+  /** 3차 각성 강제 이벤트 (피드백6) */
+  awakening: {
+    result0: 'tree.awakening.o0.r0',
+    result1: 'tree.awakening.o1.r0',
+  },
+  companionMeet: 'dlg.companionMeet',
+  /** 자유행동 위임 (피드백2) — 돌이 원하는 세션 공개 */
+  delegate: {
+    wants: 'sys.delegate.wants',
+    locked: 'sys.delegate.locked',
+    personal: 'sys.delegate.personal',
+  },
+  absentAmbientCompanion: 'sys.absentAmbient.companion',
   focusEnd: 'sys.focusEnd',
   focusEndAbsent: 'sys.focusEndAbsent',
+  focusEndCompanion: 'sys.focusEnd.companion',
   restSummary: 'sys.restSummary',
   talkSpent: 'sys.talkSpent',
   talkSpentAbsent: 'sys.talkSpent.absent',
@@ -85,6 +100,7 @@ export const SYS = {
   notification: {
     restEnd: 'sys.notification.restEnd',
     restEndAbsent: 'sys.notification.restEnd.absent',
+    restEndCompanion: 'sys.notification.restEnd.companion',
     focusMark: 'sys.notification.focusMark', // {min}
   },
   singleTab: {
@@ -233,6 +249,14 @@ export const UI = {
   approach: {
     near: 'ui.approach.near',
     apart: 'ui.approach.apart',
+  },
+  awakening: {
+    option0: 'tree.awakening.o0.label',
+    option1: 'tree.awakening.o1.label',
+  },
+  delegate: {
+    start: 'ui.delegate.start',
+    confirm: 'ui.delegate.confirm',
   },
   buttons: {
     endFocus: 'ui.buttons.endFocus',

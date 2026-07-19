@@ -28,7 +28,7 @@ import {
 } from './timer';
 import { drawMemory, remember, resolveReflection } from './memory';
 import { affectionTier, drawEligibleLine, selectDialoguePool } from './dialogue';
-import { personalWorkProb, pickFreeAction } from './freeAction';
+import { careTargetNeed, personalWorkProb, pickFreeAction } from './freeAction';
 import {
   applyNeedsGated,
   clampStat,
@@ -66,7 +66,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 23;
+export const SCHEMA_VERSION = 24;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -114,6 +114,8 @@ export function createInitialState(
     dialogue: { usedByPool: {} },
     pendingEvent: null,
     foreUsed: [],
+    awakeningPending: false,
+    delegate: null,
     endingTalksSeen: 0,
     lastEndingTalkDate: null,
     relationTier: 1,
@@ -587,6 +589,7 @@ function reduce(
       return {
         ...state,
         selectedAction: event.actionId,
+        delegate: null,
         pendingUmbrella: false,
         pendingApproach: null,
       };
@@ -594,6 +597,17 @@ function reduce(
 
     case 'START_FOCUS': {
       if (state.phase !== 'actionSelect' && state.phase !== 'rest') return state;
+      // 각성 강제 이벤트(피드백6) — 응답 전까지 다음 세션도 막는다
+      if (state.awakeningPending) return state;
+      // 자유행동 위임(피드백2): 돌이 고른 행동으로 치환해 실제 세션을 연다.
+      // locked(미해금)는 확인만 가능 — 세션이 시작되지 않는다
+      if (state.selectedAction === 'free' && state.delegate) {
+        if (state.delegate.kind === 'locked') return state;
+        state =
+          state.delegate.kind === 'action'
+            ? { ...state, selectedAction: state.delegate.action, delegate: null }
+            : { ...state, delegate: null };
+      }
       const action = actionOf(data, state.selectedAction);
       if (!action) return state;
       // 선택된 행동이 지금 가용한지 검증 — 회복 후 남은 'nurse'나
@@ -750,7 +764,16 @@ function reduce(
       }
       const startLine = present
         ? joinPages(pickText(data.text, action.startLineId, rng))
-        : joinPages(pickText(data.text, SYS.journal.sessionStartAbsent, rng));
+        : joinPages(
+            pickText(
+              data.text,
+              // 각성 후에는 '돌이 없는 방'이 아니라 아이가 있는 창밖 (피드백6-3)
+              state.planted && companionMet(state.memory)
+                ? SYS.journal.sessionStartCompanion
+                : SYS.journal.sessionStartAbsent,
+              rng,
+            ),
+          );
       // 직전 휴식 준수 배율 — 이번 세션의 게이지 정산에 곱한다 (개정 v4-4).
       // 1 미만이면 관찰 문장으로 텔레그래프 (수치 비노출 — 돌의 기색으로만).
       const restMult = restComplianceMult(state, event.nowMs);
@@ -778,7 +801,11 @@ function reduce(
       journal = addJournal(journal, 0, startLine);
       if (restLine) journal = addJournal(journal, 0, restLine);
       if (visitJournal) journal = addJournal(journal, 0, visitJournal);
-      const absentAmb = data.text[SYS.absentAmbient]?.[0];
+      const absentAmbKey =
+        state.planted && companionMet(state.memory)
+          ? SYS.absentAmbientCompanion
+          : SYS.absentAmbient;
+      const absentAmb = data.text[absentAmbKey]?.[0];
       return {
         ...next,
         phase: 'focus',
@@ -820,7 +847,13 @@ function reduce(
       // 1) 화자 관찰 로테이션 — 카탈로그 변형을 순서대로 순환
       // 선택지가 떠 있어도 서술은 계속 흐른다(선택지는 아래 별도 박스로 남는다)
       const ambientVariants =
-        data.text[present ? action.ambientId : SYS.absentAmbient] ?? [];
+        data.text[
+          present
+            ? action.ambientId
+            : next.planted && companionMet(next.memory)
+              ? SYS.absentAmbientCompanion
+              : SYS.absentAmbient
+        ] ?? [];
       if (ambientVariants.length > 0) {
         const wantIdx =
           Math.floor(el / BALANCE.AMBIENT_ROTATE_SEC) % ambientVariants.length;
@@ -1647,7 +1680,8 @@ function reduce(
       // 열매와 흔들림을 같은 날 겪고, 열매 다음 날 각성에 닿을 수 있다.
       // 단계·계절·선행(after)이 맞는 미발견 후보 중 우선순위 → 단계 순
       let lastTreeFindDate = next.lastTreeFindDate;
-      if (planted && plantedAt !== null) {
+      let awakeningPending = next.awakeningPending;
+      if (planted && plantedAt !== null && !awakeningPending) {
         const stage = treeStage(plantedAt, treeBondDays, event.nowMs);
         const season = resolveSeason(next.settings, event.nowMs);
         const dailyOpen = lastTreeFindDate !== today;
@@ -1666,18 +1700,24 @@ function reduce(
           );
         if (cands.length > 0) {
           const found = cands[0];
-          memory = remember(
-            memory,
-            `tree-${found.id}`,
-            BALANCE.MEMORY_WEIGHT_ACTION,
-            event.nowMs,
-          );
-          lastTreeFindDate = today;
-          journal = addJournal(
-            journal,
-            elapsed,
-            joinPages(pickText(data.text, found.textId, rng)),
-          );
+          if (found.id === 'awakening') {
+            // 각성(피드백6-1): 일지가 아니라 강제 선택 이벤트 —
+            // 기록·배지는 AWAKENING_CHOICE에서, 응답 전까지 휴식이 열리지 않는다
+            awakeningPending = true;
+          } else {
+            memory = remember(
+              memory,
+              `tree-${found.id}`,
+              BALANCE.MEMORY_WEIGHT_ACTION,
+              event.nowMs,
+            );
+            lastTreeFindDate = today;
+            journal = addJournal(
+              journal,
+              elapsed,
+              joinPages(pickText(data.text, found.textId, rng)),
+            );
+          }
         }
       }
 
@@ -1718,6 +1758,7 @@ function reduce(
         apart,
         memory,
         era,
+        awakeningPending,
         sproutGrowth,
         witherLevel,
         bloomSeen,
@@ -1751,7 +1792,11 @@ function reduce(
             fillPages(
               pickText(
                 data.text,
-                sessionHadRock ? SYS.focusEnd : SYS.focusEndAbsent,
+                sessionHadRock
+                  ? SYS.focusEnd
+                  : planted && companionMet(memory)
+                    ? SYS.focusEndCompanion
+                    : SYS.focusEndAbsent,
                 rng,
               ),
               { mins: displayMins },
@@ -1980,6 +2025,27 @@ function reduce(
             'apartVisit',
             data.dialogues.apartVisit,
           );
+        // 각성 후 첫 대화는 아이와의 첫 만남으로 고정 (피드백6-2)
+        if (
+          state.planted &&
+          companionMet(state.memory) &&
+          !state.flags.includes('companion-met-talk')
+        ) {
+          return {
+            ...state,
+            flags: [...state.flags, 'companion-met-talk'],
+            rest: {
+              ...state.rest,
+              talkPressed: true,
+              talkState: {
+                kind: 'milestone',
+                pages: pickText(data.text, SYS.companionMeet, rng),
+                hasChoice: false,
+                done: false,
+              },
+            },
+          };
+        }
         // 3차 (M15): 동행자(씨앗의 아이)를 만난 뒤에는 회상과 번갈아 곁에 있다
         if (state.planted && companionMet(state.memory) && rng() < 0.5) {
           return serveTalkPool(
@@ -2318,7 +2384,71 @@ function reduce(
       return { ...state, settings: { ...state.settings, notifAsked: true } };
     }
 
+    case 'AWAKENING_CHOICE': {
+      // 각성 강제 이벤트 응답 (피드백6-1) — 여기서 비로소 기록·배지가 남고 휴식이 열린다
+      if (!state.awakeningPending) return state;
+      const def = data.treeFinds.find((f) => f.id === 'awakening');
+      if (!def) return state;
+      const line = joinPages(pickText(data.text, def.textId, rng));
+      const result = joinPages(
+        pickText(
+          data.text,
+          event.optionIndex === 0 ? SYS.awakening.result0 : SYS.awakening.result1,
+          rng,
+        ),
+      );
+      const el = state.session.elapsedSec;
+      let journal = addJournal(state.session.journal, el, line);
+      journal = addJournal(journal, el, result);
+      return {
+        ...state,
+        awakeningPending: false,
+        memory: remember(
+          state.memory,
+          'tree-awakening',
+          BALANCE.MEMORY_WEIGHT_ACTION,
+          event.nowMs,
+        ),
+        lastTreeFindDate: dateKey(event.nowMs),
+        session: { ...state.session, journal, narratorLine: result },
+      };
+    }
+
+    case 'FREE_DELEGATE': {
+      // 자유행동 위임 (피드백2): 돌의 최우선 욕구를 채우는 행동을 돌이 고른다.
+      // 미해금이면 구매 힌트(locked), 결핍이 없으면 개인작업(personal)
+      if (state.phase !== 'actionSelect' && state.phase !== 'rest') return state;
+      if (state.selectedAction !== 'free' || !isRockPresent(state)) return state;
+      if (state.presence.sick) return state;
+      const target = careTargetNeed(state.stats.needs);
+      if (!target) return { ...state, delegate: { kind: 'personal' } };
+      const fills = data.actions.filter(
+        (a) =>
+          a.id !== 'free' &&
+          a.id !== 'nurse' &&
+          a.outcome?.needs?.[target] !== undefined,
+      );
+      if (fills.length === 0) return { ...state, delegate: { kind: 'personal' } };
+      // 해금된 후보를 우선 — 전부 잠겨 있을 때만 구매 힌트로 이어진다
+      const unlocked = fills.filter((a) => isActionAvailable(a, state));
+      const pool = unlocked.length > 0 ? unlocked : fills;
+      const chosen = pool[Math.floor(rng() * pool.length)];
+      if (!isActionAvailable(chosen, state)) {
+        const item = chosen.unlock?.ownedItems?.[0];
+        return item
+          ? { ...state, delegate: { kind: 'locked', action: chosen.id, item } }
+          : { ...state, delegate: { kind: 'personal' } };
+      }
+      return { ...state, delegate: { kind: 'action', action: chosen.id } };
+    }
+
+    case 'DELEGATE_CANCEL': {
+      if (!state.delegate) return state;
+      return { ...state, delegate: null };
+    }
+
     case 'REST_END': {
+      if (state.awakeningPending) return state;
       if (state.phase !== 'rest') return state;
       const exited = exitRest(state, data, rng);
       let next = exited.state;
