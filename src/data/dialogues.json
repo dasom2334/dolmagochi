@@ -749,6 +749,42 @@
     {
       "textId": "dlg.companion.14",
       "intimacy": 1
+    },
+    {
+      "textId": "dlg.companion.15",
+      "intimacy": 1,
+      "when": {
+        "ownedItems": [
+          "windchime"
+        ]
+      }
+    },
+    {
+      "textId": "dlg.companion.16",
+      "intimacy": 1,
+      "when": {
+        "ownedItems": [
+          "birdfeeder"
+        ]
+      }
+    },
+    {
+      "textId": "dlg.companion.17",
+      "intimacy": 1,
+      "when": {
+        "ownedItems": [
+          "lanternpost"
+        ]
+      }
+    },
+    {
+      "textId": "dlg.companion.18",
+      "intimacy": 1,
+      "when": {
+        "ownedItems": [
+          "guestcushion"
+        ]
+      }
     }
   ]
 }

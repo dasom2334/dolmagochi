@@ -242,3 +242,41 @@ describe('각성 강제 이벤트 (피드백6-1)', () => {
     expect(companionMet(s.memory)).toBe(true);
   });
 });
+
+describe('3차 콘텐츠 밀도 (피드백7) — 각성 이후가 비지 않는다', () => {
+  const findsAt = (stage: number) =>
+    gameData.treeFinds.filter((f) => f.minStage === stage);
+
+  it('모든 성장 단계에 발견이 있다 — 90~180일(울창) 구간도', () => {
+    for (let stage = 0; stage <= 5; stage++) {
+      expect(findsAt(stage).length, `단계 ${stage} 발견 없음`).toBeGreaterThan(0);
+    }
+  });
+
+  it('각성 이후 구간(2~4단계)에 계절 무관 발견이 충분하다', () => {
+    // 계절 한정만 있으면 계절이 안 맞는 회차는 아무것도 못 본다
+    const evergreen = [2, 3, 4].flatMap((s) =>
+      findsAt(s).filter((f) => f.season === undefined),
+    );
+    expect(evergreen.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('울창(90일)에 도달하면 그 단계 발견이 실제로 나온다', () => {
+    let s = planted(95);
+    const seen: string[] = [];
+    // 하루 1발견 게이트 — 날짜를 넘기며 몇 번 확인
+    for (let d = 0; d < 4; d++) {
+      s = session({ ...s, phase: 'actionSelect' }, T0 + d * DAY);
+      for (const k of Object.keys(s.memory))
+        if (k.startsWith('tree-') && !seen.includes(k)) seen.push(k);
+    }
+    expect(seen.length).toBeGreaterThan(1);
+  });
+
+  it('3차 소품을 들이면 아이 대사가 늘어난다', () => {
+    const withItems = gameData.dialogues.companion.filter(
+      (l) => l.when?.ownedItems !== undefined,
+    );
+    expect(withItems.length).toBeGreaterThanOrEqual(4);
+  });
+});

@@ -1,466 +1,71 @@
 [
-  {
-    "id": "act-lie",
-    "nameId": "badge.act-lie.name",
-    "lineId": "badge.act-lie.line",
-    "when": {
-      "token": "lie"
-    }
-  },
-  {
-    "id": "act-read",
-    "nameId": "badge.act-read.name",
-    "lineId": "badge.act-read.line",
-    "when": {
-      "token": "read"
-    }
-  },
-  {
-    "id": "act-sun",
-    "nameId": "badge.act-sun.name",
-    "lineId": "badge.act-sun.line",
-    "when": {
-      "token": "sun"
-    }
-  },
-  {
-    "id": "act-walk",
-    "nameId": "badge.act-walk.name",
-    "lineId": "badge.act-walk.line",
-    "when": {
-      "token": "walk"
-    }
-  },
-  {
-    "id": "act-cook",
-    "nameId": "badge.act-cook.name",
-    "lineId": "badge.act-cook.line",
-    "when": {
-      "token": "cook"
-    }
-  },
-  {
-    "id": "act-chore",
-    "nameId": "badge.act-chore.name",
-    "lineId": "badge.act-chore.line",
-    "when": {
-      "token": "chore"
-    }
-  },
-  {
-    "id": "act-free",
-    "nameId": "badge.act-free.name",
-    "lineId": "badge.act-free.line",
-    "when": {
-      "token": "free"
-    }
-  },
-  {
-    "id": "first-choice",
-    "nameId": "badge.first-choice.name",
-    "lineId": "badge.first-choice.line",
-    "when": {
-      "token": "choice"
-    }
-  },
-  {
-    "id": "first-buy",
-    "nameId": "badge.first-buy.name",
-    "lineId": "badge.first-buy.line",
-    "when": {
-      "tokenPrefix": "buy-"
-    }
-  },
-  {
-    "id": "personal-work",
-    "nameId": "badge.personal-work.name",
-    "lineId": "badge.personal-work.line",
-    "when": {
-      "token": "personalWork"
-    }
-  },
-  {
-    "id": "crisis-retreat",
-    "nameId": "badge.crisis-retreat.name",
-    "lineId": "badge.crisis-retreat.line",
-    "when": {
-      "crisisArc": "retreat"
-    }
-  },
-  {
-    "id": "crisis-sick",
-    "nameId": "badge.crisis-sick.name",
-    "lineId": "badge.crisis-sick.line",
-    "when": {
-      "crisisArc": "sick"
-    }
-  },
-  {
-    "id": "ms-stage-up-2",
-    "nameId": "badge.ms-stage-up-2.name",
-    "lineId": "badge.ms-stage-up-2.line",
-    "when": {
-      "milestone": "stage-up-2"
-    }
-  },
-  {
-    "id": "ms-stage-up-3",
-    "nameId": "badge.ms-stage-up-3.name",
-    "lineId": "badge.ms-stage-up-3.line",
-    "when": {
-      "milestone": "stage-up-3"
-    }
-  },
-  {
-    "id": "ms-hours-50",
-    "nameId": "badge.ms-hours-50.name",
-    "lineId": "badge.ms-hours-50.line",
-    "when": {
-      "milestone": "hours-50"
-    }
-  },
-  {
-    "id": "tier-2",
-    "nameId": "badge.tier-2.name",
-    "lineId": "badge.tier-2.line",
-    "when": {
-      "minTier": 2
-    }
-  },
-  {
-    "id": "tier-4",
-    "nameId": "badge.tier-4.name",
-    "lineId": "badge.tier-4.line",
-    "when": {
-      "minTier": 4
-    }
-  },
-  {
-    "id": "tier-7",
-    "nameId": "badge.tier-7.name",
-    "lineId": "badge.tier-7.line",
-    "when": {
-      "minTier": 7
-    }
-  },
-  {
-    "id": "use-nightdrink-milk",
-    "nameId": "shop.nightdrink.var.milk",
-    "lineId": "shop.nightdrink.use.milk",
-    "when": {
-      "token": "use-nightdrink-milk"
-    }
-  },
-  {
-    "id": "use-nightdrink-cocoa",
-    "nameId": "shop.nightdrink.var.cocoa",
-    "lineId": "shop.nightdrink.use.cocoa",
-    "when": {
-      "token": "use-nightdrink-cocoa"
-    }
-  },
-  {
-    "id": "use-nightdrink-barley",
-    "nameId": "shop.nightdrink.var.barley",
-    "lineId": "shop.nightdrink.use.barley",
-    "when": {
-      "token": "use-nightdrink-barley"
-    }
-  },
-  {
-    "id": "use-lunchbox-riceball",
-    "nameId": "shop.lunchbox.var.riceball",
-    "lineId": "shop.lunchbox.use.riceball",
-    "when": {
-      "token": "use-lunchbox-riceball"
-    }
-  },
-  {
-    "id": "use-lunchbox-sandwich",
-    "nameId": "shop.lunchbox.var.sandwich",
-    "lineId": "shop.lunchbox.use.sandwich",
-    "when": {
-      "token": "use-lunchbox-sandwich"
-    }
-  },
-  {
-    "id": "use-lunchbox-fruit",
-    "nameId": "shop.lunchbox.var.fruit",
-    "lineId": "shop.lunchbox.use.fruit",
-    "when": {
-      "token": "use-lunchbox-fruit"
-    }
-  },
-  {
-    "id": "use-tea-green",
-    "nameId": "shop.tea.var.green",
-    "lineId": "shop.tea.use.green",
-    "when": {
-      "token": "use-tea-green"
-    }
-  },
-  {
-    "id": "use-tea-black",
-    "nameId": "shop.tea.var.black",
-    "lineId": "shop.tea.use.black",
-    "when": {
-      "token": "use-tea-black"
-    }
-  },
-  {
-    "id": "use-tea-coffee",
-    "nameId": "shop.tea.var.coffee",
-    "lineId": "shop.tea.use.coffee",
-    "when": {
-      "token": "use-tea-coffee"
-    }
-  },
-  {
-    "id": "use-candle-lavender",
-    "nameId": "shop.candle.var.lavender",
-    "lineId": "shop.candle.use.lavender",
-    "when": {
-      "token": "use-candle-lavender"
-    }
-  },
-  {
-    "id": "use-candle-woody",
-    "nameId": "shop.candle.var.woody",
-    "lineId": "shop.candle.use.woody",
-    "when": {
-      "token": "use-candle-woody"
-    }
-  },
-  {
-    "id": "use-candle-citrus",
-    "nameId": "shop.candle.var.citrus",
-    "lineId": "shop.candle.use.citrus",
-    "when": {
-      "token": "use-candle-citrus"
-    }
-  },
-  {
-    "id": "use-cleaner-soap",
-    "nameId": "shop.cleaner.var.soap",
-    "lineId": "shop.cleaner.use.soap",
-    "when": {
-      "token": "use-cleaner-soap"
-    }
-  },
-  {
-    "id": "use-cleaner-wax",
-    "nameId": "shop.cleaner.var.wax",
-    "lineId": "shop.cleaner.use.wax",
-    "when": {
-      "token": "use-cleaner-wax"
-    }
-  },
-  {
-    "id": "use-cleaner-polish",
-    "nameId": "shop.cleaner.var.polish",
-    "lineId": "shop.cleaner.use.polish",
-    "when": {
-      "token": "use-cleaner-polish"
-    }
-  },
-  {
-    "id": "use-ingredients-veggie",
-    "nameId": "shop.ingredients.var.veggie",
-    "lineId": "shop.ingredients.use.veggie",
-    "when": {
-      "token": "use-ingredients-veggie"
-    }
-  },
-  {
-    "id": "use-ingredients-mushroom",
-    "nameId": "shop.ingredients.var.mushroom",
-    "lineId": "shop.ingredients.use.mushroom",
-    "when": {
-      "token": "use-ingredients-mushroom"
-    }
-  },
-  {
-    "id": "use-ingredients-grain",
-    "nameId": "shop.ingredients.var.grain",
-    "lineId": "shop.ingredients.use.grain",
-    "when": {
-      "token": "use-ingredients-grain"
-    }
-  },
-  {
-    "id": "use-apitoken-claude",
-    "nameId": "shop.apitoken.var.claude",
-    "lineId": "shop.apitoken.use.claude",
-    "when": {
-      "token": "use-apitoken-claude"
-    }
-  },
-  {
-    "id": "use-apitoken-gpt",
-    "nameId": "shop.apitoken.var.gpt",
-    "lineId": "shop.apitoken.use.gpt",
-    "when": {
-      "token": "use-apitoken-gpt"
-    }
-  },
-  {
-    "id": "use-apitoken-gemini",
-    "nameId": "shop.apitoken.var.gemini",
-    "lineId": "shop.apitoken.use.gemini",
-    "when": {
-      "token": "use-apitoken-gemini"
-    }
-  },
-  {
-    "id": "quad-clingy",
-    "nameId": "badge.quad-clingy.name",
-    "lineId": "badge.quad-clingy.line",
-    "when": {
-      "quadrantSeen": "clingy"
-    }
-  },
-  {
-    "id": "quad-avoidant",
-    "nameId": "badge.quad-avoidant.name",
-    "lineId": "badge.quad-avoidant.line",
-    "when": {
-      "quadrantSeen": "avoidant"
-    }
-  },
-  {
-    "id": "quad-chaotic",
-    "nameId": "badge.quad-chaotic.name",
-    "lineId": "badge.quad-chaotic.line",
-    "when": {
-      "quadrantSeen": "chaotic"
-    }
-  },
-  {
-    "id": "let-go",
-    "nameId": "badge.let-go.name",
-    "lineId": "badge.let-go.line",
-    "when": {
-      "minLetGo": 1
-    }
-  },
-  {
-    "id": "bloom",
-    "nameId": "badge.bloom.name",
-    "lineId": "badge.bloom.line",
-    "when": {
-      "bloomSeen": true
-    }
-  },
-  {
-    "id": "balanced",
-    "nameId": "badge.balanced.name",
-    "lineId": "badge.balanced.line",
-    "when": {
-      "balancedSeen": true
-    }
-  },
-  {
-    "id": "second-farewell",
-    "nameId": "badge.second-farewell.name",
-    "lineId": "badge.second-farewell.line",
-    "when": {
-      "crisisArc": "farewell2"
-    }
-  },
-  {
-    "id": "planted",
-    "nameId": "badge.planted.name",
-    "lineId": "badge.planted.line",
-    "when": {
-      "planted": true
-    }
-  },
-  {
-    "id": "tree-first-leaf",
-    "nameId": "badge.tree-first-leaf.name",
-    "lineId": "tree.find.first-leaf",
-    "when": {
-      "token": "tree-first-leaf"
-    }
-  },
-  {
-    "id": "tree-first-branch",
-    "nameId": "badge.tree-first-branch.name",
-    "lineId": "tree.find.first-branch",
-    "when": {
-      "token": "tree-first-branch"
-    }
-  },
-  {
-    "id": "tree-nest",
-    "nameId": "badge.tree-nest.name",
-    "lineId": "tree.find.nest",
-    "when": {
-      "token": "tree-nest"
-    }
-  },
-  {
-    "id": "tree-cicada-shell",
-    "nameId": "badge.tree-cicada-shell.name",
-    "lineId": "tree.find.cicada-shell",
-    "when": {
-      "token": "tree-cicada-shell"
-    }
-  },
-  {
-    "id": "tree-autumn-tint",
-    "nameId": "badge.tree-autumn-tint.name",
-    "lineId": "tree.find.autumn-tint",
-    "when": {
-      "token": "tree-autumn-tint"
-    }
-  },
-  {
-    "id": "tree-snow-branch",
-    "nameId": "badge.tree-snow-branch.name",
-    "lineId": "tree.find.snow-branch",
-    "when": {
-      "token": "tree-snow-branch"
-    }
-  },
-  {
-    "id": "tree-fruit-swell",
-    "nameId": "badge.tree-fruit-swell.name",
-    "lineId": "tree.find.fruit-swell",
-    "when": {
-      "token": "tree-fruit-swell"
-    }
-  },
-  {
-    "id": "tree-fruit-stir",
-    "nameId": "badge.tree-fruit-stir.name",
-    "lineId": "tree.find.fruit-stir",
-    "when": {
-      "token": "tree-fruit-stir"
-    }
-  },
-  {
-    "id": "tree-first-fruit",
-    "nameId": "badge.tree-first-fruit.name",
-    "lineId": "tree.find.first-fruit",
-    "when": {
-      "token": "tree-first-fruit"
-    }
-  },
-  {
-    "id": "tree-awakening",
-    "nameId": "badge.tree-awakening.name",
-    "lineId": "tree.find.awakening",
-    "when": {
-      "token": "tree-awakening"
-    }
-  },
-  {
-    "id": "tree-full-grown",
-    "nameId": "badge.tree-full-grown.name",
-    "lineId": "tree.find.full-grown",
-    "when": {
-      "token": "tree-full-grown"
-    }
-  }
+  {"id": "act-lie", "nameId": "badge.act-lie.name", "lineId": "badge.act-lie.line", "when": {"token": "lie"}},
+  {"id": "act-read", "nameId": "badge.act-read.name", "lineId": "badge.act-read.line", "when": {"token": "read"}},
+  {"id": "act-sun", "nameId": "badge.act-sun.name", "lineId": "badge.act-sun.line", "when": {"token": "sun"}},
+  {"id": "act-walk", "nameId": "badge.act-walk.name", "lineId": "badge.act-walk.line", "when": {"token": "walk"}},
+  {"id": "act-cook", "nameId": "badge.act-cook.name", "lineId": "badge.act-cook.line", "when": {"token": "cook"}},
+  {"id": "act-chore", "nameId": "badge.act-chore.name", "lineId": "badge.act-chore.line", "when": {"token": "chore"}},
+  {"id": "act-free", "nameId": "badge.act-free.name", "lineId": "badge.act-free.line", "when": {"token": "free"}},
+  {"id": "first-choice", "nameId": "badge.first-choice.name", "lineId": "badge.first-choice.line", "when": {"token": "choice"}},
+  {"id": "first-buy", "nameId": "badge.first-buy.name", "lineId": "badge.first-buy.line", "when": {"tokenPrefix": "buy-"}},
+  {"id": "personal-work", "nameId": "badge.personal-work.name", "lineId": "badge.personal-work.line", "when": {"token": "personalWork"}},
+  {"id": "crisis-retreat", "nameId": "badge.crisis-retreat.name", "lineId": "badge.crisis-retreat.line", "when": {"crisisArc": "retreat"}},
+  {"id": "crisis-sick", "nameId": "badge.crisis-sick.name", "lineId": "badge.crisis-sick.line", "when": {"crisisArc": "sick"}},
+  {"id": "ms-stage-up-2", "nameId": "badge.ms-stage-up-2.name", "lineId": "badge.ms-stage-up-2.line", "when": {"milestone": "stage-up-2"}},
+  {"id": "ms-stage-up-3", "nameId": "badge.ms-stage-up-3.name", "lineId": "badge.ms-stage-up-3.line", "when": {"milestone": "stage-up-3"}},
+  {"id": "ms-hours-50", "nameId": "badge.ms-hours-50.name", "lineId": "badge.ms-hours-50.line", "when": {"milestone": "hours-50"}},
+  {"id": "tier-2", "nameId": "badge.tier-2.name", "lineId": "badge.tier-2.line", "when": {"minTier": 2}},
+  {"id": "tier-4", "nameId": "badge.tier-4.name", "lineId": "badge.tier-4.line", "when": {"minTier": 4}},
+  {"id": "tier-7", "nameId": "badge.tier-7.name", "lineId": "badge.tier-7.line", "when": {"minTier": 7}},
+  {"id": "use-nightdrink-milk", "nameId": "shop.nightdrink.var.milk", "lineId": "shop.nightdrink.use.milk", "when": {"token": "use-nightdrink-milk"}},
+  {"id": "use-nightdrink-cocoa", "nameId": "shop.nightdrink.var.cocoa", "lineId": "shop.nightdrink.use.cocoa", "when": {"token": "use-nightdrink-cocoa"}},
+  {"id": "use-nightdrink-barley", "nameId": "shop.nightdrink.var.barley", "lineId": "shop.nightdrink.use.barley", "when": {"token": "use-nightdrink-barley"}},
+  {"id": "use-lunchbox-riceball", "nameId": "shop.lunchbox.var.riceball", "lineId": "shop.lunchbox.use.riceball", "when": {"token": "use-lunchbox-riceball"}},
+  {"id": "use-lunchbox-sandwich", "nameId": "shop.lunchbox.var.sandwich", "lineId": "shop.lunchbox.use.sandwich", "when": {"token": "use-lunchbox-sandwich"}},
+  {"id": "use-lunchbox-fruit", "nameId": "shop.lunchbox.var.fruit", "lineId": "shop.lunchbox.use.fruit", "when": {"token": "use-lunchbox-fruit"}},
+  {"id": "use-tea-green", "nameId": "shop.tea.var.green", "lineId": "shop.tea.use.green", "when": {"token": "use-tea-green"}},
+  {"id": "use-tea-black", "nameId": "shop.tea.var.black", "lineId": "shop.tea.use.black", "when": {"token": "use-tea-black"}},
+  {"id": "use-tea-coffee", "nameId": "shop.tea.var.coffee", "lineId": "shop.tea.use.coffee", "when": {"token": "use-tea-coffee"}},
+  {"id": "use-candle-lavender", "nameId": "shop.candle.var.lavender", "lineId": "shop.candle.use.lavender", "when": {"token": "use-candle-lavender"}},
+  {"id": "use-candle-woody", "nameId": "shop.candle.var.woody", "lineId": "shop.candle.use.woody", "when": {"token": "use-candle-woody"}},
+  {"id": "use-candle-citrus", "nameId": "shop.candle.var.citrus", "lineId": "shop.candle.use.citrus", "when": {"token": "use-candle-citrus"}},
+  {"id": "use-cleaner-soap", "nameId": "shop.cleaner.var.soap", "lineId": "shop.cleaner.use.soap", "when": {"token": "use-cleaner-soap"}},
+  {"id": "use-cleaner-wax", "nameId": "shop.cleaner.var.wax", "lineId": "shop.cleaner.use.wax", "when": {"token": "use-cleaner-wax"}},
+  {"id": "use-cleaner-polish", "nameId": "shop.cleaner.var.polish", "lineId": "shop.cleaner.use.polish", "when": {"token": "use-cleaner-polish"}},
+  {"id": "use-ingredients-veggie", "nameId": "shop.ingredients.var.veggie", "lineId": "shop.ingredients.use.veggie", "when": {"token": "use-ingredients-veggie"}},
+  {"id": "use-ingredients-mushroom", "nameId": "shop.ingredients.var.mushroom", "lineId": "shop.ingredients.use.mushroom", "when": {"token": "use-ingredients-mushroom"}},
+  {"id": "use-ingredients-grain", "nameId": "shop.ingredients.var.grain", "lineId": "shop.ingredients.use.grain", "when": {"token": "use-ingredients-grain"}},
+  {"id": "use-apitoken-claude", "nameId": "shop.apitoken.var.claude", "lineId": "shop.apitoken.use.claude", "when": {"token": "use-apitoken-claude"}},
+  {"id": "use-apitoken-gpt", "nameId": "shop.apitoken.var.gpt", "lineId": "shop.apitoken.use.gpt", "when": {"token": "use-apitoken-gpt"}},
+  {"id": "use-apitoken-gemini", "nameId": "shop.apitoken.var.gemini", "lineId": "shop.apitoken.use.gemini", "when": {"token": "use-apitoken-gemini"}},
+  {"id": "quad-clingy", "nameId": "badge.quad-clingy.name", "lineId": "badge.quad-clingy.line", "when": {"quadrantSeen": "clingy"}},
+  {"id": "quad-avoidant", "nameId": "badge.quad-avoidant.name", "lineId": "badge.quad-avoidant.line", "when": {"quadrantSeen": "avoidant"}},
+  {"id": "quad-chaotic", "nameId": "badge.quad-chaotic.name", "lineId": "badge.quad-chaotic.line", "when": {"quadrantSeen": "chaotic"}},
+  {"id": "let-go", "nameId": "badge.let-go.name", "lineId": "badge.let-go.line", "when": {"minLetGo": 1}},
+  {"id": "bloom", "nameId": "badge.bloom.name", "lineId": "badge.bloom.line", "when": {"bloomSeen": true}},
+  {"id": "balanced", "nameId": "badge.balanced.name", "lineId": "badge.balanced.line", "when": {"balancedSeen": true}},
+  {"id": "second-farewell", "nameId": "badge.second-farewell.name", "lineId": "badge.second-farewell.line", "when": {"crisisArc": "farewell2"}},
+  {"id": "planted", "nameId": "badge.planted.name", "lineId": "badge.planted.line", "when": {"planted": true}},
+  {"id": "tree-first-leaf", "nameId": "badge.tree-first-leaf.name", "lineId": "tree.find.first-leaf", "when": {"token": "tree-first-leaf"}},
+  {"id": "tree-first-branch", "nameId": "badge.tree-first-branch.name", "lineId": "tree.find.first-branch", "when": {"token": "tree-first-branch"}},
+  {"id": "tree-nest", "nameId": "badge.tree-nest.name", "lineId": "tree.find.nest", "when": {"token": "tree-nest"}},
+  {"id": "tree-cicada-shell", "nameId": "badge.tree-cicada-shell.name", "lineId": "tree.find.cicada-shell", "when": {"token": "tree-cicada-shell"}},
+  {"id": "tree-autumn-tint", "nameId": "badge.tree-autumn-tint.name", "lineId": "tree.find.autumn-tint", "when": {"token": "tree-autumn-tint"}},
+  {"id": "tree-snow-branch", "nameId": "badge.tree-snow-branch.name", "lineId": "tree.find.snow-branch", "when": {"token": "tree-snow-branch"}},
+  {"id": "tree-fruit-swell", "nameId": "badge.tree-fruit-swell.name", "lineId": "tree.find.fruit-swell", "when": {"token": "tree-fruit-swell"}},
+  {"id": "tree-fruit-stir", "nameId": "badge.tree-fruit-stir.name", "lineId": "tree.find.fruit-stir", "when": {"token": "tree-fruit-stir"}},
+  {"id": "tree-first-fruit", "nameId": "badge.tree-first-fruit.name", "lineId": "tree.find.first-fruit", "when": {"token": "tree-first-fruit"}},
+  {"id": "tree-awakening", "nameId": "badge.tree-awakening.name", "lineId": "tree.find.awakening", "when": {"token": "tree-awakening"}},
+  {"id": "tree-full-grown", "nameId": "badge.tree-full-grown.name", "lineId": "tree.find.full-grown", "when": {"token": "tree-full-grown"}},
+  {"id": "tree-child-first-step", "nameId": "badge.tree-child-first-step.name", "lineId": "tree.find.child-first-step", "when": {"token": "tree-child-first-step"}},
+  {"id": "tree-child-shade", "nameId": "badge.tree-child-shade.name", "lineId": "tree.find.child-shade", "when": {"token": "tree-child-shade"}},
+  {"id": "tree-first-rain", "nameId": "badge.tree-first-rain.name", "lineId": "tree.find.first-rain", "when": {"token": "tree-first-rain"}},
+  {"id": "tree-child-collects", "nameId": "badge.tree-child-collects.name", "lineId": "tree.find.child-collects", "when": {"token": "tree-child-collects"}},
+  {"id": "tree-two-shadows", "nameId": "badge.tree-two-shadows.name", "lineId": "tree.find.two-shadows", "when": {"token": "tree-two-shadows"}},
+  {"id": "tree-child-waits", "nameId": "badge.tree-child-waits.name", "lineId": "tree.find.child-waits", "when": {"token": "tree-child-waits"}},
+  {"id": "tree-spring-bloom", "nameId": "badge.tree-spring-bloom.name", "lineId": "tree.find.spring-bloom", "when": {"token": "tree-spring-bloom"}},
+  {"id": "tree-canopy-room", "nameId": "badge.tree-canopy-room.name", "lineId": "tree.find.canopy-room", "when": {"token": "tree-canopy-room"}},
+  {"id": "tree-child-taller", "nameId": "badge.tree-child-taller.name", "lineId": "tree.find.child-taller", "when": {"token": "tree-child-taller"}},
+  {"id": "tree-old-habit", "nameId": "badge.tree-old-habit.name", "lineId": "tree.find.old-habit", "when": {"token": "tree-old-habit"}},
+  {"id": "tree-winter-quiet", "nameId": "badge.tree-winter-quiet.name", "lineId": "tree.find.winter-quiet", "when": {"token": "tree-winter-quiet"}}
 ]
