@@ -16,13 +16,13 @@ def box_blur1(a, r):
 
 lum = g2.mean(2)
 L = box_blur1(box_blur1(lum, 3), 3)
-ratio = np.clip(lum/np.maximum(L,15), 0.62, 1.45)
+ratio = np.clip(lum/np.maximum(L,15), 0.70, 1.38)
 chroma = g2 - lum[:,:,None]
 
 # 중립 타깃: 판자 밴드 2톤 교차 + 러그 마룬
 def hexc(h): return np.array([int(h[i:i+2],16) for i in (1,3,5)], float)
-WOOD=[hexc('#52404b'), hexc('#5b4854')]
-RUG = hexc('#6f3c4e')
+WOOD=[hexc('#4c3944'), hexc('#5e4a56')]
+RUG = hexc('#733d50')
 bands=[(49,3),(52,4),(56,5),(61,6),(67,5)]
 def band_idx(y):
     for i,(y0,h) in enumerate(bands):
@@ -43,7 +43,7 @@ for y in range(49,72):
     for x in range(96):
         if is_prop(y,x): continue
         tgt = RUG if in_rug(y,x) else WOOD[band_idx(y)]
-        out[y,x] = tgt*ratio[y,x] + chroma[y,x]*0.35
+        out[y,x] = tgt*ratio[y,x]
 out = np.clip(out,0,255).astype(np.uint8)
 np.save('refgrid_v3.npy', out)
 

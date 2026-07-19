@@ -210,18 +210,44 @@ def emit_rows(pairs):  # [(y,x,var)] -> run-merge
     return out
 
 svg=[]
-# 배경: 창 밖(스카이/힐 인페인트 포함)은 클립 안에, 실내는 밖에
 bg_in=[(y,x,cell_var[(y,x)]) for y in range(GY) for x in range(GX)
        if 27<=x<=66 and 4<=y<=33 and not(46<=x<=47 or y==21)]
-bg_out=[(y,x,cell_var[(y,x)]) for y in range(GY) for x in range(GX)
-        if not(27<=x<=66 and 4<=y<=33) or (46<=x<=47 or y==21)]
-svg.append('<g id="base-room">')
-svg += emit_rows(bg_out)
-svg.append('</g>')
-svg.append('<clipPath id="win-clip"><rect x="27" y="4" width="40" height="30"/></clipPath>')
-svg.append('<g clip-path="url(#win-clip)">')
+
+# 방 구조 셀 규칙 분리
+def static_sub(y,x):
+    if y>=49: return 'floor'
+    if ((y==3 and 25<=x<=70) or (3<=y<=34 and 25<=x<=26) or (3<=y<=34 and 67<=x<=69)
+        or (46<=x<=47 and 4<=y<=33) or (y==21 and 27<=x<=66)
+        or (y==34 and 27<=x<=66) or (35<=y<=37 and 24<=x<=70)):
+        return 'winframe'
+    if x<=21 and 31<=y<=48: return 'fireplace'
+    if x>=78 and 16<=y<=48: return 'shelf'
+    return 'wall'
+bg_sub={k:[] for k in ('wall','floor','winframe','fireplace','shelf')}
+for y in range(GY):
+    for x in range(GX):
+        if (27<=x<=66 and 4<=y<=33) and not(46<=x<=47 or y==21): continue
+        bg_sub[static_sub(y,x)].append((y,x,cell_var[(y,x)]))
+
+# 창밖 배경: 풀캔버스 — 행별 최빈 클러스터로 창 밖 영역 확장
+from collections import Counter
+rowvar={}
+for y in range(4,34):
+    vs=[v for yy,x,v in bg_in if yy==y]
+    if vs: rowvar[y]=Counter(vs).most_common(1)[0][0]
+for y in range(4,34):
+    if y not in rowvar: rowvar[y]=rowvar.get(y-1, rowvar.get(y+1))
+ext=[]
+for y in range(0,4):
+    ext.append(f'<rect x="0" y="{y}" width="96" height="1" fill="var({rowvar[4]})"/>')
+for y in range(4,34):
+    ext.append(f'<rect x="0" y="{y}" width="27" height="1" fill="var({rowvar[y]})"/>')
+    ext.append(f'<rect x="67" y="{y}" width="29" height="1" fill="var({rowvar[y]})"/>')
+ext.append(f'<rect x="0" y="34" width="96" height="38" fill="var({rowvar[33]})"/>')
+
 svg.append('<g id="base-scenery">')
 svg += emit_rows(bg_in)
+svg += ext
 svg.append('</g>')
 
 def sprite(name,gid,extra=''):
@@ -231,8 +257,11 @@ def sprite(name,gid,extra=''):
 
 svg += sprite('sun','sun')
 svg += sprite('tree','leaves-wrap')   # 후처리로 잎/줄기 분리 어려우니 통째
-svg.append('</g>')  # clip 종료 전에 파티클 삽입 지점 표시
 svg.append('<!--PARTICLES-->')
+for sub in ('wall','floor','winframe','fireplace','shelf'):
+    svg.append(f'<g id="g-{sub}">')
+    svg += emit_rows(bg_sub[sub])
+    svg.append('</g>')
 
 creg=regions['candle']
 svg.append('<g id="candle">')
