@@ -80,3 +80,30 @@ describe('위기 대응 선택지 (M19c, A안)', () => {
     expect(stayed.stats.abandonment).toBeLessThan(before);
   });
 });
+
+describe('1회용 대화 (M19e once)', () => {
+  it('once 줄은 풀이 소진돼 리셋되어도 돌아오지 않는다', () => {
+    const data = structuredClone(gameData);
+    // absent 풀을 2줄로 축소: once 1줄 + 일반 1줄
+    data.dialogues.absent = [
+      { textId: 'dlg.absent.care', intimacy: 1, once: true },
+      { textId: 'dlg.absent.search', intimacy: 1 },
+    ];
+    const base = createInitialState(T0, 'lie');
+    let s: GameState = {
+      ...base,
+      phase: 'rest',
+      presence: { ...base.presence, state: 'absent' },
+    };
+    const seen: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      s = transition(s, { type: 'TALK' }, { rng: seq([0.0]), data });
+      const pages = s.rest.talkState?.pages.join('') ?? '';
+      seen.push(pages);
+      s = { ...s, rest: { ...s.rest, talkPressed: false, talkState: null } };
+    }
+    const careText = (data.text['dlg.absent.care']?.[0] ?? []).join('');
+    // once 줄은 정확히 1번만
+    expect(seen.filter((p) => p === careText)).toHaveLength(1);
+  });
+});

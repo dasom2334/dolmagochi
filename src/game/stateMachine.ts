@@ -2029,7 +2029,9 @@ function reduce(
         rng() < BALANCE.FORESHADOW_PROB
       ) {
         let used = state.foreUsed;
-        if (used.length >= data.events.foreshadow.length) used = [];
+        if (used.length >= data.events.foreshadow.length)
+          // 소진 리셋 — 단 1회용(once) 포섀도는 돌아오지 않는다 (M19e)
+          used = used.filter((i) => data.events.foreshadow[i]?.once);
         // 예약 시점 게이트: 현재 예정 행동에 부적합한 포섀도는 후보 제외
         // (예: 다음 세션이 산책이면 '산책 약속' 포섀도를 예약하지 않는다)
         const avail = data.events.foreshadow
