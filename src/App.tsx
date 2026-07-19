@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { appStore, dispatch, now, t, tf, useGame } from './store/appStore';
 import { gameData } from './store/gameStore';
-import { isRockPresent } from './game/stateMachine';
-import { SYS } from './game/text';
+import { companyOf, isRockPresent } from './game/stateMachine';
+import { resolveSlot, SYS } from './game/text';
 import { bootRestore, flushSave, startAutosave } from './persistence/persist';
 import { claimSingleTab } from './persistence/singleTab';
 import { OccupiedScreen } from './components/OccupiedScreen';
@@ -100,11 +100,13 @@ export function App() {
       const s = appStore.getState().state;
       const nf = s.settings.notify;
       if (!nf.enabled || !nf.restEnd) return;
-      // 돌이 곁에 없으면(잠수·2차 비방문·3차) '기다리고 있다' 대신 중립 문구
-      const here =
-        s.era === 'apart' ? s.apart.visiting : s.presence.state === 'present';
+      // 동석 축으로 변형 선택 (피드백4-2) — 돌이 없으면 '기다린다'가 나오지 않는다
       if (document.hidden)
-        notify(t(here ? SYS.notification.restEnd : SYS.notification.restEndAbsent));
+        notify(
+          t(
+            resolveSlot(gameData.text, SYS.notification.restEnd, companyOf(s)),
+          ),
+        );
       else playSound('rest', true);
     };
     workerRef.current = worker;

@@ -23,6 +23,47 @@ export function textVariantAt(
   return variants[Math.min(index, variants.length - 1)];
 }
 
+/**
+ * 동석 축 (피드백4-2) — 지금 이 방에 누가 있는가.
+ * 문구는 이 축으로 변형을 찾는다: `{id}.absent` / `{id}.companion`.
+ * 개별 호출부마다 present 분기를 쓰던 방식은 빠뜨리기 쉬워, 해석을 한곳에 모은다.
+ */
+export type Company = 'present' | 'absent' | 'companion';
+
+/**
+ * 상황에 맞는 변형 id를 고른다 — 구체(축 접미사) → 공용 폴백 → 기본 순.
+ * companion(3차 아이)은 부재의 한 종류라, 전용 변형이 없으면 absent로 내려온다.
+ */
+export function resolveSlot(
+  catalog: TextCatalog,
+  baseId: TextId,
+  company: Company,
+  shared?: Partial<Record<Company, TextId>>,
+): TextId {
+  if (company === 'present') return baseId;
+  const chain: TextId[] =
+    company === 'companion'
+      ? [
+          `${baseId}.companion`,
+          shared?.companion ?? '',
+          `${baseId}.absent`,
+          shared?.absent ?? '',
+        ]
+      : [`${baseId}.absent`, shared?.absent ?? ''];
+  return chain.find((id) => id && catalog[id]) ?? baseId;
+}
+
+/** resolveSlot + 추첨 — 문구를 꺼내는 표준 경로 */
+export function pickFor(
+  catalog: TextCatalog,
+  baseId: TextId,
+  company: Company,
+  rng: Rng,
+  shared?: Partial<Record<Company, TextId>>,
+): string[] {
+  return pickText(catalog, resolveSlot(catalog, baseId, company, shared), rng);
+}
+
 /** {var} 치환 — 페이지 전체에 적용 */
 export function fillPages(
   pages: string[],
@@ -71,8 +112,6 @@ export const SYS = {
   },
   absentAmbientCompanion: 'sys.absentAmbient.companion',
   focusEnd: 'sys.focusEnd',
-  focusEndAbsent: 'sys.focusEndAbsent',
-  focusEndCompanion: 'sys.focusEnd.companion',
   restSummary: 'sys.restSummary',
   talkSpent: 'sys.talkSpent',
   talkSpentAbsent: 'sys.talkSpent.absent',
@@ -99,8 +138,6 @@ export const SYS = {
   },
   notification: {
     restEnd: 'sys.notification.restEnd',
-    restEndAbsent: 'sys.notification.restEnd.absent',
-    restEndCompanion: 'sys.notification.restEnd.companion',
     focusMark: 'sys.notification.focusMark', // {min}
   },
   singleTab: {
@@ -184,15 +221,6 @@ export const SYS = {
     snow: 'sys.weather.snow',
     petals: 'sys.weather.petals',
     leaves: 'sys.weather.leaves',
-  } as Record<string, string>,
-  /** 돌이 곁에 없을 때의 날씨 변경 서술 — 돌 반응 누출 방지 */
-  weatherAbsent: {
-    clear: 'sys.weather.clear.absent',
-    rain: 'sys.weather.rain.absent',
-    downpour: 'sys.weather.downpour.absent',
-    snow: 'sys.weather.snow.absent',
-    petals: 'sys.weather.petals.absent',
-    leaves: 'sys.weather.leaves.absent',
   } as Record<string, string>,
 } as const;
 

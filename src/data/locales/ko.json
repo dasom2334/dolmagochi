@@ -2001,7 +2001,7 @@
       "곁눈질했다. 돌도 곁눈질한 것 같다. 아닐 것이다."
     ]
   ],
-  "restAct.glance.absent": [
+  "restAct.glance.lines.absent": [
     [
       "빈 방석을 흘끗 봤다. 아무도 없다. 다시 책으로 눈을 돌린다."
     ]
@@ -2019,7 +2019,7 @@
       "컵에 물을 따르는 소리가 났다. 돌은 좋은 소리라고 생각하는 눈치다."
     ]
   ],
-  "restAct.water.absent": [
+  "restAct.water.lines.absent": [
     [
       "물을 한 모금 마셨다. 오늘은 당신 몫만."
     ]
@@ -2037,7 +2037,7 @@
       "심호흡. 하나, 둘. 돌은 세지 않았다. 숫자에 관심이 없다."
     ]
   ],
-  "restAct.breath.absent": [
+  "restAct.breath.lines.absent": [
     [
       "숨을 크게 쉬었다. 조용한 방에서는 숨소리가 조금 크게 들린다."
     ]
@@ -2055,7 +2055,7 @@
       "어깨를 돌렸다. 돌은 돌지 않았다. 돌인데도."
     ]
   ],
-  "restAct.posture.absent": [
+  "restAct.posture.lines.absent": [
     [
       "허리를 폈다. 봐 줄 사람은 없지만, 자세는 당신을 위한 것이다."
     ]
@@ -2184,7 +2184,7 @@
       "당신은 {mins}분을 집중했다. 돌은 옆에 있었다. 내내."
     ]
   ],
-  "sys.focusEndAbsent": [
+  "sys.focusEnd.absent": [
     [
       "당신은 {mins}분을 집중했다. 조용한 방이었지만, 조용한 대로 괜찮았다."
     ]

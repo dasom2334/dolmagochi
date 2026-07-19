@@ -235,7 +235,7 @@ describe('작은 행동 — 집중 세션이 끝난 뒤 1회', () => {
     expect(s.presence.state).toBe('absent');
     s = run(s, [{ type: 'REST_ACT', key: 'glance' }], mulberry32(1), data);
     const line = s.session.journal[s.session.journal.length - 1].text;
-    expect(variantsOf('restAct.glance.absent')).toContain(line);
+    expect(variantsOf('restAct.glance.lines.absent')).toContain(line);
     expect(variantsOf('restAct.glance.lines')).not.toContain(line);
   });
 });
@@ -552,7 +552,7 @@ describe('잠수(부재) 분기', () => {
     expect(s.presence.state).toBe('absent');
     const mins = '2';
     expect(s.session.narratorLine).toBe(
-      T('sys.focusEndAbsent').replaceAll('{mins}', mins),
+      T('sys.focusEnd.absent').replaceAll('{mins}', mins),
     );
     expect(s.session.narratorLine).not.toBe(
       T('sys.focusEnd').replaceAll('{mins}', mins),
