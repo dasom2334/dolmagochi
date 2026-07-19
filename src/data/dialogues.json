@@ -284,7 +284,8 @@
     [
       {
         "textId": "dlg.rel5.0",
-        "intimacy": 3
+        "intimacy": 3,
+        "once": true
       },
       {
         "textId": "dlg.rel5.1",
@@ -475,7 +476,8 @@
         },
         {
           "textId": "dlg.cohabit1.4",
-          "intimacy": 3
+          "intimacy": 3,
+          "once": true
         },
         {
           "textId": "dlg.cohabit1.5",
@@ -644,7 +646,8 @@
     },
     {
       "textId": "dlg.apart.7",
-      "intimacy": 1
+      "intimacy": 1,
+      "once": true
     }
   ],
   "absentReturn": {
@@ -674,7 +677,8 @@
     },
     {
       "textId": "dlg.companion.4",
-      "intimacy": 1
+      "intimacy": 1,
+      "once": true
     },
     {
       "textId": "dlg.companion.5",
