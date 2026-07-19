@@ -153,6 +153,9 @@ export function drawEligibleLine(
 ): NonReplacingDraw | null {
   const eligible = lines
     .map((_, i) => i)
-    .filter((i) => checkCondition(lines[i].when, state));
+    .filter((i) => checkCondition(lines[i].when, state))
+    // 1회용(once) 줄은 이미 나왔으면 후보에서 영구 제외 (M19e) —
+    // 후보에 없으므로 소진 리셋 때도 used에서 지워지지 않는다
+    .filter((i) => !(lines[i].once && used.includes(i)));
   return drawNonReplacingFrom(eligible, used, rng);
 }

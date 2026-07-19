@@ -44,6 +44,9 @@ export interface ActionData {
 export interface DialogueLine {
   textId: TextId;
   intimacy: number;
+  /** 1회용 (M19e) — 한 번 나오면 풀 리셋에서도 돌아오지 않는다.
+   * "한 번만 봐야 의미 있는" 서사 비트용. 지정은 이벤트 감사표 기준 */
+  once?: boolean;
   /** 이 조건을 만족할 때만 후보 (없으면 항상). 예: 특정 소품을 언급하는 줄은 그 소품이 방에 있을 때만 */
   when?: Condition;
   /** 예/아니오 선택. yes/noOutcome(M19c): 답에 따른 상태 영향 — 위기 대응
@@ -116,6 +119,8 @@ export interface MilestoneData {
 export interface ForeshadowData {
   lineId: TextId;
   event: ForeshadowEventData;
+  /** 1회용 (M19e) — 소진 후 재예약되지 않는다 */
+  once?: boolean;
 }
 
 export interface EventsData {
