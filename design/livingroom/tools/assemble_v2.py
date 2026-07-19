@@ -186,8 +186,8 @@ def occ_plant(skew, ymax):    # 창턱 화분 (x28-32, w5)
     return '<g class="occ-plant">'+occ_strip(28,5,49,ymax,skew,base=48,sill=(28,5))+'</g>'
 def occ_box(skew, ymax):      # 벽난로 옆 상자 (바닥 위 → 자기 기준 로컬 skew)
     return '<g class="occ-props">'+occ_strip(21,8,49,ymax,skew,base=48,grow=0)+'</g>'
-def occ_orb_rug(skew, ymax):  # 러그 위 돌 (x40-53, w14) — 그림자는 돌 앞(창 반대쪽)
-    return '<g class="occ-orb2">'+occ_strip(40,14,64,ymax,skew,base=63,grow=0.04)+'</g>'
+def occ_orb_rug(skew, ymax):  # 러그 위 돌 — 밑면 y61/x42-51에서 시작해야 발밑에 붙는다
+    return '<g class="occ-orb2">'+occ_strip(42,10,62,ymax,skew,base=61,grow=0.05)+'</g>'
 
 # 빔 셰이프가 하나이므로 그림자 마스크도 하나 — 같은 skew를 따른다.
 masks = (
@@ -203,8 +203,8 @@ masks = (
  '<rect x="10" y="61" width="12" height="3" fill="#999"/>'
  '</g>'
  '<g class="occ-orb2">'  # 러그 돌: 벽난로 반대쪽(우측)으로 반그림자
- '<rect x="55" y="55" width="5" height="9" fill="#888"/>'
- '<rect x="60" y="57" width="4" height="7" fill="#bbb"/>'
+ '<rect x="53" y="54" width="5" height="8" fill="#888"/>'
+ '<rect x="58" y="56" width="4" height="6" fill="#bbb"/>'
  '</g></mask>')
 
 # --- 대비 강화 그림자 레이어 ---
@@ -240,8 +240,8 @@ def inject(gid, html_frag):
 SH = '<g class="p-shadow" style="mix-blend-mode:multiply">%s</g>'
 inject('orb', SH % ('<rect x="55" y="36" width="7" height="1" fill="#000" opacity=".25"/>'
                     '<rect x="56" y="37" width="5" height="1" fill="#000" opacity=".12"/>'))
-inject('orb-rug', SH % ('<rect x="41" y="64" width="12" height="1" fill="#000" opacity=".28"/>'
-                        '<rect x="43" y="65" width="9" height="1" fill="#000" opacity=".12"/>'))
+inject('orb-rug', SH % ('<rect x="42" y="62" width="10" height="1" fill="#000" opacity=".28"/>'
+                        '<rect x="44" y="63" width="6" height="1" fill="#000" opacity=".12"/>'))
 inject('sill-plant', SH % '<rect x="28" y="36" width="5" height="1" fill="#000" opacity=".25"/>')
 inject('g-floor', SH % ('<rect x="0" y="49" width="96" height="1" fill="#000" opacity=".25"/>'
                         '<rect x="0" y="50" width="96" height="1" fill="#000" opacity=".1"/>'))
@@ -342,6 +342,8 @@ html = html.replace(', sway 2.6s ease-in-out infinite','').replace(', sway 3.4s 
 html = html.replace('/*__BASE__*/', BASE)
 html = html.replace('<!--__ART__-->', art)
 html = html.replace('<!--__LIGHTS__-->', lights)
-out='/Users/cotton/Develope/dolmagochi/design/livingroom/v2.html'
+import os
+# 상대경로 — worktree마다 자기 폴더에 쓴다 (절대경로면 다른 브랜치 트리를 덮어씀)
+out=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'v2.html')
 open(out,'w').write(html)
 print('written', out, len(html))
