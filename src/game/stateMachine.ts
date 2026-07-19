@@ -2304,8 +2304,15 @@ function reduce(
         },
         session: {
           ...state.session,
+          // 돌이 곁에 없으면 돌 반응이 섞이지 않은 변형 (피드백4-1)
           narratorLine: joinPages(
-            pickText(data.text, SYS.weather[event.weather], rng),
+            pickText(
+              data.text,
+              isRockPresent(state)
+                ? SYS.weather[event.weather]
+                : SYS.weatherAbsent[event.weather],
+              rng,
+            ),
           ),
         },
       };
