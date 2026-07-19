@@ -238,6 +238,57 @@ lights = f'''
 </g>
 '''
 
+# ---- 개별 광원 셰이프 (픽셀 스텝 + 디더링) ----
+def rows_to_rects(rows, fill, gap=None):
+    out=[]
+    for i,(y,x0,x1) in enumerate(rows):
+        if gap and x0<gap[0]-1 and x1>gap[1]+1:
+            out.append(f'<rect x="{x0}" y="{y}" width="{gap[0]-x0}" height="1" fill="{fill}"/>')
+            out.append(f'<rect x="{gap[1]+1}" y="{y}" width="{x1-gap[1]}" height="1" fill="{fill}"/>')
+        else:
+            out.append(f'<rect x="{x0}" y="{y}" width="{x1-x0+1}" height="1" fill="{fill}"/>')
+        if i%2==0:  # 가장자리 디더링
+            out.append(f'<rect x="{x0-1}" y="{y}" width="1" height="1" fill="{fill}" opacity=".5"/>')
+            out.append(f'<rect x="{x1+1}" y="{y}" width="1" height="1" fill="{fill}" opacity=".5"/>')
+    return out
+
+# 창문 빛: 창 아래 벽~바닥/러그 위로 퍼지는 원뿔, 멀리언 그림자 골 포함
+win_fringe=[]; win_core=[]
+for y in range(37,68):
+    hw = 8 + round((y-37)*0.62)
+    hw = min(hw, 24)
+    win_fringe.append((y, 47-hw, 47+hw))
+    if 41<=y<=65:
+        hw2 = max(3, hw-6)
+        win_core.append((y, 47-hw2, 47+hw2))
+lp_window = ('<g id="lp-window" style="mix-blend-mode:screen;opacity:var(--wl-a)">'
+    + ''.join(rows_to_rects(win_fringe,'var(--wl)',gap=(46,47)))
+    + ''.join(rows_to_rects(win_core,'var(--wl)',gap=(46,47)))
+    + '</g>')
+
+# 벽난로 빛: 바닥 반원 풀 + 벽 글로우, 플리커
+fire_rows=[]
+for y in range(49,58):
+    rx = max(2, 14 - round((y-49)*1.5))
+    fire_rows.append((y, max(1,22-rx), 22+rx))
+lp_fire = ('<g id="lp-fire" style="mix-blend-mode:screen;opacity:var(--fl-a)"><g class="glow-flicker">'
+    + ''.join(rows_to_rects(fire_rows,'var(--fl)'))
+    + '<rect x="4" y="26" width="16" height="4" fill="var(--fl)" opacity=".35"/>'
+    + '<rect x="2" y="30" width="21" height="8" fill="var(--fl)" opacity=".5"/>'
+    + '<rect x="1" y="38" width="23" height="10" fill="var(--fl)" opacity=".65"/>'
+    + '</g></g>')
+
+# 촛불 빛: 작은 다이아 헤일로, 느린 플리커
+lp_candle = ('<g id="lp-candle" style="mix-blend-mode:screen;opacity:var(--cl-a)"><g class="glow-flicker-slow">'
+    '<rect x="4" y="22" width="3" height="1" fill="var(--cl)"/>'
+    '<rect x="3" y="23" width="5" height="2" fill="var(--cl)"/>'
+    '<rect x="2" y="25" width="7" height="3" fill="var(--cl)"/>'
+    '<rect x="3" y="28" width="5" height="2" fill="var(--cl)"/>'
+    '<rect x="4" y="30" width="3" height="1" fill="var(--cl)"/>'
+    '</g></g>')
+
+lights = lights + lp_window + lp_fire + lp_candle
+
 html = open('template_layers.html').read()
 # 낙엽/꽃잎 흔들림: margin 기반 sway 제거(SVG 미적용) → 단순 낙하 유지
 html = html.replace(', sway 2.6s ease-in-out infinite','').replace(', sway 3.4s ease-in-out -1.2s infinite','')
