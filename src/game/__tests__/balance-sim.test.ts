@@ -87,6 +87,8 @@ interface RunResult {
   maxAb: number;
   maxIt: number;
   quads: string[];
+  /** 1회차에 획득한 추억 수 (M11b 완료 기준: 12~15) */
+  remembrances: number;
 }
 
 function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult {
@@ -117,6 +119,7 @@ function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult 
     maxAb: 0,
     maxIt: 0,
     quads: [],
+    remembrances: 0,
   };
 
   const focusH = () => s.totals.focusSeconds / 3600;
@@ -208,6 +211,11 @@ function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult 
     if (res.hSelfAct === null && s.stats.selfActualization >= 100)
       res.hSelfAct = focusH();
 
+    // 휴식 작은 행동 — 실플레이어는 대체로 하나 누른다 (추억 순간의 두 경로 중 하나)
+    if (!s.rest.actUsed) {
+      const act = gameData.restActs[sessionCount % gameData.restActs.length];
+      s = dispatch(s, { type: 'REST_ACT', key: act.key });
+    }
     if (policy.doTalk && !s.rest.talkPressed) {
       s = dispatch(s, { type: 'TALK' });
       if (s.rest.talkState?.hasChoice)
@@ -247,6 +255,7 @@ function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult 
     }
   }
   res.endSecurity = s.stats.security;
+  res.remembrances = s.remembrances.length;
   res.hoursSimmed = focusH();
   if (res.affAtEnding === null) res.affAtEnding = s.stats.affection;
   return res;
@@ -276,7 +285,7 @@ function report(policy: Policy, seeds: number[]) {
     `위기: 보장아크 잠수 ${fmt(avg((r) => r.arcRetreat))} 병간호 ${fmt(avg((r) => r.arcSick))} | 유기적 잠수 ${fmt(avg((r) => r.organicRetreats))} 병간호 ${fmt(avg((r) => r.organicSicks))} | 종료 안정감 ${fmt(avg((r) => r.endSecurity))} | 시뮬 ${fmt(avg((r) => r.hoursSimmed))}h`,
   );
   console.log(
-    `애착: 유기불안 max ${fmt(avg((r) => r.maxAb))} | 친밀위협 max ${fmt(avg((r) => r.maxIt))} | 급성 목격 ${runs.map((r) => r.quads.length).join(',')}종`,
+    `애착: 유기불안 max ${fmt(avg((r) => r.maxAb))} | 친밀위협 max ${fmt(avg((r) => r.maxIt))} | 급성 목격 ${runs.map((r) => r.quads.length).join(',')}종 | 추억 ${fmt(avg((r) => r.remembrances))}개`,
   );
 }
 
