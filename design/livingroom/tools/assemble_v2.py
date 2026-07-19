@@ -13,8 +13,8 @@ for line in pal.splitlines():
 def punch(hexv):
     r,g,b = (int(hexv[i:i+2],16)/255 for i in (1,3,5))
     h,l,s = colorsys.rgb_to_hls(r,g,b)
-    l = min(.96, max(.03, 0.5 + (l-0.5)*1.22))
-    s = min(1, s*1.2)
+    l = min(.96, max(.03, 0.5 + (l-0.5)*1.34))
+    s = min(1, s*1.38)
     r,g,b = colorsys.hls_to_rgb(h,l,s)
     return '#%02x%02x%02x' % (round(r*255), round(g*255), round(b*255))
 
@@ -102,42 +102,36 @@ lights = f'''
 </g>
 '''
 
-# ---- 물리 광원 ----
-def pool(gid, y0, y1, skew, holes, zones, fillvar='var(--wl)', opvar='var(--wl-a)', maskref=None):  # y0,y1 미사용
+# ---- 물리 광원: 창문 빛 = 앞(아래)으로 퍼지는 사다리꼴 투영 ----
+# 창(27..66, 멀리언 46..47)을 창턱 상단(y35~36)과 바닥(y49+)에 투영. 창 밑 벽은 그림자.
+# spread=행당 확산율(원근), skew=행당 왼쪽 이동(저고도 광원 — 태양이 창 중심 우측).
+def pool_trap(gid, spread, skew, zones, fillvar='var(--wl)', opvar='var(--wl-a)', maskref=None):
+    CX=46.5
     mk = f' mask="url(#{maskref})"' if maskref else ''
     parts=[f'<g id="{gid}"{mk} style="opacity:{opvar}">']
     for (zy0,zy1,op) in zones:
         parts.append(f'<g opacity="{op}">')
         for y in range(zy0, zy1+1):
-            sh = 0 if y<=36 else -round((y-35)*skew)
-            ivs=[(27+sh, 66+sh)]
-            cuts=[(46+sh, 47+sh)]
-            for (hy0,hy1,hx0,hx1) in holes:
-                if hy0<=y<=hy1: cuts.append((hx0+sh, hx1+sh))
-            for c0,c1 in cuts:
-                niv=[]
-                for a,b in ivs:
-                    if c1<a or c0>b: niv.append((a,b)); continue
-                    if a<c0: niv.append((a,c0-1))
-                    if b>c1: niv.append((c1+1,b))
-                ivs=niv
-            for a,b in ivs:
-                a=max(1,a); b=min(94,b)
-                if b>=a:
-                    parts.append(f'<rect x="{a}" y="{y}" width="{b-a+1}" height="1" fill="{fillvar}" style="mix-blend-mode:screen"/>')
+            t = 0 if y<=36 else (y-48)
+            s = 1+spread*t; sh = -skew*t
+            a  = CX+(27-CX)*s+sh; b  = CX+(67-CX)*s+sh
+            m0 = CX+(46-CX)*s+sh; m1 = CX+(48-CX)*s+sh
+            for p,q in [(round(a), round(m0)-1), (round(m1), round(b)-1)]:
+                p=max(1,p); q=min(94,q)
+                if q>=p:
+                    parts.append(f'<rect x="{p}" y="{y}" width="{q-p+1}" height="1" fill="{fillvar}" style="mix-blend-mode:screen"/>')
         parts.append('</g>')
     parts.append('</g>')
     return ''.join(parts)
 
-# 빔은 수평면에만 떨어진다: 창턱 상단(y35~36) + 바닥(y49~). 창 밑 벽은 그림자.
-# 노을/밤: 저고도 광원 — 길고 왼쪽 스큐, 돌·화분 그림자 구멍이 바닥까지 이어짐
-lp_sun_low = pool('lp-sun-low', 0, 0, 0.45, holes=[],
+# 노을/달: 저고도 — 길고 왼쪽으로 흐르는 사다리꼴
+lp_sun_low = pool_trap('lp-sun-low', 0.035, 0.75,
                   zones=[(35,36,.9),(49,55,1),(56,62,.75),(63,69,.5)], maskref='m-low')
-# 낮: 고고도 — 짧고 가파른 빔
-lp_sun_day = pool('lp-sun-day', 0, 0, 0.12, holes=[],
+# 낮: 고고도 — 짧고 가파른 사다리꼴
+lp_sun_day = pool_trap('lp-sun-day', 0.03, 0.12,
                   zones=[(35,36,.9),(49,53,.9),(54,58,.6)], maskref='m-day')
 lp_sun = '<g id="lp-sun">' + lp_sun_low + lp_sun_day + '</g>'
-lp_moon = pool('lp-moon', 0, 0, 0.45, holes=[],
+lp_moon = pool_trap('lp-moon', 0.035, 0.75,
                zones=[(35,36,.9),(49,55,1),(56,62,.75),(63,69,.5)],
                fillvar='var(--ml)', opvar='var(--ml-a)', maskref='m-low')
 
@@ -171,38 +165,35 @@ lamp_parts  = rings(74, 35, 1.0, [(0,5,.55),(5,9,.32),(9,13,.16)], (26,48), (62,
 lamp_parts += rings(74, 47, 1.5, [(0,7,.8),(7,12,.4),(12,16,.2)], (49,58), (62,94), 'var(--ll)')
 lp_lamp = '<g id="lp-lamp" style="opacity:var(--ll-a)">' + ''.join(lamp_parts) + '</g>'
 
-def occ_orb(skew, ymax):
-    r=['<rect x="51" y="35" width="14" height="2" fill="#000"/>']
-    for y in range(49, ymax+1):
-        sh=-round((y-35)*skew)
-        col='#000' if y<=53 else ('#666' if y<=57 else '#aaa')
-        r.append('<rect x="%d" y="%d" width="14" height="1" fill="%s"/>' % (51+sh, y, col))
-    return '<g class="occ-orb">'+''.join(r)+'</g>'
-
-def occ_plant(skew, ymax):
-    r=['<rect x="28" y="35" width="5" height="2" fill="#000"/>']
-    for y in range(49, ymax+1):
-        sh=-round((y-35)*skew)
-        col='#000' if y<=50 else '#888'
-        r.append('<rect x="%d" y="%d" width="5" height="1" fill="%s"/>' % (28+sh, y, col))
-    return '<g class="occ-plant">'+''.join(r)+'</g>'
-
-def occ_box_beam(low):
+# 그림자 스트립: 사다리꼴 빔과 같은 skew를 따라 흘러내리고 서서히 퍼짐/연해짐(반그림자)
+def occ_strip(x0, w, y0, y1, skew, base, grow=0.03, sill=None):
     r=[]
-    ymax = 53 if low else 50
-    for y in range(49, ymax+1):
-        d = y-48 if low else 0
-        col='#333' if y<=50 else '#999'
-        r.append('<rect x="%d" y="%d" width="8" height="1" fill="%s"/>' % (21-d, y, col))
-    return '<g class="occ-props">'+''.join(r)+'</g>'
+    if sill: r.append('<rect x="%d" y="35" width="%d" height="2" fill="#000"/>' % sill)
+    n=max(1, y1-y0)
+    for y in range(y0, y1+1):
+        sh=-round(skew*(y-base))
+        gw=round(w*(1+grow*(y-y0)))
+        f=(y-y0)/n
+        col='#000' if f<0.4 else ('#666' if f<0.75 else '#aaa')
+        r.append('<rect x="%d" y="%d" width="%d" height="1" fill="%s"/>' % (x0+sh-(gw-w)//2, y, gw, col))
+    return ''.join(r)
+
+def occ_orb(skew, ymax):      # 창턱 돌 (x54-62, w9)
+    return '<g class="occ-orb">'+occ_strip(54,9,49,ymax,skew,base=48,sill=(54,9))+'</g>'
+def occ_plant(skew, ymax):    # 창턱 화분 (x28-32, w5)
+    return '<g class="occ-plant">'+occ_strip(28,5,49,ymax,skew,base=48,sill=(28,5))+'</g>'
+def occ_box(skew, ymax):      # 벽난로 옆 상자 (바닥 위 → 자기 기준 로컬 skew)
+    return '<g class="occ-props">'+occ_strip(21,8,49,ymax,skew,base=48,grow=0)+'</g>'
+def occ_orb_rug(skew, ymax):  # 러그 위 돌 (x40-53, w14) — 그림자는 돌 앞(창 반대쪽)
+    return '<g class="occ-orb2">'+occ_strip(40,14,64,ymax,skew,base=63,grow=0.04)+'</g>'
 
 masks = (
  '<mask id="m-day" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72">'
  '<rect width="96" height="72" fill="#fff"/>'
- + occ_orb(0.12, 54) + occ_plant(0.12, 51) + occ_box_beam(False) + '</mask>'
+ + occ_orb(0.12, 52) + occ_plant(0.12, 51) + occ_box(0.12, 50) + occ_orb_rug(0.12, 66) + '</mask>'
  '<mask id="m-low" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72">'
  '<rect width="96" height="72" fill="#fff"/>'
- + occ_orb(0.45, 60) + occ_plant(0.45, 52) + occ_box_beam(True) + '</mask>'
+ + occ_orb(0.75, 58) + occ_plant(0.75, 52) + occ_box(0.75, 53) + occ_orb_rug(0.75, 68) + '</mask>'
  '<mask id="m-fire" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72">'
  '<rect width="96" height="72" fill="#fff"/>'
  '<g class="occ-props">'
@@ -210,6 +201,10 @@ masks = (
  '<rect x="32" y="45" width="3" height="4" fill="#b0b0b0"/>'
  '<rect x="35" y="46" width="2" height="3" fill="#d0d0d0"/>'
  '<rect x="10" y="61" width="12" height="3" fill="#999"/>'
+ '</g>'
+ '<g class="occ-orb2">'  # 러그 돌: 벽난로 반대쪽(우측)으로 반그림자
+ '<rect x="55" y="55" width="5" height="9" fill="#888"/>'
+ '<rect x="60" y="57" width="4" height="7" fill="#bbb"/>'
  '</g></mask>')
 
 lights = masks + lights + lp_sun + lp_moon + lp_fire + lp_candle + lp_lamp
@@ -222,8 +217,10 @@ def inject(gid, html_frag):
     art = art[:j] + html_frag + art[j:]
 
 SH = '<g class="p-shadow" style="mix-blend-mode:multiply">%s</g>'
-inject('orb', SH % ('<rect x="52" y="36" width="12" height="1" fill="#000" opacity=".25"/>'
-                    '<rect x="53" y="37" width="10" height="1" fill="#000" opacity=".12"/>'))
+inject('orb', SH % ('<rect x="55" y="36" width="7" height="1" fill="#000" opacity=".25"/>'
+                    '<rect x="56" y="37" width="5" height="1" fill="#000" opacity=".12"/>'))
+inject('orb-rug', SH % ('<rect x="41" y="64" width="12" height="1" fill="#000" opacity=".28"/>'
+                        '<rect x="43" y="65" width="9" height="1" fill="#000" opacity=".12"/>'))
 inject('sill-plant', SH % '<rect x="28" y="36" width="5" height="1" fill="#000" opacity=".25"/>')
 inject('g-floor', SH % ('<rect x="0" y="49" width="96" height="1" fill="#000" opacity=".25"/>'
                         '<rect x="0" y="50" width="96" height="1" fill="#000" opacity=".1"/>'))
@@ -247,6 +244,25 @@ def extract_group(src, start_idx):
         else:
             depth -= 1; i = nc + 4
             if depth == 0: return src[start_idx:i]
+
+# 겨울 나무: 새 클럼프 배치에 맞는 가지 스켈레톤으로 교체 (줄기는 #tree-trunk가 항상 표시)
+ti = art.index('<g id="tree-bare">')
+old_tb = extract_group(art, ti)
+TB = ('<g id="tree-bare">'
+      '<g fill="var(--t3)">'
+      '<rect x="31" y="5" width="1" height="1"/><rect x="30" y="6" width="4" height="1"/>'
+      '<rect x="26" y="9" width="8" height="1"/><rect x="36" y="9" width="9" height="1"/>'
+      '<rect x="28" y="10" width="1" height="1"/><rect x="43" y="10" width="1" height="1"/>'
+      '<rect x="30" y="12" width="4" height="1"/><rect x="37" y="13" width="6" height="1"/>'
+      '<rect x="29" y="15" width="4" height="1"/><rect x="36" y="16" width="6" height="1"/>'
+      '<rect x="33" y="18" width="3" height="1"/>'
+      '</g><g fill="#e8edf4">'
+      '<rect x="30" y="5" width="2" height="1"/><rect x="26" y="8" width="3" height="1"/>'
+      '<rect x="39" y="8" width="3" height="1"/><rect x="37" y="12" width="3" height="1"/>'
+      '<rect x="29" y="14" width="2" height="1"/><rect x="36" y="15" width="3" height="1"/>'
+      '<rect x="34" y="7" width="2" height="1"/>'
+      '</g></g>')
+art = art.replace(old_tb, TB)
 
 # 벽난로 불꽃 전체를 emission으로 이동
 fi = art.index('<g id="fire">')
@@ -278,14 +294,14 @@ def pull(gid):
     art = art[:i] + art[i+len(seg):]
     return seg
 
-# [2] 창밖: 달·별·구름은 하늘 요소 → 나무보다 뒤로
+# [2] 창밖: 달·별·구름은 하늘 요소 → 나무(줄기 포함)보다 뒤로
 celestial = ''.join(pull(g) for g in ('moon','stars','clouds'))
-li = art.index('<g id="leaves">')
+li = art.index('<g id="tree-trunk">')
 art = art[:li] + celestial + art[li:]
 
 # [3] 소품: 책장 책 → 촛대 → 창턱 화분 → 돌멩이 → 러그 → 스탠드 → 바닥 소품
 PROP_ORDER = ['bk-1','bk-2','bk-3','bk-4','bk-5','bk-6',
-              'candle','sill-plant','orb','rug','lamp','floor-props']
+              'candle','sill-plant','orb','rug','orb-rug','lamp','floor-props']
 props = {g: pull(g) for g in PROP_ORDER}
 art = art + ''.join(props[g] for g in PROP_ORDER)
 

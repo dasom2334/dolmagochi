@@ -1,452 +1,4 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>거실 씬 v2 — 중립 베이스 + 물리 광원 + 레이어 인스펙터</title>
-<style>
-  /* ============================================================
-     v2: 중립 방(AO만) + 3계층 합성
-       1) 시간 색감 오버레이  2) 날씨 색감 오버레이  3) 광원(개별 SVG)
-     모든 SVG 그룹 개별 on/off 가능
-     ============================================================ */
-  .scene {
-    --page-bg: #241627;
-    --rg0: #5f1e35;
-    --rg1: #6e223b;
-    --rg2: #7e263e;
-    --rg3: #8b2a42;
-    --rg4: #9d2f40;
-    --f0: #b1472f;
-    --f1: #df5924;
-    --f2: #f9972f;
-    --f3: #fcc875;
-    --cd0: #6c2c44;
-    --cd1: #ffba83;
-    --cd2: #ffd19d;
-    --pl0: #4a5438;
-    --pl1: #70772e;
-    --pl2: #c36c2d;
-    --pp0: #423120;
-    --pp1: #754b24;
-    --pp2: #c7614a;
-    --pp3: #db7831;
-    --pp4: #edce27;
-    --b1x0: #443241;
-    --b1x1: #a97442;
-    --b2x0: #4e6643;
-    --b2x1: #e6be37;
-    --b3x0: #3f476d;
-    --b3x1: #e1b654;
-    --b4x0: #221d34;
-    --b4x1: #614970;
-    --b5x0: #232038;
-    --b5x1: #4c8d67;
-    --b6x0: #25213c;
-    --b6x1: #423559;
-    --s0: #0d0a0f;
-    --s1: #1d1928;
-    --s2: #2b1b28;
-    --s3: #251f35;
-    --s4: #382434;
-    --s5: #2f2944;
-    --s6: #402a3d;
-    --s7: #4f2d3a;
-    --s8: #3f314d;
-    --s9: #4f344b;
-    --s10: #5e3a48;
-    --s11: #754043;
-    --s12: #644759;
-    --s13: #8f4d3b;
-    --s14: #a45b30;
-    --s15: #63993d;
-    --s16: #945851;
-    --s17: #aa5a46;
-    --s18: #ba632f;
-    --s19: #7ebb39;
-    --s20: #d56744;
-    --s21: #b39148;
-    --s22: #d2a044;
-    --s23: #9a9494;
-    --s24: #e5b73a;
-    --s25: #f9c83a;
-    /* 하늘(시간): 기본=낮 */
-    --k0: #4a90c8; --k1: #62a5d6; --k2: #7ab5e0; --k3: #93c6ea;
-    --k4: #aed6f0; --k5: #c8e4f6; --k6: #ddeefa;
-    --sun0: #ffdf8f; --sun1: #fff6d8;
-    /* 풍경(계절): 기본=여름 (중립 주광색) */
-    --h0: #4c8544; --h1: #63a058; --h2: #84bc74; --h3: #b8d898;
-    --t0: #3f5c30; --t1: #567a3c; --t2: #6f8a44;
-    --t3: #7a5238; --t4: #8a6242;
-    --moon:    #e9e6da;
-    --moon-cr: #c8c3b2;
-    --star:    #e8ecff;
-    --rain:    #c9d4ea;
-    --snow-p:  #f4f6fb;
-    --cloud-1: #9aa4b5;
-    --cloud-2: #7e8899;
-    /* 바닥(무광원 중립 판자) */
-    --fb0: #4a3542; --fb1: #58424f; --fb2: #634b59;
-    --fbl: #392933; --fbh: #775c71; --fbk: #2b1e27;
-    /* 돌(무광원 중립 그레이: 위=열린 하늘 AO 밝음, 아래=접지 AO) */
-    --o0: #35333c; --o1: #4e4d54; --o2: #64655f; --o3: #797b6f; --o4: #8b8e7e;
-    /* 광원: 창문(태양) / 창문(달) / 벽난로 / 촛불 / 스탠드 */
-    --wl: #fff0c8; --wl-a: .20;
-    --ml: #a8bcf0; --ml-a: .16;
-    --fl: #ffa04a; --fl-a: .10;
-    --cl: #ffcf8a; --cl-a: .08;
-    --ll: #ffd9a0; --ll-a: .10;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
-    background: #1b1020;
-    padding: 24px 12px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
-  }
-
-  .scene {
-    width: 100%;
-    max-width: 900px;
-    aspect-ratio: 4 / 3;
-    background: var(--page-bg);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: background .6s;
-  }
-
-  .scene svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    shape-rendering: crispEdges;
-  }
-
-  .scene svg * { transition: fill .6s, opacity .6s; }
-
-  .scene #moon, .scene #stars,
-  .scene #rain, .scene #snow,
-  .scene #clouds, .scene #tree-bare,
-  .scene #fx-drops, .scene #fx-frost, .scene #fx-snowcap,
-  .scene #pt-leaves, .scene #pt-petals, .scene #pt-fireflies,
-  .scene #light-day, .scene #light-sunset, .scene #light-night,
-  .scene #light-cloud, .scene #light-rain, .scene #light-snow,
-  .scene #lp-sun-day, .scene #lp-moon { display: none; }
-
-  .ctl {
-    position: absolute;
-    width: 1px; height: 1px;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  /* ===== 계절 풍경 ===== */
-  #s-spring:checked ~ .scene {
-    --h0: #55804a; --h1: #6f9c5e; --h2: #8fba7c; --h3: #c2dfa6;
-    --t0: #a86a8c; --t1: #d095b5; --t2: #e8b8ce;
-  }
-  #s-autumn:checked ~ .scene {
-    --h0: #7a4a2e; --h1: #9a6538; --h2: #c08850; --h3: #e0b070;
-    --t0: #7a3a28; --t1: #b0622e; --t2: #d08a3a;
-  }
-  #s-winter:checked ~ .scene {
-    --h0: #8f9ab0; --h1: #b5c0d0; --h2: #d8e0ec; --h3: #eef2f8;
-  }
-  #s-winter:checked ~ .scene #leaves    { display: none; }
-  #s-winter:checked ~ .scene #tree-bare { display: inline; }
-
-  /* ===== 시간: 하늘 교체 + 광원 값 ===== */
-  #t-sunset:checked ~ .scene {
-    --k0: #39203e; --k1: #562b3c; --k2: #ae653e; --k3: #a5456a;
-    --k4: #d55850; --k5: #f57639; --k6: #fc9840;
-    --sun0: #fca951; --sun1: #fcce8b;
-    --wl: #ff9a4a; --wl-a: .30; --fl-a: .16; --cl-a: .12; --ll-a: .15;
-  }
-  #t-night:checked ~ .scene {
-    --k0: #0e1430; --k1: #131a3a; --k2: #1a2348; --k3: #232e56;
-    --k4: #2c3862; --k5: #364471; --k6: #41507e;
-    --page-bg: #150e1d;
-    --fl-a: .30; --cl-a: .18; --ll-a: .28;
-  }
-  #t-night:checked ~ .scene #sun   { display: none; }
-  #t-night:checked ~ .scene #moon  { display: inline; }
-  #t-night:checked ~ .scene #stars { display: inline; }
-
-  /* 창문 광원의 시간 게이팅: 태양광은 낮·노을, 달빛은 밤 */
-  #t-day:checked   ~ .scene #lp-sun-day { display: inline; }
-  #t-day:checked   ~ .scene #lp-sun-low { display: none; }
-  #t-night:checked ~ .scene #lp-sun     { display: none; }
-  #t-night:checked ~ .scene #lp-moon    { display: inline; }
-
-  /* 노을 언덕: 원경은 노을빛 머금은 자주·핑크 (겨울은 장밋빛 눈으로 유지) */
-  #t-sunset:checked ~ .scene { --h0: #3f2946; --h1: #5a3760; --h2: #7d4a70; --h3: #a45f80; }
-  #t-sunset:checked ~ #s-winter:checked ~ .scene { --h0: #8a7a96; --h1: #ab9ab2; --h2: #cdbccd; --h3: #e8d8e0; }
-
-  /* 밤 언덕 실루엣 (겨울 눈빛 유지) */
-  #t-night:checked ~ .scene { --h0: #12172f; --h1: #1a2140; --h2: #242c52; --h3: #303a64; }
-  #t-night:checked ~ #s-winter:checked ~ .scene { --h0: #3a4166; --h1: #4d5480; --h2: #6a729c; --h3: #8891b5; }
-
-  /* 밤 나무: 달빛에 가라앉은 톤 (계절 컴파운드) */
-  #t-night:checked ~ .scene { --t0: #1f2b1c; --t1: #2c3d26; --t2: #3a4e30; --t3: #3a2f33; --t4: #463a3c; }
-  #t-night:checked ~ #s-spring:checked ~ .scene { --t0: #4a3350; --t1: #5f4468; --t2: #75587c; }
-  #t-night:checked ~ #s-autumn:checked ~ .scene { --t0: #3d2620; --t1: #54321e; --t2: #6b4426; }
-
-  /* 계절이 광원에 관여하는 예: 겨울 낮의 창문 빛은 차가운 흰색 */
-  #t-day:checked ~ #s-winter:checked ~ .scene { --wl: #eef4fc; --wl-a: .24; }
-
-  /* ===== 날씨: 구름·파티클·광원 감쇠 ===== */
-  #w-cloud:checked ~ .scene { --wl: #c8d2e0; --wl-a: .10; --ml-a: .06; }
-  #w-rain:checked  ~ .scene { --wl: #93a4bc; --wl-a: .07; --ml-a: .04; }
-  #w-snow:checked  ~ .scene { --wl: #dde8f6; --wl-a: .16; --ml-a: .10; }
-  #w-cloud:checked ~ .scene #clouds,
-  #w-rain:checked  ~ .scene #clouds,
-  #w-snow:checked  ~ .scene #clouds { display: inline; }
-  #w-rain:checked ~ .scene #rain { display: inline; }
-  #w-snow:checked ~ .scene #snow { display: inline; }
-  #w-cloud:checked ~ .scene #sun,  #w-rain:checked ~ .scene #sun,  #w-snow:checked ~ .scene #sun,
-  #w-cloud:checked ~ .scene #moon, #w-rain:checked ~ .scene #moon, #w-snow:checked ~ .scene #moon,
-  #w-cloud:checked ~ .scene #stars,#w-rain:checked ~ .scene #stars,#w-snow:checked ~ .scene #stars { display: none; }
-
-  /* ===== 색감 오버레이 표시 (시간/날씨 분리) ===== */
-  #t-day:checked    ~ .scene #light-day    { display: inline; }
-  #t-sunset:checked ~ .scene #light-sunset { display: inline; }
-  #t-night:checked  ~ .scene #light-night  { display: inline; }
-  #w-cloud:checked  ~ .scene #light-cloud  { display: inline; }
-  #w-rain:checked   ~ .scene #light-rain   { display: inline; }
-  #w-snow:checked   ~ .scene #light-snow   { display: inline; }
-
-  /* ===== 창문 효과 ===== */
-  #w-rain:checked   ~ .scene #fx-drops   { display: inline; }
-  #s-winter:checked ~ .scene #fx-frost   { display: inline; }
-  #w-snow:checked   ~ .scene #fx-snowcap { display: inline; }
-
-  /* ===== 돌 위치: 창턱(원근 축소판) / 러그(방 한가운데 원래 크기) ===== */
-  #op-sill:checked ~ .scene #orb-rug   { display: none; }
-  #op-sill:checked ~ .scene .occ-orb2  { display: none; }
-  #op-rug:checked  ~ .scene #orb       { display: none; }
-  #op-rug:checked  ~ .scene .occ-orb   { display: none; }
-
-  /* ===== 계절 파티클 ===== */
-  #s-autumn:checked ~ #w-clear:checked ~ .scene #pt-leaves { display: inline; }
-  #s-autumn:checked ~ #w-cloud:checked ~ .scene #pt-leaves { display: inline; }
-  #s-spring:checked ~ #w-clear:checked ~ .scene #pt-petals { display: inline; }
-  #s-spring:checked ~ #w-cloud:checked ~ .scene #pt-petals { display: inline; }
-  #t-night:checked ~ #s-summer:checked ~ #w-clear:checked ~ .scene #pt-fireflies { display: inline; }
-
-  /* ============================================================
-     레이어 인스펙터 — 모든 그룹 개별 on/off (마스터는 !important)
-     ============================================================ */
-  #ov-time:not(:checked)    ~ .scene #light-day,
-  #ov-time:not(:checked)    ~ .scene #light-sunset,
-  #ov-time:not(:checked)    ~ .scene #light-night  { display: none !important; }
-  #ov-weather:not(:checked) ~ .scene #light-cloud,
-  #ov-weather:not(:checked) ~ .scene #light-rain,
-  #ov-weather:not(:checked) ~ .scene #light-snow   { display: none !important; }
-
-  #p-lsun:not(:checked)    ~ .scene #lp-sun    { display: none !important; }
-  #p-lmoon:not(:checked)   ~ .scene #lp-moon   { display: none !important; }
-  #p-lfire:not(:checked)   ~ .scene #lp-fire   { display: none !important; }
-  #p-lcandle:not(:checked) ~ .scene #lp-candle { display: none !important; }
-  #p-llamp:not(:checked)   ~ .scene #lp-lamp   { display: none !important; }
-
-  #L-wall:not(:checked)      ~ .scene #g-wall        { display: none !important; }
-  #L-floor:not(:checked)     ~ .scene #g-floor       { display: none !important; }
-  #L-winframe:not(:checked)  ~ .scene #g-winframe    { display: none !important; }
-  #L-fireplace:not(:checked) ~ .scene #g-fireplace   { display: none !important; }
-  #L-shelf:not(:checked)     ~ .scene #g-shelf       { display: none !important; }
-  #L-scenery:not(:checked)   ~ .scene #base-scenery  { display: none !important; }
-  #L-tree:not(:checked)      ~ .scene #leaves,
-  #L-tree:not(:checked)      ~ .scene #tree-trunk,
-  #L-tree:not(:checked)      ~ .scene #tree-bare     { display: none !important; }
-  #L-sun:not(:checked)       ~ .scene #sun           { display: none !important; }
-  #L-moon:not(:checked)      ~ .scene #moon          { display: none !important; }
-  #L-stars:not(:checked)     ~ .scene #stars         { display: none !important; }
-  #L-clouds:not(:checked)    ~ .scene #clouds        { display: none !important; }
-  #L-rug:not(:checked)       ~ .scene #rug           { display: none !important; }
-  #L-orb:not(:checked)       ~ .scene #orb,
-  #L-orb:not(:checked)       ~ .scene #orb-rug       { display: none !important; }
-  #L-plant:not(:checked)     ~ .scene #sill-plant    { display: none !important; }
-  #L-props:not(:checked)     ~ .scene #floor-props   { display: none !important; }
-  #L-candle:not(:checked)    ~ .scene #candle        { display: none !important; }
-  #L-fire:not(:checked)      ~ .scene #fire          { display: none !important; }
-  #L-lamp:not(:checked)      ~ .scene #lamp          { display: none !important; }
-  #L-candle:not(:checked)    ~ .scene #candle-flame  { display: none !important; }
-  #L-lamp:not(:checked)      ~ .scene #lamp-glow     { display: none !important; }
-  #p-llamp:not(:checked)     ~ .scene #lamp-glow     { display: none !important; }
-  #L-books:not(:checked)     ~ .scene #bk-1, #L-books:not(:checked) ~ .scene #bk-2,
-  #L-books:not(:checked)     ~ .scene #bk-3, #L-books:not(:checked) ~ .scene #bk-4,
-  #L-books:not(:checked)     ~ .scene #bk-5, #L-books:not(:checked) ~ .scene #bk-6 { display: none !important; }
-  /* 소품 OFF → 해당 오클루더(광원 마스크 속 그림자)도 OFF */
-  #L-orb:not(:checked)   ~ .scene .occ-orb,
-  #L-orb:not(:checked)   ~ .scene .occ-orb2  { display: none; }
-  #L-plant:not(:checked) ~ .scene .occ-plant { display: none; }
-  #L-props:not(:checked) ~ .scene .occ-props { display: none; }
-
-  #p-fx:not(:checked) ~ .scene #rain, #p-fx:not(:checked) ~ .scene #snow,
-  #p-fx:not(:checked) ~ .scene #pt-leaves, #p-fx:not(:checked) ~ .scene #pt-petals,
-  #p-fx:not(:checked) ~ .scene #pt-fireflies, #p-fx:not(:checked) ~ .scene #fx-drops,
-  #p-fx:not(:checked) ~ .scene #fx-frost, #p-fx:not(:checked) ~ .scene #fx-snowcap { display: none !important; }
-
-  /* ===== 애니메이션 ===== */
-  .f-out, .f-mid, .f-core, .c-flame {
-    transform-box: fill-box;
-    transform-origin: 50% 100%;
-  }
-  .f-out  { animation: flick-soft 0.9s ease-in-out infinite; }
-  .f-mid  { animation: flick-soft 0.7s ease-in-out -0.3s infinite; }
-  .f-core { animation: flick-core 0.5s ease-in-out infinite; }
-  .c-flame { animation: candle-flick 1.7s ease-in-out infinite; }
-  .twinkle-a { animation: twinkle 2.4s ease-in-out infinite; }
-  .twinkle-b { animation: twinkle 3.1s ease-in-out -1.2s infinite; }
-  .rain-fall   { animation: fall-30 0.7s steps(15) infinite; }
-  .snow-fall-a { animation: fall-30 3.8s steps(30) infinite; }
-  .snow-fall-b { animation: fall-30 5.4s steps(30) -2.1s infinite; }
-  .drift-a     { animation: fall-30 6.5s steps(30) infinite; }
-  .drift-b     { animation: fall-30 8s   steps(30) -3.5s infinite; }
-  .firefly-a   { animation: twinkle 1.8s ease-in-out infinite; }
-  .firefly-b   { animation: twinkle 2.6s ease-in-out -0.9s infinite; }
-  .cloud-drift { animation: cloud-move 34s linear infinite alternate; }
-  .glow-flicker      { animation: glow-breathe 1.3s ease-in-out infinite; }
-  .glow-flicker-slow { animation: glow-breathe 2.2s ease-in-out -0.8s infinite; }
-
-  @keyframes flick-soft   { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(.93); } }
-  @keyframes flick-core   { 0%,100% { transform: scaleY(1); opacity: 1; } 50% { transform: scaleY(.84); opacity: .85; } }
-  @keyframes candle-flick { 0%,100% { transform: scaleY(1); opacity: 1; } 42% { transform: scaleY(.78); opacity: .8; } 70% { transform: scaleY(.92); } }
-  @keyframes twinkle      { 0%,100% { opacity: 1; } 50% { opacity: .2; } }
-  @keyframes fall-30      { to { transform: translateY(30px); } }
-  @keyframes cloud-move   { from { transform: translateX(-2px); } to { transform: translateX(3px); } }
-  @keyframes glow-breathe { 0%,100% { opacity: 1; } 50% { opacity: .72; } }
-
-  @media (prefers-reduced-motion: reduce) {
-    .scene svg * { animation: none !important; }
-  }
-
-  /* ===== 패널 ===== */
-  .panel {
-    width: 100%;
-    max-width: 900px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-  .g-label { width: 56px; flex: none; color: #8d7a92; font-size: 12px; letter-spacing: .04em; }
-  .panel label {
-    padding: 5px 12px;
-    border-radius: 999px;
-    background: #2a1c31;
-    border: 1px solid #443150;
-    color: #af9cb4;
-    font-size: 12px;
-    line-height: 1;
-    cursor: pointer;
-    user-select: none;
-    transition: background .2s, color .2s, border-color .2s;
-  }
-  .panel label:hover { border-color: #6b5175; }
-  .divider { height: 1px; background: #2e2036; margin: 2px 0; }
-  .note { color: #6f5e76; font-size: 11px; }
-
-  #t-day:checked      ~ .panel label[for="t-day"],
-  #t-sunset:checked   ~ .panel label[for="t-sunset"],
-  #t-night:checked    ~ .panel label[for="t-night"],
-  #s-spring:checked   ~ .panel label[for="s-spring"],
-  #s-summer:checked   ~ .panel label[for="s-summer"],
-  #s-autumn:checked   ~ .panel label[for="s-autumn"],
-  #s-winter:checked   ~ .panel label[for="s-winter"],
-  #w-clear:checked    ~ .panel label[for="w-clear"],
-  #w-cloud:checked    ~ .panel label[for="w-cloud"],
-  #w-rain:checked     ~ .panel label[for="w-rain"],
-  #w-snow:checked     ~ .panel label[for="w-snow"],
-  #op-sill:checked    ~ .panel label[for="op-sill"],
-  #op-rug:checked     ~ .panel label[for="op-rug"],
-  #ov-time:checked    ~ .panel label[for="ov-time"],
-  #ov-weather:checked ~ .panel label[for="ov-weather"],
-  #p-lsun:checked     ~ .panel label[for="p-lsun"],
-  #p-lmoon:checked    ~ .panel label[for="p-lmoon"],
-  #p-lfire:checked    ~ .panel label[for="p-lfire"],
-  #p-lcandle:checked  ~ .panel label[for="p-lcandle"],
-  #p-llamp:checked    ~ .panel label[for="p-llamp"],
-  #L-wall:checked      ~ .panel label[for="L-wall"],
-  #L-floor:checked     ~ .panel label[for="L-floor"],
-  #L-winframe:checked  ~ .panel label[for="L-winframe"],
-  #L-fireplace:checked ~ .panel label[for="L-fireplace"],
-  #L-shelf:checked     ~ .panel label[for="L-shelf"],
-  #L-scenery:checked   ~ .panel label[for="L-scenery"],
-  #L-tree:checked      ~ .panel label[for="L-tree"],
-  #L-sun:checked       ~ .panel label[for="L-sun"],
-  #L-moon:checked      ~ .panel label[for="L-moon"],
-  #L-stars:checked     ~ .panel label[for="L-stars"],
-  #L-clouds:checked    ~ .panel label[for="L-clouds"],
-  #L-rug:checked       ~ .panel label[for="L-rug"],
-  #L-orb:checked       ~ .panel label[for="L-orb"],
-  #L-plant:checked     ~ .panel label[for="L-plant"],
-  #L-props:checked     ~ .panel label[for="L-props"],
-  #L-candle:checked    ~ .panel label[for="L-candle"],
-  #L-fire:checked      ~ .panel label[for="L-fire"],
-  #L-books:checked     ~ .panel label[for="L-books"],
-  #L-lamp:checked      ~ .panel label[for="L-lamp"],
-  #p-fx:checked        ~ .panel label[for="p-fx"] {
-    background: #d98e4a;
-    border-color: #d98e4a;
-    color: #2a1626;
-    font-weight: 600;
-  }
-</style>
-</head>
-<body>
-
-  <input class="ctl" type="radio" name="time" id="t-day" checked>
-  <input class="ctl" type="radio" name="time" id="t-sunset">
-  <input class="ctl" type="radio" name="time" id="t-night">
-  <input class="ctl" type="radio" name="season" id="s-spring">
-  <input class="ctl" type="radio" name="season" id="s-summer" checked>
-  <input class="ctl" type="radio" name="season" id="s-autumn">
-  <input class="ctl" type="radio" name="season" id="s-winter">
-  <input class="ctl" type="radio" name="weather" id="w-clear" checked>
-  <input class="ctl" type="radio" name="weather" id="w-cloud">
-  <input class="ctl" type="radio" name="weather" id="w-rain">
-  <input class="ctl" type="radio" name="weather" id="w-snow">
-  <input class="ctl" type="radio" name="orbpos" id="op-sill" checked>
-  <input class="ctl" type="radio" name="orbpos" id="op-rug">
-  <input class="ctl" type="checkbox" id="ov-time" checked>
-  <input class="ctl" type="checkbox" id="ov-weather" checked>
-  <input class="ctl" type="checkbox" id="p-lsun" checked>
-  <input class="ctl" type="checkbox" id="p-lmoon" checked>
-  <input class="ctl" type="checkbox" id="p-lfire" checked>
-  <input class="ctl" type="checkbox" id="p-lcandle" checked>
-  <input class="ctl" type="checkbox" id="p-llamp" checked>
-  <input class="ctl" type="checkbox" id="L-wall" checked>
-  <input class="ctl" type="checkbox" id="L-floor" checked>
-  <input class="ctl" type="checkbox" id="L-winframe" checked>
-  <input class="ctl" type="checkbox" id="L-fireplace" checked>
-  <input class="ctl" type="checkbox" id="L-shelf" checked>
-  <input class="ctl" type="checkbox" id="L-scenery" checked>
-  <input class="ctl" type="checkbox" id="L-tree" checked>
-  <input class="ctl" type="checkbox" id="L-sun" checked>
-  <input class="ctl" type="checkbox" id="L-moon" checked>
-  <input class="ctl" type="checkbox" id="L-stars" checked>
-  <input class="ctl" type="checkbox" id="L-clouds" checked>
-  <input class="ctl" type="checkbox" id="L-rug" checked>
-  <input class="ctl" type="checkbox" id="L-orb" checked>
-  <input class="ctl" type="checkbox" id="L-plant" checked>
-  <input class="ctl" type="checkbox" id="L-props" checked>
-  <input class="ctl" type="checkbox" id="L-candle" checked>
-  <input class="ctl" type="checkbox" id="L-fire" checked>
-  <input class="ctl" type="checkbox" id="L-books" checked>
-  <input class="ctl" type="checkbox" id="L-lamp" checked>
-  <input class="ctl" type="checkbox" id="p-fx" checked>
-
-  <div class="scene">
-    <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="중립 베이스 위에 시간·날씨 색감 오버레이와 개별 광원을 합성하는 레이어 인스펙터 씬.">
-<!-- z-order(뒤→앞): [1]방구조(벽→바닥→창틀→벽난로→책장) [2]창밖(하늘→해→달→별→구름→나무→파티클→유리효과) [3]소품(책→촛대→화분→돌멩이→러그→스탠드→바닥소품) [3.5]창틀눈 [4]색감오버레이(시간→날씨) [5]광원(mask) [6]emission --><g id="base-scenery">
+<g id="base-scenery">
 <rect x="0" y="0" width="96" height="1" fill="var(--k0)"/>
 <rect x="0" y="1" width="96" height="1" fill="var(--k0)"/>
 <rect x="0" y="2" width="96" height="1" fill="var(--k0)"/>
@@ -1023,37 +575,7 @@
 <rect x="57" y="17" width="3" height="1" fill="var(--sun1)"/>
 <rect x="58" y="18" width="1" height="1" fill="var(--sun0)"/>
 </g>
-<g id="moon">
-  <rect x="55" y="13" width="3" height="1" fill="var(--moon)"/>
-  <rect x="54" y="14" width="5" height="1" fill="var(--moon)"/>
-  <rect x="53" y="15" width="7" height="3" fill="var(--moon)"/>
-  <rect x="54" y="18" width="5" height="1" fill="var(--moon)"/>
-  <rect x="55" y="19" width="3" height="1" fill="var(--moon)"/>
-  <rect x="55" y="15" width="1" height="1" fill="var(--moon-cr)"/>
-  <rect x="57" y="17" width="2" height="1" fill="var(--moon-cr)"/>
-  <rect x="54" y="18" width="1" height="1" fill="var(--moon-cr)"/>
-</g><g id="stars" fill="var(--star)">
-  <rect class="twinkle-a" x="30" y="6"  width="1" height="1"/>
-  <rect x="36" y="10" width="1" height="1"/>
-  <rect class="twinkle-b" x="42" y="5"  width="1" height="1"/>
-  <rect x="50" y="8"  width="1" height="1"/>
-  <rect x="62" y="6"  width="1" height="1"/>
-  <rect class="twinkle-a" x="64" y="14" width="1" height="1"/>
-  <rect x="33" y="13" width="1" height="1"/>
-  <rect x="45" y="12" width="1" height="1"/>
-  <rect x="60" y="9"  width="1" height="3"/>
-  <rect x="59" y="10" width="3" height="1"/>
-</g><g id="clouds" class="cloud-drift">
-  <rect x="30" y="6"  width="8"  height="2" fill="var(--cloud-1)"/>
-  <rect x="29" y="7"  width="11" height="2" fill="var(--cloud-1)"/>
-  <rect x="30" y="9"  width="9"  height="1" fill="var(--cloud-2)"/>
-  <rect x="50" y="9"  width="10" height="2" fill="var(--cloud-1)"/>
-  <rect x="48" y="10" width="13" height="2" fill="var(--cloud-1)"/>
-  <rect x="50" y="12" width="10" height="1" fill="var(--cloud-2)"/>
-  <rect x="40" y="14" width="6"  height="1" fill="var(--cloud-2)"/>
-  <rect x="39" y="15" width="7"  height="1" fill="var(--cloud-2)"/>
-  <rect x="62" y="16" width="5"  height="1" fill="var(--cloud-2)"/>
-</g><g id="tree-trunk">
+<g id="tree-trunk">
 <rect x="34" y="8" width="1" height="1" fill="var(--t3)"/>
 <rect x="35" y="8" width="1" height="1" fill="var(--t4)"/>
 <rect x="34" y="9" width="1" height="1" fill="var(--t3)"/>
@@ -1121,7 +643,7 @@
 <rect x="33" y="40" width="4" height="1" fill="var(--t3)"/>
 <rect x="37" y="40" width="1" height="1" fill="var(--t4)"/>
 </g>
-<g id="leaves">
+<g id="leaves-wrap">
 <rect x="30" y="5" width="3" height="1" fill="var(--t1)"/>
 <rect x="29" y="6" width="5" height="1" fill="var(--t1)"/>
 <rect x="32" y="6" width="2" height="1" fill="var(--t2)"/>
@@ -1185,105 +707,7 @@
 <rect x="33" y="19" width="1" height="1" fill="var(--t0)"/>
 <rect x="31" y="20" width="3" height="1" fill="var(--t0)"/>
 </g>
-
-<g id="tree-bare"><g fill="var(--t3)"><rect x="31" y="5" width="1" height="1"/><rect x="30" y="6" width="4" height="1"/><rect x="26" y="9" width="8" height="1"/><rect x="36" y="9" width="9" height="1"/><rect x="28" y="10" width="1" height="1"/><rect x="43" y="10" width="1" height="1"/><rect x="30" y="12" width="4" height="1"/><rect x="37" y="13" width="6" height="1"/><rect x="29" y="15" width="4" height="1"/><rect x="36" y="16" width="6" height="1"/><rect x="33" y="18" width="3" height="1"/></g><g fill="#e8edf4"><rect x="30" y="5" width="2" height="1"/><rect x="26" y="8" width="3" height="1"/><rect x="39" y="8" width="3" height="1"/><rect x="37" y="12" width="3" height="1"/><rect x="29" y="14" width="2" height="1"/><rect x="36" y="15" width="3" height="1"/><rect x="34" y="7" width="2" height="1"/></g></g>
-
-
-
-<g id="rain" opacity=".6">
-  <g class="rain-fall">
-    <g id="rain-tile" fill="var(--rain)">
-      <rect x="29" y="6"  width="1" height="3"/><rect x="34" y="15" width="1" height="3"/>
-      <rect x="39" y="9"  width="1" height="3"/><rect x="44" y="21" width="1" height="3"/>
-      <rect x="49" y="5"  width="1" height="3"/><rect x="54" y="13" width="1" height="3"/>
-      <rect x="59" y="24" width="1" height="3"/><rect x="63" y="8"  width="1" height="3"/>
-      <rect x="31" y="28" width="1" height="3"/><rect x="36" y="26" width="1" height="3"/>
-      <rect x="42" y="30" width="1" height="3"/><rect x="47" y="17" width="1" height="3"/>
-      <rect x="52" y="32" width="1" height="3"/><rect x="57" y="20" width="1" height="3"/>
-      <rect x="62" y="29" width="1" height="3"/><rect x="65" y="11" width="1" height="3"/>
-    </g>
-    <use href="#rain-tile" y="-30"/>
-  </g>
-</g>
-<g id="snow" opacity=".9">
-  <g class="snow-fall-a">
-    <g id="snow-tile-a" fill="var(--snow-p)">
-      <rect x="30" y="8"  width="1" height="1"/><rect x="35" y="18" width="1" height="1"/>
-      <rect x="41" y="6"  width="1" height="1"/><rect x="46" y="24" width="1" height="1"/>
-      <rect x="51" y="12" width="1" height="1"/><rect x="56" y="28" width="1" height="1"/>
-      <rect x="60" y="7"  width="1" height="1"/><rect x="64" y="20" width="1" height="1"/>
-      <rect x="33" y="30" width="1" height="1"/><rect x="44" y="14" width="1" height="1"/>
-    </g>
-    <use href="#snow-tile-a" y="-30"/>
-  </g>
-  <g class="snow-fall-b">
-    <g id="snow-tile-b" fill="var(--snow-p)">
-      <rect x="28" y="16" width="1" height="1"/><rect x="38" y="25" width="1" height="1"/>
-      <rect x="43" y="10" width="1" height="1"/><rect x="49" y="31" width="1" height="1"/>
-      <rect x="54" y="6"  width="1" height="1"/><rect x="58" y="15" width="1" height="1"/>
-      <rect x="63" y="27" width="1" height="1"/><rect x="66" y="22" width="1" height="1"/>
-    </g>
-    <use href="#snow-tile-b" y="-30"/>
-  </g>
-</g>
-<g id="pt-leaves">
-  <g class="drift-a">
-    <g id="leaf-tile" fill="#c07838">
-      <rect x="31" y="7"  width="1" height="1"/><rect x="43" y="16" width="1" height="1" fill="#a05828"/>
-      <rect x="55" y="5"  width="1" height="1" fill="#d08a3a"/><rect x="62" y="22" width="1" height="1"/>
-      <rect x="37" y="27" width="1" height="1" fill="#a05828"/><rect x="49" y="30" width="1" height="1"/>
-    </g>
-    <use href="#leaf-tile" y="-30"/>
-  </g>
-  <g class="drift-b">
-    <g id="leaf-tile-b" fill="#d08a3a">
-      <rect x="34" y="12" width="1" height="1"/><rect x="58" y="9"  width="1" height="1" fill="#c07838"/>
-      <rect x="46" y="23" width="1" height="1"/><rect x="64" y="31" width="1" height="1" fill="#a05828"/>
-    </g>
-    <use href="#leaf-tile-b" y="-30"/>
-  </g>
-</g>
-<g id="pt-petals">
-  <g class="drift-a">
-    <g id="petal-tile" fill="#f0b8d0">
-      <rect x="31" y="7"  width="1" height="1"/><rect x="43" y="16" width="1" height="1" fill="#e095b8"/>
-      <rect x="55" y="5"  width="1" height="1"/><rect x="62" y="22" width="1" height="1" fill="#e095b8"/>
-      <rect x="37" y="27" width="1" height="1"/><rect x="49" y="30" width="1" height="1" fill="#e095b8"/>
-    </g>
-    <use href="#petal-tile" y="-30"/>
-  </g>
-  <g class="drift-b">
-    <g id="petal-tile-b" fill="#e8a8c6">
-      <rect x="34" y="12" width="1" height="1"/><rect x="58" y="9"  width="1" height="1" fill="#f0b8d0"/>
-      <rect x="46" y="23" width="1" height="1"/><rect x="64" y="31" width="1" height="1"/>
-    </g>
-    <use href="#petal-tile-b" y="-30"/>
-  </g>
-</g>
-<g id="pt-fireflies" fill="#d8f090">
-  <rect class="firefly-a" x="35" y="26" width="1" height="1"/>
-  <rect class="firefly-b" x="52" y="24" width="1" height="1"/>
-  <rect class="firefly-a" x="44" y="29" width="1" height="1"/>
-  <rect class="firefly-b" x="60" y="27" width="1" height="1"/>
-</g>
-<g id="fx-drops" fill="#cfe0f5">
-  <rect x="31" y="10" width="1" height="1" opacity=".55"/>
-  <rect x="45" y="7"  width="1" height="1" opacity=".55"/>
-  <rect x="58" y="12" width="1" height="1" opacity=".55"/>
-  <rect x="37" y="20" width="1" height="1" opacity=".55"/>
-  <rect x="63" y="18" width="1" height="1" opacity=".55"/>
-  <rect x="50" y="26" width="1" height="1" opacity=".55"/>
-  <rect x="29" y="28" width="1" height="1" opacity=".55"/>
-  <rect x="41" y="14" width="1" height="3" opacity=".35"/>
-  <rect x="55" y="21" width="1" height="3" opacity=".35"/>
-</g>
-<g id="fx-frost" fill="#dce8f8" opacity=".6">
-  <rect x="27" y="4"  width="3" height="1"/><rect x="27" y="5"  width="2" height="1"/><rect x="27" y="6" width="1" height="1"/>
-  <rect x="64" y="4"  width="3" height="1"/><rect x="65" y="5"  width="2" height="1"/><rect x="66" y="6" width="1" height="1"/>
-  <rect x="27" y="33" width="3" height="1"/><rect x="27" y="32" width="2" height="1"/><rect x="27" y="31" width="1" height="1"/>
-  <rect x="64" y="33" width="3" height="1"/><rect x="65" y="32" width="2" height="1"/><rect x="66" y="31" width="1" height="1"/>
-</g>
-
+<!--PARTICLES-->
 <g id="g-wall">
 <rect x="0" y="0" width="1" height="1" fill="var(--s3)"/>
 <rect x="1" y="0" width="5" height="1" fill="var(--s1)"/>
@@ -1986,7 +1410,7 @@
 <rect x="19" y="48" width="1" height="1" fill="var(--s6)"/>
 <rect x="20" y="48" width="1" height="1" fill="var(--s4)"/>
 <rect x="21" y="48" width="1" height="1" fill="var(--s1)"/>
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="2" y="49" width="20" height="1" fill="#000" opacity=".2"/><rect x="3" y="50" width="17" height="1" fill="#000" opacity=".1"/></g></g>
+</g>
 <g id="g-shelf">
 <rect x="78" y="16" width="15" height="1" fill="var(--s8)"/>
 <rect x="93" y="16" width="2" height="1" fill="var(--s3)"/>
@@ -2210,7 +1634,7 @@
 <rect x="87" y="47" width="6" height="1" fill="var(--s8)"/>
 <rect x="93" y="47" width="3" height="1" fill="var(--s3)"/>
 <rect x="78" y="48" width="18" height="1" fill="var(--s3)"/>
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="78" y="49" width="16" height="1" fill="#000" opacity=".2"/><rect x="79" y="50" width="14" height="1" fill="#000" opacity=".1"/></g></g>
+</g>
 <g id="g-floor">
 <rect x="0" y="49" width="26" height="1" fill="var(--fb0)"/>
 <rect x="26" y="49" width="26" height="1" fill="var(--fb1)"/>
@@ -2362,19 +1786,48 @@
 <rect x="49" y="71" width="1" height="1" fill="var(--fbl)"/>
 <rect x="62" y="71" width="1" height="1" fill="var(--fbl)"/>
 <rect x="94" y="71" width="1" height="1" fill="var(--fbh)"/>
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="0" y="49" width="96" height="1" fill="#000" opacity=".25"/><rect x="0" y="50" width="96" height="1" fill="#000" opacity=".1"/></g></g>
-
-
-
-
-
-
-
-
-
-
-
-
+</g>
+<g id="candle">
+<rect x="5" y="28" width="1" height="1" fill="var(--cd0)"/>
+<rect x="5" y="29" width="1" height="1" fill="var(--cd1)"/>
+<rect x="5" y="30" width="1" height="1" fill="var(--cd1)"/>
+<rect x="3" y="31" width="5" height="1" fill="var(--cd0)"/>
+<g class="c-flame">
+<rect x="6" y="28" width="1" height="1" fill="var(--cd2)"/>
+<rect x="6" y="29" width="1" height="1" fill="var(--cd2)"/>
+<rect x="6" y="30" width="1" height="1" fill="var(--cd2)"/>
+</g>
+</g>
+<g id="fire">
+<g class="f-out">
+<rect x="9" y="41" width="1" height="1" fill="var(--f0)"/>
+<rect x="17" y="45" width="1" height="1" fill="var(--f0)"/>
+</g>
+<g class="f-mid">
+<rect x="11" y="40" width="2" height="1" fill="var(--f1)"/>
+<rect x="10" y="41" width="4" height="1" fill="var(--f1)"/>
+<rect x="9" y="42" width="5" height="1" fill="var(--f1)"/>
+<rect x="8" y="43" width="3" height="1" fill="var(--f1)"/>
+<rect x="11" y="43" width="2" height="1" fill="var(--f2)"/>
+<rect x="13" y="43" width="2" height="1" fill="var(--f1)"/>
+<rect x="8" y="44" width="2" height="1" fill="var(--f1)"/>
+<rect x="10" y="44" width="1" height="1" fill="var(--f2)"/>
+<rect x="12" y="44" width="1" height="1" fill="var(--f2)"/>
+<rect x="13" y="44" width="2" height="1" fill="var(--f1)"/>
+<rect x="8" y="45" width="1" height="1" fill="var(--f1)"/>
+<rect x="9" y="45" width="2" height="1" fill="var(--f2)"/>
+<rect x="13" y="45" width="1" height="1" fill="var(--f2)"/>
+<rect x="14" y="45" width="1" height="1" fill="var(--f1)"/>
+<rect x="8" y="46" width="2" height="1" fill="var(--f1)"/>
+<rect x="10" y="46" width="1" height="1" fill="var(--f2)"/>
+<rect x="13" y="46" width="2" height="1" fill="var(--f1)"/>
+</g>
+<g class="f-core">
+<rect x="11" y="44" width="1" height="1" fill="var(--f3)"/>
+<rect x="11" y="45" width="2" height="1" fill="var(--f3)"/>
+<rect x="11" y="46" width="2" height="1" fill="var(--f3)"/>
+</g>
+</g>
 <g id="bk-1">
 <rect x="80" y="18" width="2" height="1" fill="var(--b1x0)"/>
 <rect x="80" y="19" width="1" height="1" fill="var(--b1x1)"/>
@@ -2384,7 +1837,8 @@
 <rect x="80" y="22" width="2" height="1" fill="var(--b1x1)"/>
 <rect x="80" y="23" width="2" height="1" fill="var(--b1x1)"/>
 <rect x="80" y="24" width="2" height="1" fill="var(--b1x1)"/>
-</g><g id="bk-2">
+</g>
+<g id="bk-2">
 <rect x="82" y="18" width="2" height="1" fill="var(--b2x0)"/>
 <rect x="82" y="19" width="1" height="1" fill="var(--b2x0)"/>
 <rect x="83" y="19" width="1" height="1" fill="var(--b2x1)"/>
@@ -2398,7 +1852,8 @@
 <rect x="83" y="23" width="1" height="1" fill="var(--b2x1)"/>
 <rect x="82" y="24" width="1" height="1" fill="var(--b2x0)"/>
 <rect x="83" y="24" width="1" height="1" fill="var(--b2x1)"/>
-</g><g id="bk-3">
+</g>
+<g id="bk-3">
 <rect x="84" y="18" width="2" height="1" fill="var(--b3x0)"/>
 <rect x="84" y="19" width="1" height="1" fill="var(--b3x1)"/>
 <rect x="85" y="19" width="1" height="1" fill="var(--b3x0)"/>
@@ -2412,7 +1867,8 @@
 <rect x="85" y="23" width="1" height="1" fill="var(--b3x0)"/>
 <rect x="84" y="24" width="1" height="1" fill="var(--b3x1)"/>
 <rect x="85" y="24" width="1" height="1" fill="var(--b3x0)"/>
-</g><g id="bk-4">
+</g>
+<g id="bk-4">
 <rect x="86" y="18" width="2" height="1" fill="var(--b4x0)"/>
 <rect x="86" y="19" width="1" height="1" fill="var(--b4x0)"/>
 <rect x="87" y="19" width="1" height="1" fill="var(--b4x1)"/>
@@ -2421,7 +1877,8 @@
 <rect x="86" y="22" width="2" height="1" fill="var(--b4x1)"/>
 <rect x="86" y="23" width="2" height="1" fill="var(--b4x1)"/>
 <rect x="86" y="24" width="2" height="1" fill="var(--b4x1)"/>
-</g><g id="bk-5">
+</g>
+<g id="bk-5">
 <rect x="88" y="18" width="2" height="1" fill="var(--b5x0)"/>
 <rect x="88" y="19" width="2" height="1" fill="var(--b5x0)"/>
 <rect x="88" y="20" width="1" height="1" fill="var(--b5x1)"/>
@@ -2430,7 +1887,8 @@
 <rect x="88" y="22" width="2" height="1" fill="var(--b5x1)"/>
 <rect x="88" y="23" width="2" height="1" fill="var(--b5x1)"/>
 <rect x="88" y="24" width="2" height="1" fill="var(--b5x1)"/>
-</g><g id="bk-6">
+</g>
+<g id="bk-6">
 <rect x="90" y="18" width="2" height="1" fill="var(--b6x0)"/>
 <rect x="92" y="18" width="1" height="1" fill="var(--b6x1)"/>
 <rect x="90" y="19" width="2" height="1" fill="var(--b6x0)"/>
@@ -2445,13 +1903,8 @@
 <rect x="92" y="23" width="1" height="1" fill="var(--b6x1)"/>
 <rect x="90" y="24" width="2" height="1" fill="var(--b6x0)"/>
 <rect x="92" y="24" width="1" height="1" fill="var(--b6x1)"/>
-</g><g id="candle">
-<rect x="5" y="28" width="1" height="1" fill="var(--cd0)"/>
-<rect x="5" y="29" width="1" height="1" fill="var(--cd1)"/>
-<rect x="5" y="30" width="1" height="1" fill="var(--cd1)"/>
-<rect x="3" y="31" width="5" height="1" fill="var(--cd0)"/>
-
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="3" y="31" width="5" height="1" fill="#000" opacity=".25"/></g></g><g id="sill-plant">
+</g>
+<g id="sill-plant">
 <rect x="30" y="31" width="2" height="1" fill="var(--pl1)"/>
 <rect x="32" y="31" width="1" height="1" fill="var(--pl0)"/>
 <rect x="29" y="32" width="1" height="1" fill="var(--pl0)"/>
@@ -2463,28 +1916,28 @@
 <rect x="30" y="35" width="1" height="1" fill="var(--pl0)"/>
 <rect x="31" y="35" width="1" height="1" fill="var(--pl1)"/>
 <rect x="32" y="35" width="1" height="1" fill="var(--pl2)"/>
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="28" y="36" width="5" height="1" fill="#000" opacity=".25"/></g></g><g id="orb">
-<rect x="56" y="29" width="4" height="1" fill="var(--o4)"/>
-<rect x="54" y="30" width="8" height="1" fill="var(--o4)"/>
-<rect x="54" y="30" width="1" height="1" fill="var(--o3)"/>
-<rect x="61" y="30" width="1" height="1" fill="var(--o3)"/>
-<rect x="54" y="31" width="8" height="1" fill="var(--o3)"/>
-<rect x="54" y="31" width="1" height="1" fill="var(--o2)"/>
-<rect x="61" y="31" width="1" height="1" fill="var(--o2)"/>
-<rect x="56" y="31" width="1" height="1" fill="var(--o2)"/>
-<rect x="59" y="31" width="1" height="1" fill="var(--o2)"/>
-<rect x="54" y="32" width="8" height="1" fill="var(--o2)"/>
-<rect x="54" y="32" width="1" height="1" fill="var(--o1)"/>
-<rect x="61" y="32" width="1" height="1" fill="var(--o1)"/>
-<rect x="54" y="33" width="8" height="1" fill="var(--o2)"/>
-<rect x="54" y="33" width="1" height="1" fill="var(--o1)"/>
-<rect x="61" y="33" width="1" height="1" fill="var(--o1)"/>
-<rect x="54" y="34" width="8" height="1" fill="var(--o1)"/>
-<rect x="54" y="34" width="1" height="1" fill="var(--o0)"/>
-<rect x="61" y="34" width="1" height="1" fill="var(--o0)"/>
-<rect x="58" y="34" width="1" height="1" fill="var(--o0)"/>
-<rect x="56" y="35" width="4" height="1" fill="var(--o0)"/>
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="55" y="36" width="7" height="1" fill="#000" opacity=".25"/><rect x="56" y="37" width="5" height="1" fill="#000" opacity=".12"/></g></g><g id="rug">
+</g>
+<g id="floor-props">
+<rect x="22" y="44" width="2" height="1" fill="var(--pp0)"/>
+<rect x="24" y="44" width="4" height="1" fill="var(--pp1)"/>
+<rect x="28" y="44" width="1" height="1" fill="var(--pp0)"/>
+<rect x="22" y="45" width="7" height="1" fill="var(--pp0)"/>
+<rect x="22" y="46" width="1" height="1" fill="var(--pp0)"/>
+<rect x="23" y="46" width="1" height="1" fill="var(--pp1)"/>
+<rect x="24" y="46" width="3" height="1" fill="var(--pp0)"/>
+<rect x="27" y="46" width="2" height="1" fill="var(--pp1)"/>
+<rect x="22" y="47" width="6" height="1" fill="var(--pp0)"/>
+<rect x="13" y="58" width="3" height="1" fill="var(--pp2)"/>
+<rect x="16" y="58" width="5" height="1" fill="var(--pp3)"/>
+<rect x="12" y="59" width="3" height="1" fill="var(--pp2)"/>
+<rect x="15" y="59" width="6" height="1" fill="var(--pp3)"/>
+<rect x="29" y="59" width="1" height="1" fill="var(--pp1)"/>
+<rect x="20" y="60" width="1" height="1" fill="var(--pp2)"/>
+<rect x="27" y="60" width="3" height="1" fill="var(--pp4)"/>
+<rect x="27" y="61" width="3" height="1" fill="var(--pp3)"/>
+<rect x="27" y="62" width="3" height="1" fill="var(--pp3)"/>
+</g>
+<g id="rug">
 <rect x="30" y="53" width="2" height="1" fill="var(--rg3)"/>
 <rect x="32" y="53" width="32" height="1" fill="var(--rg2)"/>
 <rect x="64" y="53" width="3" height="1" fill="var(--rg3)"/>
@@ -2634,7 +2087,30 @@
 <rect x="44" y="66" width="25" height="1" fill="var(--rg1)"/>
 <rect x="69" y="66" width="2" height="1" fill="var(--rg0)"/>
 <rect x="71" y="66" width="1" height="1" fill="var(--rg1)"/>
-</g><g id="orb-rug">
+</g>
+<g id="orb">
+<rect x="56" y="29" width="4" height="1" fill="var(--o4)"/>
+<rect x="54" y="30" width="8" height="1" fill="var(--o4)"/>
+<rect x="54" y="30" width="1" height="1" fill="var(--o3)"/>
+<rect x="61" y="30" width="1" height="1" fill="var(--o3)"/>
+<rect x="54" y="31" width="8" height="1" fill="var(--o3)"/>
+<rect x="54" y="31" width="1" height="1" fill="var(--o2)"/>
+<rect x="61" y="31" width="1" height="1" fill="var(--o2)"/>
+<rect x="56" y="31" width="1" height="1" fill="var(--o2)"/>
+<rect x="59" y="31" width="1" height="1" fill="var(--o2)"/>
+<rect x="54" y="32" width="8" height="1" fill="var(--o2)"/>
+<rect x="54" y="32" width="1" height="1" fill="var(--o1)"/>
+<rect x="61" y="32" width="1" height="1" fill="var(--o1)"/>
+<rect x="54" y="33" width="8" height="1" fill="var(--o2)"/>
+<rect x="54" y="33" width="1" height="1" fill="var(--o1)"/>
+<rect x="61" y="33" width="1" height="1" fill="var(--o1)"/>
+<rect x="54" y="34" width="8" height="1" fill="var(--o1)"/>
+<rect x="54" y="34" width="1" height="1" fill="var(--o0)"/>
+<rect x="61" y="34" width="1" height="1" fill="var(--o0)"/>
+<rect x="58" y="34" width="1" height="1" fill="var(--o0)"/>
+<rect x="56" y="35" width="4" height="1" fill="var(--o0)"/>
+</g>
+<g id="orb-rug">
 <rect x="44" y="54" width="6" height="1" fill="var(--o4)"/>
 <rect x="42" y="55" width="10" height="1" fill="var(--o4)"/>
 <rect x="42" y="55" width="1" height="1" fill="var(--o3)"/>
@@ -2664,168 +2140,4 @@
 <rect x="42" y="62" width="1" height="1" fill="var(--o0)"/>
 <rect x="51" y="62" width="1" height="1" fill="var(--o0)"/>
 <rect x="45" y="63" width="4" height="1" fill="var(--o0)"/>
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="41" y="64" width="12" height="1" fill="#000" opacity=".28"/><rect x="43" y="65" width="9" height="1" fill="#000" opacity=".12"/></g></g><g id="lamp"><rect x="72" y="33" width="4" height="1" fill="#b9a084"/><rect x="71" y="34" width="6" height="1" fill="#c7b193"/><rect x="70" y="35" width="8" height="1" fill="#b9a084"/><rect x="70" y="36" width="8" height="1" fill="#7d6c5e"/><rect x="73" y="37" width="2" height="1" fill="#e8d8b0"/><rect x="74" y="38" width="1" height="12" fill="#57484f"/><rect x="72" y="50" width="5" height="1" fill="#57484f"/><rect x="73" y="49" width="3" height="1" fill="#463a42"/><g class="p-shadow" style="mix-blend-mode:multiply"><rect x="71" y="51" width="7" height="1" fill="#000" opacity=".3"/></g></g><g id="floor-props">
-<rect x="22" y="44" width="2" height="1" fill="var(--pp0)"/>
-<rect x="24" y="44" width="4" height="1" fill="var(--pp1)"/>
-<rect x="28" y="44" width="1" height="1" fill="var(--pp0)"/>
-<rect x="22" y="45" width="7" height="1" fill="var(--pp0)"/>
-<rect x="22" y="46" width="1" height="1" fill="var(--pp0)"/>
-<rect x="23" y="46" width="1" height="1" fill="var(--pp1)"/>
-<rect x="24" y="46" width="3" height="1" fill="var(--pp0)"/>
-<rect x="27" y="46" width="2" height="1" fill="var(--pp1)"/>
-<rect x="22" y="47" width="6" height="1" fill="var(--pp0)"/>
-<rect x="13" y="58" width="3" height="1" fill="var(--pp2)"/>
-<rect x="16" y="58" width="5" height="1" fill="var(--pp3)"/>
-<rect x="12" y="59" width="3" height="1" fill="var(--pp2)"/>
-<rect x="15" y="59" width="6" height="1" fill="var(--pp3)"/>
-<rect x="29" y="59" width="1" height="1" fill="var(--pp1)"/>
-<rect x="20" y="60" width="1" height="1" fill="var(--pp2)"/>
-<rect x="27" y="60" width="3" height="1" fill="var(--pp4)"/>
-<rect x="27" y="61" width="3" height="1" fill="var(--pp3)"/>
-<rect x="27" y="62" width="3" height="1" fill="var(--pp3)"/>
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="10" y="61" width="12" height="1" fill="#000" opacity=".25"/><rect x="24" y="63" width="6" height="1" fill="#000" opacity=".25"/><rect x="21" y="48" width="8" height="1" fill="#000" opacity=".3"/></g></g>
-<mask id="m-day" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72"><rect width="96" height="72" fill="#fff"/><g class="occ-orb"><rect x="54" y="35" width="9" height="2" fill="#000"/><rect x="54" y="49" width="9" height="1" fill="#000"/><rect x="54" y="50" width="9" height="1" fill="#000"/><rect x="54" y="51" width="10" height="1" fill="#666"/><rect x="54" y="52" width="10" height="1" fill="#aaa"/></g><g class="occ-plant"><rect x="28" y="35" width="5" height="2" fill="#000"/><rect x="28" y="49" width="5" height="1" fill="#000"/><rect x="28" y="50" width="5" height="1" fill="#666"/><rect x="28" y="51" width="5" height="1" fill="#aaa"/></g><g class="occ-props"><rect x="21" y="49" width="8" height="1" fill="#000"/><rect x="21" y="50" width="8" height="1" fill="#aaa"/></g><g class="occ-orb2"><rect x="40" y="64" width="14" height="1" fill="#000"/><rect x="40" y="65" width="15" height="1" fill="#666"/><rect x="40" y="66" width="15" height="1" fill="#aaa"/></g></mask><mask id="m-low" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72"><rect width="96" height="72" fill="#fff"/><g class="occ-orb"><rect x="54" y="35" width="9" height="2" fill="#000"/><rect x="53" y="49" width="9" height="1" fill="#000"/><rect x="52" y="50" width="9" height="1" fill="#000"/><rect x="52" y="51" width="10" height="1" fill="#000"/><rect x="51" y="52" width="10" height="1" fill="#000"/><rect x="50" y="53" width="10" height="1" fill="#666"/><rect x="50" y="54" width="10" height="1" fill="#666"/><rect x="48" y="55" width="11" height="1" fill="#666"/><rect x="47" y="56" width="11" height="1" fill="#aaa"/><rect x="46" y="57" width="11" height="1" fill="#aaa"/><rect x="45" y="58" width="11" height="1" fill="#aaa"/></g><g class="occ-plant"><rect x="28" y="35" width="5" height="2" fill="#000"/><rect x="27" y="49" width="5" height="1" fill="#000"/><rect x="26" y="50" width="5" height="1" fill="#000"/><rect x="26" y="51" width="5" height="1" fill="#666"/><rect x="25" y="52" width="5" height="1" fill="#aaa"/></g><g class="occ-props"><rect x="20" y="49" width="8" height="1" fill="#000"/><rect x="19" y="50" width="8" height="1" fill="#000"/><rect x="19" y="51" width="8" height="1" fill="#666"/><rect x="18" y="52" width="8" height="1" fill="#aaa"/><rect x="17" y="53" width="8" height="1" fill="#aaa"/></g><g class="occ-orb2"><rect x="39" y="64" width="14" height="1" fill="#000"/><rect x="38" y="65" width="15" height="1" fill="#000"/><rect x="38" y="66" width="15" height="1" fill="#666"/><rect x="36" y="67" width="16" height="1" fill="#aaa"/><rect x="35" y="68" width="16" height="1" fill="#aaa"/></g></mask><mask id="m-fire" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72"><rect width="96" height="72" fill="#fff"/><g class="occ-props"><rect x="29" y="44" width="3" height="5" fill="#808080"/><rect x="32" y="45" width="3" height="4" fill="#b0b0b0"/><rect x="35" y="46" width="2" height="3" fill="#d0d0d0"/><rect x="10" y="61" width="12" height="3" fill="#999"/></g><g class="occ-orb2"><rect x="55" y="55" width="5" height="9" fill="#888"/><rect x="60" y="57" width="4" height="7" fill="#bbb"/></g></mask>
-<g id="fx-snowcap" fill="#eef3fa">
-  <rect x="26" y="2"  width="10" height="1"/><rect x="40" y="2"  width="8" height="1"/><rect x="56" y="2" width="9" height="1"/>
-  <rect x="30" y="20" width="5"  height="1"/><rect x="48" y="20" width="6" height="1"/><rect x="60" y="20" width="4" height="1"/>
-  <rect x="46" y="20" width="2"  height="1"/>
-  <rect x="28" y="33" width="7"  height="1"/><rect x="40" y="33" width="6" height="1"/><rect x="52" y="33" width="8" height="1"/><rect x="63" y="33" width="3" height="1"/>
 </g>
-<g id="light-day"><rect x="0" y="0" width="96" height="4" fill="rgba(255,244,224,.10)" style="mix-blend-mode:multiply"/><rect x="0" y="34" width="96" height="38" fill="rgba(255,244,224,.10)" style="mix-blend-mode:multiply"/><rect x="0" y="4" width="27" height="30" fill="rgba(255,244,224,.10)" style="mix-blend-mode:multiply"/><rect x="67" y="4" width="29" height="30" fill="rgba(255,244,224,.10)" style="mix-blend-mode:multiply"/></g>
-<g id="light-sunset">
-  <rect x="0" y="0" width="96" height="4" fill="rgba(255,148,84,.30)" style="mix-blend-mode:multiply"/><rect x="0" y="34" width="96" height="38" fill="rgba(255,148,84,.30)" style="mix-blend-mode:multiply"/><rect x="0" y="4" width="27" height="30" fill="rgba(255,148,84,.30)" style="mix-blend-mode:multiply"/><rect x="67" y="4" width="29" height="30" fill="rgba(255,148,84,.30)" style="mix-blend-mode:multiply"/>
-  <rect x="0" y="0" width="96" height="4" fill="rgba(255,120,40,.10)" style="mix-blend-mode:screen"/><rect x="0" y="34" width="96" height="38" fill="rgba(255,120,40,.10)" style="mix-blend-mode:screen"/><rect x="0" y="4" width="27" height="30" fill="rgba(255,120,40,.10)" style="mix-blend-mode:screen"/><rect x="67" y="4" width="29" height="30" fill="rgba(255,120,40,.10)" style="mix-blend-mode:screen"/>
-  <rect x="27" y="4" width="40" height="30" fill="rgba(255,140,80,.30)" style="mix-blend-mode:multiply"/>
-</g>
-<g id="light-night">
-  <rect x="0" y="0" width="96" height="4" fill="rgba(72,82,150,.52)" style="mix-blend-mode:multiply"/><rect x="0" y="34" width="96" height="38" fill="rgba(72,82,150,.52)" style="mix-blend-mode:multiply"/><rect x="0" y="4" width="27" height="30" fill="rgba(72,82,150,.52)" style="mix-blend-mode:multiply"/><rect x="67" y="4" width="29" height="30" fill="rgba(72,82,150,.52)" style="mix-blend-mode:multiply"/>
-  <rect x="0" y="0" width="96" height="4" fill="rgba(25,30,70,.28)" style="mix-blend-mode:multiply"/><rect x="0" y="34" width="96" height="38" fill="rgba(25,30,70,.28)" style="mix-blend-mode:multiply"/><rect x="0" y="4" width="27" height="30" fill="rgba(25,30,70,.28)" style="mix-blend-mode:multiply"/><rect x="67" y="4" width="29" height="30" fill="rgba(25,30,70,.28)" style="mix-blend-mode:multiply"/>
-  <rect x="27" y="4" width="40" height="30" fill="rgba(30,38,90,.20)" style="mix-blend-mode:multiply"/>
-</g>
-<g id="light-cloud">
-  <rect x="0" y="0" width="96" height="4" fill="rgba(158,165,180,.28)" style="mix-blend-mode:multiply"/><rect x="0" y="34" width="96" height="38" fill="rgba(158,165,180,.28)" style="mix-blend-mode:multiply"/><rect x="0" y="4" width="27" height="30" fill="rgba(158,165,180,.28)" style="mix-blend-mode:multiply"/><rect x="67" y="4" width="29" height="30" fill="rgba(158,165,180,.28)" style="mix-blend-mode:multiply"/>
-  <rect x="27" y="4" width="40" height="30" fill="rgba(165,172,188,.22)" style="mix-blend-mode:multiply"/>
-</g>
-<g id="light-rain">
-  <rect x="0" y="0" width="96" height="4" fill="rgba(105,116,142,.36)" style="mix-blend-mode:multiply"/><rect x="0" y="34" width="96" height="38" fill="rgba(105,116,142,.36)" style="mix-blend-mode:multiply"/><rect x="0" y="4" width="27" height="30" fill="rgba(105,116,142,.36)" style="mix-blend-mode:multiply"/><rect x="67" y="4" width="29" height="30" fill="rgba(105,116,142,.36)" style="mix-blend-mode:multiply"/>
-  <rect x="27" y="4" width="40" height="30" fill="rgba(95,105,132,.28)" style="mix-blend-mode:multiply"/>
-</g>
-<g id="light-snow">
-  <rect x="0" y="0" width="96" height="4" fill="rgba(182,190,208,.26)" style="mix-blend-mode:multiply"/><rect x="0" y="34" width="96" height="38" fill="rgba(182,190,208,.26)" style="mix-blend-mode:multiply"/><rect x="0" y="4" width="27" height="30" fill="rgba(182,190,208,.26)" style="mix-blend-mode:multiply"/><rect x="67" y="4" width="29" height="30" fill="rgba(182,190,208,.26)" style="mix-blend-mode:multiply"/>
-  <rect x="27" y="4" width="40" height="30" fill="rgba(195,203,220,.20)" style="mix-blend-mode:multiply"/>
-</g>
-<g id="lp-sun"><g id="lp-sun-low" mask="url(#m-low)" style="opacity:var(--wl-a)"><g opacity="0.9"><rect x="27" y="35" width="19" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="48" y="35" width="19" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="27" y="36" width="19" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="48" y="36" width="19" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/></g><g opacity="1"><rect x="26" y="49" width="19" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="47" y="49" width="20" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="24" y="50" width="20" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="47" y="50" width="20" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="23" y="51" width="21" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="46" y="51" width="21" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="21" y="52" width="22" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="45" y="52" width="22" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="20" y="53" width="22" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="45" y="53" width="22" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="18" y="54" width="23" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="44" y="54" width="23" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="17" y="55" width="24" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="43" y="55" width="24" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/></g><g opacity="0.75"><rect x="16" y="56" width="24" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="42" y="56" width="25" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="14" y="57" width="25" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="42" y="57" width="25" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="13" y="58" width="25" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="41" y="58" width="26" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="11" y="59" width="27" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="40" y="59" width="27" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="10" y="60" width="27" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="40" y="60" width="27" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="8" y="61" width="28" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="39" y="61" width="28" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="7" y="62" width="28" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="38" y="62" width="29" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/></g><g opacity="0.5"><rect x="6" y="63" width="28" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="38" y="63" width="29" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="4" y="64" width="30" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="37" y="64" width="29" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="3" y="65" width="30" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="36" y="65" width="30" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="1" y="66" width="31" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="35" y="66" width="31" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="1" y="67" width="30" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="35" y="67" width="31" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="1" y="68" width="30" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="34" y="68" width="32" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="1" y="69" width="29" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="33" y="69" width="33" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/></g></g><g id="lp-sun-day" mask="url(#m-day)" style="opacity:var(--wl-a)"><g opacity="0.9"><rect x="27" y="35" width="19" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="48" y="35" width="19" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="27" y="36" width="19" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="48" y="36" width="19" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/></g><g opacity="0.9"><rect x="26" y="49" width="20" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="48" y="49" width="19" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="26" y="50" width="20" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="48" y="50" width="20" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="25" y="51" width="21" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="48" y="51" width="20" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="24" y="52" width="21" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="48" y="52" width="21" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="23" y="53" width="22" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="48" y="53" width="21" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/></g><g opacity="0.6"><rect x="23" y="54" width="22" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="48" y="54" width="22" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="22" y="55" width="23" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="47" y="55" width="23" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="21" y="56" width="24" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="47" y="56" width="24" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="21" y="57" width="24" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="47" y="57" width="24" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="20" y="58" width="25" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/><rect x="47" y="58" width="25" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/></g></g></g><g id="lp-moon" mask="url(#m-low)" style="opacity:var(--ml-a)"><g opacity="0.9"><rect x="27" y="35" width="19" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="48" y="35" width="19" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="27" y="36" width="19" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="48" y="36" width="19" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/></g><g opacity="1"><rect x="26" y="49" width="19" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="47" y="49" width="20" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="24" y="50" width="20" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="47" y="50" width="20" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="23" y="51" width="21" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="46" y="51" width="21" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="21" y="52" width="22" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="45" y="52" width="22" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="20" y="53" width="22" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="45" y="53" width="22" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="18" y="54" width="23" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="44" y="54" width="23" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="17" y="55" width="24" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="43" y="55" width="24" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/></g><g opacity="0.75"><rect x="16" y="56" width="24" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="42" y="56" width="25" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="14" y="57" width="25" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="42" y="57" width="25" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="13" y="58" width="25" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="41" y="58" width="26" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="11" y="59" width="27" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="40" y="59" width="27" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="10" y="60" width="27" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="40" y="60" width="27" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="8" y="61" width="28" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="39" y="61" width="28" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="7" y="62" width="28" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="38" y="62" width="29" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/></g><g opacity="0.5"><rect x="6" y="63" width="28" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="38" y="63" width="29" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="4" y="64" width="30" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="37" y="64" width="29" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="3" y="65" width="30" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="36" y="65" width="30" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="1" y="66" width="31" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="35" y="66" width="31" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="1" y="67" width="30" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="35" y="67" width="31" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="1" y="68" width="30" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="34" y="68" width="32" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="1" y="69" width="29" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/><rect x="33" y="69" width="33" height="1" fill="var(--ml)" style="mix-blend-mode:screen"/></g></g><g id="lp-fire" mask="url(#m-fire)" style="opacity:var(--fl-a)"><g class="glow-flicker"><rect x="4" y="49" width="15" height="1" fill="var(--fl)" opacity="1" style="mix-blend-mode:screen"/><rect x="1" y="49" width="3" height="1" fill="var(--fl)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="19" y="49" width="7" height="1" fill="var(--fl)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="26" y="49" width="7" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="6" y="50" width="12" height="1" fill="var(--fl)" opacity="1" style="mix-blend-mode:screen"/><rect x="1" y="50" width="5" height="1" fill="var(--fl)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="18" y="50" width="7" height="1" fill="var(--fl)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="25" y="50" width="7" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="9" y="51" width="5" height="1" fill="var(--fl)" opacity="1" style="mix-blend-mode:screen"/><rect x="1" y="51" width="8" height="1" fill="var(--fl)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="14" y="51" width="10" height="1" fill="var(--fl)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="24" y="51" width="7" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="1" y="52" width="22" height="1" fill="var(--fl)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="23" y="52" width="7" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="2" y="53" width="19" height="1" fill="var(--fl)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="1" y="53" width="1" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="21" y="53" width="8" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="5" y="54" width="13" height="1" fill="var(--fl)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="1" y="54" width="4" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="18" y="54" width="10" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="1" y="55" width="26" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="1" y="56" width="24" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="1" y="57" width="21" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="4" y="58" width="15" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="1" y="28" width="23" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="1" y="29" width="23" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="6" y="30" width="11" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="1" y="30" width="5" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="17" y="30" width="7" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="4" y="31" width="15" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="1" y="31" width="3" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="19" y="31" width="5" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="3" y="32" width="17" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="1" y="32" width="2" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="20" y="32" width="4" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="2" y="33" width="19" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="1" y="33" width="1" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="21" y="33" width="3" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="1" y="34" width="21" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="22" y="34" width="2" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="1" y="35" width="22" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="23" y="35" width="1" height="1" fill="var(--fl)" opacity="0.14" style="mix-blend-mode:screen"/><rect x="8" y="36" width="7" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="36" width="7" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="15" y="36" width="9" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="6" y="37" width="11" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="37" width="5" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="17" y="37" width="7" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="5" y="38" width="13" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="38" width="4" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="18" y="38" width="6" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="5" y="39" width="13" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="39" width="4" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="18" y="39" width="6" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="4" y="40" width="15" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="40" width="3" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="19" y="40" width="5" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="4" y="41" width="15" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="41" width="3" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="19" y="41" width="5" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="4" y="42" width="15" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="42" width="3" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="19" y="42" width="5" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="4" y="43" width="16" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="43" width="3" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="20" y="43" width="4" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="4" y="44" width="15" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="44" width="3" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="19" y="44" width="5" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="4" y="45" width="15" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="45" width="3" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="19" y="45" width="5" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="4" y="46" width="15" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="46" width="3" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="19" y="46" width="5" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="5" y="47" width="13" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="47" width="4" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="18" y="47" width="6" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="5" y="48" width="13" height="1" fill="var(--fl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="48" width="4" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/><rect x="18" y="48" width="6" height="1" fill="var(--fl)" opacity="0.28" style="mix-blend-mode:screen"/></g></g><g id="lp-candle" style="opacity:var(--cl-a)"><g class="glow-flicker-slow"><rect x="1" y="20" width="8" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="1" y="21" width="9" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="2" y="22" width="6" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="22" width="1" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="8" y="22" width="3" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="1" y="23" width="8" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="9" y="23" width="2" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="3" y="24" width="4" height="1" fill="var(--cl)" opacity="0.9" style="mix-blend-mode:screen"/><rect x="1" y="24" width="2" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="7" y="24" width="3" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="10" y="24" width="2" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="2" y="25" width="6" height="1" fill="var(--cl)" opacity="0.9" style="mix-blend-mode:screen"/><rect x="1" y="25" width="1" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="8" y="25" width="2" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="10" y="25" width="2" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="2" y="26" width="6" height="1" fill="var(--cl)" opacity="0.9" style="mix-blend-mode:screen"/><rect x="1" y="26" width="1" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="8" y="26" width="2" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="10" y="26" width="2" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="2" y="27" width="6" height="1" fill="var(--cl)" opacity="0.9" style="mix-blend-mode:screen"/><rect x="1" y="27" width="1" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="8" y="27" width="2" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="10" y="27" width="2" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="3" y="28" width="4" height="1" fill="var(--cl)" opacity="0.9" style="mix-blend-mode:screen"/><rect x="1" y="28" width="2" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="7" y="28" width="3" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="10" y="28" width="2" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="1" y="29" width="8" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="9" y="29" width="2" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="2" y="30" width="6" height="1" fill="var(--cl)" opacity="0.45" style="mix-blend-mode:screen"/><rect x="1" y="30" width="1" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="8" y="30" width="3" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="1" y="31" width="9" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="1" y="32" width="8" height="1" fill="var(--cl)" opacity="0.2" style="mix-blend-mode:screen"/></g></g><g id="lp-lamp" style="opacity:var(--ll-a)"><rect x="65" y="26" width="18" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="70" y="27" width="8" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="64" y="27" width="6" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="78" y="27" width="6" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="68" y="28" width="12" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="63" y="28" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="80" y="28" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="67" y="29" width="14" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="29" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="81" y="29" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="67" y="30" width="14" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="30" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="81" y="30" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="71" y="31" width="6" height="1" fill="var(--ll)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="66" y="31" width="5" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="77" y="31" width="5" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="31" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="82" y="31" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="70" y="32" width="8" height="1" fill="var(--ll)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="66" y="32" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="78" y="32" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="32" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="82" y="32" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="69" y="33" width="10" height="1" fill="var(--ll)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="65" y="33" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="79" y="33" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="33" width="3" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="83" y="33" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="69" y="34" width="10" height="1" fill="var(--ll)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="65" y="34" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="79" y="34" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="34" width="3" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="83" y="34" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="69" y="35" width="10" height="1" fill="var(--ll)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="65" y="35" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="79" y="35" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="35" width="3" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="83" y="35" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="69" y="36" width="10" height="1" fill="var(--ll)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="65" y="36" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="79" y="36" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="36" width="3" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="83" y="36" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="69" y="37" width="10" height="1" fill="var(--ll)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="65" y="37" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="79" y="37" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="37" width="3" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="83" y="37" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="70" y="38" width="8" height="1" fill="var(--ll)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="66" y="38" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="78" y="38" width="4" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="38" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="82" y="38" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="71" y="39" width="6" height="1" fill="var(--ll)" opacity="0.55" style="mix-blend-mode:screen"/><rect x="66" y="39" width="5" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="77" y="39" width="5" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="39" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="82" y="39" width="4" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="67" y="40" width="14" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="40" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="81" y="40" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="67" y="41" width="14" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="62" y="41" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="81" y="41" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="68" y="42" width="12" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="63" y="42" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="80" y="42" width="5" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="70" y="43" width="8" height="1" fill="var(--ll)" opacity="0.32" style="mix-blend-mode:screen"/><rect x="64" y="43" width="6" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="78" y="43" width="6" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="65" y="44" width="18" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="66" y="45" width="16" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="67" y="46" width="14" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="69" y="47" width="10" height="1" fill="var(--ll)" opacity="0.16" style="mix-blend-mode:screen"/><rect x="68" y="49" width="12" height="1" fill="var(--ll)" opacity="0.8" style="mix-blend-mode:screen"/><rect x="62" y="49" width="6" height="1" fill="var(--ll)" opacity="0.4" style="mix-blend-mode:screen"/><rect x="80" y="49" width="6" height="1" fill="var(--ll)" opacity="0.4" style="mix-blend-mode:screen"/><rect x="86" y="49" width="4" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="69" y="50" width="10" height="1" fill="var(--ll)" opacity="0.8" style="mix-blend-mode:screen"/><rect x="63" y="50" width="6" height="1" fill="var(--ll)" opacity="0.4" style="mix-blend-mode:screen"/><rect x="79" y="50" width="6" height="1" fill="var(--ll)" opacity="0.4" style="mix-blend-mode:screen"/><rect x="62" y="50" width="1" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="85" y="50" width="4" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="70" y="51" width="8" height="1" fill="var(--ll)" opacity="0.8" style="mix-blend-mode:screen"/><rect x="64" y="51" width="6" height="1" fill="var(--ll)" opacity="0.4" style="mix-blend-mode:screen"/><rect x="78" y="51" width="6" height="1" fill="var(--ll)" opacity="0.4" style="mix-blend-mode:screen"/><rect x="62" y="51" width="2" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="84" y="51" width="5" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="65" y="52" width="18" height="1" fill="var(--ll)" opacity="0.4" style="mix-blend-mode:screen"/><rect x="62" y="52" width="3" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="83" y="52" width="5" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="66" y="53" width="16" height="1" fill="var(--ll)" opacity="0.4" style="mix-blend-mode:screen"/><rect x="62" y="53" width="4" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="82" y="53" width="5" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="68" y="54" width="12" height="1" fill="var(--ll)" opacity="0.4" style="mix-blend-mode:screen"/><rect x="62" y="54" width="6" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="80" y="54" width="6" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="63" y="55" width="22" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="65" y="56" width="18" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/><rect x="68" y="57" width="12" height="1" fill="var(--ll)" opacity="0.2" style="mix-blend-mode:screen"/></g><g id="emission"><g id="fire">
-<g class="f-out">
-<rect x="9" y="41" width="1" height="1" fill="var(--f0)"/>
-<rect x="17" y="45" width="1" height="1" fill="var(--f0)"/>
-</g>
-<g class="f-mid">
-<rect x="11" y="40" width="2" height="1" fill="var(--f1)"/>
-<rect x="10" y="41" width="4" height="1" fill="var(--f1)"/>
-<rect x="9" y="42" width="5" height="1" fill="var(--f1)"/>
-<rect x="8" y="43" width="3" height="1" fill="var(--f1)"/>
-<rect x="11" y="43" width="2" height="1" fill="var(--f2)"/>
-<rect x="13" y="43" width="2" height="1" fill="var(--f1)"/>
-<rect x="8" y="44" width="2" height="1" fill="var(--f1)"/>
-<rect x="10" y="44" width="1" height="1" fill="var(--f2)"/>
-<rect x="12" y="44" width="1" height="1" fill="var(--f2)"/>
-<rect x="13" y="44" width="2" height="1" fill="var(--f1)"/>
-<rect x="8" y="45" width="1" height="1" fill="var(--f1)"/>
-<rect x="9" y="45" width="2" height="1" fill="var(--f2)"/>
-<rect x="13" y="45" width="1" height="1" fill="var(--f2)"/>
-<rect x="14" y="45" width="1" height="1" fill="var(--f1)"/>
-<rect x="8" y="46" width="2" height="1" fill="var(--f1)"/>
-<rect x="10" y="46" width="1" height="1" fill="var(--f2)"/>
-<rect x="13" y="46" width="2" height="1" fill="var(--f1)"/>
-</g>
-<g class="f-core">
-<rect x="11" y="44" width="1" height="1" fill="var(--f3)"/>
-<rect x="11" y="45" width="2" height="1" fill="var(--f3)"/>
-<rect x="11" y="46" width="2" height="1" fill="var(--f3)"/>
-</g>
-</g><g id="candle-flame"><g class="c-flame">
-<rect x="6" y="28" width="1" height="1" fill="var(--cd2)"/>
-<rect x="6" y="29" width="1" height="1" fill="var(--cd2)"/>
-<rect x="6" y="30" width="1" height="1" fill="var(--cd2)"/>
-</g></g><g id="lamp-glow"><rect x="73" y="37" width="2" height="1" fill="#ffe9b0"/><rect x="72" y="36" width="4" height="2" fill="#ffd98a" opacity=".5" style="mix-blend-mode:screen"/><rect x="70" y="34" width="8" height="3" fill="#ffcf80" opacity=".3" style="mix-blend-mode:screen"/></g></g>
-    </svg>
-  </div>
-
-  <div class="panel">
-    <div class="group">
-      <span class="g-label">시간</span>
-      <label for="t-day">낮</label>
-      <label for="t-sunset">노을</label>
-      <label for="t-night">밤</label>
-    </div>
-    <div class="group">
-      <span class="g-label">계절</span>
-      <label for="s-spring">봄</label>
-      <label for="s-summer">여름</label>
-      <label for="s-autumn">가을</label>
-      <label for="s-winter">겨울</label>
-    </div>
-    <div class="group">
-      <span class="g-label">날씨</span>
-      <label for="w-clear">맑음</label>
-      <label for="w-cloud">흐림</label>
-      <label for="w-rain">비</label>
-      <label for="w-snow">눈</label>
-    </div>
-    <div class="divider"></div>
-    <div class="group">
-      <span class="g-label">색감</span>
-      <label for="ov-time">시간 오버레이</label>
-      <label for="ov-weather">날씨 오버레이</label>
-    </div>
-    <div class="group">
-      <span class="g-label">광원</span>
-      <label for="p-lsun">창문 햇빛</label>
-      <label for="p-lmoon">창문 달빛</label>
-      <label for="p-lfire">벽난로 빛</label>
-      <label for="p-lcandle">촛불 빛</label>
-      <label for="p-llamp">스탠드 빛</label>
-    </div>
-    <div class="divider"></div>
-    <div class="group">
-      <span class="g-label">배경</span>
-      <label for="L-wall">벽</label>
-      <label for="L-floor">바닥</label>
-      <label for="L-winframe">창틀·창턱</label>
-      <label for="L-fireplace">벽난로</label>
-      <label for="L-shelf">책장</label>
-    </div>
-    <div class="group">
-      <span class="g-label">창밖</span>
-      <label for="L-scenery">풍경</label>
-      <label for="L-tree">나무</label>
-      <label for="L-sun">해</label>
-      <label for="L-moon">달</label>
-      <label for="L-stars">별</label>
-      <label for="L-clouds">구름</label>
-    </div>
-    <div class="group">
-      <span class="g-label">돌 위치</span>
-      <label for="op-sill">창턱</label>
-      <label for="op-rug">러그</label>
-    </div>
-    <div class="group">
-      <span class="g-label">소품</span>
-      <label for="L-rug">러그</label>
-      <label for="L-orb">돌멩이</label>
-      <label for="L-plant">화분</label>
-      <label for="L-props">바닥 소품</label>
-      <label for="L-candle">촛대</label>
-      <label for="L-fire">불꽃</label>
-      <label for="L-books">책장 책</label>
-      <label for="L-lamp">스탠드</label>
-    </div>
-    <div class="group">
-      <span class="g-label">효과</span>
-      <label for="p-fx">파티클·유리 효과</label>
-      <span class="note">소품 = base + shadow(multiply) + emission(오버레이 위) + lightmask(SVG mask) 4레이어 — 발광체는 밤에도 어두워지지 않음</span>
-    </div>
-  </div>
-
-</body>
-</html>

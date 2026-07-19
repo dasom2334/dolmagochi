@@ -29,8 +29,10 @@
     --cloud-1: #9aa4b5;
     --cloud-2: #7e8899;
     /* 바닥(무광원 중립 판자) */
-    --fb0: #443340; --fb1: #52404b; --fb2: #5a4753;
-    --fbl: #3a2b35; --fbh: #675264; --fbk: #33242e;
+    --fb0: #4a3542; --fb1: #58424f; --fb2: #634b59;
+    --fbl: #392933; --fbh: #775c71; --fbk: #2b1e27;
+    /* 돌(무광원 중립 그레이: 위=열린 하늘 AO 밝음, 아래=접지 AO) */
+    --o0: #35333c; --o1: #4e4d54; --o2: #64655f; --o3: #797b6f; --o4: #8b8e7e;
     /* 광원: 창문(태양) / 창문(달) / 벽난로 / 촛불 / 스탠드 */
     --wl: #fff0c8; --wl-a: .20;
     --ml: #a8bcf0; --ml-a: .16;
@@ -126,9 +128,18 @@
   #t-night:checked ~ .scene #lp-sun     { display: none; }
   #t-night:checked ~ .scene #lp-moon    { display: inline; }
 
+  /* 노을 언덕: 원경은 노을빛 머금은 자주·핑크 (겨울은 장밋빛 눈으로 유지) */
+  #t-sunset:checked ~ .scene { --h0: #3f2946; --h1: #5a3760; --h2: #7d4a70; --h3: #a45f80; }
+  #t-sunset:checked ~ #s-winter:checked ~ .scene { --h0: #8a7a96; --h1: #ab9ab2; --h2: #cdbccd; --h3: #e8d8e0; }
+
   /* 밤 언덕 실루엣 (겨울 눈빛 유지) */
   #t-night:checked ~ .scene { --h0: #12172f; --h1: #1a2140; --h2: #242c52; --h3: #303a64; }
   #t-night:checked ~ #s-winter:checked ~ .scene { --h0: #3a4166; --h1: #4d5480; --h2: #6a729c; --h3: #8891b5; }
+
+  /* 밤 나무: 달빛에 가라앉은 톤 (계절 컴파운드) */
+  #t-night:checked ~ .scene { --t0: #1f2b1c; --t1: #2c3d26; --t2: #3a4e30; --t3: #3a2f33; --t4: #463a3c; }
+  #t-night:checked ~ #s-spring:checked ~ .scene { --t0: #4a3350; --t1: #5f4468; --t2: #75587c; }
+  #t-night:checked ~ #s-autumn:checked ~ .scene { --t0: #3d2620; --t1: #54321e; --t2: #6b4426; }
 
   /* 계절이 광원에 관여하는 예: 겨울 낮의 창문 빛은 차가운 흰색 */
   #t-day:checked ~ #s-winter:checked ~ .scene { --wl: #eef4fc; --wl-a: .24; }
@@ -158,6 +169,12 @@
   #w-rain:checked   ~ .scene #fx-drops   { display: inline; }
   #s-winter:checked ~ .scene #fx-frost   { display: inline; }
   #w-snow:checked   ~ .scene #fx-snowcap { display: inline; }
+
+  /* ===== 돌 위치: 창턱(원근 축소판) / 러그(방 한가운데 원래 크기) ===== */
+  #op-sill:checked ~ .scene #orb-rug   { display: none; }
+  #op-sill:checked ~ .scene .occ-orb2  { display: none; }
+  #op-rug:checked  ~ .scene #orb       { display: none; }
+  #op-rug:checked  ~ .scene .occ-orb   { display: none; }
 
   /* ===== 계절 파티클 ===== */
   #s-autumn:checked ~ #w-clear:checked ~ .scene #pt-leaves { display: inline; }
@@ -189,13 +206,15 @@
   #L-shelf:not(:checked)     ~ .scene #g-shelf       { display: none !important; }
   #L-scenery:not(:checked)   ~ .scene #base-scenery  { display: none !important; }
   #L-tree:not(:checked)      ~ .scene #leaves,
+  #L-tree:not(:checked)      ~ .scene #tree-trunk,
   #L-tree:not(:checked)      ~ .scene #tree-bare     { display: none !important; }
   #L-sun:not(:checked)       ~ .scene #sun           { display: none !important; }
   #L-moon:not(:checked)      ~ .scene #moon          { display: none !important; }
   #L-stars:not(:checked)     ~ .scene #stars         { display: none !important; }
   #L-clouds:not(:checked)    ~ .scene #clouds        { display: none !important; }
   #L-rug:not(:checked)       ~ .scene #rug           { display: none !important; }
-  #L-orb:not(:checked)       ~ .scene #orb           { display: none !important; }
+  #L-orb:not(:checked)       ~ .scene #orb,
+  #L-orb:not(:checked)       ~ .scene #orb-rug       { display: none !important; }
   #L-plant:not(:checked)     ~ .scene #sill-plant    { display: none !important; }
   #L-props:not(:checked)     ~ .scene #floor-props   { display: none !important; }
   #L-candle:not(:checked)    ~ .scene #candle        { display: none !important; }
@@ -208,7 +227,8 @@
   #L-books:not(:checked)     ~ .scene #bk-3, #L-books:not(:checked) ~ .scene #bk-4,
   #L-books:not(:checked)     ~ .scene #bk-5, #L-books:not(:checked) ~ .scene #bk-6 { display: none !important; }
   /* 소품 OFF → 해당 오클루더(광원 마스크 속 그림자)도 OFF */
-  #L-orb:not(:checked)   ~ .scene .occ-orb   { display: none; }
+  #L-orb:not(:checked)   ~ .scene .occ-orb,
+  #L-orb:not(:checked)   ~ .scene .occ-orb2  { display: none; }
   #L-plant:not(:checked) ~ .scene .occ-plant { display: none; }
   #L-props:not(:checked) ~ .scene .occ-props { display: none; }
 
@@ -288,6 +308,8 @@
   #w-cloud:checked    ~ .panel label[for="w-cloud"],
   #w-rain:checked     ~ .panel label[for="w-rain"],
   #w-snow:checked     ~ .panel label[for="w-snow"],
+  #op-sill:checked    ~ .panel label[for="op-sill"],
+  #op-rug:checked     ~ .panel label[for="op-rug"],
   #ov-time:checked    ~ .panel label[for="ov-time"],
   #ov-weather:checked ~ .panel label[for="ov-weather"],
   #p-lsun:checked     ~ .panel label[for="p-lsun"],
@@ -335,6 +357,8 @@
   <input class="ctl" type="radio" name="weather" id="w-cloud">
   <input class="ctl" type="radio" name="weather" id="w-rain">
   <input class="ctl" type="radio" name="weather" id="w-snow">
+  <input class="ctl" type="radio" name="orbpos" id="op-sill" checked>
+  <input class="ctl" type="radio" name="orbpos" id="op-rug">
   <input class="ctl" type="checkbox" id="ov-time" checked>
   <input class="ctl" type="checkbox" id="ov-weather" checked>
   <input class="ctl" type="checkbox" id="p-lsun" checked>
@@ -422,6 +446,11 @@
       <label for="L-moon">달</label>
       <label for="L-stars">별</label>
       <label for="L-clouds">구름</label>
+    </div>
+    <div class="group">
+      <span class="g-label">돌 위치</span>
+      <label for="op-sill">창턱</label>
+      <label for="op-rug">러그</label>
     </div>
     <div class="group">
       <span class="g-label">소품</span>
