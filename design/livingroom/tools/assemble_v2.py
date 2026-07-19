@@ -29,6 +29,38 @@ la = open('assemble_layers.py').read()
 overlay = la.split("overlay = '''")[1].split("'''")[0]
 art = art.replace('</g>\n<!--PARTICLES-->', overlay + '\n</g>')
 
+# base-room → 벽/바닥/창틀·창턱/벽난로/책장 분할
+m0 = art.index('<g id="base-room">')
+m1 = art.index('</g>', m0)
+body = art[m0+len('<g id="base-room">'):m1]
+groups = {'wall':[], 'floor':[], 'winframe':[], 'fireplace':[], 'shelf':[]}
+for line in body.strip().splitlines():
+    mm = re.search(r'x="(-?\d+)" y="(-?\d+)" width="(\d+)"', line)
+    if not mm: continue
+    x,y,w = int(mm.group(1)), int(mm.group(2)), int(mm.group(3))
+    cx = x + w/2
+    if y >= 49: k='floor'
+    elif cx >= 77 and y >= 15: k='shelf'
+    elif cx <= 23 and 26 <= y <= 48: k='fireplace'
+    elif 23 < cx < 74 and 2 <= y <= 37: k='winframe'
+    else: k='wall'
+    groups[k].append(line)
+split = ''.join('<g id="g-%s">' % k + '\n'.join(v) + '</g>' for k,v in groups.items())
+art = art[:m0] + split + art[m1+4:]
+
+# 스탠드 조명기구 (중립 색) — 창과 책장 사이
+lamp_obj = ('<g id="lamp">'
+  '<rect x="72" y="33" width="4" height="1" fill="#b9a084"/>'
+  '<rect x="71" y="34" width="6" height="1" fill="#c7b193"/>'
+  '<rect x="70" y="35" width="8" height="1" fill="#b9a084"/>'
+  '<rect x="70" y="36" width="8" height="1" fill="#7d6c5e"/>'
+  '<rect x="73" y="37" width="2" height="1" fill="#e8d8b0"/>'
+  '<rect x="74" y="38" width="1" height="12" fill="#57484f"/>'
+  '<rect x="72" y="50" width="5" height="1" fill="#57484f"/>'
+  '<rect x="73" y="49" width="3" height="1" fill="#463a42"/>'
+  '</g>')
+art = art + lamp_obj
+
 # ---- 앰비언트 오버레이 (방 전체 광원) ----
 def strips(fill, blend):
     s=f' style="mix-blend-mode:{blend}"'
@@ -72,8 +104,8 @@ lights = f'''
 '''
 
 # ---- 물리 광원 ----
-def pool(gid, y0, y1, skew, holes, zones):  # y0,y1 미사용(zones가 행 범위)
-    parts=[f'<g id="{gid}" style="opacity:var(--wl-a)">']
+def pool(gid, y0, y1, skew, holes, zones, fillvar='var(--wl)', opvar='var(--wl-a)'):  # y0,y1 미사용
+    parts=[f'<g id="{gid}" style="opacity:{opvar}">']
     for (zy0,zy1,op) in zones:
         parts.append(f'<g opacity="{op}">')
         for y in range(zy0, zy1+1):
@@ -92,20 +124,25 @@ def pool(gid, y0, y1, skew, holes, zones):  # y0,y1 미사용(zones가 행 범�
             for a,b in ivs:
                 a=max(1,a); b=min(94,b)
                 if b>=a:
-                    parts.append(f'<rect x="{a}" y="{y}" width="{b-a+1}" height="1" fill="var(--wl)" style="mix-blend-mode:screen"/>')
+                    parts.append(f'<rect x="{a}" y="{y}" width="{b-a+1}" height="1" fill="{fillvar}" style="mix-blend-mode:screen"/>')
         parts.append('</g>')
     parts.append('</g>')
     return ''.join(parts)
 
 # 빔은 수평면에만 떨어진다: 창턱 상단(y35~36) + 바닥(y49~). 창 밑 벽은 그림자.
 # 노을/밤: 저고도 광원 — 길고 왼쪽 스큐, 돌·화분 그림자 구멍이 바닥까지 이어짐
-lp_win_low = pool('lp-win-low', 0, 0, 0.45,
+lp_sun_low = pool('lp-sun-low', 0, 0, 0.45,
                   holes=[(35,36,51,64),(35,36,28,32),(49,60,51,64),(49,52,28,32)],
                   zones=[(35,36,.9),(49,55,1),(56,62,.75),(63,69,.5)])
 # 낮: 고고도 — 짧고 가파른 빔
-lp_win_day = pool('lp-win-day', 0, 0, 0.12,
+lp_sun_day = pool('lp-sun-day', 0, 0, 0.12,
                   holes=[(35,36,51,64),(35,36,28,32),(49,54,51,64),(49,51,28,32)],
                   zones=[(35,36,.9),(49,53,.9),(54,58,.6)])
+lp_sun = '<g id="lp-sun">' + lp_sun_low + lp_sun_day + '</g>'
+lp_moon = pool('lp-moon', 0, 0, 0.45,
+               holes=[(35,36,51,64),(35,36,28,32),(49,60,51,64),(49,52,28,32)],
+               zones=[(35,36,.9),(49,55,1),(56,62,.75),(63,69,.5)],
+               fillvar='var(--ml)', opvar='var(--ml-a)')
 
 def rings(cx, cy, ysquash, bands, yr, xclamp, fillvar):
     parts=[]
@@ -136,7 +173,11 @@ cd_parts = rings(5, 26, 1.0, [(0,3,.9),(3,5,.45),(5,7,.2)], (20,32), (1,13), 'va
 lp_candle = ('<g id="lp-candle" style="opacity:var(--cl-a)"><g class="glow-flicker-slow">'
              + ''.join(cd_parts) + '</g></g>')
 
-lights = lights + lp_win_low + lp_win_day + lp_fire + lp_candle
+lamp_parts  = rings(74, 35, 1.0, [(0,5,.55),(5,9,.32),(9,13,.16)], (26,48), (62,94), 'var(--ll)')
+lamp_parts += rings(74, 47, 1.5, [(0,7,.8),(7,12,.4),(12,16,.2)], (49,58), (62,94), 'var(--ll)')
+lp_lamp = '<g id="lp-lamp" style="opacity:var(--ll-a)">' + ''.join(lamp_parts) + '</g>'
+
+lights = lights + lp_sun + lp_moon + lp_fire + lp_candle + lp_lamp
 
 html = open('template_v2.html').read()
 html = html.replace(', sway 2.6s ease-in-out infinite','').replace(', sway 3.4s ease-in-out -1.2s infinite','')
