@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { BALANCE } from '../balance';
 import { createInitialState, transition } from '../stateMachine';
 import type { GameEvent, GameState } from '../types';
 import { mulberry32, type Rng } from '../rng';
@@ -26,7 +25,13 @@ function absentTalk(lineTextId: string): GameState {
     ...base,
     relationTier: 3,
     phase: 'rest',
-    presence: { state: 'absent', sessionsLeft: 2, lowIntimacyDone: 0, sick: false, returnPending: false },
+    presence: {
+      state: 'absent',
+      plannedSessions: 2,
+      lowIntimacyProgress: 0,
+      sick: false,
+      returnPending: false,
+    },
     stats: { ...base.stats, intimacyThreat: 90, abandonment: 20, security: 30 },
     dialogue: { usedByPool: { absent: used } },
   };

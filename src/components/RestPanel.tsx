@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import type { GameState, Remembrance, RestStep } from '../game/types';
+import type { GameState, RestStep } from '../game/types';
 import type { ShopItemData } from '../data/schema';
 import { gameData } from '../store/gameStore';
-import { acquiredBadges } from '../game/badges';
 import { isItemAvailable, isRockPresent, weathersOfSeason } from '../game/stateMachine';
 import { resolveSeason } from '../game/timeOfDay';
 import { dateKey, needsBand } from '../game/stats';
@@ -11,9 +10,10 @@ import { careTargetNeed } from '../game/freeAction';
 import { BALANCE } from '../game/balance';
 import { dispatch, now, t, tf } from '../store/appStore';
 import { SYS, UI } from '../game/text';
-import { btnDashed, btnOutline, btnSmall, card, PagesView } from './ui';
+import { btnDashed, btnOutline, btnSmall, card, PagesView, Pager } from './ui';
 import { ActionGrid } from './ActionGrid';
 import { StartFocusControl } from './StartFocusControl';
+import { MemoryAlbum } from './MemoryAlbum';
 
 const STEPS: RestStep[] = ['journal', 'talk', 'select', 'shop'];
 
@@ -366,11 +366,6 @@ function WeatherRow({ state }: { state: GameState }) {
   );
 }
 
-/** 도감(기억) 행 — 뱃지 또는 추억. 미획득분은 목록에 아예 없다 (숫자·실루엣 비노출) */
-type MemoryEntryRow =
-  | { kind: 'badge'; at: number; nameId: string; lineId: string }
-  | { kind: 'rem'; at: number; rem: Remembrance };
-
 function RestShop({ state }: { state: GameState }) {
   const [sub, setSub] = useState<'store' | 'owned' | 'memories'>('store');
   const [page, setPage] = useState(0);
@@ -422,29 +417,10 @@ function RestShop({ state }: { state: GameState }) {
     );
   }
 
-  // 도감(기억): 획득 뱃지 + 추억을 시각순으로 — 미획득분은 존재 자체 비노출
-  const memoryEntries: MemoryEntryRow[] =
-    sub === 'memories'
-      ? [
-          ...acquiredBadges(gameData.badges, state).map((b) => ({
-            kind: 'badge' as const,
-            at: b.at,
-            nameId: b.def.nameId,
-            lineId: b.def.lineId,
-          })),
-          ...state.remembrances.map((r) => ({
-            kind: 'rem' as const,
-            at: r.at,
-            rem: r,
-          })),
-        ].sort((a, b) => a.at - b.at)
-      : [];
-  const all =
-    sub === 'memories'
-      ? memoryEntries
-      : sub === 'store'
-        ? storeItems(state)
-        : ownedList(state);
+  // 기억 탭은 자체 페이저를 가진 앨범(MemoryAlbum)이 전담 — 아래 목록·페이저는
+  // 상점·소장품 전용이다 (M19d 검수: 산재 가드 대신 최상위 분기 하나)
+  const all: ShopItemData[] =
+    sub === 'store' ? storeItems(state) : ownedList(state);
   const pages = Math.max(1, Math.ceil(all.length / 3));
   const p = Math.min(page, pages - 1);
   const items = all.slice(p * 3, p * 3 + 3);
@@ -482,50 +458,17 @@ function RestShop({ state }: { state: GameState }) {
           );
         })}
       </div>
+      {sub === 'memories' ? (
+        <MemoryAlbum state={state} />
+      ) : (
+      <>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {items.length === 0 && (
           <p style={{ margin: 0, fontSize: 11, color: 'var(--hint)' }}>
-            *{' '}
-            {t(
-              sub === 'memories'
-                ? UI.shop.badgesEmpty
-                : sub === 'owned'
-                  ? UI.shop.ownedEmpty
-                  : UI.shop.storeEmpty,
-            )}
+            * {t(sub === 'owned' ? UI.shop.ownedEmpty : UI.shop.storeEmpty)}
           </p>
         )}
-        {sub === 'memories' &&
-          (items as MemoryEntryRow[]).map((row) =>
-            row.kind === 'badge' ? (
-              <div
-                key={row.nameId}
-                style={{ fontSize: 12, color: 'var(--text-soft)', lineHeight: 1.6, padding: '4px 4px' }}
-              >
-                ◆ {t(row.nameId)}{' '}
-                <span style={{ color: 'var(--hint)' }}>{t(row.lineId)}</span>
-              </div>
-            ) : (
-              <div
-                key={row.rem.id}
-                style={{ fontSize: 12, color: 'var(--text-soft)', lineHeight: 1.6, padding: '4px 4px' }}
-              >
-                ◇ {t(row.rem.summaryId)}
-                {row.rem.pickedLabelId && (
-                  <span style={{ color: 'var(--hint)' }}>
-                    {' '}
-                    {tf(SYS.remembrance.choice, { label: t(row.rem.pickedLabelId) })}
-                  </span>
-                )}{' '}
-                <span style={{ color: 'var(--hint-dim)' }}>
-                  {state.era === 'apart'
-                    ? t(row.rem.revealId)
-                    : t(SYS.remembrance.locked)}
-                </span>
-              </div>
-            ),
-          )}
-        {sub !== 'memories' && (items as ShopItemData[]).map((it) => {
+        {items.map((it) => {
           if (sub === 'owned') {
             // 소장품: 배치/보관 조절 (소모품 포함 — 재고가 방에 보인다)
             const isPlaced = !!state.items[it.id]?.placed;
@@ -598,45 +541,9 @@ function RestShop({ state }: { state: GameState }) {
           );
         })}
       </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 14,
-          marginTop: 8,
-        }}
-      >
-        <button
-          className={p === 0 ? undefined : 'hv'}
-          disabled={p === 0}
-          style={{
-            ...btnSmall,
-            fontSize: 12,
-            padding: '3px 12px',
-            color: p === 0 ? 'var(--line)' : 'var(--ink-soft)',
-          }}
-          onClick={() => setPage(Math.max(0, p - 1))}
-        >
-          ◂
-        </button>
-        <span style={{ fontSize: 11, color: 'var(--hint)' }}>
-          {p + 1} / {pages}
-        </span>
-        <button
-          className={p >= pages - 1 ? undefined : 'hv'}
-          disabled={p >= pages - 1}
-          style={{
-            ...btnSmall,
-            fontSize: 12,
-            padding: '3px 12px',
-            color: p >= pages - 1 ? 'var(--line)' : 'var(--ink-soft)',
-          }}
-          onClick={() => setPage(Math.min(pages - 1, p + 1))}
-        >
-          ▸
-        </button>
-      </div>
+      <Pager page={p} pages={pages} onPage={setPage} />
+      </>
+      )}
     </>
   );
 }

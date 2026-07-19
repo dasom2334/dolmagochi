@@ -97,3 +97,56 @@ function PagesInner({
     </div>
   );
 }
+
+/** ◂ n/m ▸ 페이저 — 상점·소장품·도감 앨범 공용 (경계에서 멈춤) */
+export function Pager({
+  page,
+  pages,
+  onPage,
+}: {
+  page: number;
+  pages: number;
+  onPage: (p: number) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 14,
+        marginTop: 8,
+      }}
+    >
+      <button
+        className={page === 0 ? undefined : 'hv'}
+        disabled={page === 0}
+        style={{
+          ...btnSmall,
+          fontSize: 12,
+          padding: '3px 12px',
+          color: page === 0 ? 'var(--line)' : 'var(--ink-soft)',
+        }}
+        onClick={() => onPage(Math.max(0, page - 1))}
+      >
+        ◂
+      </button>
+      <span style={{ fontSize: 11, color: 'var(--hint)' }}>
+        {page + 1} / {pages}
+      </span>
+      <button
+        className={page >= pages - 1 ? undefined : 'hv'}
+        disabled={page >= pages - 1}
+        style={{
+          ...btnSmall,
+          fontSize: 12,
+          padding: '3px 12px',
+          color: page >= pages - 1 ? 'var(--line)' : 'var(--ink-soft)',
+        }}
+        onClick={() => onPage(Math.min(pages - 1, page + 1))}
+      >
+        ▸
+      </button>
+    </div>
+  );
+}
