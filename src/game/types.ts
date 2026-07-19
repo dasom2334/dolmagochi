@@ -46,6 +46,8 @@ export interface Condition {
   minNeeds?: Partial<Record<NeedId, number>>;
   minSecurity?: number;
   minAffection?: number;
+  /** 확정 관계 티어 하한 — 복선 이벤트를 관계 중후반에 게이트 */
+  minTier?: number;
   /** 파생 욕구 단계 (needsLevelOf) */
   minLevel?: number;
   /** 보유(배치 무관) / 배치된 물품 */

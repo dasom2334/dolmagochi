@@ -339,7 +339,7 @@ describe('휴식 대화', () => {
 
   it('포섀도: 예약 → 다음 세션 이벤트 → 결과·플래그', () => {
     // foreshadow[1] (산책 약속 → promised-walk)을 지정 추첨
-    let s = run(toRest(), [{ type: 'TALK' }], seq([0.1, 0.2]));
+    let s = run(toRest(), [{ type: 'TALK' }], seq([0.1, 0.3]));
     expect(s.rest.talkState?.kind).toBe('foreshadow');
     expect(s.rest.talkState?.pages.join('\n')).toBe(T('fore.door.line'));
     expect(s.pendingEvent).not.toBeNull();
@@ -357,7 +357,7 @@ describe('휴식 대화', () => {
 
   it('행동 조건 포섀도: 예약된 뒤 산책 세션에선 등장하지 않고 대기, 이후 적합 세션에 등장', () => {
     // read 세션 → 휴식 → 문(door) 포섀도 예약 (when.notActions=['walk'])
-    let s = run(toRest(), [{ type: 'TALK' }], seq([0.1, 0.2]));
+    let s = run(toRest(), [{ type: 'TALK' }], seq([0.1, 0.3]));
     expect(s.rest.talkState?.pages.join('\n')).toBe(T('fore.door.line'));
     expect(s.pendingEvent?.when?.notActions).toContain('walk');
 

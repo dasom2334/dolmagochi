@@ -309,6 +309,7 @@ export function validateGameData(
       if (m.minSec < prev) errors.push(`timeMarks.${name}[${i}] minSec 오름차순 아님`);
       prev = m.minSec;
       ref(m.textId, `timeMarks.${name}[${i}]`);
+      if (m.absentTextId) ref(m.absentTextId, `timeMarks.${name}[${i}].absent`);
     });
   };
   checkMarks(data.timeMarks.focus, 'focus');

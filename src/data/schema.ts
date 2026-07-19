@@ -195,6 +195,8 @@ export interface TimeMark {
   /** 이 경과 초를 넘으면 발화 (오름차순) */
   minSec: number;
   textId: TextId;
+  /** 돌이 곁에 없을 때(잠수·2차 비방문·3차) 쓰는 변형 — 돌 언급 누출 방지 */
+  absentTextId?: TextId;
 }
 
 export interface TimeMarksData {
