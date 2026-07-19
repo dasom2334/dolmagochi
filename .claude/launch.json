@@ -22,6 +22,20 @@
         "--strictPort"
       ],
       "port": 5174
+    },
+    {
+      "_comment": "거실 씬 아트 전용. feat/livingroom-art worktree에서만 쓴다. 콘텐츠 세션(5173/5174)과 포트가 겹치지 않도록 5180 고정.",
+      "name": "livingroom-art",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5180",
+        "--strictPort"
+      ],
+      "port": 5180
     }
   ]
 }
