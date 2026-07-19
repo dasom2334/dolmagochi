@@ -28,6 +28,9 @@
     --snow-p:  #f4f6fb;
     --cloud-1: #9aa4b5;
     --cloud-2: #7e8899;
+    /* 바닥(무광원 중립 판자) */
+    --fb0: #443340; --fb1: #52404b; --fb2: #5a4753;
+    --fbl: #3a2b35; --fbh: #675264; --fbk: #33242e;
     /* 광원: 창문(태양) / 창문(달) / 벽난로 / 촛불 / 스탠드 */
     --wl: #fff0c8; --wl-a: .20;
     --ml: #a8bcf0; --ml-a: .16;
@@ -201,6 +204,11 @@
   #L-books:not(:checked)     ~ .scene #bk-1, #L-books:not(:checked) ~ .scene #bk-2,
   #L-books:not(:checked)     ~ .scene #bk-3, #L-books:not(:checked) ~ .scene #bk-4,
   #L-books:not(:checked)     ~ .scene #bk-5, #L-books:not(:checked) ~ .scene #bk-6 { display: none !important; }
+  /* 소품 OFF → 해당 오클루더(광원 마스크 속 그림자)도 OFF */
+  #L-orb:not(:checked)   ~ .scene .occ-orb   { display: none; }
+  #L-plant:not(:checked) ~ .scene .occ-plant { display: none; }
+  #L-props:not(:checked) ~ .scene .occ-props { display: none; }
+
   #p-fx:not(:checked) ~ .scene #rain, #p-fx:not(:checked) ~ .scene #snow,
   #p-fx:not(:checked) ~ .scene #pt-leaves, #p-fx:not(:checked) ~ .scene #pt-petals,
   #p-fx:not(:checked) ~ .scene #pt-fireflies, #p-fx:not(:checked) ~ .scene #fx-drops,
@@ -426,7 +434,7 @@
     <div class="group">
       <span class="g-label">효과</span>
       <label for="p-fx">파티클·유리 효과</label>
-      <span class="note">제작은 시간/날씨 분리 관리, 렌더링은 두 오버레이 중첩(=합성 1장과 등가)</span>
+      <span class="note">광원마다 Light Mask 보유 — 소품 오클루더가 빛을 가리고, 소품을 끄면 그림자도 사라짐</span>
     </div>
   </div>
 
