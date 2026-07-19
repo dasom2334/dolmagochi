@@ -185,6 +185,15 @@ export const SYS = {
     petals: 'sys.weather.petals',
     leaves: 'sys.weather.leaves',
   } as Record<string, string>,
+  /** 돌이 곁에 없을 때의 날씨 변경 서술 — 돌 반응 누출 방지 */
+  weatherAbsent: {
+    clear: 'sys.weather.clear.absent',
+    rain: 'sys.weather.rain.absent',
+    downpour: 'sys.weather.downpour.absent',
+    snow: 'sys.weather.snow.absent',
+    petals: 'sys.weather.petals.absent',
+    leaves: 'sys.weather.leaves.absent',
+  } as Record<string, string>,
 } as const;
 
 /** 순수 UI 단문 id 상수 (M2에서 사용) */
