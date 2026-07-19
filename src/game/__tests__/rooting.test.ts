@@ -173,3 +173,21 @@ describe('묘목 단계 게이트 — 한 단계마다 방문 1회 (피드백5)'
     expect(s.sproutGatesCleared).toBe(last);
   });
 });
+
+describe('게이트 회귀 — 리뷰 지적분', () => {
+  it('동거 루트는 게이트에 걸리지 않는다 — 방문이 없으니 열 수단도 없다', () => {
+    const base = createInitialState(T0, 'lie');
+    // 균형 애착 동거: 묘목이 절반 속도로 자란다
+    let s: GameState = {
+      ...base,
+      era: 'cohabit',
+      phase: 'actionSelect',
+      sproutGrowth: BALANCE.SPROUT_GATES[0],
+      sproutGatesCleared: 0,
+      stats: { ...base.stats, abandonment: 50, intimacyThreat: 50, security: 100 },
+    };
+    for (let i = 0; i < 3; i++)
+      s = session({ ...s, phase: 'actionSelect' }, seq([0.99]));
+    expect(s.sproutGrowth).toBeGreaterThan(BALANCE.SPROUT_GATES[0]);
+  });
+});

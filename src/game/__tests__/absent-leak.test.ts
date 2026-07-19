@@ -142,3 +142,32 @@ describe('동석 축 해석 (피드백4-2)', () => {
     expect(leaked, `누출: ${leaked.join(' | ')}`).toEqual([]);
   });
 });
+
+describe('위임 누출 회귀 — 리뷰 지적분 (피드백2)', () => {
+  it('휴식 중 위임한 뒤 돌이 떠나면, 그 위임으로 세션이 열리지 않는다', () => {
+    const base = createInitialState(T0, 'lie');
+    // 2차: 돌이 놀러와 있고 떠나려는 참 — 휴식 중 위임을 걸어 둔다
+    const s: GameState = {
+      ...base,
+      era: 'apart',
+      phase: 'rest',
+      letGoCount: 1,
+      selectedAction: 'free',
+      delegate: { kind: 'action', action: 'walk' },
+      apart: { ...base.apart, visiting: true, leavePending: true },
+    };
+    // 보내주기(REST_END) → 돌이 떠난다
+    const after = run(s, [{ type: 'REST_END' }]);
+    expect(after.apart.visiting).toBe(false);
+    expect(after.delegate).toBeNull();
+    // 위임이 남아 있었더라도 빈방에 그 세션이 열려선 안 된다
+    const stale: GameState = {
+      ...after,
+      phase: 'actionSelect',
+      delegate: { kind: 'action', action: 'walk' },
+    };
+    const started = run(stale, [{ type: 'START_FOCUS', nowMs: T0 + 60_000 }]);
+    expect(started.selectedAction).not.toBe('walk');
+    expect(started.delegate).toBeNull();
+  });
+});

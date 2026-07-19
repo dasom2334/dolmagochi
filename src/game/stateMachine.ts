@@ -525,6 +525,8 @@ function exitRest(
     state: {
       ...state,
       apart: { ...state.apart, visiting: false, leavePending: false, held: false },
+      // 돌이 떠나면 '오늘 돌이 원하는 것'도 함께 사라진다 (리뷰)
+      delegate: null,
     },
     visitEndLine: joinPages(pickText(data.text, SYS.journal.visitEnd, rng)),
   };
@@ -639,8 +641,11 @@ function reduce(
       // locked(미해금)는 확인만 가능 — 세션이 시작되지 않는다
       if (state.selectedAction === 'free' && state.delegate) {
         if (state.delegate.kind === 'locked') return state;
-        state =
-          state.delegate.kind === 'action'
+        // 위임은 '돌이 원하는 것'이다 — 그 사이 돌이 떠났다면 무효.
+        // (휴식 중 위임 → 보내주기 → 빈방에 산책 세션이 열리던 누출)
+        state = !isRockPresent(state)
+          ? { ...state, delegate: null }
+          : state.delegate.kind === 'action'
             ? { ...state, selectedAction: state.delegate.action, delegate: null }
             : { ...state, delegate: null };
       }
@@ -1466,9 +1471,13 @@ function reduce(
       let farewell2 = false;
       let witherEaseLine: string | null = null;
       let gateWaitLine: string | null = null;
-      // 단계 게이트 상한 (피드백5) — 열린 게이트까지만 자란다
+      // 단계 게이트 상한 (피드백5) — 열린 게이트까지만 자란다.
+      // 게이트는 '방문 1회'로만 열리므로 방문이 존재하는 apart에서만 건다.
+      // 동거는 돌이 늘 곁에 있어 열 수단이 없다 — 걸면 심기가 영원히 막힌다.
       const growthCap =
-        BALANCE.SPROUT_GATES[next.sproutGatesCleared] ?? 100;
+        next.era === 'apart'
+          ? (BALANCE.SPROUT_GATES[next.sproutGatesCleared] ?? 100)
+          : 100;
       let gateHeld = false;
       if (!next.planted && next.era === 'apart') {
         if (!apart.visiting) {
@@ -2291,6 +2300,10 @@ function reduce(
         (item.requires !== undefined && !(item.requires in state.items))
       )
         return state;
+      // 미해금 힌트로 지목된 물건을 실제로 사면 그 힌트를 지운다 (리뷰) —
+      // 아니면 '아직 준비가 안 됐다'가 화면에 남아 다시 위임할 때까지 걸린다
+      if (state.delegate?.kind === 'locked' && state.delegate.item === item.id)
+        state = { ...state, delegate: null };
       // 소모품: 재고 0/1 — 소모 후 재구매 가능. 배치도 가능(재고가 방에 보인다):
       // 첫 구매만 배치를 묻고, 재구매는 기억된 배치 자리를 그대로 따른다.
       if (item.consumable) {
@@ -2464,7 +2477,10 @@ function reduce(
       if (!state.awakeningPending) return state;
       const def = data.treeFinds.find((f) => f.id === 'awakening');
       if (!def) return state;
-      const line = joinPages(pickText(data.text, def.textId, rng));
+      // 화면이 보여준 것과 일지에 남는 것이 같아야 한다 — UI(RestPanel의
+      // AwakeningEvent)는 변형 0을 렌더하므로 여기서도 0으로 고정한다.
+      // 문구 변형이 필요하면 결과(o0/o1.r0) 쪽에 넣는다 (그쪽은 응답 후 추첨).
+      const line = joinPages(textVariantAt(data.text, def.textId, 0));
       const result = joinPages(
         pickText(
           data.text,
@@ -2570,6 +2586,9 @@ function reduce(
 
     case 'FAREWELL_FROM_COHABIT': {
       if (state.era !== 'cohabit' || state.phase === 'epilogue') return state;
+      // 각성 대기 중에는 휴식을 빠져나갈 수 없다 — 나가면 AWAKENING_CHOICE를
+      // 띄울 화면이 사라져 되돌릴 수 없는 세이브가 된다 (리뷰)
+      if (state.awakeningPending) return state;
       return { ...state, phase: 'epilogue' };
     }
 

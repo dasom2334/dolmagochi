@@ -253,6 +253,9 @@ export const UI = {
       rain: 'ui.weather.kind.rain',
       downpour: 'ui.weather.kind.downpour',
       snow: 'ui.weather.kind.snow',
+      // 계절 한정 날씨 (M12) — 빠져 있어 봄·가을 상점에서 '[MISSING TEXT]'가 떴다
+      petals: 'ui.weather.kind.petals',
+      leaves: 'ui.weather.kind.leaves',
     } as Record<string, string>,
     umbrellaAsk: 'ui.weather.umbrellaAsk',
     umbrellaYes: 'ui.weather.umbrellaYes',
