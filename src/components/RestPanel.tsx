@@ -537,45 +537,48 @@ function RestShop({ state }: { state: GameState }) {
           );
         })}
       </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 14,
-          marginTop: 8,
-        }}
-      >
-        <button
-          className={p === 0 ? undefined : 'hv'}
-          disabled={p === 0}
+      {/* 공용 페이저는 상점·소장품용 — 기억 탭은 앨범이 자체 페이저를 가진다 (M19d) */}
+      {sub !== 'memories' && (
+        <div
           style={{
-            ...btnSmall,
-            fontSize: 12,
-            padding: '3px 12px',
-            color: p === 0 ? 'var(--line)' : 'var(--ink-soft)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 14,
+            marginTop: 8,
           }}
-          onClick={() => setPage(Math.max(0, p - 1))}
         >
-          ◂
-        </button>
-        <span style={{ fontSize: 11, color: 'var(--hint)' }}>
-          {p + 1} / {pages}
-        </span>
-        <button
-          className={p >= pages - 1 ? undefined : 'hv'}
-          disabled={p >= pages - 1}
-          style={{
-            ...btnSmall,
-            fontSize: 12,
-            padding: '3px 12px',
-            color: p >= pages - 1 ? 'var(--line)' : 'var(--ink-soft)',
-          }}
-          onClick={() => setPage(Math.min(pages - 1, p + 1))}
-        >
-          ▸
-        </button>
-      </div>
+          <button
+            className={p === 0 ? undefined : 'hv'}
+            disabled={p === 0}
+            style={{
+              ...btnSmall,
+              fontSize: 12,
+              padding: '3px 12px',
+              color: p === 0 ? 'var(--line)' : 'var(--ink-soft)',
+            }}
+            onClick={() => setPage(Math.max(0, p - 1))}
+          >
+            ◂
+          </button>
+          <span style={{ fontSize: 11, color: 'var(--hint)' }}>
+            {p + 1} / {pages}
+          </span>
+          <button
+            className={p >= pages - 1 ? undefined : 'hv'}
+            disabled={p >= pages - 1}
+            style={{
+              ...btnSmall,
+              fontSize: 12,
+              padding: '3px 12px',
+              color: p >= pages - 1 ? 'var(--line)' : 'var(--ink-soft)',
+            }}
+            onClick={() => setPage(Math.min(pages - 1, p + 1))}
+          >
+            ▸
+          </button>
+        </div>
+      )}
     </>
   );
 }
