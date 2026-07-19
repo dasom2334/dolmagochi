@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>거실 씬 v2 — 중립 베이스 + 물리 광원</title>
+<title>거실 씬 v2 — 중립 베이스 + 물리 광원 + 레이어 인스펙터</title>
 <style>
   /* ============================================================
-     레이어 아키텍처 실험
-     방(고정 중립 팔레트) + 계절 풍경 + 시간 하늘 + 날씨 오버레이
-     + 조명 오버레이(시간3+날씨3 스태킹) + 창문 효과 + 파티클
+     v2: 중립 방(AO만) + 3계층 합성
+       1) 시간 색감 오버레이  2) 날씨 색감 오버레이  3) 광원(개별 SVG)
+     모든 SVG 그룹 개별 on/off 가능
      ============================================================ */
   .scene {
     --page-bg: #241627;
@@ -28,10 +28,12 @@
     --snow-p:  #f4f6fb;
     --cloud-1: #9aa4b5;
     --cloud-2: #7e8899;
-    /* 광원: 창문 빛 / 벽난로 빛 / 촛불 빛 (색, 세기) */
+    /* 광원: 창문(태양) / 창문(달) / 벽난로 / 촛불 / 스탠드 */
     --wl: #fff0c8; --wl-a: .20;
+    --ml: #a8bcf0; --ml-a: .16;
     --fl: #ffa04a; --fl-a: .10;
     --cl: #ffcf8a; --cl-a: .08;
+    --ll: #ffd9a0; --ll-a: .10;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -73,7 +75,8 @@
   .scene #fx-drops, .scene #fx-frost, .scene #fx-snowcap,
   .scene #pt-leaves, .scene #pt-petals, .scene #pt-fireflies,
   .scene #light-day, .scene #light-sunset, .scene #light-night,
-  .scene #light-cloud, .scene #light-rain, .scene #light-snow { display: none; }
+  .scene #light-cloud, .scene #light-rain, .scene #light-snow,
+  .scene #lp-sun-day, .scene #lp-moon { display: none; }
 
   .ctl {
     position: absolute;
@@ -82,7 +85,7 @@
     pointer-events: none;
   }
 
-  /* ===== 계절 풍경 (에셋 4) ===== */
+  /* ===== 계절 풍경 ===== */
   #s-spring:checked ~ .scene {
     --h0: #55804a; --h1: #6f9c5e; --h2: #8fba7c; --h3: #c2dfa6;
     --t0: #a86a8c; --t1: #d095b5; --t2: #e8b8ce;
@@ -97,34 +100,40 @@
   #s-winter:checked ~ .scene #leaves    { display: none; }
   #s-winter:checked ~ .scene #tree-bare { display: inline; }
 
-  /* ===== 하늘 (에셋 3) — 시간은 하늘만 바꾼다. 방은 조명 오버레이가 담당 ===== */
+  /* ===== 시간: 하늘 교체 + 광원 값 ===== */
   #t-sunset:checked ~ .scene {
     --k0: #39203e; --k1: #562b3c; --k2: #ae653e; --k3: #a5456a;
     --k4: #d55850; --k5: #f57639; --k6: #fc9840;
     --sun0: #fca951; --sun1: #fcce8b;
-    --wl: #ff9a4a; --wl-a: .30; --fl-a: .16; --cl-a: .12;
+    --wl: #ff9a4a; --wl-a: .30; --fl-a: .16; --cl-a: .12; --ll-a: .15;
   }
   #t-night:checked ~ .scene {
     --k0: #0e1430; --k1: #131a3a; --k2: #1a2348; --k3: #232e56;
     --k4: #2c3862; --k5: #364471; --k6: #41507e;
     --page-bg: #150e1d;
-    --wl: #a8bcf0; --wl-a: .16; --fl-a: .30; --cl-a: .18;
+    --fl-a: .30; --cl-a: .18; --ll-a: .28;
   }
   #t-night:checked ~ .scene #sun   { display: none; }
   #t-night:checked ~ .scene #moon  { display: inline; }
   #t-night:checked ~ .scene #stars { display: inline; }
 
-  /* 밤 실루엣 언덕만 예외적으로 시간이 관여 (겨울 눈빛 유지) */
+  /* 창문 광원의 시간 게이팅: 태양광은 낮·노을, 달빛은 밤 */
+  #t-day:checked   ~ .scene #lp-sun-day { display: inline; }
+  #t-day:checked   ~ .scene #lp-sun-low { display: none; }
+  #t-night:checked ~ .scene #lp-sun     { display: none; }
+  #t-night:checked ~ .scene #lp-moon    { display: inline; }
+
+  /* 밤 언덕 실루엣 (겨울 눈빛 유지) */
   #t-night:checked ~ .scene { --h0: #12172f; --h1: #1a2140; --h2: #242c52; --h3: #303a64; }
   #t-night:checked ~ #s-winter:checked ~ .scene { --h0: #3a4166; --h1: #4d5480; --h2: #6a729c; --h3: #8891b5; }
 
   /* 계절이 광원에 관여하는 예: 겨울 낮의 창문 빛은 차가운 흰색 */
   #t-day:checked ~ #s-winter:checked ~ .scene { --wl: #eef4fc; --wl-a: .24; }
 
-  /* ===== 날씨 오버레이 (에셋 4: 맑음=없음, 구름은 흐림·비·눈 공용) ===== */
-  #w-cloud:checked ~ .scene { --wl: #c8d2e0; --wl-a: .10; }
-  #w-rain:checked  ~ .scene { --wl: #93a4bc; --wl-a: .07; }
-  #w-snow:checked  ~ .scene { --wl: #dde8f6; --wl-a: .16; }
+  /* ===== 날씨: 구름·파티클·광원 감쇠 ===== */
+  #w-cloud:checked ~ .scene { --wl: #c8d2e0; --wl-a: .10; --ml-a: .06; }
+  #w-rain:checked  ~ .scene { --wl: #93a4bc; --wl-a: .07; --ml-a: .04; }
+  #w-snow:checked  ~ .scene { --wl: #dde8f6; --wl-a: .16; --ml-a: .10; }
   #w-cloud:checked ~ .scene #clouds,
   #w-rain:checked  ~ .scene #clouds,
   #w-snow:checked  ~ .scene #clouds { display: inline; }
@@ -134,34 +143,68 @@
   #w-cloud:checked ~ .scene #moon, #w-rain:checked ~ .scene #moon, #w-snow:checked ~ .scene #moon,
   #w-cloud:checked ~ .scene #stars,#w-rain:checked ~ .scene #stars,#w-snow:checked ~ .scene #stars { display: none; }
 
-  /* ===== 조명 오버레이 (에셋 6) — 시간 조명 + 날씨 조명 스태킹 ===== */
-  #p-light:checked ~ #t-day:checked    ~ .scene #light-day    { display: inline; }
-  #p-light:checked ~ #t-sunset:checked ~ .scene #light-sunset { display: inline; }
-  #p-light:checked ~ #t-night:checked  ~ .scene #light-night  { display: inline; }
-  #p-light:checked ~ #w-cloud:checked  ~ .scene #light-cloud  { display: inline; }
-  #p-light:checked ~ #w-rain:checked   ~ .scene #light-rain   { display: inline; }
-  #p-light:checked ~ #w-snow:checked   ~ .scene #light-snow   { display: inline; }
+  /* ===== 색감 오버레이 표시 (시간/날씨 분리) ===== */
+  #t-day:checked    ~ .scene #light-day    { display: inline; }
+  #t-sunset:checked ~ .scene #light-sunset { display: inline; }
+  #t-night:checked  ~ .scene #light-night  { display: inline; }
+  #w-cloud:checked  ~ .scene #light-cloud  { display: inline; }
+  #w-rain:checked   ~ .scene #light-rain   { display: inline; }
+  #w-snow:checked   ~ .scene #light-snow   { display: inline; }
 
-  /* ===== 광원 토글 + 시간별 창문 빔 지오메트리 ===== */
-  .scene #lp-win-day { display: none; }
-  #t-day:checked ~ .scene #lp-win-day { display: inline; }
-  #t-day:checked ~ .scene #lp-win-low { display: none; }
-  #p-lwin:not(:checked)    ~ .scene #lp-win-day,
-  #p-lwin:not(:checked)    ~ .scene #lp-win-low { display: none; }
-  #p-lfire:not(:checked)   ~ .scene #lp-fire   { display: none; }
-  #p-lcandle:not(:checked) ~ .scene #lp-candle { display: none; }
-
-  /* ===== 창문 효과 (에셋 3) ===== */
+  /* ===== 창문 효과 ===== */
   #w-rain:checked   ~ .scene #fx-drops   { display: inline; }
   #s-winter:checked ~ .scene #fx-frost   { display: inline; }
   #w-snow:checked   ~ .scene #fx-snowcap { display: inline; }
 
-  /* ===== 파티클 (에셋 5: 비·눈 + 낙엽·꽃잎·반딧불) ===== */
+  /* ===== 계절 파티클 ===== */
   #s-autumn:checked ~ #w-clear:checked ~ .scene #pt-leaves { display: inline; }
   #s-autumn:checked ~ #w-cloud:checked ~ .scene #pt-leaves { display: inline; }
   #s-spring:checked ~ #w-clear:checked ~ .scene #pt-petals { display: inline; }
   #s-spring:checked ~ #w-cloud:checked ~ .scene #pt-petals { display: inline; }
   #t-night:checked ~ #s-summer:checked ~ #w-clear:checked ~ .scene #pt-fireflies { display: inline; }
+
+  /* ============================================================
+     레이어 인스펙터 — 모든 그룹 개별 on/off (마스터는 !important)
+     ============================================================ */
+  #ov-time:not(:checked)    ~ .scene #light-day,
+  #ov-time:not(:checked)    ~ .scene #light-sunset,
+  #ov-time:not(:checked)    ~ .scene #light-night  { display: none !important; }
+  #ov-weather:not(:checked) ~ .scene #light-cloud,
+  #ov-weather:not(:checked) ~ .scene #light-rain,
+  #ov-weather:not(:checked) ~ .scene #light-snow   { display: none !important; }
+
+  #p-lsun:not(:checked)    ~ .scene #lp-sun    { display: none !important; }
+  #p-lmoon:not(:checked)   ~ .scene #lp-moon   { display: none !important; }
+  #p-lfire:not(:checked)   ~ .scene #lp-fire   { display: none !important; }
+  #p-lcandle:not(:checked) ~ .scene #lp-candle { display: none !important; }
+  #p-llamp:not(:checked)   ~ .scene #lp-lamp   { display: none !important; }
+
+  #L-wall:not(:checked)      ~ .scene #g-wall        { display: none !important; }
+  #L-floor:not(:checked)     ~ .scene #g-floor       { display: none !important; }
+  #L-winframe:not(:checked)  ~ .scene #g-winframe    { display: none !important; }
+  #L-fireplace:not(:checked) ~ .scene #g-fireplace   { display: none !important; }
+  #L-shelf:not(:checked)     ~ .scene #g-shelf       { display: none !important; }
+  #L-scenery:not(:checked)   ~ .scene #base-scenery  { display: none !important; }
+  #L-tree:not(:checked)      ~ .scene #leaves,
+  #L-tree:not(:checked)      ~ .scene #tree-bare     { display: none !important; }
+  #L-sun:not(:checked)       ~ .scene #sun           { display: none !important; }
+  #L-moon:not(:checked)      ~ .scene #moon          { display: none !important; }
+  #L-stars:not(:checked)     ~ .scene #stars         { display: none !important; }
+  #L-clouds:not(:checked)    ~ .scene #clouds        { display: none !important; }
+  #L-rug:not(:checked)       ~ .scene #rug           { display: none !important; }
+  #L-orb:not(:checked)       ~ .scene #orb           { display: none !important; }
+  #L-plant:not(:checked)     ~ .scene #sill-plant    { display: none !important; }
+  #L-props:not(:checked)     ~ .scene #floor-props   { display: none !important; }
+  #L-candle:not(:checked)    ~ .scene #candle        { display: none !important; }
+  #L-fire:not(:checked)      ~ .scene #fire          { display: none !important; }
+  #L-lamp:not(:checked)      ~ .scene #lamp          { display: none !important; }
+  #L-books:not(:checked)     ~ .scene #bk-1, #L-books:not(:checked) ~ .scene #bk-2,
+  #L-books:not(:checked)     ~ .scene #bk-3, #L-books:not(:checked) ~ .scene #bk-4,
+  #L-books:not(:checked)     ~ .scene #bk-5, #L-books:not(:checked) ~ .scene #bk-6 { display: none !important; }
+  #p-fx:not(:checked) ~ .scene #rain, #p-fx:not(:checked) ~ .scene #snow,
+  #p-fx:not(:checked) ~ .scene #pt-leaves, #p-fx:not(:checked) ~ .scene #pt-petals,
+  #p-fx:not(:checked) ~ .scene #pt-fireflies, #p-fx:not(:checked) ~ .scene #fx-drops,
+  #p-fx:not(:checked) ~ .scene #fx-frost, #p-fx:not(:checked) ~ .scene #fx-snowcap { display: none !important; }
 
   /* ===== 애니메이션 ===== */
   .f-out, .f-mid, .f-core, .c-flame {
@@ -177,8 +220,8 @@
   .rain-fall   { animation: fall-30 0.7s steps(15) infinite; }
   .snow-fall-a { animation: fall-30 3.8s steps(30) infinite; }
   .snow-fall-b { animation: fall-30 5.4s steps(30) -2.1s infinite; }
-  .drift-a     { animation: fall-30 6.5s steps(30) infinite, sway 2.6s ease-in-out infinite; }
-  .drift-b     { animation: fall-30 8s   steps(30) -3.5s infinite, sway 3.4s ease-in-out -1.2s infinite; }
+  .drift-a     { animation: fall-30 6.5s steps(30) infinite; }
+  .drift-b     { animation: fall-30 8s   steps(30) -3.5s infinite; }
   .firefly-a   { animation: twinkle 1.8s ease-in-out infinite; }
   .firefly-b   { animation: twinkle 2.6s ease-in-out -0.9s infinite; }
   .cloud-drift { animation: cloud-move 34s linear infinite alternate; }
@@ -190,7 +233,6 @@
   @keyframes candle-flick { 0%,100% { transform: scaleY(1); opacity: 1; } 42% { transform: scaleY(.78); opacity: .8; } 70% { transform: scaleY(.92); } }
   @keyframes twinkle      { 0%,100% { opacity: 1; } 50% { opacity: .2; } }
   @keyframes fall-30      { to { transform: translateY(30px); } }
-  @keyframes sway         { 0%,100% { margin-left: 0; } 50% { margin-left: 2px; } }
   @keyframes cloud-move   { from { transform: translateX(-2px); } to { transform: translateX(3px); } }
   @keyframes glow-breathe { 0%,100% { opacity: 1; } 50% { opacity: .72; } }
 
@@ -198,47 +240,70 @@
     .scene svg * { animation: none !important; }
   }
 
-  /* ===== 컨트롤 패널 ===== */
+  /* ===== 패널 ===== */
   .panel {
     width: 100%;
     max-width: 900px;
     display: flex;
     flex-direction: column;
-    gap: 9px;
+    gap: 8px;
   }
-  .group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
   .g-label { width: 56px; flex: none; color: #8d7a92; font-size: 12px; letter-spacing: .04em; }
   .panel label {
-    padding: 6px 14px;
+    padding: 5px 12px;
     border-radius: 999px;
     background: #2a1c31;
     border: 1px solid #443150;
     color: #af9cb4;
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1;
     cursor: pointer;
     user-select: none;
     transition: background .2s, color .2s, border-color .2s;
   }
   .panel label:hover { border-color: #6b5175; }
-  .divider { height: 1px; background: #2e2036; margin: 3px 0; }
+  .divider { height: 1px; background: #2e2036; margin: 2px 0; }
   .note { color: #6f5e76; font-size: 11px; }
 
-  #t-day:checked    ~ .panel label[for="t-day"],
-  #t-sunset:checked ~ .panel label[for="t-sunset"],
-  #t-night:checked  ~ .panel label[for="t-night"],
-  #s-spring:checked ~ .panel label[for="s-spring"],
-  #s-summer:checked ~ .panel label[for="s-summer"],
-  #s-autumn:checked ~ .panel label[for="s-autumn"],
-  #s-winter:checked ~ .panel label[for="s-winter"],
-  #w-clear:checked  ~ .panel label[for="w-clear"],
-  #w-cloud:checked  ~ .panel label[for="w-cloud"],
-  #w-rain:checked   ~ .panel label[for="w-rain"],
-  #w-snow:checked   ~ .panel label[for="w-snow"],
-  #p-light:checked  ~ .panel label[for="p-light"],
-  #p-lwin:checked    ~ .panel label[for="p-lwin"],
-  #p-lfire:checked   ~ .panel label[for="p-lfire"],
-  #p-lcandle:checked ~ .panel label[for="p-lcandle"] {
+  #t-day:checked      ~ .panel label[for="t-day"],
+  #t-sunset:checked   ~ .panel label[for="t-sunset"],
+  #t-night:checked    ~ .panel label[for="t-night"],
+  #s-spring:checked   ~ .panel label[for="s-spring"],
+  #s-summer:checked   ~ .panel label[for="s-summer"],
+  #s-autumn:checked   ~ .panel label[for="s-autumn"],
+  #s-winter:checked   ~ .panel label[for="s-winter"],
+  #w-clear:checked    ~ .panel label[for="w-clear"],
+  #w-cloud:checked    ~ .panel label[for="w-cloud"],
+  #w-rain:checked     ~ .panel label[for="w-rain"],
+  #w-snow:checked     ~ .panel label[for="w-snow"],
+  #ov-time:checked    ~ .panel label[for="ov-time"],
+  #ov-weather:checked ~ .panel label[for="ov-weather"],
+  #p-lsun:checked     ~ .panel label[for="p-lsun"],
+  #p-lmoon:checked    ~ .panel label[for="p-lmoon"],
+  #p-lfire:checked    ~ .panel label[for="p-lfire"],
+  #p-lcandle:checked  ~ .panel label[for="p-lcandle"],
+  #p-llamp:checked    ~ .panel label[for="p-llamp"],
+  #L-wall:checked      ~ .panel label[for="L-wall"],
+  #L-floor:checked     ~ .panel label[for="L-floor"],
+  #L-winframe:checked  ~ .panel label[for="L-winframe"],
+  #L-fireplace:checked ~ .panel label[for="L-fireplace"],
+  #L-shelf:checked     ~ .panel label[for="L-shelf"],
+  #L-scenery:checked   ~ .panel label[for="L-scenery"],
+  #L-tree:checked      ~ .panel label[for="L-tree"],
+  #L-sun:checked       ~ .panel label[for="L-sun"],
+  #L-moon:checked      ~ .panel label[for="L-moon"],
+  #L-stars:checked     ~ .panel label[for="L-stars"],
+  #L-clouds:checked    ~ .panel label[for="L-clouds"],
+  #L-rug:checked       ~ .panel label[for="L-rug"],
+  #L-orb:checked       ~ .panel label[for="L-orb"],
+  #L-plant:checked     ~ .panel label[for="L-plant"],
+  #L-props:checked     ~ .panel label[for="L-props"],
+  #L-candle:checked    ~ .panel label[for="L-candle"],
+  #L-fire:checked      ~ .panel label[for="L-fire"],
+  #L-books:checked     ~ .panel label[for="L-books"],
+  #L-lamp:checked      ~ .panel label[for="L-lamp"],
+  #p-fx:checked        ~ .panel label[for="p-fx"] {
     background: #d98e4a;
     border-color: #d98e4a;
     color: #2a1626;
@@ -248,10 +313,6 @@
 </head>
 <body>
 
-  <input class="ctl" type="checkbox" id="p-light" checked>
-  <input class="ctl" type="checkbox" id="p-lwin" checked>
-  <input class="ctl" type="checkbox" id="p-lfire" checked>
-  <input class="ctl" type="checkbox" id="p-lcandle" checked>
   <input class="ctl" type="radio" name="time" id="t-day" checked>
   <input class="ctl" type="radio" name="time" id="t-sunset">
   <input class="ctl" type="radio" name="time" id="t-night">
@@ -263,9 +324,36 @@
   <input class="ctl" type="radio" name="weather" id="w-cloud">
   <input class="ctl" type="radio" name="weather" id="w-rain">
   <input class="ctl" type="radio" name="weather" id="w-snow">
+  <input class="ctl" type="checkbox" id="ov-time" checked>
+  <input class="ctl" type="checkbox" id="ov-weather" checked>
+  <input class="ctl" type="checkbox" id="p-lsun" checked>
+  <input class="ctl" type="checkbox" id="p-lmoon" checked>
+  <input class="ctl" type="checkbox" id="p-lfire" checked>
+  <input class="ctl" type="checkbox" id="p-lcandle" checked>
+  <input class="ctl" type="checkbox" id="p-llamp" checked>
+  <input class="ctl" type="checkbox" id="L-wall" checked>
+  <input class="ctl" type="checkbox" id="L-floor" checked>
+  <input class="ctl" type="checkbox" id="L-winframe" checked>
+  <input class="ctl" type="checkbox" id="L-fireplace" checked>
+  <input class="ctl" type="checkbox" id="L-shelf" checked>
+  <input class="ctl" type="checkbox" id="L-scenery" checked>
+  <input class="ctl" type="checkbox" id="L-tree" checked>
+  <input class="ctl" type="checkbox" id="L-sun" checked>
+  <input class="ctl" type="checkbox" id="L-moon" checked>
+  <input class="ctl" type="checkbox" id="L-stars" checked>
+  <input class="ctl" type="checkbox" id="L-clouds" checked>
+  <input class="ctl" type="checkbox" id="L-rug" checked>
+  <input class="ctl" type="checkbox" id="L-orb" checked>
+  <input class="ctl" type="checkbox" id="L-plant" checked>
+  <input class="ctl" type="checkbox" id="L-props" checked>
+  <input class="ctl" type="checkbox" id="L-candle" checked>
+  <input class="ctl" type="checkbox" id="L-fire" checked>
+  <input class="ctl" type="checkbox" id="L-books" checked>
+  <input class="ctl" type="checkbox" id="L-lamp" checked>
+  <input class="ctl" type="checkbox" id="p-fx" checked>
 
   <div class="scene">
-    <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="레이어 조합 방식 실험: 고정된 방 위에 계절 풍경, 시간 하늘, 날씨, 조명 오버레이를 겹쳐 48가지 환경을 만든다.">
+    <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="중립 베이스 위에 시간·날씨 색감 오버레이와 개별 광원을 합성하는 레이어 인스펙터 씬.">
 <!--__ART__-->
 <!--__LIGHTS__-->
     </svg>
@@ -294,15 +382,51 @@
     </div>
     <div class="divider"></div>
     <div class="group">
-      <span class="g-label">광원</span>
-      <label for="p-lwin">창문 빛</label>
-      <label for="p-lfire">벽난로 빛</label>
-      <label for="p-lcandle">촛불 빛</label>
+      <span class="g-label">색감</span>
+      <label for="ov-time">시간 오버레이</label>
+      <label for="ov-weather">날씨 오버레이</label>
     </div>
     <div class="group">
-      <span class="g-label">실험</span>
-      <label for="p-light">앰비언트 오버레이</label>
-      <span class="note">v2: 디라이팅한 중립 방(AO만) + 물리 광원 — 평행광 빔(태양 고도별 지오메트리, 돌·화분 그림자 구멍), 점광원 역제곱 감쇠(상자 그림자), 시간·계절·날씨 착색</span>
+      <span class="g-label">광원</span>
+      <label for="p-lsun">창문 햇빛</label>
+      <label for="p-lmoon">창문 달빛</label>
+      <label for="p-lfire">벽난로 빛</label>
+      <label for="p-lcandle">촛불 빛</label>
+      <label for="p-llamp">스탠드 빛</label>
+    </div>
+    <div class="divider"></div>
+    <div class="group">
+      <span class="g-label">배경</span>
+      <label for="L-wall">벽</label>
+      <label for="L-floor">바닥</label>
+      <label for="L-winframe">창틀·창턱</label>
+      <label for="L-fireplace">벽난로</label>
+      <label for="L-shelf">책장</label>
+    </div>
+    <div class="group">
+      <span class="g-label">창밖</span>
+      <label for="L-scenery">풍경</label>
+      <label for="L-tree">나무</label>
+      <label for="L-sun">해</label>
+      <label for="L-moon">달</label>
+      <label for="L-stars">별</label>
+      <label for="L-clouds">구름</label>
+    </div>
+    <div class="group">
+      <span class="g-label">소품</span>
+      <label for="L-rug">러그</label>
+      <label for="L-orb">돌멩이</label>
+      <label for="L-plant">화분</label>
+      <label for="L-props">바닥 소품</label>
+      <label for="L-candle">촛대</label>
+      <label for="L-fire">불꽃</label>
+      <label for="L-books">책장 책</label>
+      <label for="L-lamp">스탠드</label>
+    </div>
+    <div class="group">
+      <span class="g-label">효과</span>
+      <label for="p-fx">파티클·유리 효과</label>
+      <span class="note">제작은 시간/날씨 분리 관리, 렌더링은 두 오버레이 중첩(=합성 1장과 등가)</span>
     </div>
   </div>
 
