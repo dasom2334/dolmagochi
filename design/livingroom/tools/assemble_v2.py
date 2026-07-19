@@ -13,8 +13,9 @@ for line in pal.splitlines():
 def punch(hexv):
     r,g,b = (int(hexv[i:i+2],16)/255 for i in (1,3,5))
     h,l,s = colorsys.rgb_to_hls(r,g,b)
-    l = min(.96, max(.03, 0.5 + (l-0.5)*1.34))
-    s = min(1, s*1.38)
+    # 명도는 과하게 누르면 방이 검게 뭉개진다 → 대비는 주로 **채도**로 만든다.
+    l = min(.96, max(.04, 0.5 + (l-0.5)*1.38))
+    s = min(1, s*1.72)
     r,g,b = colorsys.hls_to_rgb(h,l,s)
     return '#%02x%02x%02x' % (round(r*255), round(g*255), round(b*255))
 
@@ -77,16 +78,20 @@ lights = f'''
   <rect x="46" y="20" width="2"  height="1"/>
   <rect x="28" y="33" width="7"  height="1"/><rect x="40" y="33" width="6" height="1"/><rect x="52" y="33" width="8" height="1"/><rect x="63" y="33" width="3" height="1"/>
 </g>
-<g id="light-day">{strips("rgba(255,244,224,.10)","multiply")}</g>
+<g id="light-day">
+  {strips("rgba(255,246,230,.06)","multiply")}
+  {strips("rgba(140,170,208,.30)","screen")}
+  {glass("rgba(255,252,245,.05)","screen")}
+</g>
 <g id="light-sunset">
   {strips("rgba(255,148,84,.30)","multiply")}
   {strips("rgba(255,120,40,.10)","screen")}
-  {glass("rgba(255,140,80,.30)","multiply")}
+  {glass("rgba(255,140,80,.16)","multiply")}
 </g>
 <g id="light-night">
   {strips("rgba(72,82,150,.52)","multiply")}
   {strips("rgba(25,30,70,.28)","multiply")}
-  {glass("rgba(30,38,90,.20)","multiply")}
+  {glass("rgba(30,38,90,.09)","multiply")}
 </g>
 <g id="light-cloud">
   {strips("rgba(158,165,180,.28)","multiply")}
@@ -124,16 +129,13 @@ def pool_trap(gid, spread, skew, zones, fillvar='var(--wl)', opvar='var(--wl-a)'
     parts.append('</g>')
     return ''.join(parts)
 
-# 노을/달: 저고도 — 길고 왼쪽으로 흐르는 사다리꼴
-lp_sun_low = pool_trap('lp-sun-low', 0.035, 0.75,
-                  zones=[(35,36,.9),(49,55,1),(56,62,.75),(63,69,.5)], maskref='m-low')
-# 낮: 고고도 — 짧고 가파른 사다리꼴
-lp_sun_day = pool_trap('lp-sun-day', 0.03, 0.12,
-                  zones=[(35,36,.9),(49,53,.9),(54,58,.6)], maskref='m-day')
-lp_sun = '<g id="lp-sun">' + lp_sun_low + lp_sun_day + '</g>'
-lp_moon = pool_trap('lp-moon', 0.035, 0.75,
-               zones=[(35,36,.9),(49,55,1),(56,62,.75),(63,69,.5)],
-               fillvar='var(--ml)', opvar='var(--ml-a)', maskref='m-low')
+# 창문 빛 셰이프는 시간대와 무관하게 **하나로 통일** — 낮·노을·밤 모두 같은 사다리꼴.
+# 시간에 따라 달라지는 것은 색(--wl/--ml)과 세기(--wl-a/--ml-a)뿐.
+WIN_SPREAD, WIN_SKEW = 0.035, 0.55
+WIN_ZONES = [(35,36,.9),(49,55,1),(56,62,.75),(63,69,.5)]
+lp_sun  = pool_trap('lp-sun',  WIN_SPREAD, WIN_SKEW, zones=WIN_ZONES, maskref='m-win')
+lp_moon = pool_trap('lp-moon', WIN_SPREAD, WIN_SKEW, zones=WIN_ZONES,
+                    fillvar='var(--ml)', opvar='var(--ml-a)', maskref='m-win')
 
 def rings(cx, cy, ysquash, bands, yr, xclamp, fillvar):
     parts=[]
@@ -187,13 +189,11 @@ def occ_box(skew, ymax):      # 벽난로 옆 상자 (바닥 위 → 자기 기�
 def occ_orb_rug(skew, ymax):  # 러그 위 돌 (x40-53, w14) — 그림자는 돌 앞(창 반대쪽)
     return '<g class="occ-orb2">'+occ_strip(40,14,64,ymax,skew,base=63,grow=0.04)+'</g>'
 
+# 빔 셰이프가 하나이므로 그림자 마스크도 하나 — 같은 skew를 따른다.
 masks = (
- '<mask id="m-day" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72">'
+ '<mask id="m-win" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72">'
  '<rect width="96" height="72" fill="#fff"/>'
- + occ_orb(0.12, 52) + occ_plant(0.12, 51) + occ_box(0.12, 50) + occ_orb_rug(0.12, 66) + '</mask>'
- '<mask id="m-low" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72">'
- '<rect width="96" height="72" fill="#fff"/>'
- + occ_orb(0.75, 58) + occ_plant(0.75, 52) + occ_box(0.75, 53) + occ_orb_rug(0.75, 68) + '</mask>'
+ + occ_orb(0.55, 56) + occ_plant(0.55, 52) + occ_box(0.55, 52) + occ_orb_rug(0.55, 68) + '</mask>'
  '<mask id="m-fire" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72">'
  '<rect width="96" height="72" fill="#fff"/>'
  '<g class="occ-props">'
@@ -296,7 +296,7 @@ def pull(gid):
 
 # [2] 창밖: 달·별·구름은 하늘 요소 → 나무(줄기 포함)보다 뒤로
 celestial = ''.join(pull(g) for g in ('moon','stars','clouds'))
-li = art.index('<g id="tree-trunk">')
+li = art.index('<g id="tree-v1">')
 art = art[:li] + celestial + art[li:]
 
 # [3] 소품: 책장 책 → 촛대 → 창턱 화분 → 돌멩이 → 러그 → 스탠드 → 바닥 소품
