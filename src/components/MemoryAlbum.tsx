@@ -3,8 +3,9 @@ import type { GameState, Remembrance } from '../game/types';
 import { gameData } from '../store/gameStore';
 import { acquiredBadges } from '../game/badges';
 import { t, tf } from '../store/appStore';
-import { SYS } from '../game/text';
-import { btnSmall } from './ui';
+import { fnv1a } from '../game/rng';
+import { SYS, UI } from '../game/text';
+import { Pager } from './ui';
 
 /**
  * 도감 앨범 (M19d) — 기억 하나마다 그림 타일, 고르면 아래에 설명이 뜬다.
@@ -17,16 +18,6 @@ type AlbumEntry =
   | { kind: 'rem'; id: string; at: number; rem: Remembrance };
 
 const PER_PAGE = 8; // 4×2 그리드
-
-/** id → 0~1 안정 해시 (FNV-1a) — 타일 색·문양이 세션 간 동일하게 */
-function idHash(id: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
 
 /**
  * 플레이스홀더 타일 그림 — id에서 파생한 색조 + 5×5 대칭 도트 문양.
@@ -41,7 +32,7 @@ function MemoryTile({
   selected: boolean;
   onClick: () => void;
 }) {
-  const h = idHash(entry.id);
+  const h = fnv1a(entry.id);
   const hue = h % 360;
   const bg = `hsl(${hue} 28% 24%)`;
   const dot = `hsl(${hue} 45% 62%)`;
@@ -51,7 +42,8 @@ function MemoryTile({
   for (let y = 0; y < 5; y++) {
     for (let x = 0; x < 3; x++) {
       if ((h >> (y * 3 + x)) & 1) {
-        const c = (h >> (y * 3 + x + 7)) & 1 ? dot : dim;
+        // 색 비트는 존재 비트(0~14)와 겹치지 않게 15부터 쓴다
+        const c = (h >> (y * 3 + x + 15)) & 1 ? dot : dim;
         cells.push(`${x * 6}px ${y * 6}px 0 ${c}`);
         if (x < 2) cells.push(`${(4 - x) * 6}px ${y * 6}px 0 ${c}`);
       }
@@ -69,7 +61,7 @@ function MemoryTile({
       style={{
         width: 44,
         height: 44,
-        padding: 6,
+        padding: 5, // 문양 30px + 테두리 2px×2 = 44 정중앙
         border: `2px solid ${selected ? 'var(--text)' : 'var(--line)'}`,
         background: bg,
         cursor: 'pointer',
@@ -82,6 +74,7 @@ function MemoryTile({
           position: 'relative',
           width: 6,
           height: 6,
+          // PNG 교체 시 이 속성은 <img> 자체에 걸어야 한다 (도트 div엔 무의미)
           imageRendering: 'pixelated',
           boxShadow: [...cells, ...mark].join(','),
         }}
@@ -114,13 +107,17 @@ export function MemoryAlbum({ state }: { state: GameState }) {
   if (entries.length === 0) {
     return (
       <p style={{ margin: 0, fontSize: 11, color: 'var(--hint)' }}>
-        * {t('ui.shop.badgesEmpty')}
+        * {t(UI.shop.badgesEmpty)}
       </p>
     );
   }
 
   const pages = Math.max(1, Math.ceil(entries.length / PER_PAGE));
   const p = Math.min(page, pages - 1);
+  const goPage = (n: number) => {
+    setPage(n);
+    setSelectedId(null); // 페이지를 넘기면 선택도 닫는다 — 숨은 선택이 남지 않게
+  };
   const shown = entries.slice(p * PER_PAGE, p * PER_PAGE + PER_PAGE);
   const selected = shown.find((e) => e.id === selectedId) ?? null;
 
@@ -155,7 +152,7 @@ export function MemoryAlbum({ state }: { state: GameState }) {
       >
         {selected === null ? (
           <span style={{ color: 'var(--hint-dim)' }}>
-            * {t('ui.album.pickHint')}
+            * {t(UI.album.pickHint)}
           </span>
         ) : selected.kind === 'badge' ? (
           <>
@@ -183,44 +180,7 @@ export function MemoryAlbum({ state }: { state: GameState }) {
           </>
         )}
       </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 14,
-        }}
-      >
-        <button
-          className={p === 0 ? undefined : 'hv'}
-          disabled={p === 0}
-          style={{
-            ...btnSmall,
-            fontSize: 12,
-            padding: '3px 12px',
-            color: p === 0 ? 'var(--line)' : 'var(--ink-soft)',
-          }}
-          onClick={() => setPage(Math.max(0, p - 1))}
-        >
-          ◂
-        </button>
-        <span style={{ fontSize: 11, color: 'var(--hint)' }}>
-          {p + 1} / {pages}
-        </span>
-        <button
-          className={p >= pages - 1 ? undefined : 'hv'}
-          disabled={p >= pages - 1}
-          style={{
-            ...btnSmall,
-            fontSize: 12,
-            padding: '3px 12px',
-            color: p >= pages - 1 ? 'var(--line)' : 'var(--ink-soft)',
-          }}
-          onClick={() => setPage(Math.min(pages - 1, p + 1))}
-        >
-          ▸
-        </button>
-      </div>
+      <Pager page={p} pages={pages} onPage={goPage} />
     </div>
   );
 }

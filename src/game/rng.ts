@@ -25,3 +25,13 @@ export function pick<T>(rng: Rng, arr: readonly T[]): T | undefined {
   if (arr.length === 0) return undefined;
   return arr[Math.floor(rng() * arr.length)];
 }
+
+/** FNV-1a 문자열 해시 (uint32) — 결정적 파생값(오늘의 기분·도감 타일 문양)의 공용 씨앗 */
+export function fnv1a(str: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}

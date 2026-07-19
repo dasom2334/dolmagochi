@@ -10,7 +10,7 @@ import { careTargetNeed } from '../game/freeAction';
 import { BALANCE } from '../game/balance';
 import { dispatch, now, t, tf } from '../store/appStore';
 import { SYS, UI } from '../game/text';
-import { btnDashed, btnOutline, btnSmall, card, PagesView } from './ui';
+import { btnDashed, btnOutline, btnSmall, card, PagesView, Pager } from './ui';
 import { ActionGrid } from './ActionGrid';
 import { StartFocusControl } from './StartFocusControl';
 import { MemoryAlbum } from './MemoryAlbum';
@@ -417,9 +417,10 @@ function RestShop({ state }: { state: GameState }) {
     );
   }
 
-  // 도감(기억) 탭은 자체 페이저를 가진 앨범(MemoryAlbum)이 담당한다 (M19d)
+  // 기억 탭은 자체 페이저를 가진 앨범(MemoryAlbum)이 전담 — 아래 목록·페이저는
+  // 상점·소장품 전용이다 (M19d 검수: 산재 가드 대신 최상위 분기 하나)
   const all: ShopItemData[] =
-    sub === 'store' ? storeItems(state) : sub === 'owned' ? ownedList(state) : [];
+    sub === 'store' ? storeItems(state) : ownedList(state);
   const pages = Math.max(1, Math.ceil(all.length / 3));
   const p = Math.min(page, pages - 1);
   const items = all.slice(p * 3, p * 3 + 3);
@@ -457,14 +458,17 @@ function RestShop({ state }: { state: GameState }) {
           );
         })}
       </div>
+      {sub === 'memories' ? (
+        <MemoryAlbum state={state} />
+      ) : (
+      <>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {sub !== 'memories' && items.length === 0 && (
+        {items.length === 0 && (
           <p style={{ margin: 0, fontSize: 11, color: 'var(--hint)' }}>
             * {t(sub === 'owned' ? UI.shop.ownedEmpty : UI.shop.storeEmpty)}
           </p>
         )}
-        {sub === 'memories' && <MemoryAlbum state={state} />}
-        {sub !== 'memories' && items.map((it) => {
+        {items.map((it) => {
           if (sub === 'owned') {
             // 소장품: 배치/보관 조절 (소모품 포함 — 재고가 방에 보인다)
             const isPlaced = !!state.items[it.id]?.placed;
@@ -537,47 +541,8 @@ function RestShop({ state }: { state: GameState }) {
           );
         })}
       </div>
-      {/* 공용 페이저는 상점·소장품용 — 기억 탭은 앨범이 자체 페이저를 가진다 (M19d) */}
-      {sub !== 'memories' && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 14,
-            marginTop: 8,
-          }}
-        >
-          <button
-            className={p === 0 ? undefined : 'hv'}
-            disabled={p === 0}
-            style={{
-              ...btnSmall,
-              fontSize: 12,
-              padding: '3px 12px',
-              color: p === 0 ? 'var(--line)' : 'var(--ink-soft)',
-            }}
-            onClick={() => setPage(Math.max(0, p - 1))}
-          >
-            ◂
-          </button>
-          <span style={{ fontSize: 11, color: 'var(--hint)' }}>
-            {p + 1} / {pages}
-          </span>
-          <button
-            className={p >= pages - 1 ? undefined : 'hv'}
-            disabled={p >= pages - 1}
-            style={{
-              ...btnSmall,
-              fontSize: 12,
-              padding: '3px 12px',
-              color: p >= pages - 1 ? 'var(--line)' : 'var(--ink-soft)',
-            }}
-            onClick={() => setPage(Math.min(pages - 1, p + 1))}
-          >
-            ▸
-          </button>
-        </div>
+      <Pager page={p} pages={pages} onPage={setPage} />
+      </>
       )}
     </>
   );

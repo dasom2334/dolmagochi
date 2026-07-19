@@ -6,6 +6,7 @@
  */
 import type { TextCatalog } from './text';
 import type { WeatherKind } from './types';
+import { fnv1a } from './rng';
 
 export type MoodTone = 'bright' | 'calm' | 'low';
 
@@ -15,14 +16,9 @@ const POOL: Record<MoodTone, string> = {
   low: 'sys.mood.low',
 };
 
-/** 달력일 키 → 0~1 안정 해시 (FNV-1a) — 같은 날은 늘 같은 값 */
+/** 달력일 키 → 0~1 안정 해시 — 같은 날은 늘 같은 값 (공용 fnv1a 기반) */
 function dayHash(dayKey: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < dayKey.length; i++) {
-    h ^= dayKey.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0) / 4294967296;
+  return fnv1a(dayKey) / 4294967296;
 }
 
 export function dailyMoodTone(dayKey: string, weather: WeatherKind): MoodTone {
