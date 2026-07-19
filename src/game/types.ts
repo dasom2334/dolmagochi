@@ -62,6 +62,8 @@ export interface Condition {
   /** 함께 보낸 누적 집중 시간 */
   minTotalHours?: number;
   era?: Era;
+  /** 3차(심은 뒤)인지 — 나무 소품 해금용 */
+  planted?: boolean;
   presence?: Presence;
 }
 

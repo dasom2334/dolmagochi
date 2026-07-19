@@ -160,6 +160,14 @@ export interface ShopItemData {
   consumable?: { variants: ConsumableVariant[] };
   /** 소속 방 명시 (개정 v5) — boosts로 파생 불가한 잡화·walk 계열용 */
   room?: string;
+  /** (2차) 방문 확률 가산 — 정성으로 '들르고 싶은 집'을 만든다 (피드백8) */
+  visitBonus?: number;
+  /** (2차) 시듦 회복 배수 */
+  witherRecoverMult?: number;
+  /** (3차) 나무 동행일 가산 — 세션당, 성장을 앞당긴다 (피드백8) */
+  treeBondBonus?: number;
+  /** (3차) 외형: 수관에 피는 꽃 수 가산 */
+  treeFlowers?: number;
 }
 
 // ── reflections.json — 문맥형 반추 ────────────────────────────

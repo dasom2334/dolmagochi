@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/types';
-import { isRockPresent } from '../../game/stateMachine';
+import { isRockPresent, itemBonus } from '../../game/stateMachine';
 import { gameData } from '../../store/gameStore';
 import { appStore, now, t } from '../../store/appStore';
 import { SYS } from '../../game/text';
@@ -138,7 +138,10 @@ export function SceneView({ state }: { state: GameState }) {
       {isFocus && sceneId === 'walk' && <GrassTufts />}
       {state.planted && state.plantedAt !== null ? (
         // 3차 (M15): 돌의 자리에 나무가 자란다 — 성장은 달력이 정한다
-        <TreeSprite stage={treeStage(state.plantedAt, state.treeBondDays, now())} />
+        <TreeSprite
+          stage={treeStage(state.plantedAt, state.treeBondDays, now())}
+          flowers={itemBonus(state, gameData, 'treeFlowers')}
+        />
       ) : present ? (
         <RockSprite
           moss={placed('moss')}
