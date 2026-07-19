@@ -187,7 +187,6 @@ export interface RestActData {
   /** 결과 서술 — 카탈로그 변형에서 추첨 */
   linesId: TextId;
   /** 돌이 없을 때(잠수/빈자리)의 부재 전용 결과 서술 */
-  absentLinesId: TextId;
 }
 
 // ── timeMarks.json — 타이머 길이 문턱 발화 ────────────────────
@@ -195,8 +194,6 @@ export interface TimeMark {
   /** 이 경과 초를 넘으면 발화 (오름차순) */
   minSec: number;
   textId: TextId;
-  /** 돌이 곁에 없을 때(잠수·2차 비방문·3차) 쓰는 변형 — 돌 언급 누출 방지 */
-  absentTextId?: TextId;
 }
 
 export interface TimeMarksData {

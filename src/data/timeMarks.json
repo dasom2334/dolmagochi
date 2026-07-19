@@ -2,45 +2,37 @@
  "focus": [
   {
    "minSec": 1500,
-   "textId": "timeMark.focus.25m",
-   "absentTextId": "timeMark.focus.25m.absent"
+   "textId": "timeMark.focus.25m"
   },
   {
    "minSec": 1800,
-   "textId": "timeMark.focus.30m",
-   "absentTextId": "timeMark.focus.30m.absent"
+   "textId": "timeMark.focus.30m"
   },
   {
    "minSec": 2400,
-   "textId": "timeMark.focus.40m",
-   "absentTextId": "timeMark.focus.40m.absent"
+   "textId": "timeMark.focus.40m"
   },
   {
    "minSec": 3600,
-   "textId": "timeMark.focus.1h",
-   "absentTextId": "timeMark.focus.1h.absent"
+   "textId": "timeMark.focus.1h"
   },
   {
    "minSec": 7200,
-   "textId": "timeMark.focus.2h",
-   "absentTextId": "timeMark.focus.2h.absent"
+   "textId": "timeMark.focus.2h"
   }
  ],
  "rest": [
   {
    "minSec": 600,
-   "textId": "timeMark.rest.10m",
-   "absentTextId": "timeMark.rest.10m.absent"
+   "textId": "timeMark.rest.10m"
   },
   {
    "minSec": 1200,
-   "textId": "timeMark.rest.20m",
-   "absentTextId": "timeMark.rest.20m.absent"
+   "textId": "timeMark.rest.20m"
   },
   {
    "minSec": 1800,
-   "textId": "timeMark.rest.30m",
-   "absentTextId": "timeMark.rest.30m.absent"
+   "textId": "timeMark.rest.30m"
   }
  ]
 }

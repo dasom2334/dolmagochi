@@ -9,6 +9,7 @@ import {
   transition,
   weathersOfSeason,
 } from '../stateMachine';
+import { resolveSlot } from '../text';
 import { resolveSeason } from '../timeOfDay';
 import type { GameEvent, GameState } from '../types';
 import { mulberry32, type Rng } from '../rng';
@@ -93,5 +94,51 @@ describe('부재 누출 (피드백4-1)', () => {
     const line = s.session.narratorLine ?? '';
     expect(line).not.toBe('');
     expect(leaks(line), `누출: ${line}`).toBe(false);
+  });
+});
+
+describe('동석 축 해석 (피드백4-2)', () => {
+  it('부재 변형이 필요한 슬롯은 전부 .absent를 갖는다', () => {
+    // 규칙 기반 해석이라 변형이 없으면 조용히 기본(돌 전제)으로 폴백한다.
+    // validate-data가 같은 검사를 하지만, 리팩터링 중 회귀를 여기서도 잡는다.
+    const slots = [
+      ...gameData.restActs.map((a) => a.linesId),
+      ...gameData.timeMarks.focus.map((m) => m.textId),
+      ...gameData.timeMarks.rest.map((m) => m.textId),
+      'sys.focusEnd',
+      'sys.notification.restEnd',
+    ];
+    const missing = slots.filter((id) => !gameData.text[`${id}.absent`]);
+    expect(missing, `부재 변형 누락: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('companion은 전용 변형이 없으면 absent로 내려온다 — 기본으로 새지 않는다', () => {
+    for (const id of gameData.timeMarks.focus.map((m) => m.textId)) {
+      const resolved = resolveSlot(gameData.text, id, 'companion');
+      expect(resolved).not.toBe(id);
+    }
+  });
+
+  it('3차(아이와 지내는 중)에도 돌이 있는 듯한 문구가 나오지 않는다', () => {
+    const base = createInitialState(T0, 'lie');
+    const s3: GameState = {
+      ...base,
+      phase: 'actionSelect',
+      era: 'apart',
+      planted: true,
+      plantedAt: T0 - 8 * 86_400_000,
+      letGoCount: 1,
+      bloomSeen: true,
+      sproutGrowth: 100,
+      memory: { 'tree-awakening': { w: 1, count: 1, lastAt: T0 } },
+    };
+    const s = run(s3, [
+      { type: 'START_FOCUS', nowMs: T0 },
+      { type: 'TICK', dtSec: 1500 },
+      { type: 'TICK', dtSec: 60 },
+      { type: 'END_FOCUS', nowMs: T0 + 1560_000 },
+    ]);
+    const leaked = linesOf(s).filter(leaks);
+    expect(leaked, `누출: ${leaked.join(' | ')}`).toEqual([]);
   });
 });

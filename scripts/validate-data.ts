@@ -299,12 +299,11 @@ export function validateGameData(
   data.restActs.forEach((a) => {
     ref(a.labelId, `restAct "${a.key}".label`);
     ref(a.linesId, `restAct "${a.key}".lines`);
-    ref(a.absentLinesId, `restAct "${a.key}".absent`);
   });
 
   // ── timeMarks ──
   const checkMarks = (
-    marks: { minSec: number; textId: string; absentTextId?: string }[],
+    marks: { minSec: number; textId: string }[],
     name: string,
   ) => {
     let prev = -Infinity;
@@ -312,11 +311,31 @@ export function validateGameData(
       if (m.minSec < prev) errors.push(`timeMarks.${name}[${i}] minSec 오름차순 아님`);
       prev = m.minSec;
       ref(m.textId, `timeMarks.${name}[${i}]`);
-      if (m.absentTextId) ref(m.absentTextId, `timeMarks.${name}[${i}].absent`);
     });
   };
   checkMarks(data.timeMarks.focus, 'focus');
   checkMarks(data.timeMarks.rest, 'rest');
+
+  // ── 동석 축 변형 (피드백4-2) ──
+  // 돌이 없을 때도 나오는 문구는 `{id}.absent` 변형이 있어야 한다.
+  // 없으면 기본 변형(돌이 곁에 있다는 전제)이 그대로 새어 나간다.
+  const needsAbsent: string[] = [
+    ...data.restActs.map((a) => a.linesId),
+    ...data.timeMarks.focus.map((m) => m.textId),
+    ...data.timeMarks.rest.map((m) => m.textId),
+    'sys.focusEnd',
+    'sys.notification.restEnd',
+    'sys.weather.clear',
+    'sys.weather.rain',
+    'sys.weather.downpour',
+    'sys.weather.snow',
+    'sys.weather.petals',
+    'sys.weather.leaves',
+  ];
+  needsAbsent.forEach((id) => {
+    if (!(`${id}.absent` in catalog))
+      errors.push(`동석 축: "${id}.absent" 변형 없음 — 부재 시 돌 언급이 새어 나간다`);
+  });
 
   // ── endings ──
   const e = data.endings;
@@ -426,7 +445,12 @@ export function validateGameData(
           else if (p.includes('[TODO')) todos.push(id);
         });
     });
-    if (!referenced.has(id) && !codeRefs.has(id))
+    // 동석 축 변형(`X.absent` / `X.companion`)은 규칙으로 해석되므로,
+    // 기반 id가 참조돼 있으면 참조된 것으로 본다 (피드백4-2)
+    const axisBase = id.replace(/\.(absent|companion)$/, '');
+    const viaAxis =
+      axisBase !== id && (referenced.has(axisBase) || codeRefs.has(axisBase));
+    if (!referenced.has(id) && !codeRefs.has(id) && !viaAxis)
       warnings.push(`카탈로그 "${id}" 어디서도 참조되지 않음 (orphan)`);
   }
 

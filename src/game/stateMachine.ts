@@ -59,7 +59,8 @@ import {
   recordRemembrance,
 } from './outcomes';
 import { randInt } from './rng';
-import { fillPages, pickText, textVariantAt, SYS } from './text';
+import { fillPages, pickFor, pickText, resolveSlot, textVariantAt, SYS } from './text';
+import type { Company } from './text';
 
 export interface TransitionCtx {
   rng: Rng;
@@ -266,6 +267,16 @@ export function isItemAvailable(item: ShopItemData, state: GameState): boolean {
 export function isRockPresent(state: GameState): boolean {
   if (state.era === 'apart') return state.apart.visiting;
   return state.presence.state === 'present';
+}
+
+/**
+ * 동석 축 판정 (피드백4-2) — 문구 변형을 고르는 단일 기준.
+ * 돌이 곁에 있으면 present, 3차에서 아이를 만난 뒤면 companion, 아니면 absent.
+ */
+export function companyOf(state: GameState): Company {
+  if (isRockPresent(state)) return 'present';
+  if (state.planted && companionMet(state.memory)) return 'companion';
+  return 'absent';
 }
 
 /** 페이지 배열 → 일지/서술 한 덩어리 (M2에서 페이지 UI로 분리 렌더링) */
@@ -762,18 +773,14 @@ function reduce(
           supplies: { ...next.supplies, [consumableItem.id]: 0 },
         };
       }
-      const startLine = present
-        ? joinPages(pickText(data.text, action.startLineId, rng))
-        : joinPages(
-            pickText(
-              data.text,
-              // 각성 후에는 '돌이 없는 방'이 아니라 아이가 있는 창밖 (피드백6-3)
-              state.planted && companionMet(state.memory)
-                ? SYS.journal.sessionStartCompanion
-                : SYS.journal.sessionStartAbsent,
-              rng,
-            ),
-          );
+      const company = companyOf(next);
+      const startLine = joinPages(
+        pickFor(data.text, action.startLineId, company, rng, {
+          absent: SYS.journal.sessionStartAbsent,
+          // 각성 후에는 '돌이 없는 방'이 아니라 아이가 있는 창밖 (피드백6-3)
+          companion: SYS.journal.sessionStartCompanion,
+        }),
+      );
       // 직전 휴식 준수 배율 — 이번 세션의 게이지 정산에 곱한다 (개정 v4-4).
       // 1 미만이면 관찰 문장으로 텔레그래프 (수치 비노출 — 돌의 기색으로만).
       const restMult = restComplianceMult(state, event.nowMs);
@@ -801,11 +808,15 @@ function reduce(
       journal = addJournal(journal, 0, startLine);
       if (restLine) journal = addJournal(journal, 0, restLine);
       if (visitJournal) journal = addJournal(journal, 0, visitJournal);
-      const absentAmbKey =
-        state.planted && companionMet(state.memory)
-          ? SYS.absentAmbientCompanion
-          : SYS.absentAmbient;
-      const absentAmb = data.text[absentAmbKey]?.[0];
+      const absentAmb =
+        company === 'present'
+          ? undefined
+          : data.text[
+              resolveSlot(data.text, action.ambientId, company, {
+                absent: SYS.absentAmbient,
+                companion: SYS.absentAmbientCompanion,
+              })
+            ]?.[0];
       return {
         ...next,
         phase: 'focus',
@@ -848,11 +859,10 @@ function reduce(
       // 선택지가 떠 있어도 서술은 계속 흐른다(선택지는 아래 별도 박스로 남는다)
       const ambientVariants =
         data.text[
-          present
-            ? action.ambientId
-            : next.planted && companionMet(next.memory)
-              ? SYS.absentAmbientCompanion
-              : SYS.absentAmbient
+          resolveSlot(data.text, action.ambientId, companyOf(next), {
+            absent: SYS.absentAmbient,
+            companion: SYS.absentAmbientCompanion,
+          })
         ] ?? [];
       if (ambientVariants.length > 0) {
         const wantIdx =
@@ -1046,11 +1056,8 @@ function reduce(
       // 분 표기는 문구에 박지 않고 문턱값({mins})을 채운다 — 데이터 수정에도 어긋나지 않게
       data.timeMarks.focus.forEach((mark, i) => {
         if (el >= mark.minSec && !next.session.timeMarksFired.includes(i)) {
-          // 돌이 곁에 없으면(잠수·2차 비방문·3차) 부재 변형 — 돌 언급 누출 방지
-          const markTextId =
-            !present && mark.absentTextId ? mark.absentTextId : mark.textId;
           const markLine = joinPages(
-            fillPages(pickText(data.text, markTextId, rng), {
+            fillPages(pickFor(data.text, mark.textId, companyOf(next), rng), {
               mins: Math.round(mark.minSec / 60),
             }),
           );
@@ -1728,15 +1735,17 @@ function reduce(
         .filter((m) => restSec >= m.minSec)
         .pop();
       if (restMark) {
-        // 정산된 이후 상태 기준으로 곁에 있는지 판단 (locals — next는 아직 이전 presence)
-        const rockHere =
-          era === 'apart' ? apart.visiting : presence.state === 'present';
-        const restMarkTextId =
-          !rockHere && restMark.absentTextId
-            ? restMark.absentTextId
-            : restMark.textId;
+        // 정산된 이후 상태 기준으로 판단 (locals — next는 아직 이전 presence)
+        const restCompany: Company =
+          (era === 'apart' ? apart.visiting : presence.state === 'present')
+            ? 'present'
+            : planted && companionMet(memory)
+              ? 'companion'
+              : 'absent';
         const markLine = joinPages(
-          fillPages(pickText(data.text, restMarkTextId, rng), { mins: restMin }),
+          fillPages(pickFor(data.text, restMark.textId, restCompany, rng), {
+            mins: restMin,
+          }),
         );
         if (markLine) journal = addJournal(journal, state.session.elapsedSec, markLine);
       }
@@ -1792,11 +1801,15 @@ function reduce(
             fillPages(
               pickText(
                 data.text,
-                sessionHadRock
-                  ? SYS.focusEnd
-                  : planted && companionMet(memory)
-                    ? SYS.focusEndCompanion
-                    : SYS.focusEndAbsent,
+                resolveSlot(
+                  data.text,
+                  SYS.focusEnd,
+                  sessionHadRock
+                    ? 'present'
+                    : planted && companionMet(memory)
+                      ? 'companion'
+                      : 'absent',
+                ),
                 rng,
               ),
               { mins: displayMins },
@@ -1834,10 +1847,10 @@ function reduce(
       if (state.phase !== 'rest' || state.rest.actUsed) return state;
       const act = data.restActs.find((a) => a.key === event.key);
       if (!act) return state;
-      // 돌이 없으면(잠수/빈자리) 부재 전용 문구 — 돌 언급 누출 방지
       const present = isRockPresent(state);
-      const linesId = present ? act.linesId : act.absentLinesId;
-      const line = joinPages(pickText(data.text, linesId, rng));
+      const line = joinPages(
+        pickFor(data.text, act.linesId, companyOf(state), rng),
+      );
       // 추억 순간 (M11a): 휴식 작은 행동에서도 낮은 확률로 순간이 남는다
       let remembrances = state.remembrances;
       let momentLine: string | null = null;
@@ -2304,13 +2317,12 @@ function reduce(
         },
         session: {
           ...state.session,
-          // 돌이 곁에 없으면 돌 반응이 섞이지 않은 변형 (피드백4-1)
+          // 동석 축으로 변형 선택 (피드백4-2) — 돌 반응 누출 방지
           narratorLine: joinPages(
-            pickText(
+            pickFor(
               data.text,
-              isRockPresent(state)
-                ? SYS.weather[event.weather]
-                : SYS.weatherAbsent[event.weather],
+              SYS.weather[event.weather],
+              companyOf(state),
               rng,
             ),
           ),
