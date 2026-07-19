@@ -43,6 +43,8 @@ export function checkCondition(
   )
     return false;
   if (cond.era !== undefined && state.era !== cond.era) return false;
+  if (cond.planted !== undefined && state.planted !== cond.planted)
+    return false;
   if (cond.presence !== undefined && state.presence.state !== cond.presence)
     return false;
   return true;

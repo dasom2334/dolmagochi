@@ -7,8 +7,19 @@ import type { TreeStage } from '../../game/tree';
 const TRUNK = '#7a5a3a';
 const LEAF = '#5d7d46';
 const LEAF_HI = '#79a05c';
+const BLOSSOM = '#e8a7c0';
 
-export function TreeSprite({ stage }: { stage: TreeStage }) {
+/**
+ * flowers: 나무 소품(피드백8)이 더해주는 꽃 수 — 정성이 모양새로 보인다.
+ * 수관 둘레에 고르게 찍는다 (수관이 없는 0단계에는 안 핀다).
+ */
+export function TreeSprite({
+  stage,
+  flowers = 0,
+}: {
+  stage: TreeStage;
+  flowers?: number;
+}) {
   // 단계별 크기 — 몸통 높이(px)와 수관 반경
   const trunkH = [4, 8, 14, 22, 30, 40][stage];
   const canopy = [0, 4, 8, 14, 20, 28][stage];
@@ -57,6 +68,24 @@ export function TreeSprite({ stage }: { stage: TreeStage }) {
           }}
         />
       )}
+      {/* 꽃 — 수관 둘레에 고르게 (소품 보유량만큼) */}
+      {canopy > 0 &&
+        Array.from({ length: flowers }, (_, i) => {
+          const a = (i / flowers) * Math.PI * 2;
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left: Math.round(Math.cos(a) * canopy * 0.8) - 1,
+                bottom: trunkH + canopy / 2 + Math.round(Math.sin(a) * canopy * 0.5),
+                width: 2,
+                height: 2,
+                background: BLOSSOM,
+              }}
+            />
+          );
+        })}
     </div>
   );
 }

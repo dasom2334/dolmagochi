@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
-import { createInitialState, transition } from '../stateMachine';
+import {
+  createInitialState,
+  isItemAvailable,
+  transition,
+} from '../stateMachine';
 import type { GameEvent, GameState } from '../types';
 import { mulberry32, type Rng } from '../rng';
 import { gameData } from '../../store/gameStore';
@@ -233,5 +237,62 @@ describe('apart 제2의 이별 (M14b) — 붙잡기 사다리 한계·방문 차
         j.text.includes('기운을 차리고 있을지도'),
       ),
     ).toBe(true);
+  });
+});
+
+describe('2·3차 정성 소비처 (피드백8)', () => {
+  const buy = (s: GameState, id: string): GameState => ({
+    ...s,
+    items: { ...s.items, [id]: { placed: false } },
+  });
+
+  it('2차 소품은 방문 확률을 올린다 — 게이트 대기가 줄어든다', () => {
+    const base: GameState = { ...apartBase(), sproutGrowth: 10 };
+    // rng 0.30: 기본 확률(0.35) 안이라 소품 없이도 방문 — 경계 위 값으로 확인
+    const withItem = buy(base, 'guestcushion'); // +0.10 → 0.45
+    const r = (v: number): Rng => {
+      let i = 0;
+      return () => (i++ === 0 ? v : 0.9);
+    };
+    // 0.40: 기본만으론 안 오고, 소품이 있으면 온다
+    expect(
+      run(base, [{ type: 'START_FOCUS', nowMs: T0 }], r(0.4)).apart.visiting,
+    ).toBe(false);
+    expect(
+      run(withItem, [{ type: 'START_FOCUS', nowMs: T0 }], r(0.4)).apart.visiting,
+    ).toBe(true);
+  });
+
+  it('물뿌리개는 시듦 회복을 배로 — 성장은 앞당기지 않는다', () => {
+    const withered: GameState = { ...apartBase(), sproutGrowth: 10, witherLevel: 2 };
+    const plain = session(withered, T0);
+    const cared = session(buy(withered, 'wateringcan'), T0);
+    expect(cared.witherLevel).toBeLessThan(plain.witherLevel);
+    expect(cared.sproutGrowth).toBe(plain.sproutGrowth);
+  });
+
+  it('나무 소품은 성장(동행일)을 앞당긴다', () => {
+    const base: GameState = {
+      ...createInitialState(T0, 'lie'),
+      era: 'apart',
+      phase: 'actionSelect',
+      planted: true,
+      plantedAt: T0,
+      letGoCount: 1,
+    };
+    const plain = session(base, T0);
+    const tended = session(buy(base, 'birdfeeder'), T0);
+    expect(tended.treeBondDays).toBeGreaterThan(plain.treeBondDays);
+  });
+
+  it('2차 소품은 3차에 오면 상점에서 사라진다 (시대 게이트)', () => {
+    const apart2: GameState = { ...apartBase(), planted: false };
+    const tree3: GameState = { ...apartBase(), planted: true };
+    const item = gameData.shop.find((i) => i.id === 'guestcushion')!;
+    const treeItem = gameData.shop.find((i) => i.id === 'birdfeeder')!;
+    expect(isItemAvailable(item, apart2)).toBe(true);
+    expect(isItemAvailable(item, tree3)).toBe(false);
+    expect(isItemAvailable(treeItem, apart2)).toBe(false);
+    expect(isItemAvailable(treeItem, tree3)).toBe(true);
   });
 });

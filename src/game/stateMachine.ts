@@ -264,6 +264,30 @@ export function isItemAvailable(item: ShopItemData, state: GameState): boolean {
   );
 }
 
+/**
+ * 보유(배치 무관) 소품의 수치 효과 합산 (피드백8) — 2·3차 정성 소비처.
+ * 배치 여부와 무관하다: 들여놓은 마음이 곧 효과다.
+ */
+export function itemBonus(
+  state: GameState,
+  data: GameData,
+  key: 'visitBonus' | 'treeBondBonus' | 'treeFlowers',
+): number {
+  return data.shop.reduce(
+    (sum, it) => (it.id in state.items ? sum + (it[key] ?? 0) : sum),
+    0,
+  );
+}
+
+/** 시듦 회복 배수 — 보유 소품 중 최댓값 (중복 구매로 폭주하지 않게) */
+export function witherRecoverMult(state: GameState, data: GameData): number {
+  return data.shop.reduce(
+    (m, it) =>
+      it.id in state.items ? Math.max(m, it.witherRecoverMult ?? 1) : m,
+    1,
+  );
+}
+
 /** 돌이 지금 곁에 있는가 (잠수·apart 통합 판정) */
 export function isRockPresent(state: GameState): boolean {
   if (state.era === 'apart') return state.apart.visiting;
@@ -728,7 +752,7 @@ function reduce(
         !next.apart.visiting &&
         (next.visitBlockedUntil === null || event.nowMs >= next.visitBlockedUntil)
       ) {
-        if (rng() < BALANCE.VISIT_PROB) {
+        if (rng() < BALANCE.VISIT_PROB + itemBonus(next, data, 'visitBonus')) {
           next = {
             ...next,
             apart: {
@@ -1458,7 +1482,11 @@ function reduce(
           void before;
           gateHeld = sproutGrowth >= growthCap && growthCap < 100;
           const prevWither = witherLevel;
-          witherLevel = Math.max(0, witherLevel - BALANCE.SPROUT_RECOVER);
+          witherLevel = Math.max(
+            0,
+            witherLevel -
+              BALANCE.SPROUT_RECOVER * witherRecoverMult(next, data),
+          );
           // 회복 힌트 (M14b): 돌이 없는 날들에 묘목이 나아진다 —
           // '놔줘야 자아실현이 가능하다'를 숫자 없이 알려주는 관찰 문장
           if (
@@ -1700,9 +1728,10 @@ function reduce(
           1,
           cappedMins / BALANCE.TREE_BOND_SESSION_MINS,
         );
+        // 나무 소품 보너스 (피드백8) — 정성이 성장을 앞당긴다
         const gain = Math.min(
           BALANCE.TREE_BOND_DAILY_MAX - treeBondToday,
-          attend + sessionBond,
+          attend + sessionBond + itemBonus(next, data, 'treeBondBonus'),
         );
         if (gain > 0) {
           treeBondDays += gain;

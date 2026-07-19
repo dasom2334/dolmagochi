@@ -4302,5 +4302,65 @@
     [
       "돌이 왔다 간 다음 날, 멈춰 있던 잎이 한 마디 늘었다.\n이 둘은 아직 서로를 필요로 한다."
     ]
+  ],
+  "shop.guestcushion.name": [
+    [
+      "손님 방석"
+    ]
+  ],
+  "shop.guestcushion.desc": [
+    [
+      "돌이 앉던 자리 옆에 하나 더. 들르기 좋은 집이 된다."
+    ]
+  ],
+  "shop.teaset.name": [
+    [
+      "찻상"
+    ]
+  ],
+  "shop.teaset.desc": [
+    [
+      "둘이 마실 수 있는 크기. 놓아두면 누가 오고 싶어진다."
+    ]
+  ],
+  "shop.wateringcan.name": [
+    [
+      "물뿌리개"
+    ]
+  ],
+  "shop.wateringcan.desc": [
+    [
+      "묘목을 더 자라게 하진 못한다. 다만 시든 잎은 빨리 돌아온다."
+    ]
+  ],
+  "shop.birdfeeder.name": [
+    [
+      "새 모이통"
+    ]
+  ],
+  "shop.birdfeeder.desc": [
+    [
+      "나무에 손님이 는다. 손님이 많은 나무는 빨리 자란다."
+    ]
+  ],
+  "shop.windchime.name": [
+    [
+      "풍경"
+    ]
+  ],
+  "shop.windchime.desc": [
+    [
+      "가지에 걸어두는 작은 소리. 꽃이 소리를 따라 더 핀다."
+    ]
+  ],
+  "shop.lanternpost.name": [
+    [
+      "등불 기둥"
+    ]
+  ],
+  "shop.lanternpost.desc": [
+    [
+      "밤에도 나무가 보인다. 보아주는 만큼 자란다는 말이 있다."
+    ]
   ]
 }
