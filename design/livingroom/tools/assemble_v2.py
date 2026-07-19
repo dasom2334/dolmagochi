@@ -295,6 +295,30 @@ lamp_glow = ('<g id="lamp-glow">'
   '</g>')
 
 emission = '<g id="emission">' + fire_g + candle_flame + lamp_glow + '</g>'
+
+# ---------- z-순서 정렬 ----------
+def pull(gid):
+    global art
+    i = art.index('<g id="%s"' % gid)
+    seg = extract_group(art, i)
+    art = art[:i] + art[i+len(seg):]
+    return seg
+
+# [2] 창밖: 달·별·구름은 하늘 요소 → 나무보다 뒤로
+celestial = ''.join(pull(g) for g in ('moon','stars','clouds'))
+li = art.index('<g id="leaves">')
+art = art[:li] + celestial + art[li:]
+
+# [3] 소품: 책장 책 → 촛대 → 창턱 화분 → 돌멩이 → 러그 → 스탠드 → 바닥 소품
+PROP_ORDER = ['bk-1','bk-2','bk-3','bk-4','bk-5','bk-6',
+              'candle','sill-plant','orb','rug','lamp','floor-props']
+props = {g: pull(g) for g in PROP_ORDER}
+art = art + ''.join(props[g] for g in PROP_ORDER)
+
+art = ('<!-- z-order(뒤→앞): [1]방구조(벽→바닥→창틀→벽난로→책장) '
+       '[2]창밖(하늘→해→달→별→구름→나무→파티클→유리효과) '
+       '[3]소품(책→촛대→화분→돌멩이→러그→스탠드→바닥소품) '
+       '[3.5]창틀눈 [4]색감오버레이(시간→날씨) [5]광원(mask) [6]emission -->') + art
 lights = lights + emission
 
 html = open('template_v2.html').read()

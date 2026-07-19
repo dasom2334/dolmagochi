@@ -429,7 +429,7 @@
 
   <div class="scene">
     <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="중립 베이스 위에 시간·날씨 색감 오버레이와 개별 광원을 합성하는 레이어 인스펙터 씬.">
-<g id="g-wall"><rect x="0" y="0" width="1" height="1" fill="var(--s3)"/>
+<!-- z-order(뒤→앞): [1]방구조(벽→바닥→창틀→벽난로→책장) [2]창밖(하늘→해→달→별→구름→나무→파티클→유리효과) [3]소품(책→촛대→화분→돌멩이→러그→스탠드→바닥소품) [3.5]창틀눈 [4]색감오버레이(시간→날씨) [5]광원(mask) [6]emission --><g id="g-wall"><rect x="0" y="0" width="1" height="1" fill="var(--s3)"/>
 <rect x="1" y="0" width="5" height="1" fill="var(--s1)"/>
 <rect x="6" y="0" width="4" height="1" fill="var(--s3)"/>
 <rect x="10" y="0" width="18" height="1" fill="var(--s5)"/>
@@ -1750,7 +1750,37 @@
 <rect x="57" y="17" width="3" height="1" fill="var(--sun1)"/>
 <rect x="58" y="18" width="1" height="1" fill="var(--sun0)"/>
 </g>
-<g id="leaves">
+<g id="moon">
+  <rect x="55" y="13" width="3" height="1" fill="var(--moon)"/>
+  <rect x="54" y="14" width="5" height="1" fill="var(--moon)"/>
+  <rect x="53" y="15" width="7" height="3" fill="var(--moon)"/>
+  <rect x="54" y="18" width="5" height="1" fill="var(--moon)"/>
+  <rect x="55" y="19" width="3" height="1" fill="var(--moon)"/>
+  <rect x="55" y="15" width="1" height="1" fill="var(--moon-cr)"/>
+  <rect x="57" y="17" width="2" height="1" fill="var(--moon-cr)"/>
+  <rect x="54" y="18" width="1" height="1" fill="var(--moon-cr)"/>
+</g><g id="stars" fill="var(--star)">
+  <rect class="twinkle-a" x="30" y="6"  width="1" height="1"/>
+  <rect x="36" y="10" width="1" height="1"/>
+  <rect class="twinkle-b" x="42" y="5"  width="1" height="1"/>
+  <rect x="50" y="8"  width="1" height="1"/>
+  <rect x="62" y="6"  width="1" height="1"/>
+  <rect class="twinkle-a" x="64" y="14" width="1" height="1"/>
+  <rect x="33" y="13" width="1" height="1"/>
+  <rect x="45" y="12" width="1" height="1"/>
+  <rect x="60" y="9"  width="1" height="3"/>
+  <rect x="59" y="10" width="3" height="1"/>
+</g><g id="clouds" class="cloud-drift">
+  <rect x="30" y="6"  width="8"  height="2" fill="var(--cloud-1)"/>
+  <rect x="29" y="7"  width="11" height="2" fill="var(--cloud-1)"/>
+  <rect x="30" y="9"  width="9"  height="1" fill="var(--cloud-2)"/>
+  <rect x="50" y="9"  width="10" height="2" fill="var(--cloud-1)"/>
+  <rect x="48" y="10" width="13" height="2" fill="var(--cloud-1)"/>
+  <rect x="50" y="12" width="10" height="1" fill="var(--cloud-2)"/>
+  <rect x="40" y="14" width="6"  height="1" fill="var(--cloud-2)"/>
+  <rect x="39" y="15" width="7"  height="1" fill="var(--cloud-2)"/>
+  <rect x="62" y="16" width="5"  height="1" fill="var(--cloud-2)"/>
+</g><g id="leaves">
 <rect x="29" y="6" width="1" height="1" fill="var(--t0)"/>
 <rect x="30" y="6" width="1" height="1" fill="var(--t1)"/>
 <rect x="31" y="6" width="1" height="1" fill="var(--t4)"/>
@@ -1884,39 +1914,9 @@
   <rect x="30" y="15" width="2" height="1" fill="#e8edf4"/>
   <rect x="37" y="14" width="2" height="1" fill="#e8edf4"/>
 </g>
-<g id="moon">
-  <rect x="55" y="13" width="3" height="1" fill="var(--moon)"/>
-  <rect x="54" y="14" width="5" height="1" fill="var(--moon)"/>
-  <rect x="53" y="15" width="7" height="3" fill="var(--moon)"/>
-  <rect x="54" y="18" width="5" height="1" fill="var(--moon)"/>
-  <rect x="55" y="19" width="3" height="1" fill="var(--moon)"/>
-  <rect x="55" y="15" width="1" height="1" fill="var(--moon-cr)"/>
-  <rect x="57" y="17" width="2" height="1" fill="var(--moon-cr)"/>
-  <rect x="54" y="18" width="1" height="1" fill="var(--moon-cr)"/>
-</g>
-<g id="stars" fill="var(--star)">
-  <rect class="twinkle-a" x="30" y="6"  width="1" height="1"/>
-  <rect x="36" y="10" width="1" height="1"/>
-  <rect class="twinkle-b" x="42" y="5"  width="1" height="1"/>
-  <rect x="50" y="8"  width="1" height="1"/>
-  <rect x="62" y="6"  width="1" height="1"/>
-  <rect class="twinkle-a" x="64" y="14" width="1" height="1"/>
-  <rect x="33" y="13" width="1" height="1"/>
-  <rect x="45" y="12" width="1" height="1"/>
-  <rect x="60" y="9"  width="1" height="3"/>
-  <rect x="59" y="10" width="3" height="1"/>
-</g>
-<g id="clouds" class="cloud-drift">
-  <rect x="30" y="6"  width="8"  height="2" fill="var(--cloud-1)"/>
-  <rect x="29" y="7"  width="11" height="2" fill="var(--cloud-1)"/>
-  <rect x="30" y="9"  width="9"  height="1" fill="var(--cloud-2)"/>
-  <rect x="50" y="9"  width="10" height="2" fill="var(--cloud-1)"/>
-  <rect x="48" y="10" width="13" height="2" fill="var(--cloud-1)"/>
-  <rect x="50" y="12" width="10" height="1" fill="var(--cloud-2)"/>
-  <rect x="40" y="14" width="6"  height="1" fill="var(--cloud-2)"/>
-  <rect x="39" y="15" width="7"  height="1" fill="var(--cloud-2)"/>
-  <rect x="62" y="16" width="5"  height="1" fill="var(--cloud-2)"/>
-</g>
+
+
+
 <g id="rain" opacity=".6">
   <g class="rain-fall">
     <g id="rain-tile" fill="var(--rain)">
@@ -2012,13 +2012,16 @@
 </g>
 
 </g>
-<g id="candle">
-<rect x="5" y="28" width="1" height="1" fill="var(--cd0)"/>
-<rect x="5" y="29" width="1" height="1" fill="var(--cd1)"/>
-<rect x="5" y="30" width="1" height="1" fill="var(--cd1)"/>
-<rect x="3" y="31" width="5" height="1" fill="var(--cd0)"/>
 
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="3" y="31" width="5" height="1" fill="#000" opacity=".25"/></g></g>
+
+
+
+
+
+
+
+
+
 
 <g id="bk-1">
 <rect x="80" y="18" width="2" height="1" fill="var(--b1x0)"/>
@@ -2029,8 +2032,7 @@
 <rect x="80" y="22" width="2" height="1" fill="var(--b1x1)"/>
 <rect x="80" y="23" width="2" height="1" fill="var(--b1x1)"/>
 <rect x="80" y="24" width="2" height="1" fill="var(--b1x1)"/>
-</g>
-<g id="bk-2">
+</g><g id="bk-2">
 <rect x="82" y="18" width="2" height="1" fill="var(--b2x0)"/>
 <rect x="82" y="19" width="1" height="1" fill="var(--b2x0)"/>
 <rect x="83" y="19" width="1" height="1" fill="var(--b2x1)"/>
@@ -2044,8 +2046,7 @@
 <rect x="83" y="23" width="1" height="1" fill="var(--b2x1)"/>
 <rect x="82" y="24" width="1" height="1" fill="var(--b2x0)"/>
 <rect x="83" y="24" width="1" height="1" fill="var(--b2x1)"/>
-</g>
-<g id="bk-3">
+</g><g id="bk-3">
 <rect x="84" y="18" width="2" height="1" fill="var(--b3x0)"/>
 <rect x="84" y="19" width="1" height="1" fill="var(--b3x1)"/>
 <rect x="85" y="19" width="1" height="1" fill="var(--b3x0)"/>
@@ -2059,8 +2060,7 @@
 <rect x="85" y="23" width="1" height="1" fill="var(--b3x0)"/>
 <rect x="84" y="24" width="1" height="1" fill="var(--b3x1)"/>
 <rect x="85" y="24" width="1" height="1" fill="var(--b3x0)"/>
-</g>
-<g id="bk-4">
+</g><g id="bk-4">
 <rect x="86" y="18" width="2" height="1" fill="var(--b4x0)"/>
 <rect x="86" y="19" width="1" height="1" fill="var(--b4x0)"/>
 <rect x="87" y="19" width="1" height="1" fill="var(--b4x1)"/>
@@ -2069,8 +2069,7 @@
 <rect x="86" y="22" width="2" height="1" fill="var(--b4x1)"/>
 <rect x="86" y="23" width="2" height="1" fill="var(--b4x1)"/>
 <rect x="86" y="24" width="2" height="1" fill="var(--b4x1)"/>
-</g>
-<g id="bk-5">
+</g><g id="bk-5">
 <rect x="88" y="18" width="2" height="1" fill="var(--b5x0)"/>
 <rect x="88" y="19" width="2" height="1" fill="var(--b5x0)"/>
 <rect x="88" y="20" width="1" height="1" fill="var(--b5x1)"/>
@@ -2079,8 +2078,7 @@
 <rect x="88" y="22" width="2" height="1" fill="var(--b5x1)"/>
 <rect x="88" y="23" width="2" height="1" fill="var(--b5x1)"/>
 <rect x="88" y="24" width="2" height="1" fill="var(--b5x1)"/>
-</g>
-<g id="bk-6">
+</g><g id="bk-6">
 <rect x="90" y="18" width="2" height="1" fill="var(--b6x0)"/>
 <rect x="92" y="18" width="1" height="1" fill="var(--b6x1)"/>
 <rect x="90" y="19" width="2" height="1" fill="var(--b6x0)"/>
@@ -2095,8 +2093,13 @@
 <rect x="92" y="23" width="1" height="1" fill="var(--b6x1)"/>
 <rect x="90" y="24" width="2" height="1" fill="var(--b6x0)"/>
 <rect x="92" y="24" width="1" height="1" fill="var(--b6x1)"/>
-</g>
-<g id="sill-plant">
+</g><g id="candle">
+<rect x="5" y="28" width="1" height="1" fill="var(--cd0)"/>
+<rect x="5" y="29" width="1" height="1" fill="var(--cd1)"/>
+<rect x="5" y="30" width="1" height="1" fill="var(--cd1)"/>
+<rect x="3" y="31" width="5" height="1" fill="var(--cd0)"/>
+
+<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="3" y="31" width="5" height="1" fill="#000" opacity=".25"/></g></g><g id="sill-plant">
 <rect x="30" y="31" width="2" height="1" fill="var(--pl1)"/>
 <rect x="32" y="31" width="1" height="1" fill="var(--pl0)"/>
 <rect x="29" y="32" width="1" height="1" fill="var(--pl0)"/>
@@ -2108,28 +2111,51 @@
 <rect x="30" y="35" width="1" height="1" fill="var(--pl0)"/>
 <rect x="31" y="35" width="1" height="1" fill="var(--pl1)"/>
 <rect x="32" y="35" width="1" height="1" fill="var(--pl2)"/>
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="28" y="36" width="5" height="1" fill="#000" opacity=".25"/></g></g>
-<g id="floor-props">
-<rect x="22" y="44" width="2" height="1" fill="var(--pp0)"/>
-<rect x="24" y="44" width="4" height="1" fill="var(--pp1)"/>
-<rect x="28" y="44" width="1" height="1" fill="var(--pp0)"/>
-<rect x="22" y="45" width="7" height="1" fill="var(--pp0)"/>
-<rect x="22" y="46" width="1" height="1" fill="var(--pp0)"/>
-<rect x="23" y="46" width="1" height="1" fill="var(--pp1)"/>
-<rect x="24" y="46" width="3" height="1" fill="var(--pp0)"/>
-<rect x="27" y="46" width="2" height="1" fill="var(--pp1)"/>
-<rect x="22" y="47" width="6" height="1" fill="var(--pp0)"/>
-<rect x="13" y="58" width="3" height="1" fill="var(--pp2)"/>
-<rect x="16" y="58" width="5" height="1" fill="var(--pp3)"/>
-<rect x="12" y="59" width="3" height="1" fill="var(--pp2)"/>
-<rect x="15" y="59" width="6" height="1" fill="var(--pp3)"/>
-<rect x="29" y="59" width="1" height="1" fill="var(--pp1)"/>
-<rect x="20" y="60" width="1" height="1" fill="var(--pp2)"/>
-<rect x="27" y="60" width="3" height="1" fill="var(--pp4)"/>
-<rect x="27" y="61" width="3" height="1" fill="var(--pp3)"/>
-<rect x="27" y="62" width="3" height="1" fill="var(--pp3)"/>
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="10" y="61" width="12" height="1" fill="#000" opacity=".25"/><rect x="24" y="63" width="6" height="1" fill="#000" opacity=".25"/><rect x="21" y="48" width="8" height="1" fill="#000" opacity=".3"/></g></g>
-<g id="rug">
+<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="28" y="36" width="5" height="1" fill="#000" opacity=".25"/></g></g><g id="orb">
+<rect x="54" y="26" width="1" height="1" fill="var(--o4)"/>
+<rect x="55" y="26" width="2" height="1" fill="var(--o5)"/>
+<rect x="57" y="26" width="2" height="1" fill="var(--o3)"/>
+<rect x="59" y="26" width="1" height="1" fill="var(--o2)"/>
+<rect x="60" y="26" width="1" height="1" fill="var(--o3)"/>
+<rect x="53" y="27" width="1" height="1" fill="var(--o6)"/>
+<rect x="54" y="27" width="1" height="1" fill="var(--o3)"/>
+<rect x="55" y="27" width="3" height="1" fill="var(--o5)"/>
+<rect x="58" y="27" width="4" height="1" fill="var(--o3)"/>
+<rect x="53" y="28" width="8" height="1" fill="var(--o3)"/>
+<rect x="61" y="28" width="2" height="1" fill="var(--o2)"/>
+<rect x="53" y="29" width="8" height="1" fill="var(--o3)"/>
+<rect x="61" y="29" width="2" height="1" fill="var(--o2)"/>
+<rect x="63" y="29" width="1" height="1" fill="var(--o3)"/>
+<rect x="53" y="30" width="1" height="1" fill="var(--o5)"/>
+<rect x="54" y="30" width="6" height="1" fill="var(--o3)"/>
+<rect x="60" y="30" width="1" height="1" fill="var(--o5)"/>
+<rect x="61" y="30" width="4" height="1" fill="var(--o2)"/>
+<rect x="52" y="31" width="1" height="1" fill="var(--o3)"/>
+<rect x="53" y="31" width="2" height="1" fill="var(--o5)"/>
+<rect x="55" y="31" width="4" height="1" fill="var(--o3)"/>
+<rect x="59" y="31" width="2" height="1" fill="var(--o5)"/>
+<rect x="61" y="31" width="1" height="1" fill="var(--o3)"/>
+<rect x="62" y="31" width="3" height="1" fill="var(--o2)"/>
+<rect x="51" y="32" width="1" height="1" fill="var(--o3)"/>
+<rect x="52" y="32" width="3" height="1" fill="var(--o5)"/>
+<rect x="55" y="32" width="2" height="1" fill="var(--o3)"/>
+<rect x="57" y="32" width="3" height="1" fill="var(--o5)"/>
+<rect x="60" y="32" width="2" height="1" fill="var(--o3)"/>
+<rect x="62" y="32" width="3" height="1" fill="var(--o2)"/>
+<rect x="51" y="33" width="8" height="1" fill="var(--o5)"/>
+<rect x="59" y="33" width="2" height="1" fill="var(--o3)"/>
+<rect x="61" y="33" width="1" height="1" fill="var(--o2)"/>
+<rect x="62" y="33" width="1" height="1" fill="var(--o3)"/>
+<rect x="63" y="33" width="2" height="1" fill="var(--o2)"/>
+<rect x="65" y="33" width="1" height="1" fill="var(--o1)"/>
+<rect x="52" y="34" width="4" height="1" fill="var(--o5)"/>
+<rect x="56" y="34" width="8" height="1" fill="var(--o2)"/>
+<rect x="64" y="34" width="1" height="1" fill="var(--o1)"/>
+<rect x="51" y="35" width="2" height="1" fill="var(--o1)"/>
+<rect x="53" y="35" width="3" height="1" fill="var(--o5)"/>
+<rect x="56" y="35" width="6" height="1" fill="var(--o2)"/>
+<rect x="62" y="35" width="2" height="1" fill="var(--o1)"/>
+<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="52" y="36" width="12" height="1" fill="#000" opacity=".25"/><rect x="53" y="37" width="10" height="1" fill="#000" opacity=".12"/></g></g><g id="rug">
 <rect x="30" y="53" width="2" height="1" fill="var(--rg3)"/>
 <rect x="32" y="53" width="32" height="1" fill="var(--rg2)"/>
 <rect x="64" y="53" width="3" height="1" fill="var(--rg3)"/>
@@ -2279,52 +2305,26 @@
 <rect x="44" y="66" width="25" height="1" fill="var(--rg1)"/>
 <rect x="69" y="66" width="2" height="1" fill="var(--rg0)"/>
 <rect x="71" y="66" width="1" height="1" fill="var(--rg1)"/>
-</g>
-<g id="orb">
-<rect x="54" y="26" width="1" height="1" fill="var(--o4)"/>
-<rect x="55" y="26" width="2" height="1" fill="var(--o5)"/>
-<rect x="57" y="26" width="2" height="1" fill="var(--o3)"/>
-<rect x="59" y="26" width="1" height="1" fill="var(--o2)"/>
-<rect x="60" y="26" width="1" height="1" fill="var(--o3)"/>
-<rect x="53" y="27" width="1" height="1" fill="var(--o6)"/>
-<rect x="54" y="27" width="1" height="1" fill="var(--o3)"/>
-<rect x="55" y="27" width="3" height="1" fill="var(--o5)"/>
-<rect x="58" y="27" width="4" height="1" fill="var(--o3)"/>
-<rect x="53" y="28" width="8" height="1" fill="var(--o3)"/>
-<rect x="61" y="28" width="2" height="1" fill="var(--o2)"/>
-<rect x="53" y="29" width="8" height="1" fill="var(--o3)"/>
-<rect x="61" y="29" width="2" height="1" fill="var(--o2)"/>
-<rect x="63" y="29" width="1" height="1" fill="var(--o3)"/>
-<rect x="53" y="30" width="1" height="1" fill="var(--o5)"/>
-<rect x="54" y="30" width="6" height="1" fill="var(--o3)"/>
-<rect x="60" y="30" width="1" height="1" fill="var(--o5)"/>
-<rect x="61" y="30" width="4" height="1" fill="var(--o2)"/>
-<rect x="52" y="31" width="1" height="1" fill="var(--o3)"/>
-<rect x="53" y="31" width="2" height="1" fill="var(--o5)"/>
-<rect x="55" y="31" width="4" height="1" fill="var(--o3)"/>
-<rect x="59" y="31" width="2" height="1" fill="var(--o5)"/>
-<rect x="61" y="31" width="1" height="1" fill="var(--o3)"/>
-<rect x="62" y="31" width="3" height="1" fill="var(--o2)"/>
-<rect x="51" y="32" width="1" height="1" fill="var(--o3)"/>
-<rect x="52" y="32" width="3" height="1" fill="var(--o5)"/>
-<rect x="55" y="32" width="2" height="1" fill="var(--o3)"/>
-<rect x="57" y="32" width="3" height="1" fill="var(--o5)"/>
-<rect x="60" y="32" width="2" height="1" fill="var(--o3)"/>
-<rect x="62" y="32" width="3" height="1" fill="var(--o2)"/>
-<rect x="51" y="33" width="8" height="1" fill="var(--o5)"/>
-<rect x="59" y="33" width="2" height="1" fill="var(--o3)"/>
-<rect x="61" y="33" width="1" height="1" fill="var(--o2)"/>
-<rect x="62" y="33" width="1" height="1" fill="var(--o3)"/>
-<rect x="63" y="33" width="2" height="1" fill="var(--o2)"/>
-<rect x="65" y="33" width="1" height="1" fill="var(--o1)"/>
-<rect x="52" y="34" width="4" height="1" fill="var(--o5)"/>
-<rect x="56" y="34" width="8" height="1" fill="var(--o2)"/>
-<rect x="64" y="34" width="1" height="1" fill="var(--o1)"/>
-<rect x="51" y="35" width="2" height="1" fill="var(--o1)"/>
-<rect x="53" y="35" width="3" height="1" fill="var(--o5)"/>
-<rect x="56" y="35" width="6" height="1" fill="var(--o2)"/>
-<rect x="62" y="35" width="2" height="1" fill="var(--o1)"/>
-<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="52" y="36" width="12" height="1" fill="#000" opacity=".25"/><rect x="53" y="37" width="10" height="1" fill="#000" opacity=".12"/></g></g><g id="lamp"><rect x="72" y="33" width="4" height="1" fill="#b9a084"/><rect x="71" y="34" width="6" height="1" fill="#c7b193"/><rect x="70" y="35" width="8" height="1" fill="#b9a084"/><rect x="70" y="36" width="8" height="1" fill="#7d6c5e"/><rect x="73" y="37" width="2" height="1" fill="#e8d8b0"/><rect x="74" y="38" width="1" height="12" fill="#57484f"/><rect x="72" y="50" width="5" height="1" fill="#57484f"/><rect x="73" y="49" width="3" height="1" fill="#463a42"/><g class="p-shadow" style="mix-blend-mode:multiply"><rect x="71" y="51" width="7" height="1" fill="#000" opacity=".3"/></g></g>
+</g><g id="lamp"><rect x="72" y="33" width="4" height="1" fill="#b9a084"/><rect x="71" y="34" width="6" height="1" fill="#c7b193"/><rect x="70" y="35" width="8" height="1" fill="#b9a084"/><rect x="70" y="36" width="8" height="1" fill="#7d6c5e"/><rect x="73" y="37" width="2" height="1" fill="#e8d8b0"/><rect x="74" y="38" width="1" height="12" fill="#57484f"/><rect x="72" y="50" width="5" height="1" fill="#57484f"/><rect x="73" y="49" width="3" height="1" fill="#463a42"/><g class="p-shadow" style="mix-blend-mode:multiply"><rect x="71" y="51" width="7" height="1" fill="#000" opacity=".3"/></g></g><g id="floor-props">
+<rect x="22" y="44" width="2" height="1" fill="var(--pp0)"/>
+<rect x="24" y="44" width="4" height="1" fill="var(--pp1)"/>
+<rect x="28" y="44" width="1" height="1" fill="var(--pp0)"/>
+<rect x="22" y="45" width="7" height="1" fill="var(--pp0)"/>
+<rect x="22" y="46" width="1" height="1" fill="var(--pp0)"/>
+<rect x="23" y="46" width="1" height="1" fill="var(--pp1)"/>
+<rect x="24" y="46" width="3" height="1" fill="var(--pp0)"/>
+<rect x="27" y="46" width="2" height="1" fill="var(--pp1)"/>
+<rect x="22" y="47" width="6" height="1" fill="var(--pp0)"/>
+<rect x="13" y="58" width="3" height="1" fill="var(--pp2)"/>
+<rect x="16" y="58" width="5" height="1" fill="var(--pp3)"/>
+<rect x="12" y="59" width="3" height="1" fill="var(--pp2)"/>
+<rect x="15" y="59" width="6" height="1" fill="var(--pp3)"/>
+<rect x="29" y="59" width="1" height="1" fill="var(--pp1)"/>
+<rect x="20" y="60" width="1" height="1" fill="var(--pp2)"/>
+<rect x="27" y="60" width="3" height="1" fill="var(--pp4)"/>
+<rect x="27" y="61" width="3" height="1" fill="var(--pp3)"/>
+<rect x="27" y="62" width="3" height="1" fill="var(--pp3)"/>
+<g class="p-shadow" style="mix-blend-mode:multiply"><rect x="10" y="61" width="12" height="1" fill="#000" opacity=".25"/><rect x="24" y="63" width="6" height="1" fill="#000" opacity=".25"/><rect x="21" y="48" width="8" height="1" fill="#000" opacity=".3"/></g></g>
 <mask id="m-day" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72"><rect width="96" height="72" fill="#fff"/><g class="occ-orb"><rect x="51" y="35" width="14" height="2" fill="#000"/><rect x="49" y="49" width="14" height="1" fill="#000"/><rect x="49" y="50" width="14" height="1" fill="#000"/><rect x="49" y="51" width="14" height="1" fill="#000"/><rect x="49" y="52" width="14" height="1" fill="#000"/><rect x="49" y="53" width="14" height="1" fill="#000"/><rect x="49" y="54" width="14" height="1" fill="#666"/></g><g class="occ-plant"><rect x="28" y="35" width="5" height="2" fill="#000"/><rect x="26" y="49" width="5" height="1" fill="#000"/><rect x="26" y="50" width="5" height="1" fill="#000"/><rect x="26" y="51" width="5" height="1" fill="#888"/></g><g class="occ-props"><rect x="21" y="49" width="8" height="1" fill="#333"/><rect x="21" y="50" width="8" height="1" fill="#333"/></g></mask><mask id="m-low" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72"><rect width="96" height="72" fill="#fff"/><g class="occ-orb"><rect x="51" y="35" width="14" height="2" fill="#000"/><rect x="45" y="49" width="14" height="1" fill="#000"/><rect x="44" y="50" width="14" height="1" fill="#000"/><rect x="44" y="51" width="14" height="1" fill="#000"/><rect x="43" y="52" width="14" height="1" fill="#000"/><rect x="43" y="53" width="14" height="1" fill="#000"/><rect x="42" y="54" width="14" height="1" fill="#666"/><rect x="42" y="55" width="14" height="1" fill="#666"/><rect x="42" y="56" width="14" height="1" fill="#666"/><rect x="41" y="57" width="14" height="1" fill="#666"/><rect x="41" y="58" width="14" height="1" fill="#aaa"/><rect x="40" y="59" width="14" height="1" fill="#aaa"/><rect x="40" y="60" width="14" height="1" fill="#aaa"/></g><g class="occ-plant"><rect x="28" y="35" width="5" height="2" fill="#000"/><rect x="22" y="49" width="5" height="1" fill="#000"/><rect x="21" y="50" width="5" height="1" fill="#000"/><rect x="21" y="51" width="5" height="1" fill="#888"/><rect x="20" y="52" width="5" height="1" fill="#888"/></g><g class="occ-props"><rect x="20" y="49" width="8" height="1" fill="#333"/><rect x="19" y="50" width="8" height="1" fill="#333"/><rect x="18" y="51" width="8" height="1" fill="#999"/><rect x="17" y="52" width="8" height="1" fill="#999"/><rect x="16" y="53" width="8" height="1" fill="#999"/></g></mask><mask id="m-fire" maskUnits="userSpaceOnUse" x="0" y="0" width="96" height="72"><rect width="96" height="72" fill="#fff"/><g class="occ-props"><rect x="29" y="44" width="3" height="5" fill="#808080"/><rect x="32" y="45" width="3" height="4" fill="#b0b0b0"/><rect x="35" y="46" width="2" height="3" fill="#d0d0d0"/><rect x="10" y="61" width="12" height="3" fill="#999"/></g></mask>
 <g id="fx-snowcap" fill="#eef3fa">
   <rect x="26" y="2"  width="10" height="1"/><rect x="40" y="2"  width="8" height="1"/><rect x="56" y="2" width="9" height="1"/>
