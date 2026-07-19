@@ -1,4 +1,4 @@
-import math
+import math, colorsys
 
 art = open('art_svg_v2.txt').read()
 pal = open('palette_css_v2.txt').read()
@@ -10,6 +10,14 @@ for line in pal.splitlines():
         in_base = 'BASE' in line
     elif in_base and line.strip().startswith('--'):
         base_lines.append(line.strip())
+def punch(hexv):
+    r,g,b = (int(hexv[i:i+2],16)/255 for i in (1,3,5))
+    h,l,s = colorsys.rgb_to_hls(r,g,b)
+    l = min(.96, max(.03, 0.5 + (l-0.5)*1.22))
+    s = min(1, s*1.2)
+    r,g,b = colorsys.hls_to_rgb(h,l,s)
+    return '#%02x%02x%02x' % (round(r*255), round(g*255), round(b*255))
+
 out_lines=[]
 for l in base_lines:
     name = l.split(':')[0].strip()
@@ -18,7 +26,13 @@ for l in base_lines:
     if name.startswith('--k') and name[3:].isdigit(): continue
     if name.startswith('--h') and name[3:].isdigit(): continue
     if name.startswith('--t') and name[3:].isdigit(): continue
-    out_lines.append('    '+l)
+    name2, val2 = l.split(':'); name2=name2.strip(); val2=val2.strip().rstrip(';')
+    if name2.startswith('--f') and name2[3:].isdigit():
+        out_lines.append('    '+l)          # 발광체(불꽃)는 원색 유지
+    elif val2.startswith('#'):
+        out_lines.append(f'    {name2}: {punch(val2)};')
+    else:
+        out_lines.append('    '+l)
 BASE='\n'.join(out_lines)
 
 art = art.replace('id="leaves-wrap"', 'id="leaves"')
@@ -27,55 +41,9 @@ art = art.replace('id="leaves-wrap"', 'id="leaves"')
 import re
 la = open('assemble_layers.py').read()
 overlay = la.split("overlay = '''")[1].split("'''")[0]
-art = art.replace('</g>\n<!--PARTICLES-->', overlay + '\n</g>')
+art = art.replace('<!--PARTICLES-->', overlay)
 
-# base-room → 벽/바닥/창틀·창턱/벽난로/책장 분할
-m0 = art.index('<g id="base-room">')
-m1 = art.index('</g>', m0)
-body = art[m0+len('<g id="base-room">'):m1]
-groups = {'wall':[], 'floor':[], 'winframe':[], 'fireplace':[], 'shelf':[]}
-for line in body.strip().splitlines():
-    mm = re.search(r'x="(-?\d+)" y="(-?\d+)" width="(\d+)"', line)
-    if not mm: continue
-    x,y,w = int(mm.group(1)), int(mm.group(2)), int(mm.group(3))
-    cx = x + w/2
-    if y >= 49: k='floor'
-    elif cx >= 77 and y >= 15: k='shelf'
-    elif cx <= 23 and 26 <= y <= 48: k='fireplace'
-    elif 23 < cx < 74 and 2 <= y <= 37: k='winframe'
-    else: k='wall'
-    groups[k].append(line)
-# 바닥: 디라이팅 잔광 대신 절차적 무광원 판자 (AO만)
-def build_floor():
-    P=[]
-    def add(x,y,w,h,f,o=None):
-        P.append('<rect x="%s" y="%s" width="%s" height="%s" fill="%s"%s/>' % (x,y,w,h,f,(' opacity="%s"'%o) if o else ''))
-    bands=[(49,3,'var(--fb1)'),(52,4,'var(--fb2)'),(56,5,'var(--fb1)'),(61,6,'var(--fb2)'),(67,5,'var(--fb1)')]
-    for y,h,f in bands: add(0,y,96,h,f)
-    for y in (52,56,61,67): add(0,y,96,1,'var(--fbl)')
-    seams={49:(30,70),52:(14,52,88),56:(38,78),61:(8,60),67:(26,84)}
-    hmap={49:3,52:4,56:5,61:6,67:5}
-    for y,xs in seams.items():
-        for x in xs: add(x,y,1,hmap[y],'var(--fbl)')
-    for x,y,w in [(4,50,10),(40,50,12),(78,51,9),(20,53,14),(60,54,10),(6,57,12),(48,58,16),
-                  (84,59,8),(16,62,12),(64,63,18),(30,65,10),(4,68,14),(52,69,12),(80,70,10)]:
-        add(x,y,w,1,'var(--fbh)',.5)
-    for x,y,w in [(26,54,8),(70,58,10),(12,64,9),(88,68,6)]:
-        add(x,y,w,1,'var(--fb0)',.6)
-    for x,y in [(34,53),(74,57),(22,63),(58,68),(90,62)]: add(x,y,1,1,'var(--fbk)')
-    add(0,49,96,1,'#000',.28); add(0,50,96,1,'#000',.12)
-    return P
-groups['floor'].append('<g class="p-shadow" style="mix-blend-mode:multiply">'
-    '<rect x="0" y="49" width="96" height="1" fill="#000" opacity=".25"/>'
-    '<rect x="0" y="50" width="96" height="1" fill="#000" opacity=".1"/></g>')
-groups['fireplace'].append('<g class="p-shadow" style="mix-blend-mode:multiply">'
-    '<rect x="2" y="49" width="20" height="1" fill="#000" opacity=".2"/>'
-    '<rect x="3" y="50" width="17" height="1" fill="#000" opacity=".1"/></g>')
-groups['shelf'].append('<g class="p-shadow" style="mix-blend-mode:multiply">'
-    '<rect x="78" y="49" width="16" height="1" fill="#000" opacity=".2"/>'
-    '<rect x="79" y="50" width="14" height="1" fill="#000" opacity=".1"/></g>')
-split = ''.join('<g id="g-%s">' % k + '\n'.join(v) + '</g>' for k,v in groups.items())
-art = art[:m0] + split + art[m1+4:]
+# (배경 분리는 gen.py 셀 규칙으로 이동)
 
 # 스탠드 조명기구 (중립 색) — 창과 책장 사이
 lamp_obj = ('<g id="lamp">'
@@ -257,6 +225,12 @@ SH = '<g class="p-shadow" style="mix-blend-mode:multiply">%s</g>'
 inject('orb', SH % ('<rect x="52" y="36" width="12" height="1" fill="#000" opacity=".25"/>'
                     '<rect x="53" y="37" width="10" height="1" fill="#000" opacity=".12"/>'))
 inject('sill-plant', SH % '<rect x="28" y="36" width="5" height="1" fill="#000" opacity=".25"/>')
+inject('g-floor', SH % ('<rect x="0" y="49" width="96" height="1" fill="#000" opacity=".25"/>'
+                        '<rect x="0" y="50" width="96" height="1" fill="#000" opacity=".1"/>'))
+inject('g-fireplace', SH % ('<rect x="2" y="49" width="20" height="1" fill="#000" opacity=".2"/>'
+                            '<rect x="3" y="50" width="17" height="1" fill="#000" opacity=".1"/>'))
+inject('g-shelf', SH % ('<rect x="78" y="49" width="16" height="1" fill="#000" opacity=".2"/>'
+                        '<rect x="79" y="50" width="14" height="1" fill="#000" opacity=".1"/>'))
 inject('floor-props', SH % ('<rect x="10" y="61" width="12" height="1" fill="#000" opacity=".25"/>'
                             '<rect x="24" y="63" width="6" height="1" fill="#000" opacity=".25"/>'
                             '<rect x="21" y="48" width="8" height="1" fill="#000" opacity=".3"/>'))
