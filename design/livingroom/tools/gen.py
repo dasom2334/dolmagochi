@@ -174,18 +174,23 @@ for y in range(GY):
                 if (y+dy,x) in cell_var: cell_var[(y,x)]=cell_var[(y+dy,x)]; break
 
 # ---------- rect 방출 ----------
-def emit_rows(pairs):  # [(y,x,var)] -> run-merge
-    out=[]
-    from itertools import groupby
-    pairs.sort()
-    for y in sorted(set(p[0] for p in pairs)):
-        row=sorted([(x,v) for yy,x,v in pairs if yy==y])
-        i=0
+def emit_rows(pairs):
+    """[(y,x,var)] -> 가로 run-merge 후 **색상별 <g fill>로 묶어** 방출.
+    rect마다 fill="var(--xx)"를 반복하면 파일이 수십 KB 불어난다(브라우저 스냅샷 한계에 걸림).
+    셀 맵에서 온 입력이라 셀이 겹치지 않으므로 그룹 내 순서는 결과에 영향이 없다."""
+    runs={}                                   # var -> [rect, ...]
+    by_row={}
+    for (y,x,v) in pairs: by_row.setdefault(y,[]).append((x,v))
+    for y in sorted(by_row):
+        row=sorted(by_row[y]); i=0
         while i<len(row):
             x0,v=row[i]; j=i
             while j+1<len(row) and row[j+1][0]==row[j][0]+1 and row[j+1][1]==v: j+=1
-            out.append(f'<rect x="{x0}" y="{y}" width="{row[j][0]-x0+1}" height="1" fill="var({v})"/>')
+            runs.setdefault(v,[]).append(f'<rect x="{x0}" y="{y}" width="{row[j][0]-x0+1}" height="1"/>')
             i=j+1
+    out=[]
+    for v in sorted(runs):
+        out.append(f'<g fill="var({v})">'); out += runs[v]; out.append('</g>')
     return out
 
 svg=[]
@@ -202,6 +207,10 @@ def h2(x,y,salt=0):  # 결정적 의사난수 0..99 (디더용)
 # 밴딩을 없애기 위해 **오더드(베이어) 디더링**으로 인접 스톱을 섞는다. 도트 그라디언트의 정석.
 BAYER4 = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]]
 def bayer(x,y): return (BAYER4[y & 3][x & 3] + 0.5) / 16.0
+
+def vnoise(x, y, salt, cw=8, ch=3):
+    """셀 격자 해시 = 큰 덩어리 변화. per-pixel 해시(=얼룩)와 달리 지형 기복으로 읽힌다."""
+    return h2(x//cw, y//ch, salt)
 
 SKY_N = 10          # 하늘 그라디언트 스톱 수 (k0..k9). 스톱이 촘촘해야 디더가 격자로 안 보인다.
 def dither_stop(gpos, x, y, lo=0, hi=SKY_N-1):
@@ -232,13 +241,22 @@ def synth(y,x):
     rm = int(round(ramp(RIDGE_MID,  x)))
     rn = int(round(ramp(RIDGE_NEAR, x)))
     # 각 산맥은 **단색 실루엣 + 자기 능선 1px 밝은 림** = 도트 산 표현의 정석.
-    # 경계에 디더를 섞으면 얼룩(노이즈)으로 읽히므로 섞지 않는다.
+    # 디테일은 per-pixel 디더가 아니라 **큰 덩어리 기복(vnoise)** 으로 — 디더는 얼룩이 된다.
     if y >= rn:
-        return '--h1' if y == rn else '--h0'      # 근산: 마루 림 + 단색
+        if y == rn: return '--h1'                            # 근산 마루 림
+        if y > 36: return '--h0'                             # 벽 뒤(항상 가려짐) — 평평하게, 용량 절약
+        return '--h1' if vnoise(x,y,80,9,4) < 26 else '--h0' # 산허리 기복
     if y >= rm:
-        return '--h2' if y == rm else '--h1'      # 중산
+        if y == rm: return '--h2'                            # 중산 마루 림
+        # 근산 능선 위로 솟은 침엽수림 실루엣 (원경 숲 가장자리)
+        if y == rn-1 and h2(x,0,70) < 34: return '--h0'
+        if y == rn-2 and h2(x,0,71) < 13: return '--h0'
+        return '--h2' if vnoise(x,y,81,8,3) < 22 else '--h1'
     if y >= rf:
-        return '--h3' if y <= rf+1 else '--h2'    # 원산: 2px 마루 림
+        if y <= rf+1: return '--h3'                          # 원산 2px 마루 림
+        if y == rm-1 and h2(x,0,72) < 30: return '--h1'      # 중산 위 나무선
+        if y == rm-2 and h2(x,0,73) < 11: return '--h1'
+        return '--h3' if vnoise(x,y,82,10,4) < 24 else '--h2'
     # ---- 하늘: 레퍼런스처럼 solid 행 밴드 (디더 없음 — 스톱이 촘촘해 계단이 안 보인다) ----
     s = max(0, min(SKY_N-1, int(round((y - 4.0) / 2.1))))
     # 태양 후광은 방사형이라 밴드가 동심원 링으로 보인다 → 여기만 해시 지터로 경계를 흩뜨림.
@@ -397,42 +415,61 @@ for sub in ('wall','winframe','fireplace','shelf'):
 # ---------- 마룻바닥: 절차 재작화 (무광원 중립, 원근 판자) ----------
 # 레퍼런스의 판자 구조(가로 보드 + 어긋난 세로 조인트 + 나뭇결)만 전사하고 광 웅덩이는 배제.
 # 원근: 앞(아래)으로 올수록 판자가 두꺼워짐. 색은 전부 --fb* 변수(테마 오버레이가 착색).
-# 밴드: 뒤로 갈수록 얇아지는 원근. 각 밴드 = 판자 한 줄.
-FLOOR_BANDS=[(49,50),(51,53),(54,56),(57,60),(61,64),(65,68),(69,71)]
-svg.append('<g id="g-floor">')
+# 바닥 평면의 소실점 — 러그 사다리꼴에서 역산(VP 50.1, 22.4). 러그·바닥이 같은 평면이므로
+# 두 오브젝트의 투시가 자동으로 일치한다.
+FLOOR_VPX, FLOOR_VPY = 50.1, 22.4
+FLOOR_REF_Y = 71.0                     # 기준 행(가장 앞줄)
+PLANK_W_REF = 30                       # 기준 행에서의 판자 길이
+
+def persp_s(y):                        # 기준 행 대비 가로 축척
+    return (y - FLOOR_VPY) / (FLOOR_REF_Y - FLOOR_VPY)
+def persp_x(x_ref, y):                 # 깊이 방향 선은 소실점으로 수렴
+    return FLOOR_VPX + (x_ref - FLOOR_VPX) * persp_s(y)
+
+# 밴드 경계도 등비(y-VP)로 — 뒤로 갈수록 판자가 얇아지는 원근
+_b=[]; _yy=72.0
+while _yy > 49.5:
+    _b.append(int(round(_yy))); _yy = FLOOR_VPY + (_yy-FLOOR_VPY)*0.895
+_b.append(49); _b=sorted(set(_b))
+FLOOR_BANDS=[(_b[i], _b[i+1]-1) for i in range(len(_b)-1)]
+
+# 셀 맵으로 먼저 칠하고 마지막에 run-merge → 겹치는 rect를 방출하지 않는다.
+floor_cell = {}
 for bi,(y0,y1) in enumerate(FLOOR_BANDS):
-    # 판자 길이·시작 오프셋을 밴드마다 어긋나게 (벽돌 격자처럼 정렬되지 않도록)
-    plank_w = 24 + (h2(bi,0,30) % 4) * 6
-    off = h2(bi,1,31) % plank_w
-    joints = [x for x in range(-off, 97, plank_w) if 0 < x < 96]
-    edges = [0]+joints+[96]
+    # 맞댐 이음매를 **기준 행 좌표**로 정의하고 행마다 투영 → 세로줄이 소실점으로 수렴한다.
+    off = h2(bi,1,31) % PLANK_W_REF
+    xrefs = [off + k*PLANK_W_REF for k in range(-4, 8)]   # 뒷줄까지 덮도록 넉넉히
     for y in range(y0, y1+1):
-        for si in range(len(edges)-1):
-            x0,x1 = edges[si], edges[si+1]
-            r = h2(si,bi,32) % 12                    # 판자별 기본 톤
+        s = persp_s(y)
+        for k in range(len(xrefs)-1):
+            x0 = max(0, int(round(persp_x(xrefs[k], y))))
+            x1 = min(96, int(round(persp_x(xrefs[k+1], y))))
+            if x1 <= x0: continue
+            r = h2(k,bi,32) % 12                     # 판자별 기본 톤 (행이 바뀌어도 동일)
             tone = '--fb0' if r<3 else ('--fb2' if r<6 else '--fb1')
-            svg.append(f'<rect x="{x0}" y="{y}" width="{x1-x0}" height="1" fill="var({tone})"/>')
-            # 판자 내부 결: 길이 방향(가로) 2~4px 대시, 판자마다 다른 위치
+            for xx in range(x0,x1): floor_cell[(y,xx)] = tone
+            # 결: 길이 방향 대시. 대시 길이·간격도 축척 s를 따라 뒤로 갈수록 촘촘해진다.
             gx = x0
             while gx < x1:
-                step = 3 + h2(gx,y,33) % 6
                 if h2(gx,y,34) < 26:
-                    ln = min(2 + h2(gx,y,35) % 3, x1-gx)
+                    ln = min(max(1, int(round((2 + h2(gx,y,35) % 3) * s))), x1-gx)
                     sh = '--fbl' if h2(gx,y,36) < 62 else '--fbh'
-                    if ln>0: svg.append(f'<rect x="{gx}" y="{y}" width="{ln}" height="1" fill="var({sh})"/>')
-                gx += step
-            # 옹이 (드물게)
-            if h2(si,y,37) < 4:
-                kx = x0 + 3 + h2(si,y,38) % max(1,(x1-x0-6))
-                svg.append(f'<rect x="{kx}" y="{y}" width="2" height="1" fill="var(--fbk)"/>')
-        # 판자 위/아래 모따기: 윗줄은 살짝 밝게, 아랫줄은 어둡게 → 두께감
+                    for xx in range(gx, gx+ln): floor_cell[(y,xx)] = sh
+                gx += max(2, int(round((3 + h2(gx,y,33) % 6) * s)))
+            if h2(k,y,37) < 4 and x1-x0 > 7:         # 옹이
+                kx = x0 + 3 + h2(k,y,38) % (x1-x0-6)
+                for xx in range(kx, min(x1, kx+max(1,int(round(2*s))))): floor_cell[(y,xx)] = '--fbk'
+        # 판자 위/아래 모따기 (가로선은 화면과 평행하므로 그대로 수평)
         if y == y0 and bi > 0:
-            svg.append(f'<rect x="0" y="{y}" width="96" height="1" fill="var(--fbh)" opacity=".22"/>')
+            for xx in range(96): floor_cell[(y,xx)] = '--fbh'
         if y == y1:
-            svg.append(f'<rect x="0" y="{y}" width="96" height="1" fill="var(--fbk)" opacity=".55"/>')
-        # 세로 맞댐 이음매
-        for jx in joints:
-            svg.append(f'<rect x="{jx}" y="{y}" width="1" height="1" fill="var(--fbk)"/>')
+            for xx in range(96): floor_cell[(y,xx)] = '--fbk'
+        # 맞댐 이음매 1px — 행마다 x가 이동하므로 결과적으로 기울어진 선이 된다
+        for xr in xrefs:
+            jx = int(round(persp_x(xr, y)))
+            if 0 < jx < 96: floor_cell[(y,jx)] = '--fbk'
+svg.append('<g id="g-floor">')
+svg += emit_rows([(y,x,v) for (y,x),v in floor_cell.items()])
 # 벽 접합부 AO (허용 범위: 맞닿는 곳의 어두움)
 for i,(yy,op) in enumerate([(49,'.38'),(50,'.22'),(51,'.10')]):
     svg.append(f'<rect x="0" y="{yy}" width="96" height="1" fill="#120c14" opacity="{op}"/>')
@@ -483,32 +520,63 @@ svg += emit_rows(_rug_cells)
 svg.append('</g>')
 
 # ---------- 돌: 절차 생성 (매끈한 라운드, 얼굴 없음, AO만) ----------
-def ball(gid, cx, base_y, w, h):
-    # 타원 실루엣 + 상/하 톤 밴드(무방향광: 위=열린 하늘 AO 밝음, 아래=접지 AO 어두움)
-    out=[f'<g id="{gid}">']
-    ry=h/2.0; rx=w/2.0
+# 실루엣은 **정규화 프로파일 하나**를 두 크기로 래스터라이즈 — 창턱/러그 돌의 모양이 통일된다.
+# 위쪽은 둥글고(ry .60) 아래쪽은 완만해(ry .55) 밑면이 살짝 납작한 냇돌 형태.
+def stone_profile(t):          # t: 0=꼭대기, 1=바닥 → 반폭 비율 0..1
+    c = 0.60
+    r = c if t <= c else 0.55
+    return math.sqrt(max(0.0, 1.0 - ((t-c)/r)**2))
+
+STONE_ASPECT = 1.40            # w:h 고정 → 두 돌의 비례도 동일
+
+def stone_rows(cx, base_y, w, h):
+    """행별 (y, x0, x1, t) — 본체·림라이트·그림자가 같은 실루엣을 공유하도록 분리"""
+    rows=[]
     for i in range(h):
-        y=base_y-h+1+i
-        dy=(i+0.5-ry)/ry
-        hw=rx*math.sqrt(max(0.0,1-dy*dy))
-        if i==h-1: hw=max(2.0,hw*0.72)   # 접지면 살짝 평평
-        x0=round(cx-hw); x1=round(cx+hw)-1
-        if x1<x0: continue
-        f=i/(h-1)
-        tone='--o4' if f<0.18 else ('--o3' if f<0.42 else ('--o2' if f<0.68 else ('--o1' if f<0.88 else '--o0')))
+        y = base_y - h + 1 + i
+        t = (i+0.5)/h
+        hw = (w/2.0) * stone_profile(t)
+        x0 = round(cx-hw); x1 = round(cx+hw)-1
+        if x1 >= x0: rows.append((y, x0, x1, t))
+    return rows
+
+def ball(gid, rows):
+    # 무방향광: 위=열린 하늘 AO로 밝고, 아래=접지 AO로 어둡다.
+    out=[f'<g id="{gid}">']
+    for (y,x0,x1,t) in rows:
+        tone=('--o4' if t<0.20 else '--o3' if t<0.42 else '--o2' if t<0.66 else
+              '--o1' if t<0.86 else '--o0')
         out.append(f'<rect x="{x0}" y="{y}" width="{x1-x0+1}" height="1" fill="var({tone})"/>')
         lower={'--o4':'--o3','--o3':'--o2','--o2':'--o1','--o1':'--o0','--o0':'--o0'}[tone]
-        if 0<i<h-1:  # 곡률 림(양끝 1px 어둡게)
+        if t>0.06 and t<0.94:   # 곡률 림(양끝 1px 어둡게)
             out.append(f'<rect x="{x0}" y="{y}" width="1" height="1" fill="var({lower})"/>')
             out.append(f'<rect x="{x1}" y="{y}" width="1" height="1" fill="var({lower})"/>')
-        for xx in range(x0+1,x1):  # 질감 스펙클 (절제)
+        for xx in range(x0+1,x1):   # 질감 스펙클 (절제)
             if h2(xx,y,22)<4:
                 out.append(f'<rect x="{xx}" y="{y}" width="1" height="1" fill="var({lower})"/>')
     out.append('</g>')
     return out
 
-svg += ball('orb', 58, 35, 9, 7)       # 창턱: 원근 축소판
-svg += ball('orb-rug', 47, 63, 14, 10) # 러그 위 방 한가운데: 원래 크기
+def rim(gid, rows):
+    """역광 림라이트: 실루엣의 위쪽 + 광원(창) 쪽 가장자리 1px.
+       base에 굽지 않고 **광원 레이어**에 얹어 시간대 색을 따라가게 한다."""
+    out=[f'<g id="{gid}">']
+    seen_top=set()
+    for (y,x0,x1,t) in rows:
+        if t < 0.55:                      # 위쪽 절반: 윗면 전체가 역광을 받음
+            out.append(f'<rect x="{x0}" y="{y}" width="{x1-x0+1}" height="1" fill="var(--wl)" opacity="{0.85-t:.2f}"/>')
+        if t < 0.80:                      # 창(우상단) 쪽 측면 가장자리
+            out.append(f'<rect x="{x1}" y="{y}" width="1" height="1" fill="var(--wl)" opacity="{0.7-t*0.5:.2f}"/>')
+    out.append('</g>')
+    return out
+
+# 창턱: 원근 축소판 / 러그: 러그 한가운데(y52~66의 중앙 ≈ y61)에 원래 크기
+SILL_ROWS = stone_rows(58, 35, 10, round(10/STONE_ASPECT))
+RUG_ROWS  = stone_rows(47, 61, 14, round(14/STONE_ASPECT))
+svg += ball('orb', SILL_ROWS)
+svg += ball('orb-rug', RUG_ROWS)
+svg += rim('rim-orb', SILL_ROWS)
+svg += rim('rim-orb-rug', RUG_ROWS)
 
 with open(f'art_svg{SUF}.txt','w') as f: f.write('\n'.join(svg))
 
