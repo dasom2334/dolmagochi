@@ -66,10 +66,12 @@ def build_floor():
     add(0,49,96,1,'#000',.28); add(0,50,96,1,'#000',.12)
     return P
 groups['floor'] = build_floor()
-groups['fireplace'].append('<rect x="2" y="49" width="20" height="1" fill="#000" opacity=".2"/>')
-groups['fireplace'].append('<rect x="3" y="50" width="17" height="1" fill="#000" opacity=".1"/>')
-groups['shelf'].append('<rect x="78" y="49" width="16" height="1" fill="#000" opacity=".2"/>')
-groups['shelf'].append('<rect x="79" y="50" width="14" height="1" fill="#000" opacity=".1"/>')
+groups['fireplace'].append('<g class="p-shadow" style="mix-blend-mode:multiply">'
+    '<rect x="2" y="49" width="20" height="1" fill="#000" opacity=".2"/>'
+    '<rect x="3" y="50" width="17" height="1" fill="#000" opacity=".1"/></g>')
+groups['shelf'].append('<g class="p-shadow" style="mix-blend-mode:multiply">'
+    '<rect x="78" y="49" width="16" height="1" fill="#000" opacity=".2"/>'
+    '<rect x="79" y="50" width="14" height="1" fill="#000" opacity=".1"/></g>')
 split = ''.join('<g id="g-%s">' % k + '\n'.join(v) + '</g>' for k,v in groups.items())
 art = art[:m0] + split + art[m1+4:]
 
@@ -83,7 +85,8 @@ lamp_obj = ('<g id="lamp">'
   '<rect x="74" y="38" width="1" height="12" fill="#57484f"/>'
   '<rect x="72" y="50" width="5" height="1" fill="#57484f"/>'
   '<rect x="73" y="49" width="3" height="1" fill="#463a42"/>'
-  '<rect x="71" y="51" width="7" height="1" fill="#000" opacity=".15"/>'
+  '<g class="p-shadow" style="mix-blend-mode:multiply">'
+  '<rect x="71" y="51" width="7" height="1" fill="#000" opacity=".3"/></g>'
   '</g>')
 art = art + lamp_obj
 
@@ -240,6 +243,57 @@ masks = (
  '</g></mask>')
 
 lights = masks + lights + lp_sun + lp_moon + lp_fire + lp_candle + lp_lamp
+
+# --- 소품별 4레이어: p-shadow 주입 (base와 같은 그룹 안, multiply) ---
+def inject(gid, html_frag):
+    global art
+    i = art.index('<g id="%s">' % gid)
+    j = art.index('</g>', i)
+    art = art[:j] + html_frag + art[j:]
+
+SH = '<g class="p-shadow" style="mix-blend-mode:multiply">%s</g>'
+inject('orb', SH % ('<rect x="52" y="36" width="12" height="1" fill="#000" opacity=".25"/>'
+                    '<rect x="53" y="37" width="10" height="1" fill="#000" opacity=".12"/>'))
+inject('sill-plant', SH % '<rect x="28" y="36" width="5" height="1" fill="#000" opacity=".25"/>')
+inject('floor-props', SH % ('<rect x="10" y="61" width="12" height="1" fill="#000" opacity=".25"/>'
+                            '<rect x="24" y="63" width="6" height="1" fill="#000" opacity=".25"/>'
+                            '<rect x="21" y="48" width="8" height="1" fill="#000" opacity=".3"/>'))
+
+# --- emission 분리: 균형 잡힌 그룹 추출 유틸 ---
+def extract_group(src, start_idx):
+    depth = 0; i = start_idx
+    while True:
+        no = src.find('<g', i)
+        nc = src.find('</g>', i)
+        if nc == -1: raise ValueError('unbalanced')
+        if no != -1 and no < nc:
+            depth += 1; i = no + 2
+        else:
+            depth -= 1; i = nc + 4
+            if depth == 0: return src[start_idx:i]
+
+# 벽난로 불꽃 전체를 emission으로 이동
+fi = art.index('<g id="fire">')
+fire_g = extract_group(art, fi)
+art = art[:fi] + art[fi+len(fire_g):]
+
+# 촛불 flame 서브그룹 추출 → emission
+ci = art.index('<g class="c-flame">')
+cf = extract_group(art, ci)
+art = art[:ci] + art[ci+len(cf):]
+candle_flame = '<g id="candle-flame">' + cf + '</g>'
+
+# 촛대 접지 그림자
+inject('candle', SH % '<rect x="3" y="31" width="5" height="1" fill="#000" opacity=".25"/>')
+
+lamp_glow = ('<g id="lamp-glow">'
+  '<rect x="73" y="37" width="2" height="1" fill="#ffe9b0"/>'
+  '<rect x="72" y="36" width="4" height="2" fill="#ffd98a" opacity=".5" style="mix-blend-mode:screen"/>'
+  '<rect x="70" y="34" width="8" height="3" fill="#ffcf80" opacity=".3" style="mix-blend-mode:screen"/>'
+  '</g>')
+
+emission = '<g id="emission">' + fire_g + candle_flame + lamp_glow + '</g>'
+lights = lights + emission
 
 html = open('template_v2.html').read()
 html = html.replace(', sway 2.6s ease-in-out infinite','').replace(', sway 3.4s ease-in-out -1.2s infinite','')
