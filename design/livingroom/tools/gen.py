@@ -197,44 +197,61 @@ import math
 def h2(x,y,salt=0):  # 결정적 의사난수 0..99 (디더용)
     return ((x*73856093) ^ (y*19349663) ^ (salt*83492791)) % 100
 
-def hill_top(x):
-    # 창 내부는 측정대로 평평(y26), 창 밖에서만 능선이 완만하게 굽이침
-    if 26 <= x <= 67: return 26
-    d = min(abs(x-26), abs(x-67))
-    amp = min(1.0, d/6)
-    return 26 + round(amp*(1.6*math.sin(x*0.33+1.1) + 1.1*math.sin(x*0.11+4.2)))
+# 하늘: 레퍼런스 수직 단면(x63) 실측 그라디언트. y4.5→k0(짙은 자주), y22.5→k6(지평선 호박색).
+# 하늘은 알베도가 아니라 광원이므로 디라이팅/양자화 대상이 아님 — 팔레트는 template이 소유.
+# 밴딩을 없애기 위해 **오더드(베이어) 디더링**으로 인접 스톱을 섞는다. 도트 그라디언트의 정석.
+BAYER4 = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]]
+def bayer(x,y): return (BAYER4[y & 3][x & 3] + 0.5) / 16.0
 
-# 하늘 행 프로파일: y -> (기본 클러스터 A, 디더 클러스터 B, B 비율 %)
-SKY_PROF = {0:(0,0,0),1:(0,0,0),2:(0,0,0),3:(0,0,0),4:(0,0,0),5:(0,5,8),
-            6:(5,0,10),7:(5,5,0),8:(5,3,30),9:(3,3,0),10:(3,2,50),11:(2,3,12),
-            12:(2,2,0),13:(2,2,0),14:(2,1,50),15:(1,1,0),16:(1,1,0),
-            17:(1,4,20),18:(1,4,40),19:(4,1,35),20:(4,4,0),21:(4,1,50),
-            22:(1,4,8),23:(4,4,0),24:(4,4,0),25:(4,4,0),
-            26:(4,3,15),27:(4,3,30),28:(3,4,30),29:(3,3,0)}  # 창밖 능선이 낮아진 열의 지평선 글로우
+SKY_N = 10          # 하늘 그라디언트 스톱 수 (k0..k9). 스톱이 촘촘해야 디더가 격자로 안 보인다.
+def dither_stop(gpos, x, y, lo=0, hi=SKY_N-1):
+    gpos = max(lo, min(hi, gpos))
+    base = math.floor(gpos)
+    frac = gpos - base
+    s = base + (1 if bayer(x,y) < frac else 0)
+    return max(lo, min(hi, int(s)))
+
+def ramp(pts, x):
+    """제어점 [(x,y)...] 사이 선형보간 — 능선용. 보간의 자연스러운 계단이 도트 실루엣이 된다."""
+    if x <= pts[0][0]: return pts[0][1]
+    for i in range(len(pts)-1):
+        x0,y0 = pts[i]; x1,y1 = pts[i+1]
+        if x0 <= x <= x1:
+            return y0 + (y1-y0)*(x-x0)/(x1-x0)
+    return pts[-1][1]
+
+# 겹산 3중 실루엣 (뒤→앞). 봉우리와 골이 뚜렷한 삼각 능선 — 잔지터 없이 깔끔한 계단으로.
+RIDGE_FAR  = [(0,27),(6,24),(14,28),(22,25),(33,23),(40,27),(46,26),(52,24),
+              (58,26),(64,25),(70,28),(78,24),(86,27),(96,25)]
+RIDGE_MID  = [(0,31),(10,29),(18,31),(28,28),(36,31),(44,30),(50,29),(57,31),
+              (64,29),(72,31),(82,29),(96,31)]
+RIDGE_NEAR = [(0,33),(14,32),(26,34),(38,33),(50,34),(62,32),(74,34),(86,33),(96,34)]
 
 def synth(y,x):
-    H = hill_top(x)
-    if y >= H:  # 언덕/지면: 능선 마루가 해 쪽(우측)일수록 밝음, 깊어질수록 어두움
-        depth = y - H
-        crest = 3 if x >= 50 else (2 if x >= 34 else 1)
-        if depth == 0: c = crest
-        elif depth == 1: c = crest if h2(x//2,y) < 40 else max(1,crest-1)
-        elif depth <= 3: c = max(1,crest-1) if h2(x//2,y,1) < 45 else 1
-        elif y <= 33: c = 1 if h2(x//2,y,2) < 70 else 0
-        elif y <= 45: c = 1 if h2(x//3,y,3) < 12 else 0
-        else: c = 0
-        return f'--h{c}'
-    A,B,f = SKY_PROF[y]
-    c = B if h2(x//2,y,4) < f else A
-    if 6 <= y <= 8 and (46 - h2(0,y,5)%3) <= x <= (60 + h2(1,y,5)%4):
-        c = 3                      # 상층 구름 슬랩 (중앙 우측)
-    d = math.hypot((x-56.5)*1.0, (y-17)*1.6)
-    if y >= 11 and d < 4.5: c = max(c,6)          # 해 주변 광휘 (안쪽일수록 밝게)
-    elif y >= 11 and d < 6.5: c = max(c,5)
-    elif y >= 11 and d < 8.5 and h2(x//2,y,6) < 55: c = max(c,4)
-    if y in (24,25) and x >= 58 and h2(x//2,y,7) < 55: c = 3   # 우측 하단 어두운 띠
-    if 16 <= y <= 19 and h2(x//2,y,8) < 4: c = 6  # 수평선 위 반짝임
-    return f'--k{c}'
+    rf = int(round(ramp(RIDGE_FAR,  x)))
+    rm = int(round(ramp(RIDGE_MID,  x)))
+    rn = int(round(ramp(RIDGE_NEAR, x)))
+    # 각 산맥은 **단색 실루엣 + 자기 능선 1px 밝은 림** = 도트 산 표현의 정석.
+    # 경계에 디더를 섞으면 얼룩(노이즈)으로 읽히므로 섞지 않는다.
+    if y >= rn:
+        return '--h1' if y == rn else '--h0'      # 근산: 마루 림 + 단색
+    if y >= rm:
+        return '--h2' if y == rm else '--h1'      # 중산
+    if y >= rf:
+        return '--h3' if y <= rf+1 else '--h2'    # 원산: 2px 마루 림
+    # ---- 하늘: 레퍼런스처럼 solid 행 밴드 (디더 없음 — 스톱이 촘촘해 계단이 안 보인다) ----
+    s = max(0, min(SKY_N-1, int(round((y - 4.0) / 2.1))))
+    # 태양 후광은 방사형이라 밴드가 동심원 링으로 보인다 → 여기만 해시 지터로 경계를 흩뜨림.
+    d = math.hypot((x-56.5), (y-16)*1.55)
+    if d < 13.0:
+        halo = (SKY_N-0.4) - d*0.62 + (h2(x,y,60) % 100)/100.0 - 0.5
+        s = max(s, max(0, min(SKY_N-1, int(round(halo)))))
+    # 얇은 층운: 지평선과 평행한 가로 띠 — 한 스톱 밝게, 양끝만 지터로 페이드
+    for (cy, cx0, cx1) in ((8,28,50),(11,56,84),(14,14,42),(17,60,92)):
+        if y == cy and cx0-4 <= x <= cx1+4:
+            edge = min(x-(cx0-4), (cx1+4)-x) / 5.0
+            if h2(x,y,61)/100.0 < min(1.0, edge): s = min(SKY_N-1, s+1)
+    return f'--k{s}'
 
 # 방 구조 셀 규칙 분리
 def static_sub(y,x):
@@ -263,10 +280,10 @@ def sprite(name,gid,extra=''):
 
 svg += sprite('sun','sun')
 
-# ---------- 나무: 완전형 수작화 (클럼프 소나무) ----------
+# ---------- 나무 v1: 클럼프 소나무 (보존) ----------
 # 창에 가려진 부분(캔버스 상단·좌측 오버플로, 창살 뒤, 벽 뒤 지면까지의 줄기)도 전부 그린다.
 # 줄기: x34-35 (레퍼런스 하부 창 실측), 지면(y40)까지. 잎: t0(암부)/t1(본체)/t2(명부).
-tree_svg=['<g id="tree-trunk">']
+tree_svg=['<g id="tree-v1">','<g id="tree-trunk">']
 for y in range(8,41):
     if y>=38: x0,x1=33,37      # 뿌리 벌어짐
     elif y>=34: x0,x1=34,36
@@ -304,7 +321,73 @@ for clump in CLUMPS:
                 if h2(xx,y,9)<9:
                     tree_svg.append(f'<rect x="{xx}" y="{y}" width="1" height="1" fill="var(--t0)"/>')
 tree_svg.append('</g>')
+tree_svg.append('</g>')   # /tree-v1
 svg += tree_svg
+
+# ---------- 나무 v2: 둥근 활엽수 (타원 로브 합성) ----------
+# 로브(타원) 여러 개를 겹쳐 유기적인 수관을 만들고, 상단(하늘이 열린 쪽)일수록 밝게 —
+# 방향광이 아니라 앰비언트 오클루전이므로 시간이 바뀌어도 어색해지지 않는다.
+# 로브(둥근 잎 뭉치)를 겹쳐 수관을 만든다. 셰이딩은 **로브마다 개별**로 —
+# 수관 전체를 하나로 셰이딩하면 아래쪽이 통째로 시커먼 덩어리가 된다.
+# 로브 중심 y를 서로 어긋나게 배치 — 같은 높이에 몰리면 음영이 가로 줄무늬가 된다.
+LOBES=[(34.5,7.0,4.6,2.8),(29.0,9.5,4.2,2.9),(40.0,10.8,4.4,3.0),(34.0,12.0,5.8,3.2),
+       (27.5,13.8,3.8,2.6),(42.0,14.6,3.9,2.7),(35.5,15.8,4.8,2.6),(31.0,16.4,3.6,2.2)]
+# 수관 사이로 하늘이 비치는 틈 (잎 뭉치 사이 공간) — 실루엣이 덩어리로 안 보이게
+GAPS=[(31.5,10.5,1.5,1.1),(38.0,12.8,1.7,1.2),(33.0,14.2,1.4,1.0)]
+canopy={}      # (y,x) -> (로브내 방사 음영값 shade)
+for (cx,cy,rx,ry) in LOBES:
+    for y in range(int(cy-ry)-1, int(cy+ry)+2):
+        for x in range(int(cx-rx)-1, int(cx+rx)+2):
+            dx=(x-cx)/rx; dy=(y-cy)/ry
+            d=dx*dx+dy*dy
+            if d>1.0: continue
+            if d>0.90 and h2(x,y,54)<45: continue      # 실루엣 가장자리를 성기게(잎 결)
+            v=(y-(cy-ry))/(2*ry)
+            shade=v*0.62 + d*0.38                       # 세로 + 방사 → 둥근 잎 뭉치
+            prev=canopy.get((y,x))
+            if prev is None or shade<prev: canopy[(y,x)]=shade
+for (gx,gy,grx,gry) in GAPS:                            # 틈 뚫기
+    for (y,x) in list(canopy):
+        if ((x-gx)/grx)**2 + ((y-gy)/gry)**2 <= 1.0: del canopy[(y,x)]
+
+t2_svg=['<g id="tree-v2">','<g id="tree2-trunk">']
+# 줄기: 위로 갈수록 가늘어지는 테이퍼 + 뿌리 플레어
+def trunk_span(y):
+    if y>=39: return 32,40                 # 뿌리 플레어
+    if y>=36: return 33,39
+    if y>=30: return 34,38
+    if y>=22: return 34,37
+    return 34,36
+for y in range(14,41):
+    x0,x1=trunk_span(y)
+    t2_svg.append(f'<rect x="{x0}" y="{y}" width="{x1-x0}" height="1" fill="var(--t3)"/>')
+    t2_svg.append(f'<rect x="{x1}" y="{y}" width="1" height="1" fill="var(--t4)"/>')
+    if h2(x0,y,50)<30 and x1-x0>2:   # 나무껍질 세로 결
+        t2_svg.append(f'<rect x="{x0+1+h2(y,0,51)%(x1-x0-1)}" y="{y}" width="1" height="1" fill="var(--t0)"/>')
+# 가지: 수관 속으로 뻗음
+for (bx0,by0,bx1,by1) in ((35,17,30,13),(37,16,41,12),(36,14,33,10)):
+    steps=max(abs(bx1-bx0),abs(by1-by0))
+    for i in range(steps+1):
+        bx=round(bx0+(bx1-bx0)*i/steps); by=round(by0+(by1-by0)*i/steps)
+        t2_svg.append(f'<rect x="{bx}" y="{by}" width="1" height="1" fill="var(--t3)"/>')
+t2_svg.append('</g>')
+
+leaf_cells=[]
+for (y,x),shade in sorted(canopy.items()):
+    # 로브의 위·중심에서 멀어질수록 어두움 = 하늘 노출도(앰비언트 오클루전).
+    # 방향광이 아니므로 시간이 바뀌어도 어색해지지 않는다.
+    if   shade < 0.30: tone='--t2'
+    elif shade < 0.60: tone='--t1'
+    else:              tone='--t0'
+    r=h2(x,y,53)
+    if   r < 8:  tone = '--t0'                    # 잎새 틈(그늘)
+    elif r > 94 and shade < 0.45: tone='--t2'     # 반짝이는 잎
+    leaf_cells.append((y,x,tone))
+t2_svg.append('<g id="tree2-leaves">')
+t2_svg += emit_rows(leaf_cells)
+t2_svg.append('</g>')
+t2_svg.append('</g>')
+svg += t2_svg
 svg.append('<!--PARTICLES-->')
 for sub in ('wall','winframe','fireplace','shelf'):
     svg.append(f'<g id="g-{sub}">')
@@ -314,29 +397,45 @@ for sub in ('wall','winframe','fireplace','shelf'):
 # ---------- 마룻바닥: 절차 재작화 (무광원 중립, 원근 판자) ----------
 # 레퍼런스의 판자 구조(가로 보드 + 어긋난 세로 조인트 + 나뭇결)만 전사하고 광 웅덩이는 배제.
 # 원근: 앞(아래)으로 올수록 판자가 두꺼워짐. 색은 전부 --fb* 변수(테마 오버레이가 착색).
-FLOOR_BANDS=[(49,51),(52,54),(55,58),(59,63),(64,67),(68,71)]  # 뒤→앞 (판자 점점 두꺼움)
+# 밴드: 뒤로 갈수록 얇아지는 원근. 각 밴드 = 판자 한 줄.
+FLOOR_BANDS=[(49,50),(51,53),(54,56),(57,60),(61,64),(65,68),(69,71)]
 svg.append('<g id="g-floor">')
 for bi,(y0,y1) in enumerate(FLOOR_BANDS):
-    # 긴 판자 + 드문 세로 조인트 (벽돌처럼 보이지 않게)
-    plank_w = 26 + (bi%3)*7
-    off = (bi*11) % plank_w
+    # 판자 길이·시작 오프셋을 밴드마다 어긋나게 (벽돌 격자처럼 정렬되지 않도록)
+    plank_w = 24 + (h2(bi,0,30) % 4) * 6
+    off = h2(bi,1,31) % plank_w
     joints = [x for x in range(-off, 97, plank_w) if 0 < x < 96]
+    edges = [0]+joints+[96]
     for y in range(y0, y1+1):
-        if bi>0 and y==y0:  # 판자 사이 이음매
-            svg.append(f'<rect x="0" y="{y}" width="96" height="1" fill="var(--fbk)"/>')
-            continue
-        edges=[0]+joints+[96]
-        for si in range(len(edges)-1):  # 판자 톤: 대부분 fb1, 가끔 fb0/fb2
-            x0,x1=edges[si],edges[si+1]
-            r=h2(si,bi,20)%10
-            tone='--fb0' if r<2 else ('--fb2' if r<4 else '--fb1')
+        for si in range(len(edges)-1):
+            x0,x1 = edges[si], edges[si+1]
+            r = h2(si,bi,32) % 12                    # 판자별 기본 톤
+            tone = '--fb0' if r<3 else ('--fb2' if r<6 else '--fb1')
             svg.append(f'<rect x="{x0}" y="{y}" width="{x1-x0}" height="1" fill="var({tone})"/>')
+            # 판자 내부 결: 길이 방향(가로) 2~4px 대시, 판자마다 다른 위치
+            gx = x0
+            while gx < x1:
+                step = 3 + h2(gx,y,33) % 6
+                if h2(gx,y,34) < 26:
+                    ln = min(2 + h2(gx,y,35) % 3, x1-gx)
+                    sh = '--fbl' if h2(gx,y,36) < 62 else '--fbh'
+                    if ln>0: svg.append(f'<rect x="{gx}" y="{y}" width="{ln}" height="1" fill="var({sh})"/>')
+                gx += step
+            # 옹이 (드물게)
+            if h2(si,y,37) < 4:
+                kx = x0 + 3 + h2(si,y,38) % max(1,(x1-x0-6))
+                svg.append(f'<rect x="{kx}" y="{y}" width="2" height="1" fill="var(--fbk)"/>')
+        # 판자 위/아래 모따기: 윗줄은 살짝 밝게, 아랫줄은 어둡게 → 두께감
+        if y == y0 and bi > 0:
+            svg.append(f'<rect x="0" y="{y}" width="96" height="1" fill="var(--fbh)" opacity=".22"/>')
+        if y == y1:
+            svg.append(f'<rect x="0" y="{y}" width="96" height="1" fill="var(--fbk)" opacity=".55"/>')
+        # 세로 맞댐 이음매
         for jx in joints:
             svg.append(f'<rect x="{jx}" y="{y}" width="1" height="1" fill="var(--fbk)"/>')
-        for x in range(0,96,4):  # 나뭇결: 가는 1px 대시, 드문드문
-            r=h2(x//4,y,21)
-            if r<5:  svg.append(f'<rect x="{x+h2(x,y,23)%3}" y="{y}" width="1" height="1" fill="var(--fbl)"/>')
-            elif r<7: svg.append(f'<rect x="{x+h2(x,y,24)%3}" y="{y}" width="1" height="1" fill="var(--fbh)"/>')
+# 벽 접합부 AO (허용 범위: 맞닿는 곳의 어두움)
+for i,(yy,op) in enumerate([(49,'.38'),(50,'.22'),(51,'.10')]):
+    svg.append(f'<rect x="0" y="{yy}" width="96" height="1" fill="#120c14" opacity="{op}"/>')
 svg.append('</g>')
 
 creg=regions['candle']
@@ -357,7 +456,31 @@ svg.append('</g>')
 for i in range(1,7): svg += sprite(f'book{i}',f'bk-{i}')
 svg += sprite('plant','sill-plant')
 svg += sprite('props','floor-props')
-svg += sprite('rug','rug')
+# ---------- 러그: 절차 재작화 (레퍼런스 구조 = 외곽 어두운 단 + 밝은 테두리 줄 + 무늬 필드) ----------
+# 레퍼런스 실측: y53에서 x28~68, y65에서 x19~75 (앞으로 벌어지는 사다리꼴)
+RUG_Y0, RUG_Y1 = 52, 66
+def rug_span(y):
+    t = (y-RUG_Y0)/(RUG_Y1-RUG_Y0)
+    return round(29 - 10*t), round(67 + 8*t)
+svg.append('<g id="rug">')
+_rug_cells=[]
+for y in range(RUG_Y0, RUG_Y1+1):
+    x0,x1 = rug_span(y)
+    for x in range(x0, x1+1):
+        din = min(x-x0, x1-x, y-RUG_Y0, RUG_Y1-y)   # 가장자리로부터의 거리
+        if din == 0:      tone = '--rg0'            # 외곽 어두운 단
+        elif din == 1:    tone = '--rg1'
+        elif din == 2:    tone = '--rg4'            # 밝은 테두리 줄
+        elif din == 3:    tone = '--rg3'
+        else:
+            tone = '--rg2'                          # 필드
+            r = h2(x,y,40)
+            if r < 7:    tone = '--rg3'             # 문양 얼룩(밝은 쪽)
+            elif r < 12: tone = '--rg1'             # 결(어두운 쪽)
+            if din == 4 and h2(x,y,41) < 45: tone = '--rg3'   # 테두리 안쪽 그림자선
+        _rug_cells.append((y,x,tone))
+svg += emit_rows(_rug_cells)
+svg.append('</g>')
 
 # ---------- 돌: 절차 생성 (매끈한 라운드, 얼굴 없음, AO만) ----------
 def ball(gid, cx, base_y, w, h):
