@@ -201,6 +201,9 @@
   #L-candle:not(:checked)    ~ .scene #candle        { display: none !important; }
   #L-fire:not(:checked)      ~ .scene #fire          { display: none !important; }
   #L-lamp:not(:checked)      ~ .scene #lamp          { display: none !important; }
+  #L-candle:not(:checked)    ~ .scene #candle-flame  { display: none !important; }
+  #L-lamp:not(:checked)      ~ .scene #lamp-glow     { display: none !important; }
+  #p-llamp:not(:checked)     ~ .scene #lamp-glow     { display: none !important; }
   #L-books:not(:checked)     ~ .scene #bk-1, #L-books:not(:checked) ~ .scene #bk-2,
   #L-books:not(:checked)     ~ .scene #bk-3, #L-books:not(:checked) ~ .scene #bk-4,
   #L-books:not(:checked)     ~ .scene #bk-5, #L-books:not(:checked) ~ .scene #bk-6 { display: none !important; }
@@ -434,7 +437,7 @@
     <div class="group">
       <span class="g-label">효과</span>
       <label for="p-fx">파티클·유리 효과</label>
-      <span class="note">광원마다 Light Mask 보유 — 소품 오클루더가 빛을 가리고, 소품을 끄면 그림자도 사라짐</span>
+      <span class="note">소품 = base + shadow(multiply) + emission(오버레이 위) + lightmask(SVG mask) 4레이어 — 발광체는 밤에도 어두워지지 않음</span>
     </div>
   </div>
 
