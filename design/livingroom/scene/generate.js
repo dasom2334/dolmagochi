@@ -732,31 +732,28 @@ function cloudBank() {
 // 펼쳐 놓은 신문이었다 — 그래서 아무리 안쪽을 손봐도 안 나아졌던 것.
 //   P=지면 p=종이 단(두께) t=글줄 d=책등 골 C=표지 D=표지 그늘
 //
-// 레퍼런스 기준. 옆모습(V 프로필)은 접었다 — 레퍼런스의 책은 **바닥에 눕혀 앞에
-// 펼쳐 둔** 것이고, 앞서 정면 판이 실패한 건 각도가 아니라 **돌 앞을 가린 위치**
-// 때문이었다. 위치를 돌 아래로 내리니 정면 펼침이 그대로 읽힌다.
-//
-// 디테일 보강분:
-//   ① 종이 뭉치 **단면**(q) 한 줄 — 지면과 표지 사이에 두께가 생긴다.
-//      이게 없으면 종이 한 장이 표지에 붙어 있는 그림이다.
-//   ② 글줄 길이를 행마다 바꾼다(5·6·5·6) — 같은 길이로 쌓으면 표처럼 보인다
-//   ③ 바깥 모서리를 p 로 한 겹 둘러 지면이 위로 말린 느낌
-//   P=지면 p=종이 가장자리 q=종이 뭉치 단면 t=글줄 d=책등 골 C=표지
-// 21×10.
+// 레퍼런스 재작화(폐기 후 새로 그림). 앞 판들이 놓친 것:
+//   ① 지면 밑에 **두꺼운 표지 띠**가 받친다. 표지가 지면보다 **넓다** —
+//      이게 없으면 종이만 바닥에 놓인 그림이라 책으로 안 읽힌다.
+//   ② 그 사이에 종이 뭉치 **단면**(q) 한 줄 — 지면과 표지 사이의 두께.
+//   ③ 지면 윗변이 책등에서 **파인다**. 일자로 자르면 판자다.
+//   ④ 글줄은 끊긴 짧은 획을 행마다 길이를 바꿔서(5·6·5) — 같은 길이면 표가 된다.
+//   P=지면 p=종이 가장자리 q=종이 뭉치 단면 t=글줄 d=책등 골 C=표지 D=표지 아랫단
+// 18×10. 22폭은 러그 밖으로 나가고 어두운 방에서 혼자 커서 튀었다.
 const OPENBOOK_ART = [
-  '..pPPPPPPPdPPPPPPPp..',
-  '.pPtttttPPdPPtttttPp.',
-  '.pPPPPPPPPdPPPPPPPPp.',
-  'pPttttttPPdPPttttttPp',
-  'pPPPPPPPPPdPPPPPPPPPp',
-  'pPtttttPPPdPPPtttttPp',
-  'pPPPPPPPPPdPPPPPPPPPp',
-  'pPttttttPPdPPttttttPp',
-  'ppqqqqqqqqdqqqqqqqqpp',
-  '.CCCCCCCCCCCCCCCCCCC.',
+  '..PPPPPP..PPPPPP..',
+  '.pPPPPPPddPPPPPPp.',
+  '.pPttttPddPPttttPp',
+  'pPPPPPPPddPPPPPPPp',
+  'pPtttttPddPPtttttp',
+  'pPPPPPPPddPPPPPPPp',
+  'pPtttttPddPPtttttp',
+  'ppPPPPPPddPPPPPPpp',
+  '.qqqqqqqqqqqqqqqq.',
+  'CCCCCCCCCCCCCCCCCC',
 ];
 function openBook(n) {
-  const map = { p: '--cer1', P: '--cer2', t: '--cer0', q: '--cer0',
+  const map = { p: '--cer1', P: '--cer2', t: '--cer0', q: '--cer1',
                 d: `--b${n}x0`, C: `--b${n}x1`, D: `--b${n}x0` };
   const out = [];
   OPENBOOK_ART.forEach((row, j) => {
@@ -766,9 +763,9 @@ function openBook(n) {
       if (ch === '.') { i++; continue; }
       let k = i;
       while (k + 1 < row.length && row[k + 1] === ch) k++;
-      // 러그 돌(아트 x40~53, 중심 46.5) **아래·앞**에 눕힌다. 폭 21을 중심에
-      // 맞춰 x36~56, y61~70. 담요(x33~60)보다 좁아야 책 양옆으로 자락이 보인다.
-      out.push([36 + i, 61 + j, k - i + 1, 1, map[ch]]);
+      // 러그 돌(중심 아트 x46.5) **아래·앞**에 눕힌다. 폭 18 → x38~55, y60~69.
+      // 러그 안에 온전히 들어가야 한다 — 밖으로 나가면 바닥에 떨어뜨린 그림이다.
+      out.push([38 + i, 60 + j, k - i + 1, 1, map[ch]]);
       i = k + 1;
     }
   });
