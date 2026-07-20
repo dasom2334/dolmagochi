@@ -2365,11 +2365,12 @@ function reduce(
     }
 
     case 'SET_WEATHER': {
-      // 날씨 변경 (M12) — 정성 지불. 자연 변화는 무료(SETTLE), 원할 때만 산다.
+      // 날씨 변경 (M12 → M22 무료화) — 분위기 바에서 언제든 고른다.
+      // 집중 중 변경만 막는다: 산책 우산 판정이 세션 시작에 확정되므로
+      // 도중에 비로 바꾸면 우산 없이 빗속을 걷는 모순이 생긴다.
       if (state.phase !== 'rest' && state.phase !== 'actionSelect') return state;
       if (event.weather === state.weather) return state;
-      if (state.care.points < BALANCE.WEATHER_CHANGE_COST) return state;
-      // 계절 의존 (M12): 이 계절에 없는 날씨는 살 수 없다 (눈은 겨울에만)
+      // 계절 의존 (M12): 이 계절에 없는 날씨는 고를 수 없다 (눈은 겨울에만)
       if (
         !weathersOfSeason(
           resolveSeason(state.settings, event.nowMs),
@@ -2380,10 +2381,6 @@ function reduce(
         ...state,
         weather: event.weather,
         lastWeatherDate: dateKey(event.nowMs),
-        care: {
-          ...state.care,
-          points: state.care.points - BALANCE.WEATHER_CHANGE_COST,
-        },
         session: {
           ...state.session,
           // 동석 축으로 변형 선택 (피드백4-2) — 돌 반응 누출 방지

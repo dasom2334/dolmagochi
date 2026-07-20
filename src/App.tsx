@@ -16,6 +16,7 @@ import { stopSoundscape, syncSoundscape } from './audio/engine';
 import { ToastHost } from './components/ToastHost';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
+import { AmbienceBar } from './components/AmbienceBar';
 import { NarratorLog } from './components/NarratorLog';
 import { ChoicePanel } from './components/ChoicePanel';
 import { ActionGrid } from './components/ActionGrid';
@@ -308,6 +309,10 @@ export function App() {
           </Suspense>
         )}
         <SceneView state={state} />
+        {/* 분위기 바 (M22) — 씬 바로 아래. 엔딩·에필로그에서는 숨긴다 */}
+        {state.phase !== 'ending' && state.phase !== 'epilogue' && (
+          <AmbienceBar state={state} />
+        )}
 
         {state.phase === 'ending' ? (
           <EndingScreen />

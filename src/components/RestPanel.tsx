@@ -2,12 +2,10 @@ import { useState } from 'react';
 import type { GameState, RestStep } from '../game/types';
 import type { ShopItemData } from '../data/schema';
 import { gameData } from '../store/gameStore';
-import { isItemAvailable, isRockPresent, weathersOfSeason } from '../game/stateMachine';
-import { resolveSeason } from '../game/timeOfDay';
+import { isItemAvailable, isRockPresent } from '../game/stateMachine';
 import { dateKey, needsBand } from '../game/stats';
 import { dailyMoodLine } from '../game/mood';
 import { careTargetNeed } from '../game/freeAction';
-import { BALANCE } from '../game/balance';
 import { dispatch, now, t, tf } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { btnDashed, btnOutline, btnSmall, card, PagesView, Pager } from './ui';
@@ -91,7 +89,7 @@ export function RestPanel({
         {state.restStep === 'talk' && <RestTalk state={state} />}
         {state.restStep === 'select' && (
           <>
-            <WeatherRow state={state} />
+            {/* 날씨 줄은 분위기 바(M22)로 이관 — 여기선 행동만 고른다 */}
             <ActionGrid state={state} />
             <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--hint)' }}>
               * {tf(SYS.nextActionNote, { action: t(action?.nameId ?? '') })}
@@ -337,37 +335,6 @@ function storeItems(state: GameState) {
 function ownedList(state: GameState) {
   return gameData.shop.filter((it) =>
     it.consumable ? (state.supplies[it.id] ?? 0) > 0 : it.id in state.items,
-  );
-}
-
-/** 날씨 줄 (M12) — 현재 날씨 표시 + 정성 지불 순환 변경. 자연 변화는 무료 */
-function WeatherRow({ state }: { state: GameState }) {
-  // 계절 가용 날씨 안에서만 순환 (M12: 눈=겨울, 꽃잎비=봄, 낙엽비=가을)
-  const order = weathersOfSeason(resolveSeason(state.settings, now()));
-  const idx = order.indexOf(state.weather);
-  const next = order[(idx + 1) % Math.max(1, order.length)] ?? 'clear';
-  const poor = state.care.points < BALANCE.WEATHER_CHANGE_COST;
-  return (
-    <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--hint)' }}>
-      * {t(UI.weatherUi.now)} — {t(UI.weatherUi.kinds[state.weather])}{' '}
-      <button
-        className={poor ? undefined : 'hv-text'}
-        disabled={poor}
-        style={{
-          border: 'none',
-          background: 'none',
-          color: poor ? 'var(--hint-dim)' : 'var(--ink)',
-          fontFamily: 'inherit',
-          fontSize: 11,
-          cursor: poor ? 'default' : 'pointer',
-        }}
-        onClick={() =>
-          dispatch({ type: 'SET_WEATHER', weather: next, nowMs: now() })
-        }
-      >
-        [{t(UI.weatherUi.kinds[next])} — {tf(UI.weatherUi.change, { price: BALANCE.WEATHER_CHANGE_COST })}]
-      </button>
-    </p>
   );
 }
 

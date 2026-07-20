@@ -244,10 +244,13 @@ export const UI = {
     umbrellaRain: 'ui.noise.umbrellaRain',
     cicadas: 'ui.noise.cicadas',
   } satisfies Record<LayerId, string>,
+  /** 분위기 바 (M22) */
+  ambience: {
+    mixerHint: 'ui.ambience.mixerHint',
+  },
   /** 날씨·시간대 라벨 (M12) */
   weatherUi: {
     now: 'ui.weather.now',
-    change: 'ui.weather.change', // {price}
     kinds: {
       clear: 'ui.weather.kind.clear',
       rain: 'ui.weather.kind.rain',

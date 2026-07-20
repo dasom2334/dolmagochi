@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BALANCE } from '../balance';
+
 import { seasonAt, timeOfDayAt } from '../timeOfDay';
 import { deriveLayers } from '../../audio/layers';
 import { createInitialState, transition } from '../stateMachine';
@@ -29,7 +29,7 @@ describe('timeOfDayAt — 시간대 판정 (M12)', () => {
   });
 });
 
-describe('날씨 (M12) — 자연 변화·정성 변경·게이지 무영향', () => {
+describe('날씨 (M12) — 자연 변화·직접 변경·게이지 무영향', () => {
   it('SETTLE: 달력일당 1회 자연 추첨, 같은 날 재호출은 유지', () => {
     let s = createInitialState(T0, 'lie');
     // rng 0.95 → 누적표 마지막(눈)
@@ -43,20 +43,21 @@ describe('날씨 (M12) — 자연 변화·정성 변경·게이지 무영향', (
     expect(s.weather).toBe('clear');
   });
 
-  it('SET_WEATHER: 정성 지불·부족 시 불가·계절 의존 (T0=1월 겨울: 눈만, 비 불가)', () => {
+  it('SET_WEATHER: 무료(M22)·계절 의존 (T0=1월 겨울: 눈만, 비 불가)', () => {
     const base = createInitialState(T0, 'lie');
-    const rich: GameState = { ...base, care: { points: 3, carryMinutes: 0 } };
-    // 겨울에 비는 살 수 없다 (계절 의존)
-    expect(run(rich, [{ type: 'SET_WEATHER', weather: 'rain', nowMs: T0 }]).weather).toBe('clear');
-    const changed = run(rich, [{ type: 'SET_WEATHER', weather: 'snow', nowMs: T0 }]);
+    // 겨울에 비는 고를 수 없다 (계절 의존)
+    expect(run(base, [{ type: 'SET_WEATHER', weather: 'rain', nowMs: T0 }]).weather).toBe('clear');
+    const changed = run(base, [{ type: 'SET_WEATHER', weather: 'snow', nowMs: T0 }]);
     expect(changed.weather).toBe('snow');
-    expect(changed.care.points).toBe(3 - BALANCE.WEATHER_CHANGE_COST);
-    // 같은 날씨 → no-op
-    expect(run(changed, [{ type: 'SET_WEATHER', weather: 'snow', nowMs: T0 }]).care.points)
-      .toBe(changed.care.points);
-    // 정성 부족 → 불가
+    // 정성 0이어도 바꿀 수 있고, 정성이 깎이지도 않는다
     const poor: GameState = { ...base, care: { points: 0, carryMinutes: 0 } };
-    expect(run(poor, [{ type: 'SET_WEATHER', weather: 'snow', nowMs: T0 }]).weather).toBe('clear');
+    const free = run(poor, [{ type: 'SET_WEATHER', weather: 'snow', nowMs: T0 }]);
+    expect(free.weather).toBe('snow');
+    expect(free.care.points).toBe(0);
+    // 집중 중에는 바꿀 수 없다 (우산 판정 모순 방지)
+    const focusing: GameState = { ...base, phase: 'focus' };
+    expect(run(focusing, [{ type: 'SET_WEATHER', weather: 'snow', nowMs: T0 }]).weather)
+      .toBe('clear');
   });
 
   it('계절 (M12): 자동 판정·고정 설정·무효 날씨 재추첨·계절 전용 날씨', () => {
@@ -71,7 +72,7 @@ describe('날씨 (M12) — 자연 변화·정성 변경·게이지 무영향', (
     s = run(s, [{ type: 'SET_SEASON', mode: 'spring', nowMs: T0 }], seq([0.9]));
     expect(s.settings.season).toBe('spring');
     expect(s.weather).toBe('petals'); // 봄 표 [맑음 .5, 비 .2, 꽃잎비 .3]의 끝
-    // 봄 고정 상태에서는 꽃잎비를 살 수 있다
+    // 봄 고정 상태에서는 꽃잎비를 고를 수 있다
     const rich: GameState = { ...s, care: { points: 2, carryMinutes: 0 }, weather: 'clear' };
     expect(run(rich, [{ type: 'SET_WEATHER', weather: 'petals', nowMs: T0 }]).weather).toBe('petals');
     // 겨울로 되돌리면 꽃잎비는 무효 → 재추첨
