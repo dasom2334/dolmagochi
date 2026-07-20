@@ -94,8 +94,11 @@ const FRAMED = { 'fire-body': 'fire-f', 'candle-flame': 'cflame-f' };
 /** 소품 토글 → 그 오클루더도 함께 끈다 */
 const OCC_OF = { orb: 'occ-orb', 'orb-rug': 'occ-orb2', 'sill-plant': 'occ-plant',
                  'floor-props': 'occ-props' };
-/** 패널의 '불' 토글 */
-const FIRE_PARTS = { 'fire-body': 'fire' };
+/** 발광 부품 → 그것을 가진 소품. 소품을 끄면 화염·전구도 함께 꺼진다 */
+const FIRE_PARTS = { 'fire-body': 'fire', 'candle-flame': 'candle', 'lamp-glow': 'lamp' };
+/** 광원 → 그 광원을 내는 소품. 소품이 없으면(=아직 안 샀으면) 빛도 없어야 한다 */
+const LIGHT_SOURCE = { 'lp-fire': ['g-fireplace', 'fire'], 'lp-candle': ['candle'],
+                       'lp-lamp': ['lamp'] };
 
 /** 상태별 표시 여부 — CSS 셀렉터 조합 대신 평범한 조건식으로 */
 function visible(id, st) {
@@ -264,6 +267,7 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
   const sunOn = st.time !== 'night';
   for (const [id, def] of Object.entries(LIGHTS)) {
     if (layerOff.has(id)) continue;
+    if (LIGHT_SOURCE[id]?.some((g) => layerOff.has(g))) continue;   // 소품이 꺼지면 빛도 꺼진다
     if ((id === 'lp-sun' && !sunOn) || (id === 'lp-moon' && sunOn)) continue;
     let alpha = parseFloat(pal[def.alphaSlot] ?? 1);
     if (!alpha) continue;

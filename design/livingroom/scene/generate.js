@@ -344,6 +344,53 @@ function treeV2() {
 
 export const FLAME_N = 6;
 
+// ─────────────────────────── 촛불 ───────────────────────────
+// 모닥불 생성기(flameFrames)를 그대로 축소하면 촛불이 안 된다 — 3×3 덩어리가 될 뿐이다.
+// 촛불은 **세로로 긴 물방울**이다: 위는 뾰족하고, 가장 넓은 곳이 아래쪽 1/3,
+// 심지에 닿는 맨 아래는 다시 좁아진다. 안쪽에 밝은 심(core)이 하나 서 있고
+// 바깥 1px 은 주황~붉은 테두리. (레퍼런스: 도트 촛불의 일반 규칙)
+// 이 크기(3×5)에서는 절차 생성보다 프레임을 직접 찍는 게 정확하다.
+//   . = 빈칸  o = 바깥테  m = 중간  c = 심지불꽃(가장 밝음)
+const CANDLE_ART = [
+  ['.o.', 'omo', 'ocm', 'ocm', '.c.'],          // 0 곧게
+  ['.o.', 'om.', 'ocm', 'ocm', '.c.'],          // 1 살짝 왼쪽
+  ['..o', '.mo', 'ocm', 'ocm', '.c.'],          // 2 오른쪽으로 눕는다
+  ['.o.', 'omo', 'ocm', 'ocm', '.c.'],          // 3 곧게
+  ['.o.', '.mo', 'mco', 'ocm', '.c.'],          // 4 왼쪽으로 눕는다
+  ['...', '.o.', 'ocm', 'ocm', '.c.'],          // 5 잠깐 작아진다
+];
+/** 심지 끝(wickX, wickY) 기준으로 프레임을 배치한다 — 맨 아랫줄이 심지에 닿는다 */
+function candleFrames(wickX, wickY, tones) {
+  return CANDLE_ART.map((art) => {
+    const cells = [];
+    art.forEach((row, i) => {
+      const y = wickY - (art.length - 1) + i;
+      [...row].forEach((ch, j) => {
+        if (ch === '.') return;
+        const tone = ch === 'o' ? tones[0] : ch === 'm' ? tones[1] : tones[2];
+        cells.push([y, wickX - 1 + j, tone]);
+      });
+    });
+    return emitRows(cells);
+  });
+}
+
+// ─────────────────────────── 스탠드 빛 ───────────────────────────
+// 원본은 전구를 갓 밑에 **또렷한 밝은 사각형**으로 찍어 놔서, 갓과 분리된
+// 별개의 물건처럼 보였다. 빛은 갓 밑면 폭에서 시작해 아래로 좁아지며 흐려져야
+// "갓에서 새어 나오는 빛"으로 읽힌다. 기둥(x74)은 덮지 않는다.
+function lampGlow() {
+  const out = [];
+  const push = (y, x0, x1, a) => out.push([x0, y, x1 - x0 + 1, 1, '--ll', a]);
+  // 밝은 곳은 갓 **밑면(y36) 자체**다. 그 아래에 또렷한 띠를 놓으면
+  // 갓에 서랍이 하나 달린 것처럼 보인다 — 아래로는 흐리게 번지기만 한다.
+  push(36, 71, 76, 0.88);                       // 갓이 열린 입구가 빛난다
+  push(37, 72, 75, 0.42);
+  for (const [y, x0, x1, a] of [[38, 73, 73, 0.20], [38, 75, 75, 0.20]])
+    push(y, x0, x1, a);                         // 기둥 좌우로만 — 기둥을 지우지 않게
+  return out;
+}
+
 // ─────────────────────── run-merge & 조립 ───────────────────────
 /** [y,x,slot] 목록을 가로로 병합해 rect 로. 셀 맵 입력이라 겹침이 없다 */
 function emitRows(cells) {
@@ -551,17 +598,20 @@ function flameFrames(cx, baseY, w, h, salt, n, tones, sparks = 2) {
         cells.push([y, x, tones[k]]);
       }
     }
-    // 불티: 한 번 생기면 프레임이 지날수록 위로 올라가며 식는다(코어색 → 중간색).
-    // 프레임마다 무관한 위치에 점을 찍으면 "튀는 노이즈"로 보이고 불티로 안 읽힌다.
-    // 불꽃 끝에서 **바로 이어져** 올라와야 한다 — 멀리 떨어지면 그냥 뜬 점이다.
+    // 불티: 도트 불의 불티는 **하나의 점이 살아가는 궤적**이다.
+    // 프레임마다 무관한 위치에 찍으면 그냥 튀는 노이즈다. 규칙은 셋:
+    //  ① 불꽃 끝에서 태어나 ② 프레임마다 위로 오르며 옆으로 흘러가고
+    //  ③ 오르는 동안 식는다 (코어색 → 중간색 → 바깥색 → 소멸)
+    const LIFE = 4;
     for (let s = 0; s < sparks; s++) {
       const born = (h2(s, 0, salt + 5) % n);              // 이 불티가 생기는 프레임
       const age = ((f - born) % n + n) % n;
-      if (age > 2) continue;                              // 3프레임만 살아 있는다
-      const sy = baseY - h + 1 - age;
-      const sx = pyRound(cx + (h2(s, 0, salt + 3) / 100 - 0.5) * w * 0.55)
-                 + (age >= 2 ? (h2(s, age, salt + 6) % 3) - 1 : 0);   // 끝에서 옆으로 흔들림
-      cells.push([sy, sx, age === 0 ? tones[2] : tones[1]]);
+      if (age >= LIFE) continue;
+      const drift = (h2(s, 0, salt + 7) % 3) - 1;         // 이 불티가 흘러갈 방향
+      const sy = baseY - h - age;                         // 불꽃 끝에서 한 칸씩 위로
+      const sx = pyRound(cx + (h2(s, 0, salt + 3) / 100 - 0.5) * w * 0.4)
+                 + pyRound(drift * age * 0.7);
+      cells.push([sy, sx, [tones[2], tones[2], tones[1], tones[0]][age]]);
     }
     frames.push(emitRows(cells));
   }
@@ -617,9 +667,10 @@ export function generateGroups(wallRects = []) {
   // 심지 바로 위(y27)에서 시작하는 작은 물방울 하나로.
   flameFrames(12.0, 47, 8.0, 8, 120, FLAME_N, ['--f0', '--f1', '--f3'])
     .forEach((rs, i) => { out[`fire-f${i}`] = rs; });
-  // 촛불엔 불티가 없다(있으면 초가 타는 것처럼 보인다). 물방울 하나로 충분.
-  flameFrames(5.5, 27, 3.0, 4, 130, FLAME_N, ['--f0', '--cd2', '--sun1'], 0)
+  // 초는 심지(x5)가 y28 에서 끝난다 → 그 위에 물방울을 세운다
+  candleFrames(5, 27, ['--f0', '--cd2', '--sun1'])
     .forEach((rs, i) => { out[`cflame-f${i}`] = rs; });
+  out['lamp-glow'] = lampGlow();
   // 아트 좌표 → 캔버스 좌표 (여기서 한 번만 옮긴다)
   for (const rects of Object.values(out)) for (const r of rects) r[0] += OX;
   return out;
