@@ -1,8 +1,6 @@
 """art_svg_v2.txt 를 그룹별 rect 데이터로 파싱해 두 가지를 내보낸다.
 
-1) ../scene/room-data.js  — **추출 그룹만** (레퍼런스 측정 결과). 실제로 쓰는 데이터.
-2) _geom_ref.json         — **절차 생성 전 그룹**. JS 포팅이 Python과 같은 결과를 내는지
-                            대조하는 정답지 (브라우저 없이 검증하려고 만든 것).
+../scene/room-data.js — 레퍼런스 측정 결과(추출 그룹). 절차 생성은 scene/generate.js 담당.
 
 file:// 에서 fetch 가 막히므로 1)은 JSON이 아니라 JS 리터럴로 쓴다.
 """
@@ -14,10 +12,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 EXTRACTED = ['g-wall', 'g-winframe', 'g-fireplace', 'g-shelf',
              'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
              'candle', 'sill-plant', 'floor-props', 'sun', 'fire']
-# 절차 생성 — JS로 포팅할 대상 (정답지에만 넣는다)
-PROCEDURAL = ['base-scenery', 'g-floor', 'rug', 'orb', 'orb-rug',
-              'rim-orb', 'rim-orb-rug', 'tree-v1', 'tree-v2']
-
 art = open(os.path.join(HERE, 'art_svg_v2.txt')).read()
 
 
@@ -75,7 +69,7 @@ EMISSIVE = re.compile(r'^--f\d+$')          # 불꽃은 광원이라 원색 유�
 palette = {k: (v if EMISSIVE.match(k) else punch(v))
            for k, v in pal.items() if not SKIP.match(k)}
 
-# ---- 1) 실제로 쓰는 데이터 ----
+# ---- 출력 ----
 groups = {g: group(g) for g in EXTRACTED}
 
 # 촛불 화염은 발광체 → emission 레이어로 가야 밤에도 어두워지지 않는다.
@@ -115,13 +109,5 @@ with open(out_js, 'w') as f:
     json.dump(shipped, f, separators=(',', ':'))
     f.write(';\n')
 
-# ---- 2) 포팅 검증용 정답지 ----
-ref = {g: group(g) for g in PROCEDURAL}
-with open(os.path.join(HERE, '_geom_ref.json'), 'w') as f:
-    json.dump(ref, f, separators=(',', ':'))
-
-print('room-data.js  : %d groups, %d rects, %dB'
-      % (len(EXTRACTED), sum(len(v) for v in shipped['groups'].values()),
-         os.path.getsize(out_js)))
-print('_geom_ref.json: %d groups, %d rects (JS 포팅 대조용)'
-      % (len(ref), sum(len(v) for v in ref.values())))
+print('room-data.js: %d groups, %d rects, %dB'
+      % (len(groups), sum(len(v) for v in groups.values()), os.path.getsize(out_js)))
