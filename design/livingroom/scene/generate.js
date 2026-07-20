@@ -169,6 +169,53 @@ function floorCells() {
   return cell;
 }
 
+// ─────────────────── 벽에 붙은 상자에 깊이 주기 ───────────────────
+// 벽난로·책장은 측정 아트가 **완전한 직사각형**이라 두께 0 인 판자로 보였다.
+// 게다가 밑변이 바닥선(y49) 바로 위 — 즉 측정 위치는 **벽면**이지 앞면이 아니다.
+// 그래서 옆면을 뒤로 붙이면 밑동이 뜬다. 반대로 **앞면을 앞으로 끌어내** 바닥에
+// 세우고, 벽면과의 사이를 옆면·윗면으로 잇는다.
+//
+// 앞으로 끌어내는 것 = 소실점 기준 확대. 수평선(y=22.4) 아래는 내려가고 위는
+// 올라가며, 소실점에서 멀어지는 쪽으로 벌어진다 — 1점 투시 그대로다.
+const BOX_FW = 1.15;
+const fwdX = (x, s = BOX_FW) => FLOOR_VPX + (x - FLOOR_VPX) * s;
+const fwdY = (y, s = BOX_FW) => FLOOR_VPY + (y - FLOOR_VPY) * s;
+
+/** rect 목록을 앞면 위치로. 런 구조를 유지한 채 최근접 확대 */
+function pullForward(rects, s = BOX_FW) {
+  return rects.map(([x, y, w, h, slot, op]) => {
+    const X0 = pyRound(fwdX(x, s)), X1 = pyRound(fwdX(x + w, s));
+    const Y0 = pyRound(fwdY(y, s)), Y1 = pyRound(fwdY(y + h, s));
+    const r = [X0, Y0, Math.max(1, X1 - X0), Math.max(1, Y1 - Y0), slot];
+    if (op !== undefined) r.push(op);
+    return r;
+  });
+}
+
+/** 벽면 모서리와 앞면 모서리를 잇는 옆면(+수평선 아래면 윗면).
+ *  sideDir: +1 = 소실점이 오른쪽(→ 오른쪽 옆면이 보인다), -1 = 왼쪽 */
+function boxFaces(x0, x1, y0, y1, sideDir, sideSlot, topSlot) {
+  const cells = [];
+  const fx0 = fwdX(x0), fx1 = fwdX(x1 + 1), fy0 = fwdY(y0), fy1 = fwdY(y1 + 1);
+  const xw = sideDir > 0 ? x1 + 1 : x0;          // 벽면 쪽 모서리
+  const xf = sideDir > 0 ? fx1 : fx0;            // 앞면 쪽 모서리
+  for (let X = Math.round(Math.min(xw, xf)); X < Math.round(Math.max(xw, xf)); X++) {
+    const u = (X + 0.5 - xf) / (xw - xf);        // 0 = 앞면, 1 = 벽면
+    const yT = fy0 + (y0 - fy0) * u, yB = fy1 + (y1 + 1 - fy1) * u;
+    for (let Y = Math.round(yT); Y < Math.round(yB); Y++) cells.push([Y, X, sideSlot]);
+  }
+  // 윗면은 앞면 윗변이 벽면 윗변보다 **아래**일 때만 보인다 = 수평선 아래 물체.
+  // (책장처럼 수평선 위로 솟은 것은 윗면이 안 보인다 — 눈높이보다 높으니까)
+  if (topSlot && fy0 > y0) {
+    for (let Y = Math.round(y0); Y < Math.round(fy0); Y++) {
+      const u = (Y + 0.5 - fy0) / (y0 - fy0);
+      const xa = fx0 + (x0 - fx0) * u, xb = fx1 + (x1 + 1 - fx1) * u;
+      for (let X = Math.round(xa); X < Math.round(xb); X++) cells.push([Y, X, topSlot]);
+    }
+  }
+  return emitRows(cells);
+}
+
 // ─────────────────────────── 러그 ───────────────────────────
 // 레퍼런스 구조: 외곽 어두운 단 + 밝은 테두리 줄 + 무늬 필드
 const RUG_Y0 = 52, RUG_Y1 = 66;
@@ -617,8 +664,18 @@ function flameFrames(cx, baseY, w, h, salt, n, tones, sparks = 2) {
   return frames;
 }
 
+/** 벽난로·책장의 실측 앞면 bbox (측정 아트 = 벽면 위치) */
+export const BOXES = {
+  'g-fireplace': { x0: 0, x1: 21, y0: 31, y1: 48, dir: +1, side: '--s2', top: '--s9' },
+  'g-shelf':     { x0: 78, x1: 95, y0: 16, y1: 48, dir: -1, side: '--s3', top: null },
+};
+/** 상자에 얹혀 함께 앞으로 나와야 하는 것들 */
+const ON_FIREPLACE = ['candle'];
+const ON_SHELF = ['bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6'];
+
 /** 절차 그룹 전체를 만든다. 반환: { groupId: rects[] } (캔버스 좌표) */
-export function generateGroups(wallRects = []) {
+export function generateGroups(measured = {}) {
+  const wallRects = measured['g-wall'] || [];
   const scenery = [];
   for (let y = 0; y < GY; y++)
     for (let x = AX0; x < AX1; x++) scenery.push([y, x, synth(y, x)]);
@@ -661,16 +718,24 @@ export function generateGroups(wallRects = []) {
     'tree-v2-leaves': emitRows(v2.leaves),
   };
   // 불꽃 프레임 — 그룹 하나당 한 장씩 내보내고 렌더러가 t로 골라 그린다
-  // 실측 위치: 벽난로 불 x8~17/y40~47, 초는 심지(x5)가 y28 에서 끝난다.
-  // 촛불을 y30 밑동으로 잡으면 초 기둥을 덮어 **기둥이 타는 것처럼** 보인다 →
-  // 심지 바로 위(y27)에서 시작하는 작은 물방울 하나로.
-  flameFrames(12.0, 47, 8.0, 8, 120, FLAME_N, ['--f0', '--f1', '--f3'])
+  // 불꽃·촛불도 벽난로와 함께 앞으로 나온다 — 실측 위치(불 x8~17/y40~47,
+  // 심지 (5,28))를 그대로 fwd 로 옮겨 계산한다. 크기도 같은 배율로 커진다.
+  flameFrames(fwdX(12), pyRound(fwdY(47)), 8 * BOX_FW, pyRound(8 * BOX_FW),
+              120, FLAME_N, ['--f0', '--f1', '--f3'])
     .forEach((rs, i) => { out[`fire-f${i}`] = rs; });
-  // 초는 심지(x5)가 y28 에서 끝난다 → 그 위에 물방울을 세운다
-  candleFrames(5, 27, ['--f0', '--cd2', '--sun1'])
+  candleFrames(pyRound(fwdX(5)), pyRound(fwdY(28)) - 1, ['--f0', '--cd2', '--sun1'])
     .forEach((rs, i) => { out[`cflame-f${i}`] = rs; });
   out['lamp-glow'] = lampGlow();
   Object.assign(out, buildRoomProps());          // 상점 소품·대사 사물
+
+  // 벽난로·책장을 앞으로 끌어내 깊이를 준다. 얹힌 것들도 같은 변환으로 따라간다.
+  for (const [id, b] of Object.entries(BOXES)) {
+    if (!measured[id]) continue;
+    out[id] = [...boxFaces(b.x0, b.x1, b.y0, b.y1, b.dir, b.side, b.top),
+               ...pullForward(measured[id])];
+  }
+  for (const id of [...ON_FIREPLACE, ...ON_SHELF])
+    if (measured[id]) out[id] = pullForward(measured[id]);
   // 아트 좌표 → 캔버스 좌표 (여기서 한 번만 옮긴다)
   for (const rects of Object.values(out)) for (const r of rects) r[0] += OX;
   return out;

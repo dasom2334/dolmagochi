@@ -12,7 +12,7 @@ import { ROOM_DATA } from './room-data.js';
 import { ANIM, GROUP_ANIM, TILE_H, flameIdx } from './anim.js';
 
 // 지오메트리는 상태와 무관 — 한 번만 만든다. 벽 여백은 측정된 벽 텍스처로 채운다.
-const GEN = generateGroups(ROOM_DATA.groups['g-wall']);
+const GEN = generateGroups(ROOM_DATA.groups);
 
 /** 측정·수작화 데이터는 아트 좌표(96 폭)라 캔버스로 옮긴다 */
 const shifted = new Map();
@@ -79,7 +79,10 @@ const Z = [
   'g-wall',
   // [2.5] 창턱 눈 — 벽 위, 창틀 뒤. 창밖에 쌓인 게 아니라 창턱에 쌓인 것으로 읽혀야 한다
   'fx-snowcap',
-  'g-winframe', 'g-fireplace', 'g-shelf', 'g-floor',
+  // 바닥이 벽난로·책장보다 **먼저** 와야 한다 — 둘은 이제 벽면이 아니라 바닥에
+  // 서 있어서(generate.js boxFaces) 밑동이 바닥선 아래로 내려온다.
+  // 순서가 반대면 바닥이 밑동을 지워, 불만 바닥에 덩그러니 남는다.
+  'g-winframe', 'g-floor', 'g-fireplace', 'g-shelf',
   // [3] 소품 (선반 안 → 맨틀 → 창턱 → 바닥 깔개 → 바닥 스탠딩)
   'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
   'candle', 'p-tea', 'p-cup', 'p-waterglass',            // 맨틀 위

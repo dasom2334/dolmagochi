@@ -72,7 +72,7 @@ export const ROOM_PROPS = {
   // ── 바닥 ──────────────────────────────────────────────────
   // 흔들의자 — 대형. 이 크기에서는 살대를 성기게 그리면 사다리로 보인다 →
   // 등받이를 통짜 실루엣으로 두고 **틈으로** 살대를 표현한다.
-  'p-rockingchair': [79, 43, [
+  'p-rockingchair': [74, 50, [
     '..WWWWWWW..',
     '..WdddddW..',
     '..WdWWWdW..',
@@ -97,7 +97,7 @@ export const ROOM_PROPS = {
   ], { W: '--wd2', d: '--wd0', s: '--cu1', R: '--wd1' }],
 
   // 선풍기 — 날개 원판 + 목 + 받침
-  'p-fan': [2, 52, [
+  'p-fan': [19, 50, [
     '..mmmmm..',
     '.mMMMMMm.',
     'mMMbbbMMm',
@@ -116,7 +116,7 @@ export const ROOM_PROPS = {
   ], { m: '--mt0', M: '--mt2', b: '--mt1', k: '--mt0' }],
 
   // 물뿌리개 — 몸통 + 주둥이 + 손잡이
-  'p-wateringcan': [78, 63, [
+  'p-wateringcan': [92, 62, [
     '..hh......',
     '.h..h.....',
     'MMMMMM.s..',
@@ -127,7 +127,7 @@ export const ROOM_PROPS = {
   ], { M: '--mt0', m: '--mt1', h: '--mt0', s: '--mt2' }],
 
   // 등불 기둥 — 바닥에 세우는 등
-  'p-lanternpost': [89, 33, [
+  'p-lanternpost': [104, 44, [
     '..WW..',
     '.WLLW.',
     'WLLLLW',
@@ -150,7 +150,7 @@ export const ROOM_PROPS = {
   ], { W: '--mt0', L: '--gl0', f: '--sun1', d: '--wd0' }],
 
   // 탄산음료 캔
-  'p-soda': [13, 62, [
+  'p-soda': [22, 66, [
     'sss',
     'SSS',
     'SgS',
@@ -158,9 +158,12 @@ export const ROOM_PROPS = {
     'sss',
   ], { s: '--sd0', S: '--sd1', g: '--sd2' }],
 
-  // ── 벽난로 선반(맨틀, 바닥면 y31) ────────────────────────────
+  // ── 벽난로 선반(맨틀) ───────────────────────────────────────
+  // 벽난로가 앞으로 나오면서(generate.js BOX_FW=1.15) 맨틀은 x-7~18 로 옮겨졌고
+  // 윗면이 y31~32 에 생겼다. 얹는 물건의 밑변은 y31.
+  // 촛대가 왼쪽(x-4 근처)에 오므로 나머지는 오른쪽 절반에 늘어놓는다.
   // 차통 — 소모품 '따뜻한 차'의 재고 자리
-  'p-tea': [11, 27, [
+  'p-tea': [4, 27, [
     '.WW.',
     'CCCC',
     'CttC',
@@ -169,7 +172,7 @@ export const ROOM_PROPS = {
   ], { W: '--wd0', C: '--cer0', t: '--lqt' }],
 
   // 찻잔 — 손잡이 달린 잔 + 받침
-  'p-cup': [16, 28, [
+  'p-cup': [9, 28, [
     'ccch',
     'cLLc',
     'cccc',
@@ -177,7 +180,7 @@ export const ROOM_PROPS = {
   ], { c: '--cer1', L: '--lqt', h: '--cer0', C: '--cer0' }],
 
   // 물컵 (대사: restAct.water / act.nurse)
-  'p-waterglass': [21, 28, [
+  'p-waterglass': [14, 28, [
     'gg',
     'gg',
     'ww',
