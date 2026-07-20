@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { GameState } from '../../game/types';
 import { isRockPresent } from '../../game/stateMachine';
 import { gameData } from '../../store/gameStore';
@@ -38,6 +39,8 @@ import { SodaProp } from './props/SodaProp';
 import { CupProp } from './props/CupProp';
 import { FanProp } from './props/FanProp';
 import { LampProp } from './props/LampProp';
+import { LivingRoomScene } from './LivingRoomScene';
+import { sceneStateFrom, hiddenLayers } from '../../scene/livingroom/fromGame';
 import { BookProp } from './props/BookProp';
 
 /** 행동별 풍경 색 (디자인 원본 값 그대로 — cook/chore 씬은 디자인 미정, 방 색으로 폴백) */
@@ -53,6 +56,9 @@ const roomById = (id: string) =>
   gameData.rooms.find((r) => r.id === id) ?? gameData.rooms[1];
 
 export function SceneView({ state }: { state: GameState }) {
+  // 창문 열림 — 아직 게임 축이 아니라 **씬 조작**이라 뷰가 들고 있는다.
+  // (풍경이 흔들리는 연출이 여기 묶여 있다.) 게임 축이 생기면 state 로 옮긴다.
+  const [windowOpen, setWindowOpen] = useState(false);
   const isFocus = state.phase === 'focus';
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
   const sceneId = isFocus ? (action?.sceneId ?? 'free') : 'room';
@@ -108,6 +114,12 @@ export function SceneView({ state }: { state: GameState }) {
               : '#c9a86a';
   const showBook = (isFocus && sceneId === 'read') || show('book2');
 
+  // 거실 휴식 씬 — design/livingroom 의 canvas 렌더러. 집중 중이거나 다른 방이면
+  // 기존 레이어 렌더로 간다(주방·침실은 아직 이식 전).
+  const livingScene = !isFocus && currentRoom === 'living';
+  const sceneState = sceneStateFrom(state, now(), windowOpen);
+  const sceneOff = hiddenLayers(state, false);
+
   const caption = isFocus
     ? t(action?.captionId ?? '')
     : state.planted
@@ -131,63 +143,75 @@ export function SceneView({ state }: { state: GameState }) {
         boxSizing: 'border-box',
       }}
     >
-      {showWindow && <WindowSprite glassColor={glassColor} />}
-      {outdoor && <DaySun variant={tod === 'night' ? 'moon' : 'sun'} />}
-      <Floor bg={colors.floor} line={colors.line} />
-      {isFocus && sceneId === 'sun' && <SunPatch />}
-      {isFocus && sceneId === 'walk' && <GrassTufts />}
-      {state.planted && state.plantedAt !== null ? (
-        // 3차 (M15): 돌의 자리에 나무가 자란다 — 성장은 달력이 정한다
-        <TreeSprite stage={treeStage(state.plantedAt, state.treeBondDays, now())} />
-      ) : present ? (
-        <RockSprite
-          moss={placed('moss')}
-          sprout={sproutStageOf(state, gameData.dialogues)}
-          wetness={state.session.wetness}
+      {/* 거실 휴식 씬만 새 렌더러로 — 벽·바닥·창·소품·돌을 canvas 한 장이 다 그린다.
+          집중 씬과 나머지 방은 아직 기존 레이어 컴포넌트를 쓴다. */}
+      {livingScene ? (
+        <LivingRoomScene
+          scene={sceneState}
+          off={sceneOff}
+          onWindowToggle={() => setWindowOpen((v) => !v)}
         />
       ) : (
-        <RockShadow />
+        <>
+        {showWindow && <WindowSprite glassColor={glassColor} />}
+        {outdoor && <DaySun variant={tod === 'night' ? 'moon' : 'sun'} />}
+        <Floor bg={colors.floor} line={colors.line} />
+        {isFocus && sceneId === 'sun' && <SunPatch />}
+        {isFocus && sceneId === 'walk' && <GrassTufts />}
+        {state.planted && state.plantedAt !== null ? (
+          // 3차 (M15): 돌의 자리에 나무가 자란다 — 성장은 달력이 정한다
+          <TreeSprite stage={treeStage(state.plantedAt, state.treeBondDays, now())} />
+        ) : present ? (
+          <RockSprite
+            moss={placed('moss')}
+            sprout={sproutStageOf(state, gameData.dialogues)}
+            wetness={state.session.wetness}
+          />
+        ) : (
+          <RockShadow />
+        )}
+        {show('cup') && <CupProp />}
+        {showBook && <BookProp />}
+        {show('plant') && <PlantProp />}
+        {show('soda') && <SodaProp />}
+        {show('fan') && <FanProp />}
+        {show('lamp') && <LampProp />}
+        {show('cushion') && <CushionProp />}
+        {show('shoes') && <ShoesProp />}
+        {show('book') && <ReadBookProp />}
+        {show('pot') && <PotProp />}
+        {show('broom') && <BroomProp />}
+        {show('pillow') && <PillowProp />}
+        {show('bed') && <BedProp />}
+        {(show('umbrella') ||
+          (isFocus && sceneId === 'walk' && state.session.umbrella)) && (
+          <UmbrellaProp />
+        )}
+        {show('fireplace') && <FireplaceProp />}
+        {show('rockingchair') && <RockingChairProp />}
+        {show('brush') && <BrushProp />}
+        {show('board') && <BoardProp />}
+        {show('ladle') && <LadleProp />}
+        {show('desk') && <DeskProp />}
+        {show('stationery') && <StationeryProp />}
+        {show('laptop') && <LaptopProp />}
+        {STOCK_PROP_IDS.map((id) =>
+          show(id) && (state.supplies[id] ?? 0) > 0 ? (
+            <StockProp key={id} itemId={id} />
+          ) : null,
+        )}
+        {isFocus && state.session.supply && (
+          <SupplyProp
+            itemId={state.session.supply.itemId}
+            variant={state.session.supply.variant}
+          />
+        )}
+        {outdoor && state.weather !== 'clear' && (
+          <WeatherFx kind={state.weather} />
+        )}
+        {outdoor && <TimeTint tod={tod} />}
+        </>
       )}
-      {show('cup') && <CupProp />}
-      {showBook && <BookProp />}
-      {show('plant') && <PlantProp />}
-      {show('soda') && <SodaProp />}
-      {show('fan') && <FanProp />}
-      {show('lamp') && <LampProp />}
-      {show('cushion') && <CushionProp />}
-      {show('shoes') && <ShoesProp />}
-      {show('book') && <ReadBookProp />}
-      {show('pot') && <PotProp />}
-      {show('broom') && <BroomProp />}
-      {show('pillow') && <PillowProp />}
-      {show('bed') && <BedProp />}
-      {(show('umbrella') ||
-        (isFocus && sceneId === 'walk' && state.session.umbrella)) && (
-        <UmbrellaProp />
-      )}
-      {show('fireplace') && <FireplaceProp />}
-      {show('rockingchair') && <RockingChairProp />}
-      {show('brush') && <BrushProp />}
-      {show('board') && <BoardProp />}
-      {show('ladle') && <LadleProp />}
-      {show('desk') && <DeskProp />}
-      {show('stationery') && <StationeryProp />}
-      {show('laptop') && <LaptopProp />}
-      {STOCK_PROP_IDS.map((id) =>
-        show(id) && (state.supplies[id] ?? 0) > 0 ? (
-          <StockProp key={id} itemId={id} />
-        ) : null,
-      )}
-      {isFocus && state.session.supply && (
-        <SupplyProp
-          itemId={state.session.supply.itemId}
-          variant={state.session.supply.variant}
-        />
-      )}
-      {outdoor && state.weather !== 'clear' && (
-        <WeatherFx kind={state.weather} />
-      )}
-      {outdoor && <TimeTint tod={tod} />}
       <div
         style={{
           position: 'absolute',
