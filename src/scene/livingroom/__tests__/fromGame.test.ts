@@ -214,6 +214,38 @@ describe('심고 나면 돌은 러그에 없다', () => {
   });
 });
 
+describe('돌의 자리 — 볕쬐기는 창턱, 그 밖은 러그', () => {
+  // 기획서: "돌의 창가 지정석은 창가 선반(창턱)". 볕쬐기 세션 동안 돌이 창턱
+  // 방석으로 올라간다. 이걸 빠뜨려서 볕쬐기·책읽기가 화면상 구분되지 않았다.
+  const focus = (action: string) =>
+    ({ ...base, phase: 'focus', selectedAction: action }) as GameState;
+
+  it('볕쬐기 세션이면 창턱에 올라간다', () => {
+    expect(sceneStateFrom(focus('sun'), 0).orb).toBe('sill');
+  });
+
+  it('창턱에 올라가면 러그 돌은 꺼지고 창턱 돌이 켜진다', () => {
+    const off = hiddenLayers(focus('sun'), false, D);
+    expect(off.has('orb')).toBe(false); // 창턱 돌
+    expect(off.has('orb-rug')).toBe(false); // 러그 돌은 렌더러가 orb!=='rug' 로 숨긴다
+    // (레이어는 켜 두고, 자리에 따라 렌더러가 택한다 — orb-rug 를 여기서 끄지 않는다)
+  });
+
+  it('책읽기 세션은 러그에 남는다 — 담요를 두르는 자리다', () => {
+    expect(sceneStateFrom(focus('read'), 0).orb).toBe('rug');
+  });
+
+  it('휴식 중에는 러그가 제자리다', () => {
+    expect(sceneStateFrom(base, 0).orb).toBe('rug');
+  });
+
+  it('부재 중이면 볕쬐기든 아니든 창턱(자국만)이다', () => {
+    const away = { ...focus('sun'), presence: { state: 'away' } } as unknown as GameState;
+    expect(sceneStateFrom(away, 0).orb).toBe('sill');
+    expect(hiddenLayers(away, false, D).has('orb')).toBe(true); // 돌 자체는 꺼진다
+  });
+});
+
 describe('시간·계절·날씨 번역', () => {
   it('게임 twilight 은 씬에서 sunset 이다', () => {
     const st = sceneStateFrom(
