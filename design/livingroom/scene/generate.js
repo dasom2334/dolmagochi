@@ -181,6 +181,47 @@ const BOX_FW = 1.15;
 const fwdX = (x, s = BOX_FW) => FLOOR_VPX + (x - FLOOR_VPX) * s;
 const fwdY = (y, s = BOX_FW) => FLOOR_VPY + (y - FLOOR_VPY) * s;
 
+// ─────────────── 벽난로·책장 형태 보정 ───────────────
+// 측정 추출이 **조명과 평면 색은 가져왔지만 구조는 못 가져왔다.** 둘 다 모서리의
+// 1px 하이라이트가 없어서, 이 크기에서는 널·턱·보가 전부 "그려 넣은 줄"로 읽힌다.
+// 측정 아트 뒤에 덧그려 구조를 세운다(순서상 나중이라 위에 덮인다).
+
+function fireplaceDetail() {
+  const d = [];
+  // 맨틀은 몸통보다 좌우로 튀어나와야 한다 — 벽난로를 벽난로로 읽게 하는 결정적 단서.
+  // 측정본은 몸통과 정확히 같은 폭(x0~21)이라 턱이 아예 없었다.
+  d.push([-2, 31, 26, 1, '--s12']);          // 상판 윗면(가장 밝다)
+  d.push([-2, 32, 26, 1, '--s10']);          // 상판 앞면
+  d.push([-2, 33, 26, 1, '--s2']);           // 턱 밑 그림자 — 튀어나온 걸 증명한다
+  // 상인방 — 아궁이 위를 가로지르는 보
+  d.push([3, 36, 16, 1, '--s10']);
+  d.push([3, 37, 16, 1, '--s6']);
+  // 아궁이 안은 새까매야 불꽃이 산다. 측정본엔 잔광·장작이 중간톤으로 구워져 있어
+  // 구멍이 아니라 채워진 판으로 보였다 → 덮고 장작만 남긴다.
+  for (let y = 38; y <= 47; y++) d.push([6, y, 11, 1, '--s1']);
+  d.push([7, 46, 8, 1, '--s7']);
+  d.push([9, 45, 4, 1, '--s4']);
+  // 화덕 — 바닥으로 튀어나온 돌판. 없으면 벽에 그려 놓은 그림처럼 보인다.
+  d.push([-3, 48, 28, 1, '--s9']);
+  d.push([-3, 49, 28, 1, '--s6']);
+  return d;
+}
+
+function shelfDetail() {
+  const d = [];
+  d.push([77, 16, 20, 1, '--s10']);          // 상판 윗면
+  d.push([77, 17, 20, 1, '--s6']);
+  // 선반 널 앞면 1px 하이라이트 + 밑면 그림자 = 두께.
+  // 측정본은 널이 몸통과 같은 톤이라 그냥 줄로 보였다.
+  for (const y of [25, 36, 46]) {
+    d.push([78, y, 18, 1, '--s10']);
+    d.push([78, y + 1, 18, 1, '--s5']);
+  }
+  d.push([77, 47, 20, 1, '--s6']);           // 굽
+  d.push([77, 48, 20, 1, '--s3']);
+  return d;
+}
+
 /** rect 목록을 앞면 위치로. 런 구조를 유지한 채 최근접 확대 */
 function pullForward(rects, s = BOX_FW) {
   return rects.map(([x, y, w, h, slot, op]) => {
@@ -741,10 +782,12 @@ export function generateGroups(measured = {}) {
   Object.assign(out, buildRoomProps());          // 상점 소품·대사 사물
 
   // 벽난로·책장을 앞으로 끌어내 깊이를 준다. 얹힌 것들도 같은 변환으로 따라간다.
+  const DETAIL = { 'g-fireplace': fireplaceDetail, 'g-shelf': shelfDetail };
   for (const [id, b] of Object.entries(BOXES)) {
     if (!measured[id]) continue;
+    // 구조 보정은 측정 아트 **뒤에** 붙여야 위에 덮인다
     out[id] = [...boxFaces(b.x0, b.x1, b.y0, b.y1, b.dir, b.side, b.top),
-               ...pullForward(measured[id])];
+               ...pullForward([...measured[id], ...DETAIL[id]()])];
   }
   for (const id of [...ON_FIREPLACE, ...ON_SHELF])
     if (measured[id]) out[id] = pullForward(measured[id]);
