@@ -186,20 +186,37 @@ const fwdY = (y, s = BOX_FW) => FLOOR_VPY + (y - FLOOR_VPY) * s;
 // 1px 하이라이트가 없어서, 이 크기에서는 널·턱·보가 전부 "그려 넣은 줄"로 읽힌다.
 // 측정 아트 뒤에 덧그려 구조를 세운다(순서상 나중이라 위에 덮인다).
 
+/** 벽돌 줄눈 — 가로 켜 사이 1px + 세로 이음매를 켜마다 엇갈리게(막힌줄눈).
+ *  레퍼런스 도트 벽난로는 예외 없이 벽돌이 한 장씩 보인다. 통짜 단색이면 판자다. */
+function brick(x0, x1, y0, y1, slot = '--s2') {
+  const r = [];
+  for (let y = y0; y <= y1; y++) {
+    if ((y - y0) % 3 === 0) { r.push([x0, y, x1 - x0 + 1, 1, slot]); continue; }
+    const off = (Math.floor((y - y0) / 3) % 2) * 2;
+    for (let x = x0 + off; x <= x1; x += 4) r.push([x, y, 1, 1, slot]);
+  }
+  return r;
+}
+
 function fireplaceDetail() {
   const d = [];
-  // 맨틀은 몸통보다 좌우로 튀어나와야 한다 — 벽난로를 벽난로로 읽게 하는 결정적 단서.
-  // 측정본은 몸통과 정확히 같은 폭(x0~21)이라 턱이 아예 없었다.
+  // 맨틀 — 레퍼런스는 한 겹이 아니라 **계단식**이다. 위가 가장 넓고 아래로 좁아진다.
   d.push([-2, 31, 26, 1, '--s12']);          // 상판 윗면(가장 밝다)
-  d.push([-2, 32, 26, 1, '--s10']);          // 상판 앞면
-  d.push([-2, 33, 26, 1, '--s2']);           // 턱 밑 그림자 — 튀어나온 걸 증명한다
-  // 상인방 — 아궁이 위를 가로지르는 보
-  d.push([3, 36, 16, 1, '--s10']);
-  d.push([3, 37, 16, 1, '--s6']);
-  // 아궁이 안은 새까매야 불꽃이 산다. 측정본엔 잔광·장작이 중간톤으로 구워져 있어
-  // 구멍이 아니라 채워진 판으로 보였다 → 덮고 장작만 남긴다.
-  for (let y = 38; y <= 47; y++) d.push([6, y, 11, 1, '--s1']);
-  d.push([7, 46, 8, 1, '--s7']);
+  d.push([-1, 32, 24, 1, '--s10']);          // 한 단 좁은 앞면
+  d.push([0, 33, 22, 1, '--s2']);            // 턱 밑 그림자 — 돌출을 증명하는 건 이것
+  // 벽돌 — 좌우 기둥. 통짜 단색이던 곳에 켜를 넣는다
+  d.push(...brick(1, 5, 34, 47));
+  d.push(...brick(17, 20, 34, 47));
+  // 상인방 — 아궁이 위를 가로지르는 보(벽돌이 아니라 통돌)
+  d.push([2, 36, 18, 1, '--s10']);
+  d.push([2, 37, 18, 1, '--s6']);
+  // 아궁이 — 레퍼런스는 사각이 아니라 **아치**다. 위 두 줄을 좁혀 둥글린다.
+  // 안쪽은 새까매야 불꽃이 산다(측정본은 잔광이 구워져 있어 채워진 판이었다).
+  for (let y = 38; y <= 47; y++) {
+    const inset = y === 38 ? 2 : y === 39 ? 1 : 0;
+    d.push([6 + inset, y, 11 - inset * 2, 1, '--s1']);
+  }
+  d.push([7, 46, 8, 1, '--s7']);             // 장작
   d.push([9, 45, 4, 1, '--s4']);
   // 화덕 — 바닥으로 튀어나온 돌판. 없으면 벽에 그려 놓은 그림처럼 보인다.
   d.push([-3, 48, 28, 1, '--s9']);
@@ -207,12 +224,31 @@ function fireplaceDetail() {
   return d;
 }
 
-function shelfDetail() {
+/** 책장 칸 안쪽 — 레퍼런스의 제1 단서는 **안쪽이 틀보다 확연히 어둡다**는 것.
+ *  측정본은 둘이 거의 같은 톤이라 통짜 판으로 보였다.
+ *  단, 안에 이미 그려진 밝은 것(책·화분)은 남겨야 하므로 어두운 배경 톤만 덮는다. */
+const SHELF_BG = new Set(['--s3', '--s5', '--s6', '--s8']);
+const SHELF_BAYS = [[18, 24], [27, 35], [38, 45]];
+
+function shelfDetail(measured) {
   const d = [];
+  const cell = new Map();
+  for (const [x, y, w, h, s] of measured)
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) cell.set((y + j) + ',' + (x + i), s);
+  // 칸 안쪽 배경만 어둡게
+  for (const [y0, y1] of SHELF_BAYS)
+    for (let y = y0; y <= y1; y++) {
+      let run = null;
+      for (let x = 79; x <= 95; x++) {
+        const dark = SHELF_BG.has(cell.get(y + ',' + x));
+        if (dark) { if (!run) run = [x, x]; else run[1] = x; }
+        else if (run) { d.push([run[0], y, run[1] - run[0] + 1, 1, '--s1']); run = null; }
+      }
+      if (run) d.push([run[0], y, run[1] - run[0] + 1, 1, '--s1']);
+    }
   d.push([77, 16, 20, 1, '--s10']);          // 상판 윗면
   d.push([77, 17, 20, 1, '--s6']);
   // 선반 널 앞면 1px 하이라이트 + 밑면 그림자 = 두께.
-  // 측정본은 널이 몸통과 같은 톤이라 그냥 줄로 보였다.
   for (const y of [25, 36, 46]) {
     d.push([78, y, 18, 1, '--s10']);
     d.push([78, y + 1, 18, 1, '--s5']);
@@ -787,7 +823,7 @@ export function generateGroups(measured = {}) {
     if (!measured[id]) continue;
     // 구조 보정은 측정 아트 **뒤에** 붙여야 위에 덮인다
     out[id] = [...boxFaces(b.x0, b.x1, b.y0, b.y1, b.dir, b.side, b.top),
-               ...pullForward([...measured[id], ...DETAIL[id]()])];
+               ...pullForward([...measured[id], ...DETAIL[id](measured[id])])];
   }
   for (const id of [...ON_FIREPLACE, ...ON_SHELF])
     if (measured[id]) out[id] = pullForward(measured[id]);
