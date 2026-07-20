@@ -161,7 +161,10 @@ function SoundMixer({ state }: { state: GameState }) {
             }}
           >
             {ALL_LAYERS.map((layer) => {
-              const muted = state.settings.noiseMuted.includes(layer);
+              // 커스텀은 '켜 둔 것' 목록이라 의미가 반대다
+              const muted = custom
+                ? !state.settings.noiseCustom.includes(layer)
+                : state.settings.noiseMuted.includes(layer);
               // 커스텀은 상황을 보지 않는다 — 켜 두면 겨울에도 매미가 운다
               const audible = custom ? !muted : active.has(layer);
               return (
@@ -205,14 +208,15 @@ export function AmbienceBar({ state }: { state: GameState }) {
   const nowMs = now();
   const season: Season = resolveSeason(state.settings, nowMs);
   const time: TimeOfDay = resolveTimeOfDay(state.settings, nowMs);
-  // 날씨만 집중 중 잠금 — 우산 판정이 세션 시작에 확정되므로 (리듀서도 동일 게이트)
-  const weatherLocked =
+  // 날씨·계절은 집중 중 잠금 — 우산 판정이 세션 시작에 확정되는데, 계절 변경도
+  // 무효 날씨를 재추첨하며 날씨를 갈아끼운다 (리듀서도 두 이벤트에 같은 게이트).
+  const outsideLocked =
     state.phase !== "rest" && state.phase !== "actionSelect";
   const custom = state.settings.noiseMode === "custom";
   const noiseCount = !state.settings.noiseOn
     ? 0
     : custom
-      ? ALL_LAYERS.filter((l) => !state.settings.noiseMuted.includes(l)).length
+      ? state.settings.noiseCustom.length
       : deriveLayers({
           phase: state.phase === "focus" ? "focus" : "room",
           actionId: state.phase === "focus" ? state.selectedAction : null,
@@ -224,6 +228,12 @@ export function AmbienceBar({ state }: { state: GameState }) {
         }).filter((l) => !state.settings.noiseMuted.includes(l)).length;
 
   const toggle = (p: Panel) => setOpen(open === p ? null : p);
+  // 잠긴 축의 패널은 열린 채로 두지 않는다: actionSelect에서 날씨를 펼쳐 두고
+  // 집중을 시작하면, 칩만 흐려지고 선택지는 멀쩡해 보이는 채로 눌러도 아무 일이
+  // 없었다 (리듀서가 조용히 거절). 렌더 단계에서 접는다 — 상태를 건드리지 않아
+  // 세션이 끝나면 그대로 다시 펼쳐진다.
+  const panel =
+    outsideLocked && (open === "weather" || open === "season") ? null : open;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -236,16 +246,17 @@ export function AmbienceBar({ state }: { state: GameState }) {
           ☀ {t(UI.weatherUi.timeModes[time])}
         </button>
         <button
-          className="hv"
-          style={chipStyle(open === "season", false)}
+          className={outsideLocked ? undefined : "hv"}
+          disabled={outsideLocked}
+          style={chipStyle(panel === "season", outsideLocked)}
           onClick={() => toggle("season")}
         >
           ❄ {t(UI.weatherUi.seasonModes[season])}
         </button>
         <button
-          className={weatherLocked ? undefined : "hv"}
-          disabled={weatherLocked}
-          style={chipStyle(open === "weather", weatherLocked)}
+          className={outsideLocked ? undefined : "hv"}
+          disabled={outsideLocked}
+          style={chipStyle(panel === "weather", outsideLocked)}
           onClick={() => toggle("weather")}
         >
           ☂ {t(UI.weatherUi.kinds[state.weather])}
@@ -259,7 +270,7 @@ export function AmbienceBar({ state }: { state: GameState }) {
         </button>
       </div>
 
-      {open && (
+      {panel && (
         <div
           style={{
             border: "2px solid var(--hint-dim)",
@@ -270,7 +281,7 @@ export function AmbienceBar({ state }: { state: GameState }) {
             gap: 8,
           }}
         >
-          {open === "time" && (
+          {panel === "time" && (
             <OptionGrid titleId={UI.weatherUi.timeSetting}>
               {TIME_MODES.map((m) => (
                 <Option
@@ -284,7 +295,7 @@ export function AmbienceBar({ state }: { state: GameState }) {
               ))}
             </OptionGrid>
           )}
-          {open === "season" && (
+          {panel === "season" && (
             <OptionGrid titleId={UI.weatherUi.seasonSetting}>
               {SEASON_MODES.map((m) => (
                 <Option
@@ -298,7 +309,7 @@ export function AmbienceBar({ state }: { state: GameState }) {
               ))}
             </OptionGrid>
           )}
-          {open === "weather" && (
+          {panel === "weather" && (
             <OptionGrid titleId={UI.weatherUi.now}>
               {weathersOfSeason(season).map((w: WeatherKind) => (
                 <Option
@@ -312,7 +323,7 @@ export function AmbienceBar({ state }: { state: GameState }) {
               ))}
             </OptionGrid>
           )}
-          {open === "sound" && <SoundMixer state={state} />}
+          {panel === "sound" && <SoundMixer state={state} />}
         </div>
       )}
     </div>

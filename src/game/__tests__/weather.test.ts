@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { seasonAt, timeOfDayAt } from '../timeOfDay';
-import { ALL_LAYERS, deriveLayers } from '../../audio/layers';
+import { deriveLayers } from '../../audio/layers';
 import { createInitialState, transition, weathersOfSeason } from '../stateMachine';
 import type { GameEvent, GameState } from '../types';
 import { mulberry32, type Rng } from '../rng';
@@ -208,9 +208,7 @@ describe('소리풍경 모드 (M22) — 자동 / 완전 커스텀', () => {
     const base = createInitialState(T0, 'lie');
     const s = run(base, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
     expect(s.settings.noiseMode).toBe('custom');
-    // 진입 시점에 울리던 레이어만 켜져 있다 = 나머지는 전부 음소거 목록에
-    const audible = ALL_LAYERS.filter((l) => !s.settings.noiseMuted.includes(l));
-    expect(audible).toEqual(
+    expect(s.settings.noiseCustom).toEqual(
       deriveLayers({
         phase: 'room',
         actionId: null,
@@ -227,8 +225,8 @@ describe('소리풍경 모드 (M22) — 자동 / 완전 커스텀', () => {
     const base = createInitialState(T0, 'lie'); // T0 = 1월 겨울
     let s = run(base, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
     s = run(s, [{ type: 'SET_NOISE_LAYER', layer: 'cicadas', muted: false }]);
-    expect(s.settings.noiseMuted).not.toContain('cicadas');
-    // 겨울이라 자동 모드였다면 매미는 도출되지 않는다 — 커스텀이니 남는다
+    expect(s.settings.noiseCustom).toContain('cicadas');
+    // 자동이었다면 겨울에 매미는 도출조차 되지 않는다 — 커스텀이니 남는다
     expect(
       deriveLayers({
         phase: 'room', actionId: null, ownedItems: [],
@@ -237,13 +235,22 @@ describe('소리풍경 모드 (M22) — 자동 / 완전 커스텀', () => {
     ).not.toContain('cicadas');
   });
 
-  it('자동으로 되돌려도 음소거 목록은 보존된다 (되돌아올 자리)', () => {
+  /** 리뷰 지적: 두 모드가 noiseMuted 한 필드를 공유하면, 커스텀을 한 번 거쳤다
+   *  돌아온 순간 자동의 음소거 설정이 통째로 덮여 자동이 영영 조용해졌다. */
+  it('커스텀을 거쳐도 자동의 음소거 설정은 그대로다 (필드 분리)', () => {
     const base = createInitialState(T0, 'lie');
-    let s = run(base, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
-    const muted = s.settings.noiseMuted;
+    // 자동에서 '벽난로'만 꺼 둔다
+    let s = run(base, [{ type: 'SET_NOISE_LAYER', layer: 'fireplace', muted: true }]);
+    expect(s.settings.noiseMuted).toEqual(['fireplace']);
+    // 커스텀에 들렀다 온다
+    s = run(s, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
+    s = run(s, [{ type: 'SET_NOISE_LAYER', layer: 'cicadas', muted: false }]);
     s = run(s, [{ type: 'SET_NOISE_MODE', mode: 'auto', nowMs: T0 }]);
+    // 자동의 음소거는 손대지 않은 그대로여야 한다
     expect(s.settings.noiseMode).toBe('auto');
-    expect(s.settings.noiseMuted).toEqual(muted);
+    expect(s.settings.noiseMuted).toEqual(['fireplace']);
+    // 커스텀 설정도 살아 있어 다시 들어가면 이어진다
+    expect(s.settings.noiseCustom).toContain('cicadas');
   });
 
   it('같은 모드 재지정은 no-op — 커스텀 설정이 초기화되지 않는다', () => {
@@ -251,6 +258,46 @@ describe('소리풍경 모드 (M22) — 자동 / 완전 커스텀', () => {
     let s = run(base, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
     s = run(s, [{ type: 'SET_NOISE_LAYER', layer: 'cicadas', muted: false }]);
     const again = run(s, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
-    expect(again.settings.noiseMuted).toEqual(s.settings.noiseMuted);
+    expect(again.settings.noiseCustom).toEqual(s.settings.noiseCustom);
+  });
+});
+
+/** 리뷰 지적: SET_SEASON에 phase 게이트가 없어, 마른 날 시작한 산책이 도중에
+ *  계절 변경 → 날씨 재추첨으로 눈·비가 되어 우산도 못 쓴 채 젖었다. */
+describe('집중 중 바깥 조건 고정 (M22)', () => {
+  it('집중 중에는 계절을 바꿀 수 없다 — 날씨 재추첨이 우산 판정을 뒤집는다', () => {
+    const base = createInitialState(T0, 'lie');
+    const focusing: GameState = {
+      ...base,
+      phase: 'focus',
+      selectedAction: 'walk',
+      weather: 'clear',
+    };
+    const after = run(focusing, [{ type: 'SET_SEASON', mode: 'summer', nowMs: T0 }]);
+    expect(after.settings.season).toBe('auto'); // 그대로
+    expect(after.weather).toBe('clear'); // 재추첨 안 함
+  });
+
+  it('마른 산책이 도중에 젖는 일이 없다 (계절 잠금 회귀)', () => {
+    const base = createInitialState(T0, 'lie');
+    let s: GameState = {
+      ...base,
+      weather: 'clear',
+      selectedAction: 'walk',
+      items: { shoes: { placed: false }, umbrella: { placed: false } },
+    };
+    s = run(s, [{ type: 'START_FOCUS', nowMs: T0 }]);
+    expect(s.pendingUmbrella).toBe(false); // 마른 날이라 우산을 묻지 않았다
+    // 집중 중 계절을 흔들어도 (rng를 눈 쪽으로 몰아도) 날씨는 안 바뀐다
+    s = run(s, [{ type: 'SET_SEASON', mode: 'winter', nowMs: T0 }], seq([0.99]));
+    expect(s.weather).toBe('clear');
+    s = run(s, [{ type: 'END_FOCUS', nowMs: T0 + 60_000 }]);
+    expect(s.session.wetness).toBeNull(); // 우산 없이 젖지 않았다
+  });
+
+  it('휴식·행동선택에서는 계절 변경이 정상 동작한다', () => {
+    const base = createInitialState(T0, 'lie');
+    const s = run(base, [{ type: 'SET_SEASON', mode: 'summer', nowMs: T0 }]);
+    expect(s.settings.season).toBe('summer');
   });
 });

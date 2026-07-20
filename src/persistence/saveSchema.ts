@@ -190,6 +190,9 @@ function normalizeState(state: GameState): GameState {
       notify: normalizeNotify(state.settings.notify, flowtime.bounds.length),
       // 소리풍경 음소거 목록 방어 (M9) — 손상 세이브가 배열이 아니면 초기화
       noiseMode: state.settings.noiseMode === 'custom' ? 'custom' : 'auto',
+      noiseCustom: Array.isArray(state.settings.noiseCustom)
+        ? state.settings.noiseCustom.filter((l): l is string => typeof l === 'string')
+        : [],
       noiseMuted: Array.isArray(state.settings.noiseMuted)
         ? state.settings.noiseMuted.filter((l): l is string => typeof l === 'string')
         : [],

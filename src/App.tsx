@@ -10,7 +10,7 @@ import { notify, requestNotifyPermission } from './notifications';
 import { pushToast } from './toast';
 import { dueFocusMarks } from './game/notify';
 import { ensureAudioContext, playSound, setSoundEnabled } from './sound';
-import { ALL_LAYERS, deriveLayers } from './audio/layers';
+import { deriveLayers, type LayerId } from './audio/layers';
 import { resolveSeason, resolveTimeOfDay } from './game/timeOfDay';
 import { stopSoundscape, syncSoundscape } from './audio/engine';
 import { ToastHost } from './components/ToastHost';
@@ -165,6 +165,10 @@ export function App() {
   // 소리풍경 (M9) — 상황(행동×보유 아이템×실내외) 레이어를 noiseOn·음소거와 동기화.
   // 언마운트 시 정지. 아이템 목록은 키 문자열로 의존성 안정화.
   const ownedKey = Object.keys(state.items).sort().join(',');
+  // 자동 모드의 시간축 — 의존성에 넣어야 실시간 경계(밤이 됨·계절이 바뀜)에서
+  // 재생이 따라온다. 없으면 칩 숫자만 줄고 매미는 계속 울었다.
+  const nowSeason = resolveSeason(state.settings, nowMs);
+  const nowTod = resolveTimeOfDay(state.settings, nowMs);
   useEffect(() => {
     syncSoundscape({
       on: state.settings.noiseOn,
@@ -172,15 +176,15 @@ export function App() {
       // 전량을 넘기고 음소거 필터에 맡기면 '내가 고른 대로'가 그대로 울린다.
       layers:
         state.settings.noiseMode === 'custom'
-          ? ALL_LAYERS
+          ? (state.settings.noiseCustom as LayerId[])
           : deriveLayers({
               phase: state.phase === 'focus' ? 'focus' : 'room',
               actionId: state.phase === 'focus' ? state.selectedAction : null,
               ownedItems: ownedKey ? ownedKey.split(',') : [],
               weather: state.weather,
               umbrella: state.session.umbrella,
-              season: resolveSeason(state.settings, Date.now()),
-              timeOfDay: resolveTimeOfDay(state.settings, Date.now()),
+              season: nowSeason,
+              timeOfDay: nowTod,
             }),
       muted: state.settings.noiseMuted,
     });
@@ -188,6 +192,9 @@ export function App() {
     state.settings.noiseOn,
     state.settings.noiseMuted,
     state.settings.noiseMode,
+    state.settings.noiseCustom,
+    nowSeason,
+    nowTod,
     state.phase,
     state.selectedAction,
     ownedKey,

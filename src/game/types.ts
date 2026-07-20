@@ -360,6 +360,9 @@ export interface GameState {
     noiseOn: boolean;
     /** 소리풍경 레이어별 음소거 (M9) — LayerId 목록. 마스터는 noiseOn. */
     noiseMuted: string[];
+    /** 커스텀 모드에서 **켜 둔** 레이어 (M22) — 자동의 noiseMuted와 의미가 반대다.
+     *  두 목록을 분리해야 모드를 오가도 서로의 설정이 살아남는다. */
+    noiseCustom: string[];
     /**
      * 소리풍경 모드 (M22).
      *  auto   — 상황(행동×아이템×날씨×계절)이 고르는 레이어만 울린다.

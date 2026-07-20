@@ -1,5 +1,6 @@
 import type { CrisisKind, GameState } from '../game/types';
 import { DEFAULT_NOTIFY_SETTINGS, SCHEMA_VERSION } from '../game/stateMachine';
+import { ALL_LAYERS } from '../audio/layers';
 import { cloneFlowtime } from '../game/timer';
 import { BALANCE } from '../game/balance';
 import { derivedSecurity } from '../game/security';
@@ -301,6 +302,24 @@ export function migrateState(state: GameState): GameState | null {
       ...s,
       schemaVersion: 26,
       settings: { ...s.settings, noiseMode: s.settings.noiseMode ?? 'auto' },
+    };
+  }
+  if (s.schemaVersion === 26) {
+    // M22 후속: 커스텀 모드 목록을 noiseMuted에서 분리한다. v26에서 커스텀을
+    // 쓰던 저장은 noiseMuted가 '켜 둔 것의 여집합'이라, 그 여집합을 되살린다.
+    s = {
+      ...s,
+      schemaVersion: 27,
+      settings: {
+        ...s.settings,
+        noiseCustom:
+          s.settings.noiseCustom ??
+          (s.settings.noiseMode === 'custom'
+            ? ALL_LAYERS.filter((l) => !(s.settings.noiseMuted ?? []).includes(l))
+            : []),
+        // 커스텀이었다면 noiseMuted는 커스텀이 덮어쓴 값이므로 비워 되돌린다
+        noiseMuted: s.settings.noiseMode === 'custom' ? [] : (s.settings.noiseMuted ?? []),
+      },
     };
   }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
