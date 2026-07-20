@@ -76,13 +76,27 @@ palette = {k: (v if EMISSIVE.match(k) else punch(v))
            for k, v in pal.items() if not SKIP.match(k)}
 
 # ---- 1) 실제로 쓰는 데이터 ----
-shipped = {'palette': palette, 'groups': {g: group(g) for g in EXTRACTED}}
+groups = {g: group(g) for g in EXTRACTED}
+
+# 촛불 화염은 발광체 → emission 레이어로 가야 밤에도 어두워지지 않는다.
+# 원본에서 <g class="c-flame"> 로 감싸여 있으므로 그 범위만 떼어낸다.
+ci = art.index('<g id="candle">')
+fi = art.index('<g class="c-flame">', ci)
+fe = art.index('</g>', fi)
+flame = set()
+for m in re.finditer(r'<rect[^>]*/>', art[fi:fe]):
+    a = dict(re.findall(r'(\w+)="([^"]*)"', m.group(0)))
+    flame.add((int(a['x']), int(a['y'])))
+groups['candle-flame'] = [r for r in groups['candle'] if (r[0], r[1]) in flame]
+groups['candle'] = [r for r in groups['candle'] if (r[0], r[1]) not in flame]
+
+shipped = {'palette': palette, 'groups': groups}
 out_js = os.path.join(HERE, '..', 'scene', 'room-data.js')
 os.makedirs(os.path.dirname(out_js), exist_ok=True)
 with open(out_js, 'w') as f:
     f.write('// 자동 생성 — tools/export_room.py. 손으로 고치지 말 것.\n')
     f.write('// 레퍼런스 측정 결과(추출 그룹). 재측정 전엔 고정.\n')
-    f.write('const ROOM_DATA = ')
+    f.write('export const ROOM_DATA = ')
     json.dump(shipped, f, separators=(',', ':'))
     f.write(';\n')
 

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>거실 씬 v3 — 런타임 생성 + canvas</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { min-height:100vh; display:flex; flex-direction:column; align-items:center;
+         justify-content:center; gap:18px; background:#1b1020; padding:24px 12px;
+         font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif; }
+  #stage { width:100%; max-width:900px; aspect-ratio:4/3; border-radius:12px;
+           overflow:hidden; background:#241627; }
+  canvas { display:block; width:100%; height:100%; image-rendering:pixelated; }
+  .panel { width:100%; max-width:900px; display:flex; flex-direction:column; gap:8px; }
+  .group { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .g-label { width:56px; flex:none; color:#8d7a92; font-size:12px; letter-spacing:.04em; }
+  label { padding:5px 12px; border-radius:999px; background:#2a1c31; border:1px solid #443150;
+          color:#af9cb4; font-size:12px; line-height:1; cursor:pointer; user-select:none;
+          transition:background .15s,color .15s,border-color .15s; }
+  label:hover { border-color:#6b5175; }
+  label.on { background:#d98e4a; border-color:#d98e4a; color:#2a1626; font-weight:600; }
+  .divider { height:1px; background:#2e2036; margin:2px 0; }
+  .note { color:#6f5e76; font-size:11px; }
+</style>
+</head>
+<body>
+  <div id="stage"><canvas id="cv" width="96" height="72"></canvas></div>
+  <div class="panel" id="panel"></div>
+
+  <script type="module">
+    import { render, Z } from './scene/render.js';
+
+    const cv = document.getElementById('cv');
+    const state = { time:'sunset', season:'summer', weather:'clear', orb:'sill', tree:'v1' };
+    const off = new Set();                      // 꺼진 레이어
+
+    const AXES = [
+      ['시간', 'time',    [['day','낮'],['sunset','노을'],['night','밤']]],
+      ['계절', 'season',  [['spring','봄'],['summer','여름'],['autumn','가을'],['winter','겨울']]],
+      ['날씨', 'weather', [['clear','맑음'],['cloud','흐림'],['rain','비'],['snow','눈']]],
+      ['돌',   'orb',     [['sill','창턱'],['rug','러그']]],
+      ['나무', 'tree',    [['v1','v1 침엽'],['v2','v2 활엽']]],
+    ];
+    const TOGGLES = [
+      ['색감', [['light-day','낮 오버레이'],['light-sunset','노을 오버레이'],['light-night','밤 오버레이'],
+                ['light-cloud','흐림'],['light-rain','비'],['light-snow','눈']]],
+      ['광원', [['lp-sun','창문 햇빛'],['lp-moon','창문 달빛'],['lp-fire','벽난로'],
+                ['lp-candle','촛불'],['lp-lamp','스탠드'],['rim','역광'],['shadow','그림자·비네트']]],
+      ['배경', [['g-wall','벽'],['g-floor','바닥'],['g-winframe','창틀'],
+                ['g-fireplace','벽난로'],['g-shelf','책장']]],
+      ['창밖', [['base-scenery','풍경'],['tree-v1','나무v1'],['tree-v2','나무v2'],
+                ['sun','해'],['moon','달'],['stars','별'],['clouds','구름']]],
+      ['소품', [['rug','러그'],['orb','창턱 돌'],['orb-rug','러그 돌'],['sill-plant','화분'],
+                ['floor-props','바닥 소품'],['candle','촛대'],['fire','불꽃'],['lamp','스탠드']]],
+    ];
+
+    const panel = document.getElementById('panel');
+    const pills = [];
+    const mk = (labelText, items, isAxis, key) => {
+      const row = document.createElement('div'); row.className = 'group';
+      const l = document.createElement('span'); l.className = 'g-label'; l.textContent = labelText;
+      row.append(l);
+      for (const [val, txt] of items) {
+        const b = document.createElement('label'); b.textContent = txt;
+        b.onclick = () => {
+          if (isAxis) state[key] = val;
+          else off.has(val) ? off.delete(val) : off.add(val);
+          draw();
+        };
+        pills.push([b, isAxis ? () => state[key] === val : () => !off.has(val)]);
+        row.append(b);
+      }
+      panel.append(row);
+    };
+    for (const [t, key, items] of AXES) mk(t, items, true, key);
+    const div = document.createElement('div'); div.className = 'divider'; panel.append(div);
+    for (const [t, items] of TOGGLES) mk(t, items, false);
+    const note = document.createElement('div');
+    note.className = 'note';
+    note.textContent = '지오메트리는 런타임 생성(scene/generate.js) · 색은 팔레트 교체(scene/palette.js) · '
+                     + '레이어 합성은 canvas(scene/render.js). 빌드 단계 없음.';
+    panel.append(note);
+
+    function draw() {
+      render(cv, state, off);
+      for (const [el, isOn] of pills) el.classList.toggle('on', isOn());
+    }
+    draw();
+    window.__scene = { state, off, draw };   // 검증용
+  </script>
+</body>
+</html>
