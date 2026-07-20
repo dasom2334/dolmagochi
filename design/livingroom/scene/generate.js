@@ -959,6 +959,9 @@ export function generateGroups(measured = {}) {
     .forEach((rs, i) => { out[`cflame-f${i}`] = rs; });
   out['lamp-glow'] = lampGlow();
   Object.assign(out, buildRoomProps());          // 상점 소품·대사 사물
+  // 개어 둔 담요는 책장 아래 칸에 얹혀 있다 → 책장과 **같은 배율**로 끌어내야
+  // 선반 안에 들어가 있는 것으로 보인다. 안 하면 선반 뒤에 붙은 천이 된다.
+  if (out['p-blanket']) out['p-blanket'] = pullForward(out['p-blanket']);
 
   // 벽난로·책장을 앞으로 끌어내 깊이를 준다. 얹힌 것들도 같은 변환으로 따라간다.
   const DETAIL = { 'g-fireplace': fireplaceDetail, 'g-shelf': shelfDetail };

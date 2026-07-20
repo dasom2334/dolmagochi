@@ -85,12 +85,13 @@ const Z = [
   'g-winframe', 'win-sash', 'win-sash-open', 'g-floor', 'g-fireplace', 'g-shelf',
   // [3] 소품 (선반 안 → 맨틀 → 창턱 → 바닥 깔개 → 바닥 스탠딩)
   'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
-  'p-waterglass',                                         // 맨틀 위
+  'p-blanket',                                            // 개어 둔 담요 — 책장 아래 칸
+  'p-waterglass',                                         // 러그 옆 바닥
   'p-windchime', 'p-windchime-tubes',                     // 창 오른쪽 벽
   // 창턱 선반 → 그 위 소품 → 돌 방석 → 돌 → 찻잔(돌 방석 옆)
   'sill-shelf', 'sill-plant', 'p-cushion', 'orb', 'p-cushion-front', 'p-bird',
   'p-cup', 'p-cup-tea', 'p-cup-steam',
-  'rug', 'p-blanket', 'orb-rug',
+  'rug', 'orb-rug',
   // 담요는 돌보다 **나중** — 그래야 감싼 것으로 보인다
   'p-blanket-wrap',
   // 펼친 책은 러그 돌 **앞**에 — 돌이 읽고 있는 것처럼 보여야 하므로 돌보다 나중

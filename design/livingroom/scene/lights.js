@@ -130,7 +130,8 @@ function occStrip(x0, w, y0, y1, skew, base, grow = 0.03, sill = null) {
 export const OCCLUDERS = {
   'm-win': {
     'occ-orb':   occStrip(70, 9, 49, 56, 0.55, 48, 0.03, [70, 9]),
-    'occ-plant': occStrip(44, 5, 49, 52, 0.55, 48, 0.03, [44, 5]),
+    // 화분을 새로 그리며 폭 5→8, 높이 5→9 로 커졌다 → 그림자도 넓고 길게
+    'occ-plant': occStrip(44, 8, 49, 54, 0.55, 48, 0.03, [44, 8]),
     'occ-props': occStrip(37, 8, 49, 52, 0.55, 48, 0),
     // 러그 돌은 밑면(y61/x42-51)에서 시작해야 발밑에 붙는다
     'occ-orb2':  occStrip(58, 10, 62, 68, 0.55, 61, 0.05),

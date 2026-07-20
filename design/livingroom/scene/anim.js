@@ -61,6 +61,9 @@ export const GROUP_ANIM = {
   'fire-body': 'f-body',
   'lp-fire': 'glow-flicker',
   // 전폭 파티클은 절차 생성(generate.js)이라 props 의 하위 레이어를 못 쓴다 → 여기서 붙인다
+  // 풍경 대롱 — 수작화 소품이라 props.js 의 layer.anim 을 못 쓴다. 여기서 붙여야 흔들린다.
+  // (render.js 가 창이 열렸을 때만 이 애니메이션을 먹인다)
+  'p-windchime-tubes': 'chime-sway',
   'p-cup-steam': 'steam-rise', clouds: 'cloud-drift', rain: 'rain-fall', downpour: 'rain-heavy',
   snow: 'snow-fall-a', 'pt-petals': 'drift-a', 'pt-leaves': 'drift-b',
 };
