@@ -385,9 +385,12 @@ export function generateGroups() {
     'orb-rug': ball(RUG_ROWS),
     'rim-orb': rim(SILL_ROWS),
     'rim-orb-rug': rim(RUG_ROWS),
+    // 겨울엔 잎만 감추고 줄기는 남긴다 → 따로 내보낸다
     // v1 잎은 겹쳐 그리는 게 의도(본체 위에 명부·스펙클) → run-merge 하지 않는다
-    'tree-v1': [...v1.trunk, ...v1.leaves],
-    'tree-v2': [...v2.trunk, ...emitRows(v2.leaves)],
+    'tree-v1-trunk': v1.trunk,
+    'tree-v1-leaves': v1.leaves,
+    'tree-v2-trunk': v2.trunk,
+    'tree-v2-leaves': emitRows(v2.leaves),
   };
 }
 

@@ -14,8 +14,13 @@ const got = generateGroups();
 const key = (r) => r.slice(0, 5).join(',') + (r[5] !== undefined ? ',' + r[5] : '');
 let bad = 0;
 
+// 나무는 겨울 처리를 위해 줄기·잎으로 나눠 내보내므로 합쳐서 대조한다
+const merged = { ...got,
+  'tree-v1': [...(got['tree-v1-trunk']||[]), ...(got['tree-v1-leaves']||[])],
+  'tree-v2': [...(got['tree-v2-trunk']||[]), ...(got['tree-v2-leaves']||[])] };
+
 for (const gid of Object.keys(ref)) {
-  const a = ref[gid], b = got[gid];
+  const a = ref[gid], b = merged[gid];
   if (!b) { console.log(`✗ ${gid}: JS에 없음`); bad++; continue; }
   if (a.length !== b.length) {
     console.log(`✗ ${gid}: rect 수 다름  py=${a.length} js=${b.length}`);

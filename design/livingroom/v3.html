@@ -29,7 +29,8 @@
   <div class="panel" id="panel"></div>
 
   <script type="module">
-    import { render, Z } from './scene/render.js';
+    import { render } from './scene/render.js';
+    import { reduceMotion } from './scene/anim.js';
 
     const cv = document.getElementById('cv');
     const state = { time:'sunset', season:'summer', weather:'clear', orb:'sill', tree:'v1' };
@@ -53,6 +54,7 @@
                 ['sun','해'],['moon','달'],['stars','별'],['clouds','구름']]],
       ['소품', [['rug','러그'],['orb','창턱 돌'],['orb-rug','러그 돌'],['sill-plant','화분'],
                 ['floor-props','바닥 소품'],['candle','촛대'],['fire','불꽃'],['lamp','스탠드']]],
+      ['효과', [['anim','애니메이션']]],
     ];
 
     const panel = document.getElementById('panel');
@@ -82,12 +84,21 @@
                      + '레이어 합성은 canvas(scene/render.js). 빌드 단계 없음.';
     panel.append(note);
 
-    function draw() {
-      render(cv, state, off);
+    // prefers-reduced-motion 이면 애니메이션을 끈 채 시작한다
+    if (reduceMotion()) off.add('anim');
+
+    let t0 = performance.now(), frozen = 0;
+    function draw(t = frozen) {
+      render(cv, state, off, t);
       for (const [el, isOn] of pills) el.classList.toggle('on', isOn());
     }
+    function loop(now) {
+      if (!off.has('anim')) { frozen = now - t0; draw(frozen); }
+      requestAnimationFrame(loop);
+    }
     draw();
-    window.__scene = { state, off, draw };   // 검증용
+    requestAnimationFrame(loop);
+    window.__scene = { state, off, draw, at: (ms) => { frozen = ms; draw(ms); } };  // 검증용
   </script>
 </body>
 </html>

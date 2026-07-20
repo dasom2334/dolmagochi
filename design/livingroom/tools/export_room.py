@@ -90,6 +90,21 @@ for m in re.finditer(r'<rect[^>]*/>', art[fi:fe]):
 groups['candle-flame'] = [r for r in groups['candle'] if (r[0], r[1]) in flame]
 groups['candle'] = [r for r in groups['candle'] if (r[0], r[1]) not in flame]
 
+# 벽난로 불꽃은 f-out/f-mid/f-core 3단이 서로 다른 주기로 흔들린다 → 분리해 둬야 애니메이션이 된다
+fi2 = art.index('<g id="fire">')
+for cls in ('f-out', 'f-mid', 'f-core'):
+    try:
+        s = art.index('<g class="%s">' % cls, fi2)
+    except ValueError:
+        continue
+    e = art.index('</g>', s)
+    cells = set()
+    for m in re.finditer(r'<rect[^>]*/>', art[s:e]):
+        a = dict(re.findall(r'(\w+)="([^"]*)"', m.group(0)))
+        cells.add((int(a['x']), int(a['y'])))
+    groups['fire-' + cls.split('-')[1]] = [r for r in groups['fire'] if (r[0], r[1]) in cells]
+del groups['fire']
+
 shipped = {'palette': palette, 'groups': groups}
 out_js = os.path.join(HERE, '..', 'scene', 'room-data.js')
 os.makedirs(os.path.dirname(out_js), exist_ok=True)
