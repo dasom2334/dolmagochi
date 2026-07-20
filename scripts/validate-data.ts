@@ -328,6 +328,8 @@ export function validateGameData(
     'sys.focusEnd',
     'sys.notification.restEnd',
     'sys.weather.clear',
+    'sys.weather.cloud',
+    'sys.weather.fog',
     'sys.weather.rain',
     'sys.weather.downpour',
     'sys.weather.snow',

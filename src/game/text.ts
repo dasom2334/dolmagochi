@@ -216,6 +216,8 @@ export const SYS = {
   /** 날씨 변경 서술 (M12) — 종류별 */
   weather: {
     clear: 'sys.weather.clear',
+    cloud: 'sys.weather.cloud',
+    fog: 'sys.weather.fog',
     rain: 'sys.weather.rain',
     downpour: 'sys.weather.downpour',
     snow: 'sys.weather.snow',
@@ -267,6 +269,8 @@ export const UI = {
     now: 'ui.weather.now',
     kinds: {
       clear: 'ui.weather.kind.clear',
+      cloud: 'ui.weather.kind.cloud',
+      fog: 'ui.weather.kind.fog',
       rain: 'ui.weather.kind.rain',
       downpour: 'ui.weather.kind.downpour',
       snow: 'ui.weather.kind.snow',

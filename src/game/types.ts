@@ -10,9 +10,13 @@ export type Era = 'raising' | 'cohabit' | 'apart';
 export type CrisisKind = 'retreat' | 'sick';
 export type Presence = 'present' | 'absent';
 /** 날씨 (M12) — 게이지 무영향(개정 v4-13): 연출·소리·대사 조건만.
- * petals(꽃잎비)=봄, leaves(낙엽비)=가을, snow=겨울 — 계절 의존은 WEATHER_BY_SEASON */
+ * 사계절 공통: clear·cloud(흐림)·fog(안개)·rain·downpour.
+ * 계절 전용: petals(꽃잎비)=봄, grass(풀잎비)=여름, leaves(낙엽비)=가을, snow=겨울.
+ * 가용성·자연 확률은 WEATHER_BY_SEASON. */
 export type WeatherKind =
   | 'clear'
+  | 'cloud'
+  | 'fog'
   | 'rain'
   | 'downpour'
   | 'snow'

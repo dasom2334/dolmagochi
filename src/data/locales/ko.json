@@ -3103,6 +3103,16 @@
       "하늘이 갰다. 구름이 물러난 자리로 볕이 든다."
     ]
   ],
+  "sys.weather.cloud": [
+    [
+      "하늘이 흐려졌다. 빛이 한 겹 걸러진다. 방의 색이 가라앉는다."
+    ]
+  ],
+  "sys.weather.fog": [
+    [
+      "안개가 내렸다. 창밖의 윤곽이 지워진다. 돌은 여전히 또렷하다."
+    ]
+  ],
   "sys.weather.rain": [
     [
       "비가 왔다. 창밖이 차분해진다. 돌도 빗소리를 듣는 것 같다."
@@ -3157,6 +3167,16 @@
   "ui.weather.kind.clear": [
     [
       "맑음"
+    ]
+  ],
+  "ui.weather.kind.cloud": [
+    [
+      "흐림"
+    ]
+  ],
+  "ui.weather.kind.fog": [
+    [
+      "안개"
     ]
   ],
   "ui.weather.kind.rain": [
@@ -4232,6 +4252,16 @@
   "sys.weather.clear.absent": [
     [
       "하늘이 갰다. 구름이 물러난 자리로 볕이 든다. 빈방에도 볕은 든다."
+    ]
+  ],
+  "sys.weather.cloud.absent": [
+    [
+      "하늘이 흐려졌다. 빛이 한 겹 걸러진다. 가라앉을 것도 없는 방이다."
+    ]
+  ],
+  "sys.weather.fog.absent": [
+    [
+      "안개가 내렸다. 창밖의 윤곽이 지워진다. 이 방도 그 안에 있다."
     ]
   ],
   "sys.weather.rain.absent": [

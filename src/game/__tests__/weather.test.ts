@@ -60,11 +60,11 @@ describe('날씨 (M12) — 자연 변화·직접 변경·게이지 무영향', (
       .toBe('clear');
   });
 
-  it('비·장대비는 네 계절 모두에서 고를 수 있다 (M22)', () => {
+  it('맑음·흐림·안개·비·장대비는 네 계절 공통 (M22)', () => {
     const base = createInitialState(T0, 'lie');
     for (const season of ['spring', 'summer', 'autumn', 'winter'] as const) {
       const s = run(base, [{ type: 'SET_SEASON', mode: season, nowMs: T0 }]);
-      for (const w of ['rain', 'downpour'] as const) {
+      for (const w of ['clear', 'cloud', 'fog', 'rain', 'downpour'] as const) {
         expect(weathersOfSeason(season)).toContain(w);
         expect(run(s, [{ type: 'SET_WEATHER', weather: w, nowMs: T0 }]).weather).toBe(w);
       }

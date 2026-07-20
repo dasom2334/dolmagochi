@@ -29,7 +29,13 @@ export function dailyMoodTone(dayKey: string, weather: WeatherKind): MoodTone {
   if (weather === 'clear' || weather === 'petals' || weather === 'grass') {
     bright += 0.16;
     low -= 0.11;
-  } else if (weather === 'rain' || weather === 'downpour' || weather === 'snow') {
+  } else if (
+    weather === 'rain' ||
+    weather === 'downpour' ||
+    weather === 'snow' ||
+    weather === 'cloud' ||
+    weather === 'fog'
+  ) {
     bright -= 0.12;
     low += 0.16;
   }
