@@ -51,40 +51,30 @@ export const ROOM_PROPS = {
 
 
 
-  // 담요 — 돌이 없는 날 개어 둔 자리 (대사: dlg.absent.care)
-  'p-blanket': [56, 64, [
+  // 담요 — 두 가지 모습. 책을 읽는 동안은 돌을 감싸고, 아니면 옆에 개어 둔다.
+  // 개어 둔 모습: 러그 오른쪽. 접힌 층이 보여야 '개어 둔 것'으로 읽힌다.
+  'p-blanket': [58, 62, [
     '.ffffffffff.',
-    'fggggggggggf',
-    'fggFFFFggggf',
-    '.ffffffffff.',
-  ], { f: '--fb0', g: '--fb1', F: '--fb2' }],
+    'fgggggggggf',
+    'fgFFFFFFFFgf',
+    'fgggggggggf',
+    '.dddddddddd.',
+  ], { f: '--fb0', g: '--fb1', F: '--fb2', d: '--fb0' }],
 
-  // ── 바닥 ──────────────────────────────────────────────────
-  // 흔들의자 — 대형. 이 크기에서는 살대를 성기게 그리면 사다리로 보인다 →
-  // 등받이를 통짜 실루엣으로 두고 **틈으로** 살대를 표현한다.
-  'p-rockingchair': [74, 50, [
-    '..WWWWWWW..',
-    '..WdddddW..',
-    '..WdWWWdW..',
-    '..Wd...dW..',
-    '..WdWWWdW..',
-    '..Wd...dW..',
-    '..WdWWWdW..',
-    '..Wd...dW..',
-    '..WdWWWdW..',
-    '..WWWWWWW..',
-    '.WWWWWWWWW.',
-    '.WsssssssW.',
-    '.WsssssssW.',
-    '.WWWWWWWWW.',
-    '..d.....d..',
-    '..d.....d..',
-    '..d.....d..',
-    '..d.....d..',
-    '..d.....d..',
-    '.RRRRRRRRR.',
-    'R.........R',
-  ], { W: '--wd2', d: '--wd0', s: '--cu1', R: '--wd1' }],
+  // 감싼 모습: 러그 돌(x40~54, 밑변 y61)의 양옆을 타고 올라와 밑에 고인다.
+  // 돌보다 **나중에** 그려야 감싼 것으로 보인다(뒤에 그리면 돌 뒤의 천일 뿐).
+  // 가운데를 비워 돌이 그 사이로 드러나게 한다.
+  'p-blanket-wrap': [37, 56, [
+    '.....ff.......ff.....',
+    '....fgg.......ggf....',
+    '...fggg.......gggf...',
+    '..fgggg.......ggggf..',
+    '.fggggg.......gggggf.',
+    '.fgggggFFFFFggggggggf',
+    'fgggggggggggggggggggf',
+    '.ddddddddddddddddddd.',
+  ], { f: '--fb0', g: '--fb1', F: '--fb2', d: '--fb0' }],
+
 
 
 

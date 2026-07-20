@@ -91,14 +91,16 @@ const Z = [
   'sill-shelf', 'sill-plant', 'p-cushion', 'orb', 'p-cushion-front', 'p-bird',
   'p-cup', 'p-cup-tea', 'p-cup-steam',
   'rug', 'p-blanket', 'orb-rug',
+  // 담요는 돌보다 **나중** — 그래야 감싼 것으로 보인다
+  'p-blanket-wrap',
   // 펼친 책은 러그 돌 **앞**에 — 돌이 읽고 있는 것처럼 보여야 하므로 돌보다 나중
   ...[1, 2, 3, 4, 5, 6].map((n) => `p-openbook-${n}`),
-  'lamp', 'p-rockingchair',
+  'lamp',
 ];
 
 /** 상점에서 사기 전까지는 없는 것 — 패널에서 기본으로 꺼 둔다 */
-export const SHOP_PROPS = ['p-cushion', 'p-rockingchair', 'p-cup',
-  'p-windchime', 'p-blanket', 'p-waterglass', 'p-bird'];
+export const SHOP_PROPS = ['p-cushion', 'p-cup', 'p-windchime',
+  'p-blanket', 'p-waterglass', 'p-bird'];
 
 /** 발광체 — 오버레이 위라 밤에도 어두워지지 않는다 */
 // 향초는 상점에서 '책'으로 교체됐다 → 씬에서 제거(촛대·촛불·촛불광원 전부)
@@ -113,13 +115,14 @@ const OCC_OF = { orb: 'occ-orb', 'orb-rug': 'occ-orb2', 'sill-plant': 'occ-plant
 /** 발광 부품 → 그것을 가진 소품. 소품을 끄면 화염·전구도 함께 꺼진다 */
 const FIRE_PARTS = { 'fire-body': 'fire', 'lamp-glow': 'lamp',
                      'p-windchime-tubes': 'p-windchime',
-                     'p-cushion-front': 'p-cushion' };
+                     'p-cushion-front': 'p-cushion',
+                     'p-blanket-wrap': 'p-blanket' };
 /** 광원 → 그 광원을 내는 소품. 소품이 없으면(=아직 안 샀으면) 빛도 없어야 한다 */
 const LIGHT_SOURCE = { 'lp-fire': ['g-fireplace', 'fire'], 'lp-lamp': ['lamp'] };
 
 /** 접지 그림자를 붙일 소품 — 바닥·선반에 **놓이는** 것들.
  *  벽에 걸린 것(풍경)과 그림자 자체(돌 자국)는 뺀다. */
-const GROUNDED = ['p-cushion', 'p-cup', 'p-blanket', 'p-rockingchair', 'p-bird',
+const GROUNDED = ['p-cushion', 'p-cup', 'p-blanket', 'p-blanket-wrap', 'p-bird',
   'p-waterglass', 'p-openbook-1', 'p-openbook-2', 'p-openbook-3',
   'p-openbook-4', 'p-openbook-5', 'p-openbook-6'];
 const CONTACT = Object.fromEntries(GROUNDED.map((id) => [id, null]));
@@ -163,6 +166,10 @@ function visible(id, st) {
     case 'bk-1': case 'bk-2': case 'bk-3':
     case 'bk-4': case 'bk-5': case 'bk-6':
       return +id.slice(-1) !== st.readBook;
+    // 담요 — 책을 읽는 동안은 돌을 감싸고, 아니면 옆에 개어 둔다.
+    // 둘은 같은 담요이므로 동시에 있을 수 없다.
+    case 'p-blanket':      return !st.readBook;
+    case 'p-blanket-wrap': return !!st.readBook;
     // 여닫이 창 — 닫히면 문설주가 제자리, 열리면 양옆에 접힌다
     case 'win-sash':      return st.window !== 'open';
     case 'win-sash-open': return st.window === 'open';

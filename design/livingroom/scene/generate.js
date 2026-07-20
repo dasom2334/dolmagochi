@@ -625,21 +625,25 @@ function halo(cx, cy, reach, ysquash) {
 // 무한 낙하를 만들기 때문에, 패턴이 30으로 안 나누어떨어지면 이음매가 보인다.
 const PT_H = 30;
 
-/** 비 — **열 단위**로 그린다.
- *  칸마다 독립으로 뿌리면 이웃 칸이 붙어 2~3px 뭉치가 생긴다 —
- *  그게 "굵은 선"으로 보였던 원인이다. 빗줄기는 언제나 1px 이어야 한다.
- *  그래서 ① 열을 골라 ② **바로 옆 열은 못 고르게** 막고 ③ 그 열에 일정 간격 대시를 넣는다.
- *  prob=열 선택 확률(%), len=대시 길이, gap=대시 주기 */
-function rainCols(slot, prob, len, gap, salt) {
+/** 비 — **대각선**이다. 이게 핵심이고, 세 번을 세로로 그려서 계속 틀렸다.
+ *  레퍼런스(도트 비 에셋)는 예외 없이 45~60° 로 기울어져 있다.
+ *  수직 1px 기둥은 아무리 밀도를 맞춰도 "떨어지는 물"이 아니라 **정지한 선**으로 읽힌다.
+ *  기울기가 곧 속도감이라서다.
+ *
+ *  기울기 좌표 u 를 따라 줄을 세우고 x = u - floor(y/2) 로 2:1 대각선을 만든다.
+ *  줄 간격이 u 에서 일정하면 어느 행에서도 일정하므로 이웃 픽셀이 붙지 않는다.
+ *  spacing=줄 간격, len=대시 길이, gap=대시 주기 */
+function rainSlant(slot, spacing, len, gap, salt) {
   const cells = [];
-  let prevOn = false;
-  for (let x = AX0; x < AX1; x++) {
-    const on = !prevOn && h2(x, 0, salt) < prob;
-    prevOn = on;
-    if (!on) continue;
-    const phase = h2(x, 1, salt) % gap;
-    for (let y = 0; y < PT_H; y++)
-      if ((y + phase) % gap < len) cells.push([y, x, slot]);
+  for (let u = AX0 - PT_H; u < AX1 + PT_H; u += spacing) {
+    const jx = u + (h2(u, 0, salt) % spacing);
+    const phase = h2(jx, 1, salt) % gap;
+    for (let y = 0; y < PT_H; y++) {
+      if ((y + phase) % gap >= len) continue;
+      const x = jx - ((y / 2) | 0);
+      if (x < AX0 || x >= AX1) continue;
+      cells.push([y, x, slot]);
+    }
   }
   return emitRows(cells);
 }
@@ -720,15 +724,21 @@ function cloudBank() {
 //   p/P = 종이, d = 책등(어두운 쪽), C = 표지(밝은 쪽)
 // 종이만 크게 그리면 어느 권인지 안 보인다(전부 흰 덩어리). 표지를 **테두리**로
 // 둘러 좌우로 세워 보이게 해야 색이 읽힌다.
+//   p=면 가장자리 P=지면 t=글줄 d=책등 C=표지 D=표지 그늘
+// 17×8. 위로 갈수록 좁아져 바닥에 눕혀 펼친 원근이 된다.
 const OPENBOOK_ART = [
-  '..pppp.pppp..',
-  'CpPPPPdPPPPpC',
-  'CpPPPPdPPPPpC',
-  'CCCCCCdCCCCCC',
-  '.DDDDDDDDDDD.',
+  '....ppppdpppp....',
+  '...pPPPPdPPPPp...',
+  '..pPtttPdPtttPp..',
+  '.pPtttttdPttttPp.',
+  'CpPtttttdPttttPpC',
+  'CPPPPPPPdPPPPPPPC',
+  'CCCCCCCCCCCCCCCCC',
+  '.DDDDDDDDDDDDDDD.',
 ];
 function openBook(n) {
-  const map = { p: '--cer1', P: '--cer2', d: `--b${n}x0`, C: `--b${n}x1`, D: `--b${n}x0` };
+  const map = { p: '--cer1', P: '--cer2', t: '--cer0',
+                d: `--b${n}x0`, C: `--b${n}x1`, D: `--b${n}x0` };
   const out = [];
   OPENBOOK_ART.forEach((row, j) => {
     let i = 0;
@@ -737,8 +747,9 @@ function openBook(n) {
       if (ch === '.') { i++; continue; }
       let k = i;
       while (k + 1 < row.length && row[k + 1] === ch) k++;
-      // 러그 돌은 아트 x40~54(중심 47) — 책(폭 13)을 그 중심에 맞춰 바로 앞에 놓는다
-      out.push([41 + i, 62 + j, k - i + 1, 1, map[ch]]);
+      // 러그 돌은 아트 x40~54(중심 47), 밑변 y61 — 책(폭 17)을 중심에 맞춰 앞에 눕힌다.
+      // 돌보다 나중에 그리므로 책이 돌 밑동을 살짝 덮어 "앞에 펼쳐 둔" 것으로 읽힌다.
+      out.push([39 + i, 60 + j, k - i + 1, 1, map[ch]]);
       i = k + 1;
     }
   });
@@ -913,10 +924,11 @@ export function generateGroups(measured = {}) {
     'halo-moon': halo(56.5, 16.5, 17.0, 1.25),
     // 날씨 — 아트 전폭. 창이 잘라주므로 넓혀도 방 안엔 안 보인다
     clouds: cloudBank(),
-    // 가벼운 비: 열이 드물고 대시가 짧고 사이가 멀다
-    rain: rainCols('--rain', 20, 2, 13, 100),
-    // 폭우: 열이 촘촘하고 대시가 길고 촘촘 — 하지만 이웃 열은 여전히 못 붙는다
-    downpour: rainCols('--rain', 52, 5, 7, 102),
+    // 가벼운 비: 줄이 드물고 대시가 짧다
+    rain: rainSlant('--rain', 8, 3, 15, 100),
+    // 폭우: 줄이 촘촘하고 대시가 길다. 각도는 같아야 한다 —
+    // 같은 비가 세지는 것이지 다른 방향으로 오는 게 아니므로.
+    downpour: rainSlant('--rain', 4, 7, 10, 102),
     snow: fall('--snow-p', 5, 1, 104),
     'pt-petals': drift('--t2', 3, 106),
     'pt-leaves': drift('--t1', 3, 108),
