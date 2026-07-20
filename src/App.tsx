@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { appStore, dispatch, now, t, tf, useGame } from './store/appStore';
 import { gameData } from './store/gameStore';
-import { isRockPresent } from './game/stateMachine';
-import { SYS } from './game/text';
+import { companyOf, isRockPresent } from './game/stateMachine';
+import { resolveSlot, SYS } from './game/text';
 import { bootRestore, flushSave, startAutosave } from './persistence/persist';
 import { claimSingleTab } from './persistence/singleTab';
 import { OccupiedScreen } from './components/OccupiedScreen';
@@ -97,9 +97,16 @@ export function App() {
     // 포그라운드=인앱 종소리(효과음 설정과 무관한 알림 채널이라 force), 백그라운드=OS 알림.
     // (앱은 REST_END를 UI에서 쓰지 않고 rest→START_FOCUS 직행이므로 종료 신호는 워커가 담당)
     worker.onmessage = () => {
-      const nf = appStore.getState().state.settings.notify;
+      const s = appStore.getState().state;
+      const nf = s.settings.notify;
       if (!nf.enabled || !nf.restEnd) return;
-      if (document.hidden) notify(t(SYS.notification.restEnd));
+      // 동석 축으로 변형 선택 (피드백4-2) — 돌이 없으면 '기다린다'가 나오지 않는다
+      if (document.hidden)
+        notify(
+          t(
+            resolveSlot(gameData.text, SYS.notification.restEnd, companyOf(s)),
+          ),
+        );
       else playSound('rest', true);
     };
     workerRef.current = worker;

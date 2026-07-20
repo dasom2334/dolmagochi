@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
-import { createInitialState, transition } from '../stateMachine';
+import {
+  createInitialState,
+  isItemAvailable,
+  transition,
+} from '../stateMachine';
 import type { GameEvent, GameState } from '../types';
 import { mulberry32, type Rng } from '../rng';
 import { gameData } from '../../store/gameStore';
@@ -75,13 +79,18 @@ describe('2차 독립기 (M14) — 묘목 성장·붙잡기 스펙트럼', () =>
 
   it('개화 목격 → 일지, 완주 + 게이트(보내주기 1회) → 심기 이벤트·planted', () => {
     // 개화 직전
-    let s: GameState = { ...apartBase(), sproutGrowth: BALANCE.SPROUT_BLOOM_AT - 1 };
+    let s: GameState = {
+      ...apartBase(),
+      sproutGrowth: BALANCE.SPROUT_BLOOM_AT - 1,
+      sproutGatesCleared: BALANCE.SPROUT_GATES.length,
+    };
     s = session(s, T0);
     expect(s.bloomSeen).toBe(true);
     // 완주 + 게이트: 보내주기 이력 있음
     let g: GameState = {
       ...apartBase(),
       sproutGrowth: 99,
+      sproutGatesCleared: BALANCE.SPROUT_GATES.length,
       bloomSeen: true,
       letGoCount: 1,
     };
@@ -89,7 +98,12 @@ describe('2차 독립기 (M14) — 묘목 성장·붙잡기 스펙트럼', () =>
     expect(g.planted).toBe(true);
     expect(g.rest.talkState?.kind).toBe('planting');
     // 게이트 미충족(보내주기 0·균형 목격 0)이면 심지 않는다
-    let ng: GameState = { ...apartBase(), sproutGrowth: 99, bloomSeen: true };
+    let ng: GameState = {
+      ...apartBase(),
+      sproutGrowth: 99,
+      sproutGatesCleared: BALANCE.SPROUT_GATES.length,
+      bloomSeen: true,
+    };
     ng = session(ng, T0);
     expect(ng.planted).toBe(false);
   });
@@ -141,6 +155,7 @@ describe('2차 도감 뱃지 (M14)', () => {
       letGoCount: 1,
       bloomSeen: true,
       sproutGrowth: 99,
+      sproutGatesCleared: BALANCE.SPROUT_GATES.length,
     };
     s = session(s, T0); // 완주 + 게이트 → 심기까지
     expect('let-go' in s.badges).toBe(true);
@@ -222,5 +237,62 @@ describe('apart 제2의 이별 (M14b) — 붙잡기 사다리 한계·방문 차
         j.text.includes('기운을 차리고 있을지도'),
       ),
     ).toBe(true);
+  });
+});
+
+describe('2·3차 정성 소비처 (피드백8)', () => {
+  const buy = (s: GameState, id: string): GameState => ({
+    ...s,
+    items: { ...s.items, [id]: { placed: false } },
+  });
+
+  it('2차 소품은 방문 확률을 올린다 — 게이트 대기가 줄어든다', () => {
+    const base: GameState = { ...apartBase(), sproutGrowth: 10 };
+    // rng 0.30: 기본 확률(0.35) 안이라 소품 없이도 방문 — 경계 위 값으로 확인
+    const withItem = buy(base, 'guestcushion'); // +0.10 → 0.45
+    const r = (v: number): Rng => {
+      let i = 0;
+      return () => (i++ === 0 ? v : 0.9);
+    };
+    // 0.40: 기본만으론 안 오고, 소품이 있으면 온다
+    expect(
+      run(base, [{ type: 'START_FOCUS', nowMs: T0 }], r(0.4)).apart.visiting,
+    ).toBe(false);
+    expect(
+      run(withItem, [{ type: 'START_FOCUS', nowMs: T0 }], r(0.4)).apart.visiting,
+    ).toBe(true);
+  });
+
+  it('물뿌리개는 시듦 회복을 배로 — 성장은 앞당기지 않는다', () => {
+    const withered: GameState = { ...apartBase(), sproutGrowth: 10, witherLevel: 2 };
+    const plain = session(withered, T0);
+    const cared = session(buy(withered, 'wateringcan'), T0);
+    expect(cared.witherLevel).toBeLessThan(plain.witherLevel);
+    expect(cared.sproutGrowth).toBe(plain.sproutGrowth);
+  });
+
+  it('나무 소품은 성장(동행일)을 앞당긴다', () => {
+    const base: GameState = {
+      ...createInitialState(T0, 'lie'),
+      era: 'apart',
+      phase: 'actionSelect',
+      planted: true,
+      plantedAt: T0,
+      letGoCount: 1,
+    };
+    const plain = session(base, T0);
+    const tended = session(buy(base, 'birdfeeder'), T0);
+    expect(tended.treeBondDays).toBeGreaterThan(plain.treeBondDays);
+  });
+
+  it('2차 소품은 3차에 오면 상점에서 사라진다 (시대 게이트)', () => {
+    const apart2: GameState = { ...apartBase(), planted: false };
+    const tree3: GameState = { ...apartBase(), planted: true };
+    const item = gameData.shop.find((i) => i.id === 'guestcushion')!;
+    const treeItem = gameData.shop.find((i) => i.id === 'birdfeeder')!;
+    expect(isItemAvailable(item, apart2)).toBe(true);
+    expect(isItemAvailable(item, tree3)).toBe(false);
+    expect(isItemAvailable(treeItem, apart2)).toBe(false);
+    expect(isItemAvailable(treeItem, tree3)).toBe(true);
   });
 });

@@ -32,6 +32,12 @@ export const NEED_ORDER: readonly NeedId[] = [
 export type TextId = string;
 
 /** 결과 분기·해금 조건: 명시된 필드를 전부 만족해야 통과 */
+/** 자유행동 위임 결과 — action: 돌이 고른 행동, locked: 미해금(구매 힌트), personal: 개인작업 */
+export type DelegateState =
+  | { kind: 'action'; action: ActionId }
+  | { kind: 'locked'; action: ActionId; item: ItemId }
+  | { kind: 'personal' };
+
 export interface Condition {
   /** 전부 보유해야 하는 트리거 플래그 */
   flags?: string[];
@@ -46,6 +52,8 @@ export interface Condition {
   minNeeds?: Partial<Record<NeedId, number>>;
   minSecurity?: number;
   minAffection?: number;
+  /** 확정 관계 티어 하한 — 복선 이벤트를 관계 중후반에 게이트 */
+  minTier?: number;
   /** 파생 욕구 단계 (needsLevelOf) */
   minLevel?: number;
   /** 보유(배치 무관) / 배치된 물품 */
@@ -54,6 +62,8 @@ export interface Condition {
   /** 함께 보낸 누적 집중 시간 */
   minTotalHours?: number;
   era?: Era;
+  /** 3차(심은 뒤)인지 — 나무 소품 해금용 */
+  planted?: boolean;
   presence?: Presence;
 }
 
@@ -310,6 +320,12 @@ export interface GameState {
   pendingUmbrella: boolean;
   /** 우산 대기로 넘어갈 때 보존하는 세션 포크 선택 (M18) */
   pendingApproach: 'near' | 'apart' | null;
+  /** 3차 각성 강제 이벤트 (피드백6) — 응답 전까지 휴식이 시작되지 않는다 */
+  awakeningPending: boolean;
+  /** 방문으로 열린 묘목 단계 게이트 수 (피드백5) — 성장 상한을 정한다 */
+  sproutGatesCleared: number;
+  /** 자유행동 위임 (피드백2) — 돌이 원하는 세션 공개 대기 상태 */
+  delegate: DelegateState | null;
   care: { points: number; carryMinutes: number };
   /** 구매 물품 — 배치 여부 분리 */
   items: Record<ItemId, { placed: boolean }>;
@@ -392,6 +408,9 @@ export type GameEvent =
   | { type: 'BUY'; itemId: ItemId; nowMs: number }
   | { type: 'SET_PLACEMENT'; itemId: ItemId; placed: boolean }
   | { type: 'VISIT_HOLD'; hold: boolean }
+  | { type: 'AWAKENING_CHOICE'; optionIndex: number; nowMs: number }
+  | { type: 'FREE_DELEGATE' }
+  | { type: 'DELEGATE_CANCEL' }
   | { type: 'SET_NOISE'; on: boolean }
   | { type: 'SET_NOISE_LAYER'; layer: string; muted: boolean }
   | { type: 'SET_THEME'; theme: 'auto' | 'light' | 'dark' }

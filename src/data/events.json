@@ -122,9 +122,79 @@
       }
     },
     {
-      "lineId": "fore.receipt.line",
+      "lineId": "fore.crack.line",
       "event": {
-        "promptId": "fore.receipt.prompt",
+        "promptId": "fore.crack.prompt",
+        "when": {
+          "notActions": [
+            "walk"
+          ],
+          "minTier": 5
+        },
+        "options": [
+          {
+            "labelId": "fore.crack.o0.label",
+            "intimacy": 3,
+            "outcomes": [
+              {
+                "resultId": "fore.crack.o0.r0",
+                "remembrance": {
+                  "id": "fore-crack",
+                  "summaryId": "rem.fore-crack.summary",
+                  "revealId": "rem.fore-crack.reveal"
+                }
+              }
+            ]
+          },
+          {
+            "labelId": "fore.crack.o1.label",
+            "intimacy": 1,
+            "outcomes": [
+              {
+                "resultId": "fore.crack.o1.r0"
+              }
+            ]
+          }
+        ]
+      },
+      "once": true
+    },
+    {
+      "lineId": "fore.warm.line",
+      "event": {
+        "promptId": "fore.warm.prompt",
+        "when": {
+          "notActions": [
+            "walk"
+          ],
+          "minTier": 5
+        },
+        "options": [
+          {
+            "labelId": "fore.warm.o0.label",
+            "intimacy": 3,
+            "outcomes": [
+              {
+                "resultId": "fore.warm.o0.r0"
+              }
+            ]
+          },
+          {
+            "labelId": "fore.warm.o1.label",
+            "intimacy": 2,
+            "outcomes": [
+              {
+                "resultId": "fore.warm.o1.r0"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "lineId": "fore.dust.line",
+      "event": {
+        "promptId": "fore.dust.prompt",
         "when": {
           "notActions": [
             "walk"
@@ -132,25 +202,94 @@
         },
         "options": [
           {
-            "labelId": "fore.receipt.o0.label",
+            "labelId": "fore.dust.o0.label",
             "intimacy": 2,
             "outcomes": [
               {
-                "resultId": "fore.receipt.o0.r0",
+                "resultId": "fore.dust.o0.r0"
+              }
+            ]
+          },
+          {
+            "labelId": "fore.dust.o1.label",
+            "intimacy": 1,
+            "outcomes": [
+              {
+                "resultId": "fore.dust.o1.r0"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "lineId": "fore.hum.line",
+      "event": {
+        "promptId": "fore.hum.prompt",
+        "when": {
+          "notActions": [
+            "walk"
+          ],
+          "minTier": 6
+        },
+        "options": [
+          {
+            "labelId": "fore.hum.o0.label",
+            "intimacy": 3,
+            "outcomes": [
+              {
+                "resultId": "fore.hum.o0.r0",
                 "remembrance": {
-                  "id": "fore-receipt",
-                  "summaryId": "rem.fore-receipt.summary",
-                  "revealId": "rem.fore-receipt.reveal"
+                  "id": "fore-hum",
+                  "summaryId": "rem.fore-hum.summary",
+                  "revealId": "rem.fore-hum.reveal"
                 }
               }
             ]
           },
           {
-            "labelId": "fore.receipt.o1.label",
+            "labelId": "fore.hum.o1.label",
             "intimacy": 1,
             "outcomes": [
               {
-                "resultId": "fore.receipt.o1.r0"
+                "resultId": "fore.hum.o1.r0"
+              }
+            ]
+          }
+        ]
+      },
+      "once": true
+    },
+    {
+      "lineId": "fore.moon.line",
+      "event": {
+        "promptId": "fore.moon.prompt",
+        "when": {
+          "notActions": [
+            "walk"
+          ]
+        },
+        "options": [
+          {
+            "labelId": "fore.moon.o0.label",
+            "intimacy": 2,
+            "outcomes": [
+              {
+                "resultId": "fore.moon.o0.r0",
+                "remembrance": {
+                  "id": "fore-moon",
+                  "summaryId": "rem.fore-moon.summary",
+                  "revealId": "rem.fore-moon.reveal"
+                }
+              }
+            ]
+          },
+          {
+            "labelId": "fore.moon.o1.label",
+            "intimacy": 1,
+            "outcomes": [
+              {
+                "resultId": "fore.moon.o1.r0"
               }
             ]
           }

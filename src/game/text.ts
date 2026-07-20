@@ -23,6 +23,47 @@ export function textVariantAt(
   return variants[Math.min(index, variants.length - 1)];
 }
 
+/**
+ * 동석 축 (피드백4-2) — 지금 이 방에 누가 있는가.
+ * 문구는 이 축으로 변형을 찾는다: `{id}.absent` / `{id}.companion`.
+ * 개별 호출부마다 present 분기를 쓰던 방식은 빠뜨리기 쉬워, 해석을 한곳에 모은다.
+ */
+export type Company = 'present' | 'absent' | 'companion';
+
+/**
+ * 상황에 맞는 변형 id를 고른다 — 구체(축 접미사) → 공용 폴백 → 기본 순.
+ * companion(3차 아이)은 부재의 한 종류라, 전용 변형이 없으면 absent로 내려온다.
+ */
+export function resolveSlot(
+  catalog: TextCatalog,
+  baseId: TextId,
+  company: Company,
+  shared?: Partial<Record<Company, TextId>>,
+): TextId {
+  if (company === 'present') return baseId;
+  const chain: TextId[] =
+    company === 'companion'
+      ? [
+          `${baseId}.companion`,
+          shared?.companion ?? '',
+          `${baseId}.absent`,
+          shared?.absent ?? '',
+        ]
+      : [`${baseId}.absent`, shared?.absent ?? ''];
+  return chain.find((id) => id && catalog[id]) ?? baseId;
+}
+
+/** resolveSlot + 추첨 — 문구를 꺼내는 표준 경로 */
+export function pickFor(
+  catalog: TextCatalog,
+  baseId: TextId,
+  company: Company,
+  rng: Rng,
+  shared?: Partial<Record<Company, TextId>>,
+): string[] {
+  return pickText(catalog, resolveSlot(catalog, baseId, company, shared), rng);
+}
+
 /** {var} 치환 — 페이지 전체에 적용 */
 export function fillPages(
   pages: string[],
@@ -37,6 +78,7 @@ export function fillPages(
 export const SYS = {
   journal: {
     sessionStartAbsent: 'sys.journal.sessionStartAbsent',
+    sessionStartCompanion: 'sys.journal.sessionStartCompanion',
     rockReturned: 'sys.journal.rockReturned',
     rockSick: 'sys.journal.rockSick',
     rockRecovered: 'sys.journal.rockRecovered',
@@ -48,6 +90,8 @@ export const SYS = {
     bloomAfar: 'sys.journal.bloomAfar',
     farewell2: 'sys.journal.farewell2',
     witherEase: 'sys.journal.witherEase',
+    gateWait: 'sys.journal.gateWait',
+    gateOpen: 'sys.journal.gateOpen',
     rootingStill: 'sys.journal.rootingStill',
     companionWorry: 'sys.journal.companionWorry',
     restShort: 'sys.journal.restShort',
@@ -56,8 +100,20 @@ export const SYS = {
     visitEnd: 'sys.journal.visitEnd',
   },
   absentAmbient: 'sys.absentAmbient',
+  /** 3차 각성 강제 이벤트 (피드백6) */
+  awakening: {
+    result0: 'tree.awakening.o0.r0',
+    result1: 'tree.awakening.o1.r0',
+  },
+  companionMeet: 'dlg.companionMeet',
+  /** 자유행동 위임 (피드백2) — 돌이 원하는 세션 공개 */
+  delegate: {
+    wants: 'sys.delegate.wants',
+    locked: 'sys.delegate.locked',
+    personal: 'sys.delegate.personal',
+  },
+  absentAmbientCompanion: 'sys.absentAmbient.companion',
   focusEnd: 'sys.focusEnd',
-  focusEndAbsent: 'sys.focusEndAbsent',
   restSummary: 'sys.restSummary',
   talkSpent: 'sys.talkSpent',
   talkSpentAbsent: 'sys.talkSpent.absent',
@@ -180,7 +236,7 @@ export const UI = {
     footsteps: 'ui.noise.footsteps',
     pageTurn: 'ui.noise.pageTurn',
     pageWriting: 'ui.noise.pageWriting',
-    rockingChair: 'ui.noise.rockingChair',
+    blanket: 'ui.noise.blanket',
     cooking: 'ui.noise.cooking',
     sweeping: 'ui.noise.sweeping',
     rainSoft: 'ui.noise.rainSoft',
@@ -197,6 +253,9 @@ export const UI = {
       rain: 'ui.weather.kind.rain',
       downpour: 'ui.weather.kind.downpour',
       snow: 'ui.weather.kind.snow',
+      // 계절 한정 날씨 (M12) — 빠져 있어 봄·가을 상점에서 '[MISSING TEXT]'가 떴다
+      petals: 'ui.weather.kind.petals',
+      leaves: 'ui.weather.kind.leaves',
     } as Record<string, string>,
     umbrellaAsk: 'ui.weather.umbrellaAsk',
     umbrellaYes: 'ui.weather.umbrellaYes',
@@ -232,6 +291,14 @@ export const UI = {
   approach: {
     near: 'ui.approach.near',
     apart: 'ui.approach.apart',
+  },
+  awakening: {
+    option0: 'tree.awakening.o0.label',
+    option1: 'tree.awakening.o1.label',
+  },
+  delegate: {
+    start: 'ui.delegate.start',
+    confirm: 'ui.delegate.confirm',
   },
   buttons: {
     endFocus: 'ui.buttons.endFocus',

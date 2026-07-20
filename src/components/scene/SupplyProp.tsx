@@ -16,10 +16,10 @@ const SUPPLY_COLORS: Record<string, { body: string; accent: string }> = {
   'lunchbox.riceball': { body: '#f2f0e8', accent: '#2a2a3a' },
   'lunchbox.sandwich': { body: '#d8b878', accent: '#a05a3a' },
   'lunchbox.fruit': { body: '#d85a4a', accent: '#7fa066' },
-  // 향초 — 몸통 색 + 불꽃
-  'candle.lavender': { body: '#a98fd8', accent: '#ffd866' },
-  'candle.woody': { body: '#8a6a4a', accent: '#ffd866' },
-  'candle.citrus': { body: '#e8b84a', accent: '#ffd866' },
+  // 오늘의 책 — 표지 색 + 책배(펼친 면)
+  'readbook.tech': { body: '#4a6a8a', accent: '#f2ead8' },
+  'readbook.romance': { body: '#c86a8a', accent: '#f2ead8' },
+  'readbook.comic': { body: '#e8a54a', accent: '#f2ead8' },
   // 세척도구
   'cleaner.soap': { body: '#a8c8e8', accent: '#e8f0f8' },
   'cleaner.wax': { body: '#e8d05a', accent: '#c8b04a' },

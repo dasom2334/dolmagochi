@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { GameState } from '../../game/types';
-import { isRockPresent } from '../../game/stateMachine';
+import { isRockPresent, itemBonus } from '../../game/stateMachine';
 import { gameData } from '../../store/gameStore';
 import { appStore, now, t } from '../../store/appStore';
 import { SYS } from '../../game/text';
@@ -26,7 +26,7 @@ import { BroomProp } from './props/BroomProp';
 import { BedProp } from './props/BedProp';
 import { UmbrellaProp } from './props/UmbrellaProp';
 import { FireplaceProp } from './props/FireplaceProp';
-import { RockingChairProp } from './props/RockingChairProp';
+import { BlanketProp } from './props/BlanketProp';
 import { BrushProp } from './props/BrushProp';
 import { BoardProp } from './props/BoardProp';
 import { LadleProp } from './props/LadleProp';
@@ -160,7 +160,10 @@ export function SceneView({ state }: { state: GameState }) {
         {isFocus && sceneId === 'walk' && <GrassTufts />}
         {state.planted && state.plantedAt !== null ? (
           // 3차 (M15): 돌의 자리에 나무가 자란다 — 성장은 달력이 정한다
-          <TreeSprite stage={treeStage(state.plantedAt, state.treeBondDays, now())} />
+          <TreeSprite
+            stage={treeStage(state.plantedAt, state.treeBondDays, now())}
+            flowers={itemBonus(state, gameData, 'treeFlowers')}
+          />
         ) : present ? (
           <RockSprite
             moss={placed('moss')}
@@ -188,7 +191,7 @@ export function SceneView({ state }: { state: GameState }) {
           <UmbrellaProp />
         )}
         {show('fireplace') && <FireplaceProp />}
-        {show('rockingchair') && <RockingChairProp />}
+        {show('blanket') && <BlanketProp />}
         {show('brush') && <BrushProp />}
         {show('board') && <BoardProp />}
         {show('ladle') && <LadleProp />}

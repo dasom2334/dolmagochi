@@ -34,15 +34,25 @@ function session(
   rng?: Rng,
   focusMin = 1,
 ): GameState {
-  return run(
+  const end = at + focusMin * 60_000;
+  const done = run(
     s,
     [
       { type: 'START_FOCUS', nowMs: at },
       { type: 'TICK', dtSec: focusMin * 60 },
-      { type: 'END_FOCUS', nowMs: at + focusMin * 60_000 },
+      { type: 'END_FOCUS', nowMs: end },
     ],
     rng ?? seq([0.9]),
   );
+  // 각성은 강제 선택 이벤트라 응답 전엔 아무것도 진행되지 않는다 (피드백6-1).
+  // 실플레이와 같게, 세션 끝에 답하고 넘어간다.
+  return done.awakeningPending
+    ? run(
+        done,
+        [{ type: 'AWAKENING_CHOICE', optionIndex: 0, nowMs: end }],
+        rng ?? seq([0.9]),
+      )
+    : done;
 }
 const FULL = 90; // 시간 보너스를 꽉 채우는 세션 (분)
 /** n일 연속으로 하루 한 번 90분 세션 — 매일 성실히 오는 플레이어 */
@@ -152,10 +162,25 @@ describe('동행자 (M15b) — 각성 발견을 만난 순간부터', () => {
     expect(companionTexts).not.toContain(talked.rest.talkState!.pages.join('\n'));
   });
 
-  it('각성 후 대화 슬롯에 동행자 풀이 나온다 (회상과 번갈아)', () => {
+  it('각성 후 첫 대화는 아이와의 첫 만남으로 고정 (피드백6-2)', () => {
     let s = daily(planted(0), 4);
     expect(companionMet(s.memory)).toBe(true);
     s = run(s, [{ type: 'TALK' }], seq([0.0, 0.0]));
+    expect(s.rest.talkState!.pages.join('\n')).toBe(
+      (gameData.text['dlg.companionMeet']?.[0] ?? []).join('\n'),
+    );
+    expect(s.flags).toContain('companion-met-talk');
+  });
+
+  it('첫 만남 이후의 대화 슬롯에 동행자 풀이 나온다 (회상과 번갈아)', () => {
+    let s = daily(planted(0), 4);
+    // 첫 만남을 소진한 뒤의 휴식
+    s = run(s, [{ type: 'TALK' }], seq([0.0, 0.0]));
+    s = run(
+      { ...s, rest: { ...s.rest, talkPressed: false, talkState: null } },
+      [{ type: 'TALK' }],
+      seq([0.0, 0.0]),
+    );
     const companionTexts = gameData.dialogues.companion.map((l) =>
       (gameData.text[l.textId]?.[0] ?? []).join('\n'),
     );
@@ -173,5 +198,85 @@ describe('동행자 (M15b) — 각성 발견을 만난 순간부터', () => {
     expect(
       s.session.journal.some((j) => j.text.includes('작은 아이가 당신의 눈 밑을')),
     ).toBe(true);
+  });
+});
+
+describe('각성 강제 이벤트 (피드백6-1)', () => {
+  /** 각성 직전(전조·열매·흔들림까지 본) 상태에서 한 세션 더 — 각성이 뜬다 */
+  function upToAwakening(): GameState {
+    let s = planted(0);
+    for (let d = 0; d < 3; d++)
+      s = session({ ...s, phase: 'actionSelect' }, T0 + d * DAY, undefined, FULL);
+    const at = T0 + 3 * DAY;
+    return run(
+      { ...s, phase: 'actionSelect' },
+      [
+        { type: 'START_FOCUS', nowMs: at },
+        { type: 'TICK', dtSec: FULL * 60 },
+        { type: 'END_FOCUS', nowMs: at + FULL * 60_000 },
+      ],
+      seq([0.9]),
+    );
+  }
+
+  it('각성은 일지가 아니라 대기 이벤트로 뜬다 — 응답 전엔 기록도 없다', () => {
+    const s = upToAwakening();
+    expect(s.awakeningPending).toBe(true);
+    expect('tree-awakening' in s.memory).toBe(false);
+  });
+
+  it('응답 전에는 휴식도 다음 세션도 열리지 않는다', () => {
+    const s = upToAwakening();
+    const at = T0 + 3 * DAY + FULL * 60_000;
+    expect(run(s, [{ type: 'REST_END' }])).toBe(s);
+    expect(run(s, [{ type: 'START_FOCUS', nowMs: at + 60_000 }])).toBe(s);
+  });
+
+  it('응답하면 기억·배지가 남고 잠금이 풀린다', () => {
+    const s0 = upToAwakening();
+    const at = T0 + 3 * DAY + FULL * 60_000;
+    const s = run(s0, [{ type: 'AWAKENING_CHOICE', optionIndex: 0, nowMs: at }]);
+    expect(s.awakeningPending).toBe(false);
+    expect('tree-awakening' in s.memory).toBe(true);
+    expect('tree-awakening' in s.badges).toBe(true);
+    expect(companionMet(s.memory)).toBe(true);
+  });
+});
+
+describe('3차 콘텐츠 밀도 (피드백7) — 각성 이후가 비지 않는다', () => {
+  const findsAt = (stage: number) =>
+    gameData.treeFinds.filter((f) => f.minStage === stage);
+
+  it('모든 성장 단계에 발견이 있다 — 90~180일(울창) 구간도', () => {
+    for (let stage = 0; stage <= 5; stage++) {
+      expect(findsAt(stage).length, `단계 ${stage} 발견 없음`).toBeGreaterThan(0);
+    }
+  });
+
+  it('각성 이후 구간(2~4단계)에 계절 무관 발견이 충분하다', () => {
+    // 계절 한정만 있으면 계절이 안 맞는 회차는 아무것도 못 본다
+    const evergreen = [2, 3, 4].flatMap((s) =>
+      findsAt(s).filter((f) => f.season === undefined),
+    );
+    expect(evergreen.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('울창(90일)에 도달하면 그 단계 발견이 실제로 나온다', () => {
+    let s = planted(95);
+    const seen: string[] = [];
+    // 하루 1발견 게이트 — 날짜를 넘기며 몇 번 확인
+    for (let d = 0; d < 4; d++) {
+      s = session({ ...s, phase: 'actionSelect' }, T0 + d * DAY);
+      for (const k of Object.keys(s.memory))
+        if (k.startsWith('tree-') && !seen.includes(k)) seen.push(k);
+    }
+    expect(seen.length).toBeGreaterThan(1);
+  });
+
+  it('3차 소품을 들이면 아이 대사가 늘어난다', () => {
+    const withItems = gameData.dialogues.companion.filter(
+      (l) => l.when?.ownedItems !== undefined,
+    );
+    expect(withItems.length).toBeGreaterThanOrEqual(4);
   });
 });

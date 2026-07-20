@@ -74,22 +74,30 @@ describe('pickMoment — 추억 순간 추첨 (M11a)', () => {
     const s: GameState = { ...createInitialState(T0, 'lie'), selectedAction: 'lie' };
     const mo = pickMoment(gameData.moments, s, seq([0.0]));
     expect(mo?.id).toBe('mo-lie-breath');
-    // 이미 기록됐으면 후보에서 빠진다
+    // 이미 기록됐으면 후보에서 빠진다 — 해당 행동의 순간을 전부 기록하면 null
+    const lieMoments = gameData.moments.filter((m) => m.when?.action === 'lie');
     const done: GameState = {
       ...s,
-      remembrances: [
-        { id: 'mo-lie-breath', summaryId: 'x', revealId: 'y', at: T0 },
-      ],
+      remembrances: lieMoments.map((m) => ({
+        id: m.id,
+        summaryId: 'x',
+        revealId: 'y',
+        at: T0,
+      })),
     };
     expect(pickMoment(gameData.moments, done, seq([0.0]))).toBeNull();
   });
 
   it('휴식 작은 행동: restAct 키가 맞는 순간만', () => {
     const s = createInitialState(T0, 'lie');
-    expect(pickMoment(gameData.moments, s, seq([0.0]), 'water')?.id).toBe(
-      'mo-rest-water',
-    );
-    expect(pickMoment(gameData.moments, s, seq([0.0]), 'breath')).toBeNull();
+    // 작은 행동 4종 모두 자기 키의 순간만 후보로 잡힌다 (M11b 배치3에서 4종×2로 확장)
+    for (const act of gameData.restActs) {
+      const mo = pickMoment(gameData.moments, s, seq([0.0]), act.key);
+      expect(mo, `${act.key} 순간 없음`).not.toBeNull();
+      expect(mo!.restAct).toBe(act.key);
+    }
+    // 없는 키는 후보가 없다
+    expect(pickMoment(gameData.moments, s, seq([0.0]), 'nope')).toBeNull();
   });
 
   it('세션 중 확률 발동 → remembrance 기록 + 일지, 세션당 1회', () => {
