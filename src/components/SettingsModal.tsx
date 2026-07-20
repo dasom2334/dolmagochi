@@ -247,21 +247,7 @@ export function SettingsModal({
           * {t(UI.labels.pauseOnHide)} — {onOff(state.settings.pauseOnHide)}
         </button>
 
-        {/* 테마 (M10) — 자동 → 라이트 → 다크 순환. 도트 씬은 영향받지 않는다 */}
-        <button
-          className="hv-text"
-          style={settingBtn}
-          onClick={() => {
-            const order = ['auto', 'light', 'dark'] as const;
-            const next =
-              order[(order.indexOf(state.settings.theme) + 1) % order.length];
-            dispatch({ type: 'SET_THEME', theme: next });
-          }}
-        >
-          * {t(UI.theme.setting)} — {t(UI.theme[state.settings.theme])}
-        </button>
-
-        {/* 시간대·계절·날씨·소리풍경은 분위기 바(M22)로 이관 — 씬을 보면서 고른다 */}
+        {/* 테마는 타이머 카드로, 시간대·계절·날씨·소리풍경은 분위기 바로 이관 (M22) */}
 
         <button className="hv-text" style={settingBtn} onClick={doExport}>
           * {t(UI.buttons.exportSave)}
