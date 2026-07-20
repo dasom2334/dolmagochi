@@ -7,8 +7,8 @@
 import { generateGroups, GX, GY, OX, FLAME_N } from './generate.js';
 import { resolve } from './palette.js';
 import { PROPS } from './props.js';
-import { ROOM_PROPS } from './props-room.js';
-import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO, RUG_MARK,
+import { ROOM_PROPS, PROP_SLOTS } from './props-room.js';
+import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO, RUG_MARK, AMBIENT,
          contactShadow, occForProp, GLASS_RECT } from './lights.js';
 import { ROOM_DATA } from './room-data.js';
 import { ANIM, GROUP_ANIM, TILE_H, flameIdx } from './anim.js';
@@ -142,6 +142,9 @@ const NOT_GROUNDED = new Set([
 const GROUNDED = [
   ...Object.keys(ROOM_PROPS),
   ...[1, 2, 3, 4, 5, 6].map((n) => `p-openbook-${n}`),  // 절차 생성이라 ROOM_PROPS 에 없다
+  'lamp',      // 측정 데이터(PROPS)라 ROOM_PROPS 에 없어서 혼자 접지 그림자가 없었다
+  'rug',       // 절차 생성이라 ROOM_PROPS 에 없다. 러그도 **바닥에 놓인 물건**이라
+               // 앞단 밑으로 그늘이 깔려야 바닥에 그려 넣은 무늬가 아니라 깔개로 읽힌다
 ].filter((id) => !NOT_GROUNDED.has(id));
 const CONTACT = Object.fromEntries(GROUNDED.map((id) => [id, null]));
 
@@ -221,20 +224,32 @@ const entry = (id) => {
  *  → 이 소품들 위에는 **방과 같은 세기의 오버레이**를 한 번 더 칠한다.
  *  목록을 손으로 적지 않는다 — 창 구멍과 겹치는지 bbox 로 판별한다. */
 const [GRX, GRY, GRW, GRH] = GLASS_RECT;
+// 구멍과 겹친다는 것만으로는 부족하다 — 달·별·구름·해·풍경·나무도 구멍 안에 있다.
+// 처음엔 bbox 만 보고 걸렀는데, 그 바람에 **하늘까지 방 세기로 한 번 더 칠해져서**
+// 달이 어두워지고 맑은 날 하늘이 뿌옇게 떴다. 하늘은 이미 시간·계절 팔레트로
+// 제 색을 갖고 있으니 덧칠 대상이 아니다.
+// 판별 기준은 처음 이 보정을 넣은 이유 그대로다: **PROP_SLOTS 고정색이라
+// 계절·시간 팔레트를 안 따라가는 것**만 덧칠한다. 하늘 슬롯(--k*, --moon, --cloud-*)은
+// 팔레트가 갈아 끼우므로 자동으로 빠진다. 새 소품은 여전히 아무것도 안 해도 된다.
+const PROP_SLOT_KEYS = new Set(Object.keys(PROP_SLOTS));
 const APERTURE_PROPS = Z.filter((id) => {
   const rects = entry(id)?.rects;
   if (!rects || !rects.length) return false;
-  return rects.some(([x, y, w, h]) =>
+  const overlaps = rects.some(([x, y, w, h]) =>
     x < GRX + GRW && x + w > GRX && y < GRY + GRH && y + h > GRY);
+  if (!overlaps) return false;
+  // 색이 하나라도 동적 슬롯이면 하늘·풍경 쪽 — 건드리지 않는다
+  return rects.every(([, , , , fill]) =>
+    typeof fill !== 'string' || !fill.startsWith('--') || PROP_SLOT_KEYS.has(fill));
 });
 
 /** 오버레이별 '방' 착색값 — strips() 가 같은 값을 4조각으로 내보내므로 중복을 뺀다 */
 const ROOM_TINT = Object.fromEntries(Object.entries(OVERLAYS).map(([k, list]) => {
   const seen = new Set(), out = [];
-  for (const { fill, blend, zone } of list) {
+  for (const { fill, blend, zone, tune } of list) {
     if (zone !== 'room' || seen.has(fill + blend)) continue;
     seen.add(fill + blend);
-    out.push({ fill, blend });
+    out.push({ fill, blend, tune });
   }
   return [k, out];
 }));
@@ -243,7 +258,11 @@ const ROOM_TINT = Object.fromEntries(Object.entries(OVERLAYS).map(([k, list]) =>
  *  OCCLUDERS 역시 손으로 적는 목록이라, 새 소품을 그릴 때마다 여기 추가하는 걸
  *  잊었다(접지 그림자와 판박이). 그 결과 새 소품만 창빛이 그대로 통과했다.
  *  → 접지 그림자를 받는 소품은 빛도 가리게 한다. 새 소품은 아무것도 안 해도 된다. */
-const NO_OCC = new Set(['p-blanket']);       // 책장 칸 안 — 창빛이 닿지 않는다
+const NO_OCC = new Set([
+  'p-blanket',   // 책장 칸 안 — 창빛이 닿지 않는다
+  'rug',         // 바닥에 납작하게 깔린 것 — 두께가 없으니 창빛을 가리지 못한다.
+                 // 등록하면 러그 앞으로 제 폭만 한 그림자가 생겨 방을 반으로 자른다
+]);
 for (const id of GROUNDED) {
   if (OCC_OF[id] || NO_OCC.has(id)) continue;   // 손으로 잡아 둔 것(돌 등)은 그대로
   const rects = entry(id)?.rects;
@@ -360,18 +379,21 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
        [`light-${fromWeather}`, 1 - tp], [`light-${st.weather}`, tp]];
   for (const [oid, w] of ovs) {
     if (!OVERLAYS[oid] || layerOff.has(oid) || w <= 0) continue;
-    for (const { r, fill, blend } of OVERLAYS[oid]) {
+    for (const { r, fill, blend, tune } of OVERLAYS[oid]) {
       ctx.globalCompositeOperation = blend;
       ctx.globalAlpha = 1;
-      ctx.fillStyle = w >= 1 ? fill : scaleAlpha(fill, w);
+      // tune 이 붙은 층은 fill 알파가 1 이고 AMBIENT 가 실제 세기 — 슬라이더가 여기 먹는다
+      const a = tune ? (AMBIENT[oid]?.[tune] ?? 0) * w : w;
+      ctx.fillStyle = a >= 1 ? fill : scaleAlpha(fill, a);
       ctx.fillRect(...r);
     }
     // 창 구멍 안에 걸친 소품은 위에서 '유리'(약한 틴트)만 받았다 → 방 세기로 한 번 더.
     // 구멍 밖으로 나온 부분은 이미 방 틴트를 받았으므로 구멍 안쪽만 덧칠한다.
-    for (const { fill, blend } of ROOM_TINT[oid] || []) {
+    for (const { fill, blend, tune } of ROOM_TINT[oid] || []) {
       ctx.globalCompositeOperation = blend;
       ctx.globalAlpha = 1;
-      ctx.fillStyle = w >= 1 ? fill : scaleAlpha(fill, w);
+      const a = tune ? (AMBIENT[oid]?.[tune] ?? 0) * w : w;
+      ctx.fillStyle = a >= 1 ? fill : scaleAlpha(fill, a);
       for (const id of APERTURE_PROPS) {
         if (!on(id)) continue;
         for (const [x, y, rw, rh] of entry(id).rects) {
@@ -418,6 +440,9 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
   }
 
   // 역광 림라이트 — 창문 광원에 종속 (밤엔 달빛 색을 쓴다)
+  // 담요가 덮였을 때 역광을 끈 적이 있는데(천 위로 빛이 새는 것처럼 보였다),
+  // 담요가 돌을 **덮는 후드**가 아니라 밑동을 두르는 **목도리**로 바뀌면서
+  // 돌의 윗면이 그대로 드러난다 → 역광이 걸리는 게 맞다. 게이트를 뺐다.
   const orbId = st.orb === 'sill' ? 'orb' : 'orb-rug';
   if (!layerOff.has('rim') && on(orbId)) {
     const rimPal = { ...pal, '--wl': sunOn ? pal['--wl'] : pal['--ml'] };

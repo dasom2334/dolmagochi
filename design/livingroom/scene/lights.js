@@ -21,37 +21,100 @@ const strips = (fill, blend) => [
 ];
 const glass = (fill, blend) => [{ r: GLASS_RECT, fill, blend, zone: 'glass' }];
 
+/** 색감 오버레이별 앰비언트 세기 — v3 패널 슬라이더가 여기를 직접 고친다(런타임 가변).
+ *
+ *  세 층이 하는 일이 서로 다르다:
+ *    screen      밝히지만 R·G·B 를 같이 올려 **채도를 깎는다**(뿌예짐)
+ *    overlay     밝은 곳은 더 밝게 어두운 곳은 더 어둡게 — **대비**를 벌린다
+ *    saturation  명도는 그대로 두고 **채도만** 얹는다(세게 주면 벽이 자홍색이 된다)
+ *
+ *  낮·노을·밤은 패널에서 직접 맞춰 본 값이다. 셋 다 screen 을 거의 버리고
+ *  overlay 로 대비를 세우는 쪽으로 수렴했다 — 밝히는 것보다 벌리는 게 낫다는 뜻.
+ *  나머지(흐림·비·눈·꽃잎)는 예전 screen 세기를 그대로 옮겨 둔 출발점이라
+ *  overlay·saturation 이 0 이고, 아직 손보지 않은 상태다. */
+export const AMBIENT = {
+  'light-day':      { screen: 0.11, overlay: 0.31, saturation: 0.10 },
+  'light-sunset':   { screen: 0.04, overlay: 0.30, saturation: 0.18 },
+  'light-night':    { screen: 0.03, overlay: 0.22, saturation: 0.08 },
+  'light-cloud':    { screen: 0.10, overlay: 0,    saturation: 0 },
+  'light-fog':      { screen: 0.16, overlay: 0,    saturation: 0 },
+  'light-rain':     { screen: 0,    overlay: 0,    saturation: 0 },
+  'light-downpour': { screen: 0,    overlay: 0,    saturation: 0 },
+  'light-snow':     { screen: 0,    overlay: 0,    saturation: 0 },
+  'light-petals':   { screen: 0,    overlay: 0,    saturation: 0 },
+};
+
+/** 층별 색. 세기가 0 이어도 색은 정해 둬야 슬라이더를 올렸을 때 말이 되는 그림이 나온다.
+ *  screen 색만 오버레이마다 다르다(그 시간·날씨의 하늘빛). overlay·saturation 은
+ *  방의 따뜻한 쪽으로 공통 — 대비와 채도는 색을 바꾸는 게 아니라 있는 색을 벌리는 일이라. */
+const AMB_TINT = {
+  'light-day':      '140,170,208',
+  'light-sunset':   '255,120,40',
+  'light-night':    '60,72,140',
+  'light-cloud':    '200,214,236',
+  'light-fog':      '150,158,172',
+  'light-rain':     '120,132,160',
+  'light-downpour': '92,104,134',
+  'light-snow':     '200,208,226',
+  'light-petals':   '255,224,236',
+};
+const tuned = (list, key) => list.map((o) => ({ ...o, tune: key }));
+/** 오버레이 하나의 앰비언트 3층 — 아홉 오버레이가 전부 같은 구조를 갖는다.
+ *  예전엔 낮에만 있었는데, 그러면 다른 시간·날씨는 슬라이더로 만질 대상이 아예 없다. */
+const ambient = (oid) => [
+  ...tuned(strips(`rgba(${AMB_TINT[oid]},1)`, 'screen'), 'screen'),
+  ...tuned(strips('rgba(255,238,214,1)', 'overlay'), 'overlay'),
+  ...tuned(strips('rgba(255,150,90,1)', 'saturation'), 'saturation'),
+];
+
 export const OVERLAYS = {
-  // 낮은 multiply만으로는 실내가 밤과 구분이 안 된다 → screen 앰비언트로 방을 들어올린다
+  // 낮은 multiply만으로는 실내가 밤과 구분이 안 된다 → 앰비언트로 방을 들어올린다.
+  //
+  // 예전엔 그 들어올림이 screen 30% 청회색 하나였는데, screen 은 **밝히면서 채도를
+  // 깎는다**(R·G·B 를 다 같이 끌어올리므로 색끼리 벌어진 폭이 줄어든다).
+  // 그래서 낮에는 방 전체가 뿌옜고, 창빛 웅덩이가 떨어지는 자리의 소품(담요)은
+  // 아예 흰 몽우리가 됐다.
+  // → 세 겹으로 나눈다:
+  //   ① screen 은 방을 밤과 구분할 최소한(.14)만 — 어두운 구석을 들어올리는 몫
+  //   ② overlay 로 대비를 준다 — 밝은 곳은 더 밝게, 어두운 곳은 더 어둡게.
+  //      screen 과 달리 채도를 안 깎고 오히려 벌린다
+  //   ③ saturation 은 **명도를 안 건드리고 채도만** 얹는다(합성 결과의 휘도는
+  //      아래 레이어 것을 그대로 쓴다) — 밝기 예산을 안 쓰고 색만 살리는 유일한 수단
+  // 세기는 AMBIENT 로 뺐다 — v3 패널에서 오버레이별로 슬라이더로 만져 볼 수 있게.
+  // tune 이 붙은 층은 fill 의 알파를 1 로 두고 AMBIENT[oid][tune] 이 실제 세기가 된다.
   'light-day': [
     ...strips('rgba(255,246,230,.06)', 'multiply'),
-    ...strips('rgba(140,170,208,.30)', 'screen'),
+    ...ambient('light-day'),
     ...glass('rgba(255,252,245,.05)', 'screen'),
   ],
   // 하늘 팔레트가 이미 그 시간의 색이라 유리 틴트는 약하게 (이중 착색 방지)
   'light-sunset': [
     ...strips('rgba(255,148,84,.30)', 'multiply'),
-    ...strips('rgba(255,120,40,.10)', 'screen'),
+    ...ambient('light-sunset'),
     ...glass('rgba(255,140,80,.16)', 'multiply'),
   ],
   'light-night': [
     ...strips('rgba(72,82,150,.52)', 'multiply'),
     ...strips('rgba(25,30,70,.28)', 'multiply'),
+    ...ambient('light-night'),
     ...glass('rgba(30,38,90,.09)', 'multiply'),
   ],
   // 흐림 2종 — 구름낀 흐림은 구름 사이로 해가 나므로 덜 누르고 살짝 들어올린다,
   // 안개낀 흐림은 해가 완전히 가려 평평하게 눌린다
   'light-cloud': [...strips('rgba(176,184,198,.18)', 'multiply'),
-                  ...strips('rgba(200,214,236,.10)', 'screen'),
+                  ...ambient('light-cloud'),
                   ...glass('rgba(190,200,216,.12)', 'multiply')],
   'light-fog': [...strips('rgba(158,165,180,.30)', 'multiply'),
-                ...strips('rgba(150,158,172,.16)', 'screen'),
+                ...ambient('light-fog'),
                 ...glass('rgba(170,178,192,.34)', 'screen')],
-  'light-rain': [...strips('rgba(105,116,142,.36)', 'multiply'), ...glass('rgba(95,105,132,.28)', 'multiply')],
-  'light-snow': [...strips('rgba(182,190,208,.26)', 'multiply'), ...glass('rgba(195,203,220,.20)', 'multiply')],
+  'light-rain': [...strips('rgba(105,116,142,.36)', 'multiply'), ...ambient('light-rain'),
+                 ...glass('rgba(95,105,132,.28)', 'multiply')],
+  'light-snow': [...strips('rgba(182,190,208,.26)', 'multiply'), ...ambient('light-snow'),
+                 ...glass('rgba(195,203,220,.20)', 'multiply')],
   // 게임 날씨 추가분 — 폭우는 비보다 더 눌러 어둡게, 꽃잎·낙엽은 맑음에 가깝게 살짝만
-  'light-downpour': [...strips('rgba(78,88,116,.46)', 'multiply'), ...glass('rgba(70,80,108,.38)', 'multiply')],
-  'light-petals': [...strips('rgba(255,224,236,.10)', 'multiply')],
+  'light-downpour': [...strips('rgba(78,88,116,.46)', 'multiply'), ...ambient('light-downpour'),
+                     ...glass('rgba(70,80,108,.38)', 'multiply')],
+  'light-petals': [...strips('rgba(255,224,236,.10)', 'multiply'), ...ambient('light-petals')],
 };
 
 // ─────────────────── 창문 빛: 앞으로 퍼지는 사다리꼴 ───────────────────
@@ -239,16 +302,56 @@ export const RUG_MARK = (() => {
  *  밑변 폭에서 시작해 한 줄마다 좁아지며 옅어진다. */
 export function contactShadow(rects, rows = 2) {
   if (!rects || !rects.length) return [];
-  let x0 = 1e9, x1 = -1e9, y1 = -1e9;
-  for (const [x, y, w, h] of rects) {
-    x0 = Math.min(x0, x); x1 = Math.max(x1, x + w - 1); y1 = Math.max(y1, y + h - 1);
+  let y0 = 1e9, y1 = -1e9;
+  for (const [, y, , h] of rects) {
+    y0 = Math.min(y0, y); y1 = Math.max(y1, y + (h || 1) - 1);
   }
+  // 폭은 **바닥에 닿는 줄**의 실제 폭이어야 한다. 처음엔 전체 bbox 폭을 썼는데,
+  // 스탠드처럼 위가 넓고(갓 8px) 발이 좁은(5px) 소품은 그림자가 갓 폭으로 깔려
+  // 발과 아귀가 안 맞았다 — 발 뒤에 그림자가 "없어 보이던" 이유.
+  //
+  // 그런데 맨 아랫줄을 무조건 쓰면 이번엔 **꼬리 한두 칸짜리 소품**이 깨진다.
+  // 펼친 책의 마지막 줄은 표지 모서리 2칸뿐이라(폭 16 중 2) 그림자가 그 2칸에만
+  // 깔려 사실상 사라졌다. → 아랫줄부터 훑어 올라가며 **제 최대 폭의 40% 이상인
+  // 첫 줄**을 접지선으로 삼는다. 스탠드 발(5/8=62%)은 그대로 남고, 책 꼬리(2/16=12%)는
+  // 건너뛰어 그 위 줄(14/16=87%)이 잡힌다.
+  const widthAt = (yy) => {
+    let a = 1e9, b = -1e9;
+    for (const [x, y, w, h] of rects)
+      if (y + (h || 1) - 1 === yy) { a = Math.min(a, x); b = Math.max(b, x + w - 1); }
+    return b < a ? null : [a, b];
+  };
+  let maxW = 0;
+  for (let yy = y0; yy <= y1; yy++) { const e = widthAt(yy); if (e) maxW = Math.max(maxW, e[1] - e[0] + 1); }
+  const yBase = y1;                    // **진짜 밑변** — 아래 바닥 그림자는 여기서 시작한다
+  let x0, x1;
+  for (let yy = y1; yy >= y0; yy--) {
+    const e = widthAt(yy);
+    if (!e || (e[1] - e[0] + 1) < maxW * 0.4) continue;
+    [x0, x1] = e; y1 = yy; break;
+  }
+  if (x0 === undefined) return [];
   const out = [];
   for (let k = 0; k < rows; k++) {
     const inset = k + 1, a = x0 + inset, b = x1 - inset;
     if (b < a) break;
     out.push({ r: [a, y1 - k, b - a + 1, 1], fill: '#140c14',
                alpha: [0.30, 0.16, 0.08][k] ?? 0.06, blend: 'multiply' });
+  }
+  // 소품 **바깥**으로 번지는 바닥 그림자. 접지선만으론 소품이 바닥에 얹힌 게 아니라
+  // 배경에 오려 붙인 것으로 보인다.
+  //
+  // 두 번 틀렸다:
+  //   ① 시작 줄을 접지선(=제일 넓은 줄) 바로 아래로 잡았는데, 그 줄이 소품 **안쪽**일
+  //      수 있다. 담요는 제일 넓은 줄이 y63 이고 실제 밑변은 y64 라, 그림자가 담요 위에만
+  //      깔리고 러그에는 한 줄도 안 떨어졌다 — "담요와 러그 사이에 그림자가 없다"의 정체.
+  //      → 시작은 항상 **진짜 밑변**(yBase) 아래로.
+  //   ② 줄 수를 키/8 로 잡아 담요(높이 11)가 1줄뿐이었다. /6 으로 바꿔 최소 폭을 준다.
+  const spread = Math.max(1, Math.min(3, Math.round((yBase - y0 + 1) / 6)));
+  for (let k = 0; k < spread; k++) {
+    const grow = k + 1;
+    out.push({ r: [x0 - grow, yBase + 1 + k, (x1 - x0 + 1) + grow * 2, 1],
+               fill: '#140c14', alpha: 0.22 / (k + 1), blend: 'multiply' });
   }
   return out;
 }

@@ -22,6 +22,11 @@
   label.on { background:#d98e4a; border-color:#d98e4a; color:#2a1626; font-weight:600; }
   .divider { height:1px; background:#2e2036; margin:2px 0; }
   .note { color:#6f5e76; font-size:11px; }
+  .slide { display:flex; align-items:center; gap:8px; }
+  .slide > span:first-child { width:74px; flex:none; color:#af9cb4; font-size:12px; }
+  .slide input { flex:1; max-width:260px; accent-color:#d98e4a; }
+  .slide > span:last-child { width:38px; flex:none; color:#8d7a92; font-size:11px;
+                             font-variant-numeric:tabular-nums; text-align:right; }
 </style>
 </head>
 <body>
@@ -31,6 +36,7 @@
   <script type="module">
     import { render, SHOP_PROPS } from './scene/render.js';
     import { reduceMotion } from './scene/anim.js';
+    import { AMBIENT } from './scene/lights.js';
 
     const cv = document.getElementById('cv');
     const state = { time:'sunset', season:'summer', weather:'clear', orb:'sill', tree:'v1',
@@ -88,9 +94,67 @@
       }
       panel.append(row);
     };
+    // 앰비언트 배분 — 드래그하면서 캔버스를 봐야 하므로 **패널 맨 위**에 둔다.
+    // 셋이 하는 일이 서로 다르다:
+    //   screen     밝히지만 R·G·B 를 같이 올려 **채도를 깎는다**(뿌예짐)
+    //   overlay    밝은 곳은 더 밝게 어두운 곳은 더 어둡게 — **대비**를 벌린다
+    //   saturation 명도는 그대로 두고 **채도만** 얹는다(세게 주면 벽이 자홍색이 된다)
+    // 오버레이가 아홉 개라 **어느 걸 만지고 있는지**를 항상 띄운다 — 안 그러면
+    // 슬라이더를 움직였는데 화면이 안 변할 때(그 오버레이가 꺼져 있을 때) 원인을 못 찾는다.
+    const AMB_TARGETS = [['light-day','낮'],['light-sunset','노을'],['light-night','밤'],
+                         ['light-cloud','구름흐림'],['light-fog','안개흐림'],
+                         ['light-rain','비'],['light-downpour','폭우'],
+                         ['light-snow','눈'],['light-petals','꽃잎·낙엽']];
+    let ambTarget = 'light-day';
+    const ambRow = document.createElement('div'); ambRow.className = 'group';
+    const ambLab = document.createElement('span'); ambLab.className = 'g-label';
+    ambLab.textContent = '앰비언트';
+    ambRow.append(ambLab);
+    for (const [oid, txt] of AMB_TARGETS) {
+      const b = document.createElement('label'); b.textContent = txt;
+      b.onclick = () => { ambTarget = oid; syncAmb(); draw(); };
+      pills.push([b, () => ambTarget === oid]);
+      ambRow.append(b);
+    }
+    panel.append(ambRow);
+
+    const ambName = document.createElement('div'); ambName.className = 'note';
+    panel.append(ambName);
+
+    const AMB = [['screen', 'screen'], ['overlay', 'overlay'], ['saturation', '세츄레이션']];
+    const ambInputs = [];
+    for (const [key, txt] of AMB) {
+      const row = document.createElement('div'); row.className = 'slide';
+      const name = document.createElement('span'); name.textContent = txt;
+      const inp = document.createElement('input');
+      inp.type = 'range'; inp.min = 0; inp.max = 0.6; inp.step = 0.01;
+      const val = document.createElement('span');
+      inp.oninput = () => {
+        AMBIENT[ambTarget][key] = +inp.value;
+        val.textContent = (+inp.value).toFixed(2);
+        draw();
+      };
+      row.append(name, inp, val);
+      panel.append(row);
+      ambInputs.push([key, inp, val]);
+    }
+    /** 대상이 바뀌면 슬라이더를 그 오버레이 값으로 되맞춘다 */
+    function syncAmb() {
+      const txt = AMB_TARGETS.find(([o]) => o === ambTarget)[1];
+      const dim = off.has(ambTarget) ? ' — 지금 꺼져 있어 화면에 안 보인다' : '';
+      ambName.textContent = `조정 대상: ${txt} (${ambTarget})${dim}`;
+      for (const [key, inp, val] of ambInputs) {
+        inp.value = AMBIENT[ambTarget][key];
+        val.textContent = AMBIENT[ambTarget][key].toFixed(2);
+      }
+    }
+    syncAmb();
+    const div0 = document.createElement('div'); div0.className = 'divider'; panel.append(div0);
+
     for (const [t, key, items] of AXES) mk(t, items, true, key);
     const div = document.createElement('div'); div.className = 'divider'; panel.append(div);
     for (const [t, items] of TOGGLES) mk(t, items, false);
+
     const note = document.createElement('div');
     note.className = 'note';
     note.textContent = '지오메트리는 런타임 생성(scene/generate.js) · 색은 팔레트 교체(scene/palette.js) · '

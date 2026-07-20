@@ -321,13 +321,6 @@ function rugSpan(y) {
   const t = (y - RUG_Y0) / (RUG_Y1 - RUG_Y0);
   return [pyRound(29 - 10 * t), pyRound(67 + 8 * t)];
 }
-// 레퍼런스 기준 재작화. 앞 판은 가장자리에서 안으로 rg0→rg1→**rg4(밝은 줄)**→rg3
-// →rg2 필드였는데, 두 가지가 레퍼런스와 반대였다:
-//   ① 안쪽 테두리 줄이 **밝은 색**이라 러그가 빛나는 테를 두른 것처럼 보였다.
-//      레퍼런스의 테는 필드보다 **어둡다** — 그래야 '무늬를 짜 넣은 깔개'로 읽힌다.
-//   ② 필드가 중간 톤(rg2)에 어두운 얼룩(rg1)까지 섞여 때 탄 것처럼 지저분했다.
-//      레퍼런스의 필드는 제일 밝고 거의 평평하다.
-// → 바깥부터: 어두운 가장자리 → 밝은 바깥 띠 → **어두운 테 줄** → 밝은 필드.
 function rugCells() {
   const out = [];
   for (let y = RUG_Y0; y <= RUG_Y1; y++) {
@@ -335,12 +328,16 @@ function rugCells() {
     for (let x = x0; x <= x1; x++) {
       const din = Math.min(x - x0, x1 - x, y - RUG_Y0, RUG_Y1 - y);
       let tone;
-      if (din === 0) tone = '--rg1';                 // 가장자리 — 바닥에 앉히는 어두운 단
-      else if (din <= 2) tone = '--rg3';             // 바깥 띠
-      else if (din <= 4) tone = '--rg0';             // **테 줄** (필드보다 어둡다)
+      if (din === 0) tone = '--rg0';
+      else if (din === 1) tone = '--rg1';
+      else if (din === 2) tone = '--rg4';            // 밝은 테두리 줄
+      else if (din === 3) tone = '--rg3';
       else {
-        tone = '--rg4';                              // 필드 — 제일 밝고 평평하게
-        if (h2(x, y, 40) < 9) tone = '--rg3';        // 아주 성긴 결만
+        tone = '--rg2';
+        const r = h2(x, y, 40);
+        if (r < 7) tone = '--rg3';
+        else if (r < 12) tone = '--rg1';
+        if (din === 4 && h2(x, y, 41) < 45) tone = '--rg3';
       }
       out.push([y, x, tone]);
     }
@@ -743,20 +740,35 @@ function cloudBank() {
 //   ④ 글줄은 끊긴 짧은 획을 행마다 길이를 바꿔서(5·6·5) — 같은 길이면 표가 된다.
 //   P=지면 p=종이 가장자리 q=종이 뭉치 단면 t=글줄 d=책등 골 C=표지 D=표지 아랫단
 // 18×10. 22폭은 러그 밖으로 나가고 어두운 방에서 혼자 커서 튀었다.
+// 펼친 책 — 레퍼런스(design/reference/livingroom-ref3.png) 기준.
+//
+// 앞판 둘 다 실패했다. 첫 판은 좌우 대칭 직사각형에 검은 글줄을 그은 **하얀 판**,
+// 둘째 판은 스프라이트만 따로 뽑아 보니 **가운데 2칸짜리 세로 기둥**과
+// **바닥을 통째로 가로지르는 띠**여서 책이 아니라 나무 상자로 읽혔다.
+// 레퍼런스를 다시 재서 고친 것:
+//   ① **두 면의 높이가 다르다** — 왼쪽 면이 한 줄 먼저 시작하고, 오른쪽 면이
+//      한 줄 늦게 끝난다. 같은 높이로 두면 슬라브 두 장이지 펼친 책이 아니다
+//   ② 접힘은 **한 칸**(d) + 양옆 그늘 한 칸(t) = 3칸 골. 2칸짜리 기둥이 아니다.
+//      그리고 **곧게 세우지 않는다** — col 9→8→7 로 기울여야 펼친 책이 눕혀진
+//      각도가 생긴다. 수직이면 골이 아니라 기둥으로 읽힌다
+//   ③ 명암을 **좁게** — 접힘 옆 한 칸만 그늘, 두 칸째만 중간, 나머지는 밝은 지면.
+//      앞판은 아래 절반을 통째로 중간톤으로 깔아 지면이 갈색 덩어리가 됐다
+//   ④ 표지는 각 면 **아래에만** 어긋나게 — 왼쪽은 r6, 오른쪽은 r7
+//   ⑤ 글줄 없음 — 16px 폭에서 글줄은 글자가 아니라 줄무늬로만 읽힌다
+// 지면은 --bp0(t)/--bp1(p)/--bp2(P), 접힘 d·표지 C 는 권별 색이라 문자를 남긴다. 16×8.
 const OPENBOOK_ART = [
-  '..PPPPPP..PPPPPP..',
-  '.pPPPPPPddPPPPPPp.',
-  '.pPttttPddPPttttPp',
-  'pPPPPPPPddPPPPPPPp',
-  'pPtttttPddPPtttttp',
-  'pPPPPPPPddPPPPPPPp',
-  'pPtttttPddPPtttttp',
-  'ppPPPPPPddPPPPPPpp',
-  '.qqqqqqqqqqqqqqqq.',
-  'CCCCCCCCCCCCCCCCCC',
+  '...PPPPptd......',
+  '..PPPPPptdtpPP..',
+  '.PPPPPPptdtpPPP.',
+  'PPPPPPptdtpPPPPP',
+  'PPPPPPptdtpPPPPP',
+  'ppppppptdtpPPPPP',
+  'CCCCCCCdtpppppp.',
+  '.......CCCCCCCC.',
 ];
+
 function openBook(n) {
-  const map = { p: '--cer1', P: '--cer2', t: '--cer0', q: '--cer1',
+  const map = { p: '--bp1', P: '--bp2', t: '--bp0', q: '--bp1',
                 d: `--b${n}x0`, C: `--b${n}x1`, D: `--b${n}x0` };
   const out = [];
   OPENBOOK_ART.forEach((row, j) => {
@@ -766,9 +778,16 @@ function openBook(n) {
       if (ch === '.') { i++; continue; }
       let k = i;
       while (k + 1 < row.length && row[k + 1] === ch) k++;
-      // 러그 돌(중심 아트 x46.5) **아래·앞**에 눕힌다. 폭 18 → x38~55, y60~69.
+      // 러그 돌(캔버스 x56~69) **왼쪽 아래**에 눕힌다. 폭 16 → 캔버스 x40~55, y59~66.
+      // 러그는 **원근 사다리꼴**이라 뒤로 갈수록 좁다(y59 는 x40~87, y66 은 x35~91).
+      // x36 에 두면 뒤쪽 다섯 줄(y59~63)이 러그 왼쪽으로 최대 3칸 삐져나갔다 —
+      // 러그를 벗어나면 깔개 위가 아니라 맨바닥에 던진 그림이 된다.
+      // 제일 좁은 줄(y59, 왼끝 x40)에 맞춰야 전 줄이 안에 든다.
+      // x 는 여기서 쓰는 값에 +16 이 붙어 캔버스 좌표가 된다 — 20 을 적으면 36 에 그려진다.
+      // 레퍼런스는 책이 돌 바로 아래(돌밑변+8~15)인데, 내 방은 16:9 라 그 깊이가 없다
+      // (캔버스가 72줄뿐). 그래서 위로 당기고 대신 **왼쪽으로** 비켰다 — 안 그러면 담요와 겹친다.
       // 러그 안에 온전히 들어가야 한다 — 밖으로 나가면 바닥에 떨어뜨린 그림이다.
-      out.push([38 + i, 60 + j, k - i + 1, 1, map[ch]]);
+      out.push([24 + i, 59 + j, k - i + 1, 1, map[ch]]);
       i = k + 1;
     }
   });
