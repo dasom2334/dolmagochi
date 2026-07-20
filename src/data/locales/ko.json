@@ -404,21 +404,6 @@
       "과일"
     ]
   ],
-  "shop.candle.var.lavender": [
-    [
-      "라벤더"
-    ]
-  ],
-  "shop.candle.var.woody": [
-    [
-      "우디"
-    ]
-  ],
-  "shop.candle.var.citrus": [
-    [
-      "시트러스"
-    ]
-  ],
   "shop.cleaner.var.soap": [
     [
       "비누"
@@ -587,31 +572,6 @@
   "shop.rockingchair.desc": [
     [
       "끼익, 끼익. 책장 넘기는 소리와 잘 어울린다."
-    ]
-  ],
-  "shop.candle.name": [
-    [
-      "향초"
-    ]
-  ],
-  "shop.candle.desc": [
-    [
-      "책 읽는 시간에 켜는 초."
-    ]
-  ],
-  "shop.candle.use.lavender": [
-    [
-      "오늘의 향초는 라벤더였다. 문장이 평소보다 느리게, 오래 읽혔다."
-    ]
-  ],
-  "shop.candle.use.woody": [
-    [
-      "오늘의 향초는 우디 향이었다. 방이 조금 숲 같아졌다. 돌은 원래 숲에 있었을까."
-    ]
-  ],
-  "shop.candle.use.citrus": [
-    [
-      "오늘의 향초는 시트러스였다. 상쾌한 향에 책장이 잘 넘어갔다."
     ]
   ],
   "shop.brush.name": [
@@ -4491,6 +4451,46 @@
   "dlg.companion.18": [
     [
       "손님 방석은 이제 아이의 자리가 되었다.\n돌이 앉던 자리 옆, 딱 그만큼 떨어진 곳."
+    ]
+  ],
+  "shop.readbook.name": [
+    [
+      "오늘의 책"
+    ]
+  ],
+  "shop.readbook.desc": [
+    [
+      "그날 손에 잡히는 한 권. 다 읽으면 그걸로 끝이다."
+    ]
+  ],
+  "shop.readbook.var.tech": [
+    [
+      "기술전문서적"
+    ]
+  ],
+  "shop.readbook.var.romance": [
+    [
+      "연애소설"
+    ]
+  ],
+  "shop.readbook.var.comic": [
+    [
+      "만화책"
+    ]
+  ],
+  "shop.readbook.use.tech": [
+    [
+      "오늘의 책은 기술전문서적이었다. 어려운 대목에서 둘 다 오래 멈췄다. 돌은 끝까지 자리를 뜨지 않았다."
+    ]
+  ],
+  "shop.readbook.use.romance": [
+    [
+      "오늘의 책은 연애소설이었다. 낯간지러운 대목에서 돌이 조금 굳은 것 같았다. 계속 읽었다."
+    ]
+  ],
+  "shop.readbook.use.comic": [
+    [
+      "오늘의 책은 만화책이었다. 그림이 많아 금방 넘어갔다. 돌은 속도를 따라오느라 바빴을 것이다. 아마."
     ]
   ]
 }

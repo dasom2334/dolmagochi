@@ -8,7 +8,7 @@ const STOCK_PROPS: Record<string, { left: string; body: string; accent: string }
   nightdrink: { left: '40%', body: '#c8a45a', accent: '#e8d0a0' }, // 머그
   tea: { left: '44%', body: '#7fa066', accent: '#a8c491' }, // 차통
   lunchbox: { left: '48%', body: '#d8b878', accent: '#a05a3a' }, // 도시락통
-  candle: { left: '52%', body: '#e8d05a', accent: '#f2ead8' }, // 초
+  readbook: { left: '52%', body: '#4a6a8a', accent: '#f2ead8' }, // 쌓아둔 책
   cleaner: { left: '56%', body: '#a8c8e8', accent: '#e8f0f8' }, // 세제
   ingredients: { left: '60%', body: '#b48a6a', accent: '#7fa066' }, // 장바구니
   apitoken: { left: '64%', body: '#6a8ae8', accent: '#b0c8ff' }, // 토큰 칩
