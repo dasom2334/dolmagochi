@@ -211,29 +211,29 @@ function brick(x0, x1, y0, y1, body = '--s6', hi = '--s10', mortar = '--s2', alt
 function fireplaceDetail() {
   const d = [];
   // 맨틀 — 레퍼런스는 한 겹이 아니라 **계단식**이다. 위가 가장 넓고 아래로 좁아진다.
-  d.push([-2, 31, 26, 1, '--s12']);          // 상판 윗면(가장 밝다)
-  d.push([-1, 32, 24, 1, '--s10']);          // 한 단 좁은 앞면
-  d.push([0, 33, 22, 1, '--s2']);            // 턱 밑 그림자 — 돌출을 증명하는 건 이것
+  d.push([-2, 31, 26, 1, '--st3']);          // 상판 윗면(가장 밝다)
+  d.push([-1, 32, 24, 1, '--st2']);          // 한 단 좁은 앞면
+  d.push([0, 33, 22, 1, '--st0']);           // 턱 밑 그림자 — 돌출을 증명하는 건 이것
   // 벽돌 — 좌우 기둥 + 상인방 위 벽까지. 레퍼런스는 아궁이 둘레가 전부 벽돌이다
-  // 줄눈은 가장 어두운 톤으로 — 레퍼런스는 장과 장이 확실히 떨어져 보인다
-  const B = ['--s6', '--s12', '--s1', '--s10'];
+  // 돌·나무를 같은 계열로 묶는다 — 레퍼런스도 벽난로와 책장 톤이 가깝다
+  const B = ['--st1', '--st2', '--st0', '--st1'];
   d.push(...brick(1, 20, 34, 35, ...B));
   d.push(...brick(1, 5, 36, 47, ...B));
   d.push(...brick(17, 20, 36, 47, ...B));
   // 상인방 — 아궁이 위를 가로지르는 보(벽돌이 아니라 통돌)
-  d.push([2, 36, 18, 1, '--s10']);
-  d.push([2, 37, 18, 1, '--s6']);
+  d.push([2, 36, 18, 1, '--st2']);
+  d.push([2, 37, 18, 1, '--st1']);
   // 아궁이 — 레퍼런스는 사각이 아니라 **아치**다. 위 두 줄을 좁혀 둥글린다.
   // 안쪽은 새까매야 불꽃이 산다(측정본은 잔광이 구워져 있어 채워진 판이었다).
   for (let y = 38; y <= 47; y++) {
     const inset = y === 38 ? 2 : y === 39 ? 1 : 0;
     d.push([6 + inset, y, 11 - inset * 2, 1, '--s1']);
   }
-  d.push([7, 46, 8, 1, '--s7']);             // 장작
-  d.push([9, 45, 4, 1, '--s4']);
+  d.push([7, 46, 8, 1, '--st1']);            // 장작
+  d.push([9, 45, 4, 1, '--st0']);
   // 화덕 — 바닥으로 튀어나온 돌판. 없으면 벽에 그려 놓은 그림처럼 보인다.
-  d.push([-3, 48, 28, 1, '--s9']);
-  d.push([-3, 49, 28, 1, '--s6']);
+  d.push([-3, 48, 28, 1, '--st2']);
+  d.push([-3, 49, 28, 1, '--st1']);
   return d;
 }
 
@@ -625,14 +625,32 @@ function halo(cx, cy, reach, ysquash) {
 // 무한 낙하를 만들기 때문에, 패턴이 30으로 안 나누어떨어지면 이음매가 보인다.
 const PT_H = 30;
 
-/** 낙하 파티클 한 벌. dens=칸당 확률(%), len=세로 길이, slot=색 */
-function fall(slot, dens, len, salt, jitter = 0) {
+/** 비 — **열 단위**로 그린다.
+ *  칸마다 독립으로 뿌리면 이웃 칸이 붙어 2~3px 뭉치가 생긴다 —
+ *  그게 "굵은 선"으로 보였던 원인이다. 빗줄기는 언제나 1px 이어야 한다.
+ *  그래서 ① 열을 골라 ② **바로 옆 열은 못 고르게** 막고 ③ 그 열에 일정 간격 대시를 넣는다.
+ *  prob=열 선택 확률(%), len=대시 길이, gap=대시 주기 */
+function rainCols(slot, prob, len, gap, salt) {
+  const cells = [];
+  let prevOn = false;
+  for (let x = AX0; x < AX1; x++) {
+    const on = !prevOn && h2(x, 0, salt) < prob;
+    prevOn = on;
+    if (!on) continue;
+    const phase = h2(x, 1, salt) % gap;
+    for (let y = 0; y < PT_H; y++)
+      if ((y + phase) % gap < len) cells.push([y, x, slot]);
+  }
+  return emitRows(cells);
+}
+
+/** 낙하 파티클(눈) — 칸마다 독립. 눈은 점이라 붙어도 뭉치로 안 읽힌다 */
+function fall(slot, dens, len, salt) {
   const cells = [];
   for (let y = 0; y < PT_H; y++)
     for (let x = AX0; x < AX1; x++) {
       if (h2(x, y, salt) >= dens) continue;
-      const n = len + (jitter ? h2(x, y, salt + 1) % (jitter + 1) : 0);
-      for (let i = 0; i < n; i++) cells.push([(y + i) % PT_H, x, slot]);
+      for (let i = 0; i < len; i++) cells.push([(y + i) % PT_H, x, slot]);
     }
   return emitRows(cells);
 }
@@ -693,6 +711,21 @@ function cloudBank() {
       }
   }
   return emitRows([...cells.values()]);
+}
+
+// ─────────────────────── 창턱 선반 ───────────────────────
+// 측정 창틀은 창턱이 x24~70 이라 창(x25~70) 기준으로 왼쪽만 1칸 튀어나온 짝짝이였다.
+// 레퍼런스처럼 **양옆으로 똑같이** 내민 나무 선반으로 다시 놓는다.
+// (레퍼런스의 다리 달린 벤치는 "창 아래엔 가구를 두지 않는다"에 걸리므로 선반만)
+const WIN_L = 25, WIN_R = 70, SILL_OUT = 4;
+function sillShelf() {
+  const x0 = WIN_L - SILL_OUT, x1 = WIN_R + SILL_OUT, w = x1 - x0 + 1;
+  return [
+    [x0, 35, w, 1, '--wd2'],                 // 상판 — 빛 받는 면
+    [x0, 36, w, 1, '--wd1'],
+    [x0, 37, w, 1, '--wd1'],
+    [x0 + 1, 38, w - 2, 1, '--wd0'],         // 밑면 그림자 = 두께
+  ];
 }
 
 // ─────────────────────── 창턱에 쌓인 눈 ───────────────────────
@@ -781,7 +814,7 @@ export const BOXES = {
   'g-shelf':     { x0: 78, x1: 95, y0: 16, y1: 48, dir: -1, side: '--wd1', top: null },
 };
 /** 상자에 얹혀 함께 앞으로 나와야 하는 것들 */
-const ON_FIREPLACE = ['candle'];
+const ON_FIREPLACE = [];   // 향초 제거됨
 const ON_SHELF = ['bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6'];
 
 /** 절차 그룹 전체를 만든다. 반환: { groupId: rects[] } (캔버스 좌표) */
@@ -808,13 +841,15 @@ export function generateGroups(measured = {}) {
     'halo-moon': halo(56.5, 16.5, 17.0, 1.25),
     // 날씨 — 아트 전폭. 창이 잘라주므로 넓혀도 방 안엔 안 보인다
     clouds: cloudBank(),
-    // 폭우가 기준(원래 밀도), 비는 그보다 성기고 짧게
-    rain: fall('--rain', 2, 2, 100),
-    downpour: fall('--rain', 5, 3, 102, 1),
+    // 가벼운 비: 열이 드물고 대시가 짧고 사이가 멀다
+    rain: rainCols('--rain', 20, 2, 13, 100),
+    // 폭우: 열이 촘촘하고 대시가 길고 촘촘 — 하지만 이웃 열은 여전히 못 붙는다
+    downpour: rainCols('--rain', 52, 5, 7, 102),
     snow: fall('--snow-p', 5, 1, 104),
     'pt-petals': drift('--t2', 3, 106),
     'pt-leaves': drift('--t1', 3, 108),
     'fx-snowcap': snowCap(),
+    'sill-shelf': sillShelf(),
     'g-floor': [...emitRows(floor), ...floorAO],
     rug: emitRows(rugCells()),
     orb: ball(SILL_ROWS),

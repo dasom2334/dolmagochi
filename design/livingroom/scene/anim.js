@@ -53,8 +53,8 @@ export const flameIdx = (t, n, off = 0) => Math.floor(t / FLAME_MS + off) % n;
 
 /** 어느 그룹에 어떤 애니메이션이 붙는지 (props.js 가 스스로 아는 것 외) */
 export const GROUP_ANIM = {
-  'fire-body': 'f-body', 'candle-flame': 'c-flame',
-  'lp-fire': 'glow-flicker', 'lp-candle': 'glow-flicker-slow',
+  'fire-body': 'f-body',
+  'lp-fire': 'glow-flicker',
   // 전폭 파티클은 절차 생성(generate.js)이라 props 의 하위 레이어를 못 쓴다 → 여기서 붙인다
   clouds: 'cloud-drift', rain: 'rain-fall', downpour: 'rain-heavy',
   snow: 'snow-fall-a', 'pt-petals': 'drift-a', 'pt-leaves': 'drift-b',

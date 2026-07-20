@@ -85,34 +85,35 @@ const Z = [
   'g-winframe', 'g-floor', 'g-fireplace', 'g-shelf',
   // [3] 소품 (선반 안 → 맨틀 → 창턱 → 바닥 깔개 → 바닥 스탠딩)
   'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
-  'candle', 'p-tea', 'p-cup', 'p-waterglass',            // 맨틀 위
+  'p-cup', 'p-waterglass',                                // 맨틀 위
   'p-windchime',                                          // 창 오른쪽 벽
-  'sill-plant', 'p-bird', 'orb',                          // 창턱
-  'rug', 'p-rockmark', 'p-cushion', 'p-guestcushion', 'p-blanket', 'p-bookstack',
+  // 창턱 선반 → 그 위 소품 → 돌의 방석 → 돌
+  'sill-shelf', 'sill-plant', 'p-bird', 'p-cushion', 'orb',
+  'rug', 'p-rockmark', 'p-guestcushion', 'p-blanket', 'p-bookstack',
   'orb-rug',
-  'lamp', 'p-lanternpost', 'p-rockingchair', 'p-fan', 'p-wateringcan', 'p-soda',
+  'lamp', 'p-lanternpost', 'p-rockingchair',
   'floor-props',
 ];
 
 /** 상점에서 사기 전까지는 없는 것 — 패널에서 기본으로 꺼 둔다 */
-export const SHOP_PROPS = ['p-cushion', 'p-guestcushion', 'p-rockingchair', 'p-fan',
-  'p-cup', 'p-tea', 'p-soda', 'p-bookstack', 'p-wateringcan', 'p-windchime',
-  'p-lanternpost', 'p-blanket', 'p-waterglass', 'p-bird', 'p-rockmark'];
+export const SHOP_PROPS = ['p-cushion', 'p-guestcushion', 'p-rockingchair',
+  'p-cup', 'p-bookstack', 'p-windchime', 'p-lanternpost',
+  'p-blanket', 'p-waterglass', 'p-bird', 'p-rockmark'];
 
 /** 발광체 — 오버레이 위라 밤에도 어두워지지 않는다 */
-const EMISSION = ['fire-body', 'candle-flame', 'lamp-glow'];
+// 향초는 상점에서 '책'으로 교체됐다 → 씬에서 제거(촛대·촛불·촛불광원 전부)
+const EMISSION = ['fire-body', 'lamp-glow'];
 
 /** 프레임 교체 애니메이션 — 그룹 id → [프레임 그룹 접두어, 프레임 수] */
-const FRAMED = { 'fire-body': 'fire-f', 'candle-flame': 'cflame-f' };
+const FRAMED = { 'fire-body': 'fire-f' };
 
 /** 소품 토글 → 그 오클루더도 함께 끈다 */
 const OCC_OF = { orb: 'occ-orb', 'orb-rug': 'occ-orb2', 'sill-plant': 'occ-plant',
                  'floor-props': 'occ-props' };
 /** 발광 부품 → 그것을 가진 소품. 소품을 끄면 화염·전구도 함께 꺼진다 */
-const FIRE_PARTS = { 'fire-body': 'fire', 'candle-flame': 'candle', 'lamp-glow': 'lamp' };
+const FIRE_PARTS = { 'fire-body': 'fire', 'lamp-glow': 'lamp' };
 /** 광원 → 그 광원을 내는 소품. 소품이 없으면(=아직 안 샀으면) 빛도 없어야 한다 */
-const LIGHT_SOURCE = { 'lp-fire': ['g-fireplace', 'fire'], 'lp-candle': ['candle'],
-                       'lp-lamp': ['lamp'] };
+const LIGHT_SOURCE = { 'lp-fire': ['g-fireplace', 'fire'], 'lp-lamp': ['lamp'] };
 
 /** 상태별 표시 여부 — CSS 셀렉터 조합 대신 평범한 조건식으로 */
 function visible(id, st) {
