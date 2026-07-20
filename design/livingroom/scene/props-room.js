@@ -107,13 +107,16 @@ export const ROOM_PROPS = {
     '.w.w.',
   ], { w: '--cer2' }],
 
-  // 물컵 (대사: restAct.water / act.nurse)
-  'p-waterglass': [14, 28, [
-    'gg',
-    'gg',
-    'ww',
-    'GG',
-  ], { g: '--gl1', w: '--lqw', G: '--gl0' }],
+  // 물컵 (대사: restAct.water / act.nurse '이불 옆, 물 한 컵').
+  // 대사가 위치를 못 박아 뒀으므로 개어 둔 담요(x58~69) 옆에 놓는다.
+  // 토글은 담요와 독립이라 물컵만·담요만·둘 다(간호 자리) 전부 만들 수 있다.
+  'p-waterglass': [71, 62, [
+    '.GG.',
+    'GggG',
+    'GwwG',
+    'GwwG',
+    '.SS.',
+  ], { G: '--gl0', g: '--gl1', w: '--lqw', S: '--gl0' }],
 
   // 풍경(風磬) — 창 오른쪽 벽. 창을 열면 **대롱만** 흔들려야 하므로 따로 뗀다
   'p-windchime': [69, 3, [

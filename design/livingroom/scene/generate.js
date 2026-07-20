@@ -625,26 +625,26 @@ function halo(cx, cy, reach, ysquash) {
 // 무한 낙하를 만들기 때문에, 패턴이 30으로 안 나누어떨어지면 이음매가 보인다.
 const PT_H = 30;
 
-/** 비 — **대각선**이다. 이게 핵심이고, 세 번을 세로로 그려서 계속 틀렸다.
- *  레퍼런스(도트 비 에셋)는 예외 없이 45~60° 로 기울어져 있다.
- *  수직 1px 기둥은 아무리 밀도를 맞춰도 "떨어지는 물"이 아니라 **정지한 선**으로 읽힌다.
- *  기울기가 곧 속도감이라서다.
+/** 비 — **실측 원본 방식으로 되돌린 것**.
  *
- *  기울기 좌표 u 를 따라 줄을 세우고 x = u - floor(y/2) 로 2:1 대각선을 만든다.
- *  줄 간격이 u 에서 일정하면 어느 행에서도 일정하므로 이웃 픽셀이 붙지 않는다.
- *  spacing=줄 간격, len=대시 길이, gap=대시 주기 */
-function rainSlant(slot, spacing, len, gap, salt) {
+ *  원본(v2 실측)은 1×3 짜리 짧은 낱방울 16개를 창 안에 성기게 흩뿌린 것이었다.
+ *  나는 이걸 세 번에 걸쳐 "선"으로 바꾸려 했고(열 기둥 → 긴 대시 → 대각선)
+ *  전부 원본보다 나빴다. 기록해 둘 것:
+ *    - 긴 세로 기둥: 정지한 선으로 보인다
+ *    - 대각선: 각도는 맞지만 **낙하 애니메이션이 수직**이라 움직임이 어긋난다.
+ *      기울인 빗줄기는 그 기울기 방향으로 움직여야 하는데 여기 낙하는 dy 뿐이다.
+ *    - 이 크기(창 38px)에서는 긴 줄 자체가 과하다. 짧은 낱방울이 맞다.
+ *
+ *  spacing=가로 간격, len=방울 길이, passes=겹쳐 뿌리는 횟수(밀도) */
+function rainDrops(slot, spacing, len, passes, salt) {
   const cells = [];
-  for (let u = AX0 - PT_H; u < AX1 + PT_H; u += spacing) {
-    const jx = u + (h2(u, 0, salt) % spacing);
-    const phase = h2(jx, 1, salt) % gap;
-    for (let y = 0; y < PT_H; y++) {
-      if ((y + phase) % gap >= len) continue;
-      const x = jx - ((y / 2) | 0);
+  for (let pass = 0; pass < passes; pass++)
+    for (let x0 = AX0; x0 < AX1; x0 += spacing) {
+      const x = x0 + (h2(x0, pass, salt) % spacing);
       if (x < AX0 || x >= AX1) continue;
-      cells.push([y, x, slot]);
+      const y0 = h2(x, pass, salt + 1) % PT_H;
+      for (let k = 0; k < len; k++) cells.push([(y0 + k) % PT_H, x, slot]);
     }
-  }
   return emitRows(cells);
 }
 
@@ -924,11 +924,11 @@ export function generateGroups(measured = {}) {
     'halo-moon': halo(56.5, 16.5, 17.0, 1.25),
     // 날씨 — 아트 전폭. 창이 잘라주므로 넓혀도 방 안엔 안 보인다
     clouds: cloudBank(),
-    // 가벼운 비: 줄이 드물고 대시가 짧다
-    rain: rainSlant('--rain', 8, 3, 15, 100),
-    // 폭우: 줄이 촘촘하고 대시가 길다. 각도는 같아야 한다 —
-    // 같은 비가 세지는 것이지 다른 방향으로 오는 게 아니므로.
-    downpour: rainSlant('--rain', 4, 7, 10, 102),
+    // 비 = **실측 원본 밀도 그대로**. 원본은 창 폭 37에 1×3 방울 16개였으므로
+    // 전폭(128) 환산 ≈ 55방울 → 간격 7 × 3패스. 이게 제일 나았던 판이다.
+    rain: rainDrops('--rain', 7, 3, 3, 100),
+    // 폭우 = 그 2.4배. 방울을 길게(4) 하고 더 촘촘히 뿌린다 — 모양은 같다.
+    downpour: rainDrops('--rain', 5, 4, 5, 102),
     snow: fall('--snow-p', 5, 1, 104),
     'pt-petals': drift('--t2', 3, 106),
     'pt-leaves': drift('--t1', 3, 108),
