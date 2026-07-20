@@ -20,6 +20,8 @@ const apartAt = (growth: number): GameState => ({
   era: 'apart',
   phase: 'actionSelect',
   sproutGrowth: growth,
+  // 단계 게이트(피드백5)는 이 파일의 관심사가 아니다 — 이미 통과한 것으로 둔다
+  sproutGatesCleared: BALANCE.SPROUT_GATES.filter((g) => growth >= g).length,
 });
 const session = (s: GameState, rng?: Rng) =>
   run(
@@ -97,5 +99,95 @@ describe('뿌리내림기 (M19b, v5 §6)', () => {
     expect(
       again.session.journal.some((j) => j.text.includes('더는 이쪽으로 기울지')),
     ).toBe(false);
+  });
+});
+
+describe('묘목 단계 게이트 — 한 단계마다 방문 1회 (피드백5)', () => {
+  const DAY2 = 86_400_000;
+  /** 2차(빈자리) 상태 — 성장 g, 게이트 c개 통과 */
+  function gateState(g: number, cleared: number): GameState {
+    return {
+      ...createInitialState(T0, 'lie'),
+      era: 'apart',
+      phase: 'actionSelect',
+      letGoCount: 1,
+      sproutGrowth: g,
+      sproutGatesCleared: cleared,
+      visitBlockedUntil: null,
+    };
+  }
+  /** 방문이 오지 않는 세션 (rng 1.0 → VISIT_PROB 미달) */
+  function soloSession(s: GameState, at: number, min = 90): GameState {
+    return run(
+      { ...s, phase: 'actionSelect' },
+      [
+        { type: 'START_FOCUS', nowMs: at },
+        { type: 'TICK', dtSec: min * 60 },
+        { type: 'END_FOCUS', nowMs: at + min * 60_000 },
+      ],
+      seq([0.99]),
+    );
+  }
+
+  it('게이트에 닿으면 성장이 멈춘다 — 혼자서는 다음 단계로 못 간다', () => {
+    let s = gateState(BALANCE.SPROUT_GATES[0] - 1, 0);
+    for (let i = 0; i < 5; i++) s = soloSession(s, T0 + i * DAY2);
+    expect(s.sproutGrowth).toBe(BALANCE.SPROUT_GATES[0]);
+    expect(s.sproutGatesCleared).toBe(0);
+  });
+
+  it('멈춰 있는 동안 일지가 이유를 알린다 (수치 비노출)', () => {
+    let s = gateState(BALANCE.SPROUT_GATES[0], 0);
+    s = soloSession(s, T0);
+    const waits = gameData.text['sys.journal.gateWait'].map((p) => p.join('\n'));
+    expect(s.session.journal.some((j) => waits.includes(j.text))).toBe(true);
+  });
+
+  it('방문이 오면 게이트가 열리고 다시 자란다', () => {
+    const held = gateState(BALANCE.SPROUT_GATES[0], 0);
+    // rng 0.0 → 방문 확정
+    const visited = run(
+      held,
+      [{ type: 'START_FOCUS', nowMs: T0 }],
+      seq([0.0, 0.0, 0.9]),
+    );
+    expect(visited.apart.visiting).toBe(true);
+    expect(visited.sproutGatesCleared).toBe(1);
+    const opens = gameData.text['sys.journal.gateOpen'].map((p) => p.join('\n'));
+    expect(
+      visited.session.journal.some((j) => opens.some((o) => j.text.includes(o))),
+    ).toBe(true);
+    // 방문이 끝난 뒤 세션에서 다시 자란다
+    const after = soloSession(
+      { ...visited, apart: { ...visited.apart, visiting: false } },
+      T0 + DAY2,
+    );
+    expect(after.sproutGrowth).toBeGreaterThan(BALANCE.SPROUT_GATES[0]);
+  });
+
+  it('마지막 게이트(심기)도 방문을 거친다 — 돌 없이 나무가 되지 않는다', () => {
+    const last = BALANCE.SPROUT_GATES.length - 1;
+    let s = gateState(BALANCE.SPROUT_GATES[last] - 1, last);
+    for (let i = 0; i < 3; i++) s = soloSession(s, T0 + i * DAY2);
+    // 성장은 100에 닿아도 게이트가 남아 있으면 심기로 넘어가지 않는다
+    expect(s.sproutGatesCleared).toBe(last);
+  });
+});
+
+describe('게이트 회귀 — 리뷰 지적분', () => {
+  it('동거 루트는 게이트에 걸리지 않는다 — 방문이 없으니 열 수단도 없다', () => {
+    const base = createInitialState(T0, 'lie');
+    // 균형 애착 동거: 묘목이 절반 속도로 자란다
+    let s: GameState = {
+      ...base,
+      era: 'cohabit',
+      phase: 'actionSelect',
+      sproutGrowth: BALANCE.SPROUT_GATES[0],
+      sproutGatesCleared: 0,
+      stats: { ...base.stats, abandonment: 50, intimacyThreat: 50, security: 100 },
+    };
+    for (let i = 0; i < 3; i++)
+      s = session({ ...s, phase: 'actionSelect' }, seq([0.99]));
+    expect(s.sproutGrowth).toBeGreaterThan(BALANCE.SPROUT_GATES[0]);
   });
 });

@@ -273,6 +273,28 @@ export function migrateState(state: GameState): GameState | null {
       settings: { ...s.settings, lastRoom: s.settings.lastRoom ?? 'living' },
     };
   }
+  // v23 → v24: 각성 강제 이벤트·자유행동 위임(플레이테스트 피드백) —
+  // 포섀도 풀 개편(영수증 삭제)으로 저장된 인덱스가 어긋나므로 foreUsed 리셋
+  if (s.schemaVersion === 23) {
+    s = {
+      ...s,
+      schemaVersion: 24,
+      awakeningPending: s.awakeningPending ?? false,
+      delegate: null,
+      foreUsed: [],
+    };
+  }
+  // v24 → v25: 묘목 단계 게이트(피드백5) — 현재 성장에서 이미 통과한 게이트 수로 백필.
+  // (기존 세이브가 갑자기 뒤로 막히지 않게 한다)
+  if (s.schemaVersion === 24) {
+    s = {
+      ...s,
+      schemaVersion: 25,
+      sproutGatesCleared:
+        s.sproutGatesCleared ??
+        BALANCE.SPROUT_GATES.filter((g) => s.sproutGrowth >= g).length,
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

@@ -28,7 +28,7 @@ import {
 } from './timer';
 import { drawMemory, remember, resolveReflection } from './memory';
 import { affectionTier, drawEligibleLine, selectDialoguePool } from './dialogue';
-import { personalWorkProb, pickFreeAction } from './freeAction';
+import { careTargetNeed, personalWorkProb, pickFreeAction } from './freeAction';
 import {
   applyNeedsGated,
   clampStat,
@@ -59,14 +59,15 @@ import {
   recordRemembrance,
 } from './outcomes';
 import { randInt } from './rng';
-import { fillPages, pickText, textVariantAt, SYS } from './text';
+import { fillPages, pickFor, pickText, resolveSlot, textVariantAt, SYS } from './text';
+import type { Company } from './text';
 
 export interface TransitionCtx {
   rng: Rng;
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 23;
+export const SCHEMA_VERSION = 25;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -114,6 +115,9 @@ export function createInitialState(
     dialogue: { usedByPool: {} },
     pendingEvent: null,
     foreUsed: [],
+    awakeningPending: false,
+    sproutGatesCleared: 0,
+    delegate: null,
     endingTalksSeen: 0,
     lastEndingTalkDate: null,
     relationTier: 1,
@@ -260,10 +264,44 @@ export function isItemAvailable(item: ShopItemData, state: GameState): boolean {
   );
 }
 
+/**
+ * 보유(배치 무관) 소품의 수치 효과 합산 (피드백8) — 2·3차 정성 소비처.
+ * 배치 여부와 무관하다: 들여놓은 마음이 곧 효과다.
+ */
+export function itemBonus(
+  state: GameState,
+  data: GameData,
+  key: 'visitBonus' | 'treeBondBonus' | 'treeFlowers',
+): number {
+  return data.shop.reduce(
+    (sum, it) => (it.id in state.items ? sum + (it[key] ?? 0) : sum),
+    0,
+  );
+}
+
+/** 시듦 회복 배수 — 보유 소품 중 최댓값 (중복 구매로 폭주하지 않게) */
+export function witherRecoverMult(state: GameState, data: GameData): number {
+  return data.shop.reduce(
+    (m, it) =>
+      it.id in state.items ? Math.max(m, it.witherRecoverMult ?? 1) : m,
+    1,
+  );
+}
+
 /** 돌이 지금 곁에 있는가 (잠수·apart 통합 판정) */
 export function isRockPresent(state: GameState): boolean {
   if (state.era === 'apart') return state.apart.visiting;
   return state.presence.state === 'present';
+}
+
+/**
+ * 동석 축 판정 (피드백4-2) — 문구 변형을 고르는 단일 기준.
+ * 돌이 곁에 있으면 present, 3차에서 아이를 만난 뒤면 companion, 아니면 absent.
+ */
+export function companyOf(state: GameState): Company {
+  if (isRockPresent(state)) return 'present';
+  if (state.planted && companionMet(state.memory)) return 'companion';
+  return 'absent';
 }
 
 /** 페이지 배열 → 일지/서술 한 덩어리 (M2에서 페이지 UI로 분리 렌더링) */
@@ -487,6 +525,8 @@ function exitRest(
     state: {
       ...state,
       apart: { ...state.apart, visiting: false, leavePending: false, held: false },
+      // 돌이 떠나면 '오늘 돌이 원하는 것'도 함께 사라진다 (리뷰)
+      delegate: null,
     },
     visitEndLine: joinPages(pickText(data.text, SYS.journal.visitEnd, rng)),
   };
@@ -587,6 +627,7 @@ function reduce(
       return {
         ...state,
         selectedAction: event.actionId,
+        delegate: null,
         pendingUmbrella: false,
         pendingApproach: null,
       };
@@ -594,6 +635,20 @@ function reduce(
 
     case 'START_FOCUS': {
       if (state.phase !== 'actionSelect' && state.phase !== 'rest') return state;
+      // 각성 강제 이벤트(피드백6) — 응답 전까지 다음 세션도 막는다
+      if (state.awakeningPending) return state;
+      // 자유행동 위임(피드백2): 돌이 고른 행동으로 치환해 실제 세션을 연다.
+      // locked(미해금)는 확인만 가능 — 세션이 시작되지 않는다
+      if (state.selectedAction === 'free' && state.delegate) {
+        if (state.delegate.kind === 'locked') return state;
+        // 위임은 '돌이 원하는 것'이다 — 그 사이 돌이 떠났다면 무효.
+        // (휴식 중 위임 → 보내주기 → 빈방에 산책 세션이 열리던 누출)
+        state = !isRockPresent(state)
+          ? { ...state, delegate: null }
+          : state.delegate.kind === 'action'
+            ? { ...state, selectedAction: state.delegate.action, delegate: null }
+            : { ...state, delegate: null };
+      }
       const action = actionOf(data, state.selectedAction);
       if (!action) return state;
       // 선택된 행동이 지금 가용한지 검증 — 회복 후 남은 'nurse'나
@@ -702,7 +757,7 @@ function reduce(
         !next.apart.visiting &&
         (next.visitBlockedUntil === null || event.nowMs >= next.visitBlockedUntil)
       ) {
-        if (rng() < BALANCE.VISIT_PROB) {
+        if (rng() < BALANCE.VISIT_PROB + itemBonus(next, data, 'visitBonus')) {
           next = {
             ...next,
             apart: {
@@ -719,6 +774,16 @@ function reduce(
           visitJournal = joinPages(
             pickText(data.text, SYS.journal.visitStart, rng),
           );
+          // 단계 게이트 해제 (피드백5): 성장이 게이트에 걸려 멈춰 있었다면
+          // 이 방문이 다음 단계를 연다 — 한 단계마다 돌을 한 번은 만난다
+          const gate = BALANCE.SPROUT_GATES[next.sproutGatesCleared];
+          if (gate !== undefined && next.sproutGrowth >= gate) {
+            next = { ...next, sproutGatesCleared: next.sproutGatesCleared + 1 };
+            visitJournal = joinPages([
+              visitJournal,
+              joinPages(pickText(data.text, SYS.journal.gateOpen, rng)),
+            ]);
+          }
         }
       }
 
@@ -748,9 +813,14 @@ function reduce(
           supplies: { ...next.supplies, [consumableItem.id]: 0 },
         };
       }
-      const startLine = present
-        ? joinPages(pickText(data.text, action.startLineId, rng))
-        : joinPages(pickText(data.text, SYS.journal.sessionStartAbsent, rng));
+      const company = companyOf(next);
+      const startLine = joinPages(
+        pickFor(data.text, action.startLineId, company, rng, {
+          absent: SYS.journal.sessionStartAbsent,
+          // 각성 후에는 '돌이 없는 방'이 아니라 아이가 있는 창밖 (피드백6-3)
+          companion: SYS.journal.sessionStartCompanion,
+        }),
+      );
       // 직전 휴식 준수 배율 — 이번 세션의 게이지 정산에 곱한다 (개정 v4-4).
       // 1 미만이면 관찰 문장으로 텔레그래프 (수치 비노출 — 돌의 기색으로만).
       const restMult = restComplianceMult(state, event.nowMs);
@@ -778,7 +848,15 @@ function reduce(
       journal = addJournal(journal, 0, startLine);
       if (restLine) journal = addJournal(journal, 0, restLine);
       if (visitJournal) journal = addJournal(journal, 0, visitJournal);
-      const absentAmb = data.text[SYS.absentAmbient]?.[0];
+      const absentAmb =
+        company === 'present'
+          ? undefined
+          : data.text[
+              resolveSlot(data.text, action.ambientId, company, {
+                absent: SYS.absentAmbient,
+                companion: SYS.absentAmbientCompanion,
+              })
+            ]?.[0];
       return {
         ...next,
         phase: 'focus',
@@ -820,7 +898,12 @@ function reduce(
       // 1) 화자 관찰 로테이션 — 카탈로그 변형을 순서대로 순환
       // 선택지가 떠 있어도 서술은 계속 흐른다(선택지는 아래 별도 박스로 남는다)
       const ambientVariants =
-        data.text[present ? action.ambientId : SYS.absentAmbient] ?? [];
+        data.text[
+          resolveSlot(data.text, action.ambientId, companyOf(next), {
+            absent: SYS.absentAmbient,
+            companion: SYS.absentAmbientCompanion,
+          })
+        ] ?? [];
       if (ambientVariants.length > 0) {
         const wantIdx =
           Math.floor(el / BALANCE.AMBIENT_ROTATE_SEC) % ambientVariants.length;
@@ -1014,7 +1097,7 @@ function reduce(
       data.timeMarks.focus.forEach((mark, i) => {
         if (el >= mark.minSec && !next.session.timeMarksFired.includes(i)) {
           const markLine = joinPages(
-            fillPages(pickText(data.text, mark.textId, rng), {
+            fillPages(pickFor(data.text, mark.textId, companyOf(next), rng), {
               mins: Math.round(mark.minSec / 60),
             }),
           );
@@ -1387,14 +1470,32 @@ function reduce(
       let era = next.era;
       let farewell2 = false;
       let witherEaseLine: string | null = null;
+      let gateWaitLine: string | null = null;
+      // 단계 게이트 상한 (피드백5) — 열린 게이트까지만 자란다.
+      // 게이트는 '방문 1회'로만 열리므로 방문이 존재하는 apart에서만 건다.
+      // 동거는 돌이 늘 곁에 있어 열 수단이 없다 — 걸면 심기가 영원히 막힌다.
+      const growthCap =
+        next.era === 'apart'
+          ? (BALANCE.SPROUT_GATES[next.sproutGatesCleared] ?? 100)
+          : 100;
+      let gateHeld = false;
       if (!next.planted && next.era === 'apart') {
         if (!apart.visiting) {
+          const before = sproutGrowth;
           sproutGrowth = Math.min(
-            100,
+            growthCap,
             sproutGrowth + BALANCE.SPROUT_GROWTH_PER_UNIT * units,
           );
+          // 상한에 걸려 더 못 자랐다 — 돌을 기다리는 중임을 관찰로 알린다.
+          // (이미 걸려 있던 세션도 포함: before === growthCap)
+          void before;
+          gateHeld = sproutGrowth >= growthCap && growthCap < 100;
           const prevWither = witherLevel;
-          witherLevel = Math.max(0, witherLevel - BALANCE.SPROUT_RECOVER);
+          witherLevel = Math.max(
+            0,
+            witherLevel -
+              BALANCE.SPROUT_RECOVER * witherRecoverMult(next, data),
+          );
           // 회복 힌트 (M14b): 돌이 없는 날들에 묘목이 나아진다 —
           // '놔줘야 자아실현이 가능하다'를 숫자 없이 알려주는 관찰 문장
           if (
@@ -1421,7 +1522,7 @@ function reduce(
         if (balanced) {
           balancedSeen = true;
           sproutGrowth = Math.min(
-            100,
+            growthCap,
             sproutGrowth +
               BALANCE.SPROUT_GROWTH_PER_UNIT *
                 BALANCE.SPROUT_GROWTH_COHABIT_FACTOR *
@@ -1444,6 +1545,11 @@ function reduce(
           crisisArcsFired = [...crisisArcsFired, 'farewell2'];
         }
       }
+      // 게이트 대기 관찰 (피드백5) — 진행이 멈춘 이유를 숫자 없이 알린다
+      if (gateHeld) {
+        gateWaitLine = joinPages(pickText(data.text, SYS.journal.gateWait, rng));
+      }
+
       // 뿌리내림기 (M19b, v5 §6): 성장 절반부터 시듦은 소멸한다 — 막을 수
       // 없는 진행에 페널티는 무의미하다. 잎의 처짐 대신 불가역의 뿌리가 잇는다
       if (!next.planted && sproutGrowth >= BALANCE.ROOTING_AT) witherLevel = 0;
@@ -1465,6 +1571,7 @@ function reduce(
 
       if (bloomLine) journal = addJournal(journal, elapsed, bloomLine);
       if (witherEaseLine) journal = addJournal(journal, elapsed, witherEaseLine);
+      if (gateWaitLine) journal = addJournal(journal, elapsed, gateWaitLine);
 
       if (farewell2) {
         journal = addJournal(
@@ -1630,9 +1737,10 @@ function reduce(
           1,
           cappedMins / BALANCE.TREE_BOND_SESSION_MINS,
         );
+        // 나무 소품 보너스 (피드백8) — 정성이 성장을 앞당긴다
         const gain = Math.min(
           BALANCE.TREE_BOND_DAILY_MAX - treeBondToday,
-          attend + sessionBond,
+          attend + sessionBond + itemBonus(next, data, 'treeBondBonus'),
         );
         if (gain > 0) {
           treeBondDays += gain;
@@ -1644,7 +1752,8 @@ function reduce(
       // 열매와 흔들림을 같은 날 겪고, 열매 다음 날 각성에 닿을 수 있다.
       // 단계·계절·선행(after)이 맞는 미발견 후보 중 우선순위 → 단계 순
       let lastTreeFindDate = next.lastTreeFindDate;
-      if (planted && plantedAt !== null) {
+      let awakeningPending = next.awakeningPending;
+      if (planted && plantedAt !== null && !awakeningPending) {
         const stage = treeStage(plantedAt, treeBondDays, event.nowMs);
         const season = resolveSeason(next.settings, event.nowMs);
         const dailyOpen = lastTreeFindDate !== today;
@@ -1663,18 +1772,24 @@ function reduce(
           );
         if (cands.length > 0) {
           const found = cands[0];
-          memory = remember(
-            memory,
-            `tree-${found.id}`,
-            BALANCE.MEMORY_WEIGHT_ACTION,
-            event.nowMs,
-          );
-          lastTreeFindDate = today;
-          journal = addJournal(
-            journal,
-            elapsed,
-            joinPages(pickText(data.text, found.textId, rng)),
-          );
+          if (found.id === 'awakening') {
+            // 각성(피드백6-1): 일지가 아니라 강제 선택 이벤트 —
+            // 기록·배지는 AWAKENING_CHOICE에서, 응답 전까지 휴식이 열리지 않는다
+            awakeningPending = true;
+          } else {
+            memory = remember(
+              memory,
+              `tree-${found.id}`,
+              BALANCE.MEMORY_WEIGHT_ACTION,
+              event.nowMs,
+            );
+            lastTreeFindDate = today;
+            journal = addJournal(
+              journal,
+              elapsed,
+              joinPages(pickText(data.text, found.textId, rng)),
+            );
+          }
         }
       }
 
@@ -1685,8 +1800,17 @@ function reduce(
         .filter((m) => restSec >= m.minSec)
         .pop();
       if (restMark) {
+        // 정산된 이후 상태 기준으로 판단 (locals — next는 아직 이전 presence)
+        const restCompany: Company =
+          (era === 'apart' ? apart.visiting : presence.state === 'present')
+            ? 'present'
+            : planted && companionMet(memory)
+              ? 'companion'
+              : 'absent';
         const markLine = joinPages(
-          fillPages(pickText(data.text, restMark.textId, rng), { mins: restMin }),
+          fillPages(pickFor(data.text, restMark.textId, restCompany, rng), {
+            mins: restMin,
+          }),
         );
         if (markLine) journal = addJournal(journal, state.session.elapsedSec, markLine);
       }
@@ -1708,6 +1832,7 @@ function reduce(
         apart,
         memory,
         era,
+        awakeningPending,
         sproutGrowth,
         witherLevel,
         bloomSeen,
@@ -1741,7 +1866,15 @@ function reduce(
             fillPages(
               pickText(
                 data.text,
-                sessionHadRock ? SYS.focusEnd : SYS.focusEndAbsent,
+                resolveSlot(
+                  data.text,
+                  SYS.focusEnd,
+                  sessionHadRock
+                    ? 'present'
+                    : planted && companionMet(memory)
+                      ? 'companion'
+                      : 'absent',
+                ),
                 rng,
               ),
               { mins: displayMins },
@@ -1779,10 +1912,10 @@ function reduce(
       if (state.phase !== 'rest' || state.rest.actUsed) return state;
       const act = data.restActs.find((a) => a.key === event.key);
       if (!act) return state;
-      // 돌이 없으면(잠수/빈자리) 부재 전용 문구 — 돌 언급 누출 방지
       const present = isRockPresent(state);
-      const linesId = present ? act.linesId : act.absentLinesId;
-      const line = joinPages(pickText(data.text, linesId, rng));
+      const line = joinPages(
+        pickFor(data.text, act.linesId, companyOf(state), rng),
+      );
       // 추억 순간 (M11a): 휴식 작은 행동에서도 낮은 확률로 순간이 남는다
       let remembrances = state.remembrances;
       let momentLine: string | null = null;
@@ -1970,6 +2103,27 @@ function reduce(
             'apartVisit',
             data.dialogues.apartVisit,
           );
+        // 각성 후 첫 대화는 아이와의 첫 만남으로 고정 (피드백6-2)
+        if (
+          state.planted &&
+          companionMet(state.memory) &&
+          !state.flags.includes('companion-met-talk')
+        ) {
+          return {
+            ...state,
+            flags: [...state.flags, 'companion-met-talk'],
+            rest: {
+              ...state.rest,
+              talkPressed: true,
+              talkState: {
+                kind: 'milestone',
+                pages: pickText(data.text, SYS.companionMeet, rng),
+                hasChoice: false,
+                done: false,
+              },
+            },
+          };
+        }
         // 3차 (M15): 동행자(씨앗의 아이)를 만난 뒤에는 회상과 번갈아 곁에 있다
         if (state.planted && companionMet(state.memory) && rng() < 0.5) {
           return serveTalkPool(
@@ -2146,6 +2300,10 @@ function reduce(
         (item.requires !== undefined && !(item.requires in state.items))
       )
         return state;
+      // 미해금 힌트로 지목된 물건을 실제로 사면 그 힌트를 지운다 (리뷰) —
+      // 아니면 '아직 준비가 안 됐다'가 화면에 남아 다시 위임할 때까지 걸린다
+      if (state.delegate?.kind === 'locked' && state.delegate.item === item.id)
+        state = { ...state, delegate: null };
       // 소모품: 재고 0/1 — 소모 후 재구매 가능. 배치도 가능(재고가 방에 보인다):
       // 첫 구매만 배치를 묻고, 재구매는 기억된 배치 자리를 그대로 따른다.
       if (item.consumable) {
@@ -2228,8 +2386,14 @@ function reduce(
         },
         session: {
           ...state.session,
+          // 동석 축으로 변형 선택 (피드백4-2) — 돌 반응 누출 방지
           narratorLine: joinPages(
-            pickText(data.text, SYS.weather[event.weather], rng),
+            pickFor(
+              data.text,
+              SYS.weather[event.weather],
+              companyOf(state),
+              rng,
+            ),
           ),
         },
       };
@@ -2308,7 +2472,74 @@ function reduce(
       return { ...state, settings: { ...state.settings, notifAsked: true } };
     }
 
+    case 'AWAKENING_CHOICE': {
+      // 각성 강제 이벤트 응답 (피드백6-1) — 여기서 비로소 기록·배지가 남고 휴식이 열린다
+      if (!state.awakeningPending) return state;
+      const def = data.treeFinds.find((f) => f.id === 'awakening');
+      if (!def) return state;
+      // 화면이 보여준 것과 일지에 남는 것이 같아야 한다 — UI(RestPanel의
+      // AwakeningEvent)는 변형 0을 렌더하므로 여기서도 0으로 고정한다.
+      // 문구 변형이 필요하면 결과(o0/o1.r0) 쪽에 넣는다 (그쪽은 응답 후 추첨).
+      const line = joinPages(textVariantAt(data.text, def.textId, 0));
+      const result = joinPages(
+        pickText(
+          data.text,
+          event.optionIndex === 0 ? SYS.awakening.result0 : SYS.awakening.result1,
+          rng,
+        ),
+      );
+      const el = state.session.elapsedSec;
+      let journal = addJournal(state.session.journal, el, line);
+      journal = addJournal(journal, el, result);
+      return {
+        ...state,
+        awakeningPending: false,
+        memory: remember(
+          state.memory,
+          'tree-awakening',
+          BALANCE.MEMORY_WEIGHT_ACTION,
+          event.nowMs,
+        ),
+        lastTreeFindDate: dateKey(event.nowMs),
+        session: { ...state.session, journal, narratorLine: result },
+      };
+    }
+
+    case 'FREE_DELEGATE': {
+      // 자유행동 위임 (피드백2): 돌의 최우선 욕구를 채우는 행동을 돌이 고른다.
+      // 미해금이면 구매 힌트(locked), 결핍이 없으면 개인작업(personal)
+      if (state.phase !== 'actionSelect' && state.phase !== 'rest') return state;
+      if (state.selectedAction !== 'free' || !isRockPresent(state)) return state;
+      if (state.presence.sick) return state;
+      const target = careTargetNeed(state.stats.needs);
+      if (!target) return { ...state, delegate: { kind: 'personal' } };
+      const fills = data.actions.filter(
+        (a) =>
+          a.id !== 'free' &&
+          a.id !== 'nurse' &&
+          a.outcome?.needs?.[target] !== undefined,
+      );
+      if (fills.length === 0) return { ...state, delegate: { kind: 'personal' } };
+      // 해금된 후보를 우선 — 전부 잠겨 있을 때만 구매 힌트로 이어진다
+      const unlocked = fills.filter((a) => isActionAvailable(a, state));
+      const pool = unlocked.length > 0 ? unlocked : fills;
+      const chosen = pool[Math.floor(rng() * pool.length)];
+      if (!isActionAvailable(chosen, state)) {
+        const item = chosen.unlock?.ownedItems?.[0];
+        return item
+          ? { ...state, delegate: { kind: 'locked', action: chosen.id, item } }
+          : { ...state, delegate: { kind: 'personal' } };
+      }
+      return { ...state, delegate: { kind: 'action', action: chosen.id } };
+    }
+
+    case 'DELEGATE_CANCEL': {
+      if (!state.delegate) return state;
+      return { ...state, delegate: null };
+    }
+
     case 'REST_END': {
+      if (state.awakeningPending) return state;
       if (state.phase !== 'rest') return state;
       const exited = exitRest(state, data, rng);
       let next = exited.state;
@@ -2355,6 +2586,9 @@ function reduce(
 
     case 'FAREWELL_FROM_COHABIT': {
       if (state.era !== 'cohabit' || state.phase === 'epilogue') return state;
+      // 각성 대기 중에는 휴식을 빠져나갈 수 없다 — 나가면 AWAKENING_CHOICE를
+      // 띄울 화면이 사라져 되돌릴 수 없는 세이브가 된다 (리뷰)
+      if (state.awakeningPending) return state;
       return { ...state, phase: 'epilogue' };
     }
 

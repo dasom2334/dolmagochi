@@ -74,12 +74,16 @@ describe('pickMoment — 추억 순간 추첨 (M11a)', () => {
     const s: GameState = { ...createInitialState(T0, 'lie'), selectedAction: 'lie' };
     const mo = pickMoment(gameData.moments, s, seq([0.0]));
     expect(mo?.id).toBe('mo-lie-breath');
-    // 이미 기록됐으면 후보에서 빠진다
+    // 이미 기록됐으면 후보에서 빠진다 — 해당 행동의 순간을 전부 기록하면 null
+    const lieMoments = gameData.moments.filter((m) => m.when?.action === 'lie');
     const done: GameState = {
       ...s,
-      remembrances: [
-        { id: 'mo-lie-breath', summaryId: 'x', revealId: 'y', at: T0 },
-      ],
+      remembrances: lieMoments.map((m) => ({
+        id: m.id,
+        summaryId: 'x',
+        revealId: 'y',
+        at: T0,
+      })),
     };
     expect(pickMoment(gameData.moments, done, seq([0.0]))).toBeNull();
   });

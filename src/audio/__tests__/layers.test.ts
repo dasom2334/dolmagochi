@@ -28,9 +28,9 @@ describe('deriveLayers — 상황(행동×아이템×실내외) → 레이어 (M
       deriveLayers({
         phase: 'focus',
         actionId: 'read',
-        ownedItems: ['rockingchair', 'fireplace'],
+        ownedItems: ['blanket', 'fireplace'],
       }),
-    ).toEqual(['roomBase', 'fireplace', 'pageTurn', 'rockingChair']);
+    ).toEqual(['roomBase', 'fireplace', 'pageTurn', 'blanket']);
   });
 
   it('자유행동: 책상 보유 시에만 페이지·필기', () => {
@@ -60,7 +60,7 @@ describe('deriveLayers — 상황(행동×아이템×실내외) → 레이어 (M
 
   it('도출되는 모든 레이어는 설정 목록(ALL_LAYERS)에 존재한다', () => {
     const actions = ['lie', 'read', 'sun', 'walk', 'free', 'cook', 'chore', 'nurse'];
-    const items = ['fireplace', 'rockingchair', 'desk'];
+    const items = ['fireplace', 'blanket', 'desk'];
     for (const actionId of actions) {
       for (const layer of deriveLayers({ phase: 'focus', actionId, ownedItems: items })) {
         expect(ALL_LAYERS).toContain(layer);

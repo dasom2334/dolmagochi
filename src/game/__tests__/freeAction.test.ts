@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../balance';
 import { personalWorkProb, pickFreeAction, selfCareProb } from '../freeAction';
 import { remember } from '../memory';
-import { createInitialState } from '../stateMachine';
+import { createInitialState, transition } from '../stateMachine';
 import type { Rng } from '../rng';
-import type { GameState, NeedId } from '../types';
+import type { GameEvent, GameState, NeedId } from '../types';
+import { gameData } from '../../store/gameStore';
+import { mulberry32 } from '../rng';
 import type { ReflectionDef } from '../../data/schema';
 
 const T0 = new Date(2026, 0, 10, 12, 0, 0).getTime();
@@ -13,6 +15,10 @@ const T0 = new Date(2026, 0, 10, 12, 0, 0).getTime();
 function seq(values: number[]): Rng {
   let i = 0;
   return () => values[Math.min(i++, values.length - 1)];
+}
+
+function run(s: GameState, events: GameEvent[], rng: Rng = mulberry32(1)): GameState {
+  return events.reduce((st, e) => transition(st, e, { rng, data: gameData }), s);
 }
 
 const F = BALANCE.NEED_FILLED_THRESHOLD;
@@ -161,5 +167,78 @@ describe('pickFreeAction — 순차 자가 충족(80게이트 정합)과 심심�
   it('기억이 비어 있으면 기본값 (누워 있기)', () => {
     const r = pickFreeAction(stateWith(ALL, false), DEFS, seq([0.9]));
     expect(r).toMatchObject({ type: 'default', textId: 'def' });
+  });
+});
+
+describe('자유행동 위임 — 돌에게 맡기기 (피드백2)', () => {
+  const base = (): GameState => ({
+    ...createInitialState(T0, 'free'),
+    phase: 'actionSelect',
+    selectedAction: 'free',
+  });
+  /** 모든 욕구를 게이트 위로 올린다 (결핍 없음 = 개인작업) */
+  const filled = (s: GameState): GameState => ({
+    ...s,
+    stats: {
+      ...s.stats,
+      needs: { physiological: 90, safety: 90, belonging: 90, esteem: 90 },
+    },
+  });
+
+  it('결핍이 있으면 그 욕구를 채우는 행동을 돌이 고른다', () => {
+    // 초기 상태: 생리가 가장 먼저 비어 있다 → 눕기/요리 중 하나
+    const s = run(base(), [{ type: 'FREE_DELEGATE' }], seq([0.0]));
+    expect(s.delegate?.kind).toBe('action');
+    const d = s.delegate;
+    const chosen = d?.kind === 'action' ? d.action : null;
+    const fills = gameData.actions
+      .filter((a) => a.outcome?.needs?.physiological !== undefined)
+      .map((a) => a.id);
+    expect(fills).toContain(chosen);
+  });
+
+  it('미해금 행동뿐이면 구매 힌트만 — 세션이 시작되지 않는다', () => {
+    // 생리만 채우고 안전을 비워 두면 후보는 볕(방석)·산책(신발)·집안일(빗자루) — 전부 잠김
+    let s: GameState = {
+      ...base(),
+      stats: {
+        ...base().stats,
+        needs: { physiological: 90, safety: 10, belonging: 10, esteem: 10 },
+      },
+    };
+    s = run(s, [{ type: 'FREE_DELEGATE' }], seq([0.0]));
+    expect(s.delegate?.kind).toBe('locked');
+    // locked 상태에서 시작하면 아무 일도 없다
+    expect(run(s, [{ type: 'START_FOCUS', nowMs: T0 }])).toBe(s);
+    // 확인을 누르면 위임만 해제
+    expect(run(s, [{ type: 'DELEGATE_CANCEL' }]).delegate).toBeNull();
+  });
+
+  it('결핍이 없으면 개인작업을 원한다', () => {
+    const s = run(filled(base()), [{ type: 'FREE_DELEGATE' }], seq([0.0]));
+    expect(s.delegate?.kind).toBe('personal');
+  });
+
+  it('위임된 행동으로 실제 세션이 열린다 — 자유행동이 아니라 그 행동', () => {
+    let s = run(base(), [{ type: 'FREE_DELEGATE' }], seq([0.0]));
+    const d = s.delegate;
+    const chosen = d?.kind === 'action' ? d.action : null;
+    s = run(s, [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.9]));
+    expect(s.phase).toBe('focus');
+    expect(s.selectedAction).toBe(chosen);
+    expect(s.delegate).toBeNull();
+  });
+
+  it('개인작업 위임은 자유행동 세션으로 시작한다', () => {
+    let s = run(filled(base()), [{ type: 'FREE_DELEGATE' }], seq([0.0]));
+    s = run(s, [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.9]));
+    expect(s.phase).toBe('focus');
+    expect(s.selectedAction).toBe('free');
+  });
+
+  it('다른 행동을 고르면 위임이 해제된다', () => {
+    let s = run(base(), [{ type: 'FREE_DELEGATE' }], seq([0.0]));
+    s = run(s, [{ type: 'SELECT_ACTION', actionId: 'lie' }]);
+    expect(s.delegate).toBeNull();
   });
 });

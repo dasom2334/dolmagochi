@@ -28,15 +28,15 @@ export function RestPanel({
   // 휴식 타이머가 아직 다 흐르지 않았으면(권장 휴식 미완료) 시작 전 되묻는다
   const restIncomplete = state.rest.endsAt > 0 && nowMs < state.rest.endsAt;
   const [confirming, setConfirming] = useState(false);
-  // 미완주 확인을 거치는 동안 포크 선택(M18)을 보존한다
-  const [heldApproach, setHeldApproach] = useState<'near' | 'apart' | undefined>();
+  // 휴식 미완주 확인을 통과했는가 — 세션을 어떻게 할지(위임·포크) 고르기 '전에'
+  // 물어야 하는 질문이다. 순서가 반대면 고른 접근이 '더 쉰다'에 버려진다.
+  const [restAcked, setRestAcked] = useState(false);
+  // 각성 강제 이벤트 (피드백6-1): 응답 전까지 휴식 탭 전체가 열리지 않는다.
+  // 훅을 전부 부른 뒤에 반환한다 — 이 컴포넌트는 각성 대기 상태로 마운트됐다가
+  // 응답으로 플래그만 꺼지므로, 위에서 반환하면 훅 개수가 렌더마다 달라진다.
+  if (state.awakeningPending) return <AwakeningEvent />;
 
-  const startFocus = (approach?: 'near' | 'apart') => {
-    if (restIncomplete) {
-      setHeldApproach(approach);
-      setConfirming(true);
-    } else dispatch({ type: 'START_FOCUS', nowMs: now(), approach });
-  };
+  const restGate = restIncomplete && !restAcked;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -124,11 +124,8 @@ export function RestPanel({
               style={{ ...btnOutline, minHeight: 44 }}
               onClick={() => {
                 setConfirming(false);
-                dispatch({
-                  type: 'START_FOCUS',
-                  nowMs: now(),
-                  approach: heldApproach,
-                });
+                // 시작하지 않는다 — 통과만 시키고, 어떻게 할지는 다음 화면에서 고른다
+                setRestAcked(true);
               }}
             >
               {t(UI.buttons.startAnyway)}
@@ -142,12 +139,20 @@ export function RestPanel({
             </button>
           </div>
         </div>
+      ) : restGate ? (
+        // 휴식이 모자란 상태: 먼저 '그래도 한다 / 더 쉰다'를 묻는다
+        <button
+          className="hv"
+          style={btnDashed}
+          onClick={() => setConfirming(true)}
+        >
+          {tf(UI.buttons.startFocus, { action: t(action?.nameId ?? '') })}
+        </button>
       ) : (
-        // 우산 대기(M16)·세션 포크(M18)·단일 시작을 공용 컨트롤이 처리한다
+        // 우산 대기(M16)·자유행동 위임·세션 포크(M18)·단일 시작을 공용 컨트롤이 처리한다
         <StartFocusControl
           state={state}
           actionName={t(action?.nameId ?? '')}
-          onStart={startFocus}
         />
       )}
     </div>
@@ -588,6 +593,39 @@ function VisitLeavePrompt() {
         >
           {t(vl.letGoLabelId)}
         </button>
+      </div>
+    </div>
+  );
+}
+
+
+/** 3차 각성 — 강제 선택 이벤트 (피드백6-1). 선택 전까지 휴식이 시작되지 않는다 */
+function AwakeningEvent() {
+  const def = gameData.treeFinds.find((f) => f.id === 'awakening');
+  const pages = def ? (gameData.text[def.textId]?.[0] ?? []) : [];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+      <div style={card}>
+        <PagesView pages={pages}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[UI.awakening.option0, UI.awakening.option1].map((id, i) => (
+              <button
+                key={id}
+                className="hv"
+                style={btnDashed}
+                onClick={() =>
+                  dispatch({
+                    type: 'AWAKENING_CHOICE',
+                    optionIndex: i,
+                    nowMs: now(),
+                  })
+                }
+              >
+                {t(id)}
+              </button>
+            ))}
+          </div>
+        </PagesView>
       </div>
     </div>
   );

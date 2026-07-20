@@ -10,7 +10,7 @@ export type LayerId =
   | 'footsteps' // 산책 발소리
   | 'birdsWind' // 야외/창가 새·바람
   | 'pageTurn' // 책읽기 책장 넘김
-  | 'rockingChair' // 책읽기 + rockingchair 보유 — 끼익
+  | 'blanket' // 책읽기 + blanket 보유 — 이따금 천 스치는 소리
   | 'pageWriting' // 자유행동 + desk 보유 — 페이지·필기
   | 'cooking' // 요리 — 도마·보글
   | 'sweeping' // 집안일 — 빗자루
@@ -27,7 +27,7 @@ export const ALL_LAYERS: readonly LayerId[] = [
   'footsteps',
   'pageTurn',
   'pageWriting',
-  'rockingChair',
+  'blanket',
   'cooking',
   'sweeping',
   'rainSoft',
@@ -87,7 +87,7 @@ export function deriveLayers(sit: SoundSituation): LayerId[] {
       break;
     case 'read':
       layers.push('pageTurn');
-      if (owned.has('rockingchair')) layers.push('rockingChair');
+      if (owned.has('blanket')) layers.push('blanket');
       break;
     case 'free':
       if (owned.has('desk')) layers.push('pageWriting');
