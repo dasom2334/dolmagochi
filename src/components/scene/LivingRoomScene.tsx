@@ -15,36 +15,56 @@ import type { SceneState } from '../../scene/livingroom/types';
 /** 렌더러가 그리는 논리 해상도 — generate.js 의 GX/GY 와 같아야 한다 */
 const GX = 128;
 const GY = 72;
-/** 유리 구멍 — lights.js 의 GLASS_RECT 와 같아야 한다. 여기를 누르면 창이 열린다 */
-const GLASS = { x: 43, y: 4, w: 40, h: 30 };
+/** 눌러서 반응하는 자리. 좌표는 씬 그룹의 bbox 를 잰 값이다.
+ *  씬 지오메트리가 바뀌면 여기도 어긋나므로, 그룹을 옮기면 같이 고쳐야 한다. */
+export type HotspotId = 'window' | 'fireplace' | 'lamp';
+const HOTSPOTS: Record<HotspotId, { x: number; y: number; w: number; h: number }> = {
+  window: { x: 43, y: 4, w: 40, h: 30 },    // lights.js GLASS_RECT
+  fireplace: { x: 5, y: 31, w: 33, h: 23 }, // g-fireplace
+  lamp: { x: 86, y: 33, w: 8, h: 18 },      // lamp (갓 + 기둥 + 받침)
+};
 
-/** 클릭 좌표를 캔버스 좌표로. 캔버스는 CSS 로 확대돼 있으니 화면 크기로 나눈다 */
-function hitGlass(cv: HTMLCanvasElement, clientX: number, clientY: number) {
+/** 클릭 좌표 → 눌린 자리. 캔버스는 CSS 로 확대돼 있으니 화면 크기로 나눈다 */
+function hotspotAt(
+  cv: HTMLCanvasElement,
+  clientX: number,
+  clientY: number,
+  enabled: ReadonlySet<HotspotId>,
+): HotspotId | null {
   const r = cv.getBoundingClientRect();
   // 레이아웃 전이거나 탭이 가려져 있으면 rect 가 0×0 으로 읽힌다 → 나누면 NaN 이라
   // 비교가 조용히 전부 false 가 된다. 눌러도 아무 일이 없어 원인을 찾기 어렵다.
-  if (!r.width || !r.height) return false;
+  if (!r.width || !r.height) return null;
   const x = ((clientX - r.left) / r.width) * GX;
   const y = ((clientY - r.top) / r.height) * GY;
-  return (
-    x >= GLASS.x && x < GLASS.x + GLASS.w && y >= GLASS.y && y < GLASS.y + GLASS.h
+  // 겹치는 자리는 없지만, 생기면 앞쪽(작은 것)이 이기도록 넓이 순으로 본다
+  const ids = [...enabled].sort(
+    (a, b) => HOTSPOTS[a].w * HOTSPOTS[a].h - HOTSPOTS[b].w * HOTSPOTS[b].h,
   );
+  for (const id of ids) {
+    const h = HOTSPOTS[id];
+    if (x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h) return id;
+  }
+  return null;
 }
 
 export function LivingRoomScene({
   scene,
   off,
-  onWindowToggle,
+  hotspots,
+  onHotspot,
 }: {
   scene: SceneState;
   /** 끌 레이어. 안 주면 전부 켜진다 */
   off?: ReadonlySet<string>;
-  /** 유리를 눌렀을 때. 창문 열림은 아직 게임 축이 아니라 씬 조작이다 */
-  onWindowToggle?: () => void;
+  /** 지금 누를 수 있는 자리. 없는 소품(안 산 벽난로 등)은 빼서 넘긴다 */
+  hotspots?: ReadonlySet<HotspotId>;
+  onHotspot?: (id: HotspotId) => void;
 }) {
+  const enabled = hotspots ?? new Set<HotspotId>();
   const cvRef = useRef<HTMLCanvasElement>(null);
-  // 유리 위에서만 손가락 커서를 띄운다 — 창 말고는 누를 게 없다는 걸 알려야 한다
-  const [overGlass, setOverGlass] = useState(false);
+  // 누를 수 있는 자리 위에서만 손가락 커서를 띄운다 — 어디가 눌리는지 알려야 한다
+  const [hover, setHover] = useState<HotspotId | null>(null);
   // 매 프레임 최신 값을 읽어야 하므로 ref 로 넘긴다 — 상태가 바뀔 때마다
   // rAF 를 다시 걸면 전환 애니메이션이 처음부터 다시 시작한다.
   const sceneRef = useRef(scene);
@@ -96,16 +116,18 @@ export function LivingRoomScene({
         height: '100%',
         display: 'block',
         imageRendering: 'pixelated',
-        cursor: onWindowToggle && overGlass ? 'pointer' : 'default',
+        cursor: hover ? 'pointer' : 'default',
       }}
       onMouseMove={(e) => {
         const cv = cvRef.current;
-        if (cv && onWindowToggle) setOverGlass(hitGlass(cv, e.clientX, e.clientY));
+        if (cv) setHover(hotspotAt(cv, e.clientX, e.clientY, enabled));
       }}
-      onMouseLeave={() => setOverGlass(false)}
+      onMouseLeave={() => setHover(null)}
       onClick={(e) => {
         const cv = cvRef.current;
-        if (cv && onWindowToggle && hitGlass(cv, e.clientX, e.clientY)) onWindowToggle();
+        if (!cv || !onHotspot) return;
+        const id = hotspotAt(cv, e.clientX, e.clientY, enabled);
+        if (id) onHotspot(id);
       }}
     />
   );

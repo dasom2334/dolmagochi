@@ -39,7 +39,7 @@ import { SodaProp } from './props/SodaProp';
 import { CupProp } from './props/CupProp';
 import { FanProp } from './props/FanProp';
 import { LampProp } from './props/LampProp';
-import { LivingRoomScene } from './LivingRoomScene';
+import { LivingRoomScene, type HotspotId } from './LivingRoomScene';
 import { sceneStateFrom, hiddenLayers } from '../../scene/livingroom/fromGame';
 import { BookProp } from './props/BookProp';
 
@@ -56,9 +56,13 @@ const roomById = (id: string) =>
   gameData.rooms.find((r) => r.id === id) ?? gameData.rooms[1];
 
 export function SceneView({ state }: { state: GameState }) {
-  // 창문 열림 — 아직 게임 축이 아니라 **씬 조작**이라 뷰가 들고 있는다.
-  // (풍경이 흔들리는 연출이 여기 묶여 있다.) 게임 축이 생기면 state 로 옮긴다.
+  // 씬을 눌러서 바꾸는 것들 — 아직 게임 축이 아니라 **씬 조작**이라 뷰가 들고 있는다.
+  //   창문   열면 풍경(윈드차임)이 흔들린다
+  //   벽난로·스탠드  광원 on/off. 소품을 없애는 게 아니라 **불만** 끈다
+  // 게임 축이 생기면 state 로 옮긴다.
   const [windowOpen, setWindowOpen] = useState(false);
+  const [fireOn, setFireOn] = useState(true);
+  const [lampOn, setLampOn] = useState(true);
   const isFocus = state.phase === 'focus';
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
   const sceneId = isFocus ? (action?.sceneId ?? 'free') : 'room';
@@ -114,11 +118,29 @@ export function SceneView({ state }: { state: GameState }) {
               : '#c9a86a';
   const showBook = (isFocus && sceneId === 'read') || show('book2');
 
-  // 거실 휴식 씬 — design/livingroom 의 canvas 렌더러. 집중 중이거나 다른 방이면
-  // 기존 레이어 렌더로 간다(주방·침실은 아직 이식 전).
-  const livingScene = !isFocus && currentRoom === 'living';
+  // 거실 씬 — design/livingroom 의 canvas 렌더러.
+  // 휴식이든 집중이든 **그 장면의 방이 거실이면** 새 렌더러로 간다.
+  // sceneRoom 은 집중 중엔 행동의 방(focusRoomOf), 휴식 중엔 지금 보고 있는 방이다.
+  //   거실 = sun(볕쬐기) · read(책읽기) + 계열 밖 행동(free · nurse)
+  //   침실 = lie(누워있기) · personalWork,  주방 = cook · chore,  walk 는 야외(null)
+  // 주방·침실은 아직 이식 전이라 기존 레이어 렌더로 간다.
+  const livingScene = sceneRoom === 'living';
   const sceneState = sceneStateFrom(state, now(), windowOpen);
-  const sceneOff = hiddenLayers(state, false);
+  const sceneOff = hiddenLayers(state, false, gameData.dialogues);
+  // 광원 끄기 — 소품(벽난로 몸체·스탠드 기둥)은 남기고 불과 그 빛만 끈다.
+  // 안 산 소품은 hiddenLayers 가 이미 통째로 껐으므로 여기선 신경 쓸 게 없다.
+  if (!fireOn) {
+    sceneOff.add('fire');
+    sceneOff.add('lp-fire');
+  }
+  if (!lampOn) {
+    sceneOff.add('lamp-glow');
+    sceneOff.add('lp-lamp');
+  }
+  // 없는 소품은 누를 수도 없어야 한다
+  const hotspots = new Set<HotspotId>(['window']);
+  if (!sceneOff.has('g-fireplace')) hotspots.add('fireplace');
+  if (!sceneOff.has('lamp')) hotspots.add('lamp');
 
   const caption = isFocus
     ? t(action?.captionId ?? '')
@@ -149,9 +171,23 @@ export function SceneView({ state }: { state: GameState }) {
         <LivingRoomScene
           scene={sceneState}
           off={sceneOff}
-          onWindowToggle={() => setWindowOpen((v) => !v)}
+          hotspots={hotspots}
+          onHotspot={(id) => {
+            if (id === 'window') setWindowOpen((v) => !v);
+            else if (id === 'fireplace') setFireOn((v) => !v);
+            else if (id === 'lamp') setLampOn((v) => !v);
+          }}
         />
-      ) : (
+      ) : null}
+      {/* 세션 중 쓰는 소모품은 캔버스에 없는 그림이라 위에 겹친다.
+          집중 씬까지 캔버스로 넘기면서 이것까지 사라지면 "뭘 쓰고 있는지" 가 안 보인다. */}
+      {livingScene && isFocus && state.session.supply && (
+        <SupplyProp
+          itemId={state.session.supply.itemId}
+          variant={state.session.supply.variant}
+        />
+      )}
+      {!livingScene && (
         <>
         {showWindow && <WindowSprite glassColor={glassColor} />}
         {outdoor && <DaySun variant={tod === 'night' ? 'moon' : 'sun'} />}
