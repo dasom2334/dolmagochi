@@ -731,15 +731,20 @@ function cloudBank() {
 // 책은 돌보다 한참 작다(돌 폭의 2/3). 19폭짜리 납작한 판은 책이 아니라
 // 펼쳐 놓은 신문이었다 — 그래서 아무리 안쪽을 손봐도 안 나아졌던 것.
 //   P=지면 p=종이 단(두께) t=글줄 d=책등 골 C=표지 D=표지 그늘
-// 13×7. 돌 밑동에 겹쳐 세운다.
+//
+// 15×7. 돌 **중심이 아니라 왼쪽**에 겹쳐 세운다 — 정가운데에 좌우 대칭으로
+// 놓으면 들고 있는 게 아니라 **앞에 세워 둔 표지판**처럼 보인다.
+// 왼쪽으로 치우친 만큼 시선이 오른쪽 면을 더 많이 보게 되므로,
+// 책등을 가운데가 아닌 왼쪽 1/3 지점에 두고 **오른쪽 면을 넓게**(5 : 7) 잡는다.
+// 이 좌우 비대칭이 곧 '비스듬히 펼쳐진' 각도다 — 행을 기울일 필요가 없다.
 const OPENBOOK_ART = [
-  '.PPPPPdPPPPP.',
-  'DPtttPdPtttPD',
-  'DPPPPPdPPPPPD',
-  'DPtttPdPtttPD',
-  'DPPPPPdPPPPPD',
-  'DDppppdppppDD',
-  '.CCCCCCCCCCC.',
+  '.PPPPPdPPPPPPP.',
+  'DPtttPdPtttttPD',
+  'DPPPPPdPPPPPPPD',
+  'DPtttPdPtttttPD',
+  'DPPPPPdPPPPPPPD',
+  'DDppppdppppppDD',
+  '.CCCCCCCCCCCCC.',
 ];
 function openBook(n) {
   const map = { p: '--cer1', P: '--cer2', t: '--cer0',
@@ -752,10 +757,10 @@ function openBook(n) {
       if (ch === '.') { i++; continue; }
       let k = i;
       while (k + 1 < row.length && row[k + 1] === ch) k++;
-      // 러그 돌은 아트 x40~53(중심 46.5), 밑변 y61 — 책(폭 13)을 중심에 맞춰
-      // **돌 아랫절반에 겹쳐 세운다**(y56~62). 돌보다 나중에 그리므로 돌이
-      // 책을 들고 있는 것으로 읽힌다.
-      out.push([40 + i, 56 + j, k - i + 1, 1, map[ch]]);
+      // 러그 돌은 아트 x40~53(중심 46.5), 밑변 y61.
+      // 책(폭 15)의 중심을 x42 에 둬 **돌 중심보다 4.5px 왼쪽**으로 치우치게 한다.
+      // y56~62 — 돌 아랫절반에 겹치고, 돌보다 나중에 그리므로 돌이 든 것으로 읽힌다.
+      out.push([35 + i, 56 + j, k - i + 1, 1, map[ch]]);
       i = k + 1;
     }
   });
