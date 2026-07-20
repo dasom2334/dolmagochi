@@ -26,6 +26,12 @@ const chipStyle = (open: boolean, dim: boolean): CSSProperties => ({
   padding: "4px 8px",
   cursor: dim ? "default" : "pointer",
   whiteSpace: "nowrap",
+  // 기호와 글자를 세로 중앙으로 — 기호마다 자형 높이가 달라(∿는 특히 낮고
+  // 납작하다) 베이스라인 정렬로는 줄이 안 맞는다.
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  lineHeight: 1,
 });
 
 /** 팝오버 안의 선택지 한 칸 — 현재 값이면 테두리로 표시 */
@@ -266,7 +272,27 @@ export function AmbienceBar({ state }: { state: GameState }) {
           style={chipStyle(open === "sound", false)}
           onClick={() => toggle("sound")}
         >
-          ♪ {state.settings.noiseOn ? noiseCount : t(SYS.settings.off)}
+          {/* ∿ = 노이즈의 파형. 음표(♪)는 '음악'으로 읽히는데 실제 내용은
+              빗소리·발소리라 뜻이 어긋났고, 나머지 셋(☀❄☂)이 자연 기호라
+              혼자 인공물로 튀었다. 다만 획이 얇아 11px에선 사라지므로
+              이 글자만 키우고 굵힌다. */}
+          <span
+            style={{
+              // Galmuri11의 ∿는 자형이 낮고 납작하다(19px에서 잉크 높이 7.8px,
+              // 베이스라인 위 7.5px). 옆 한글(11px)보다 낮게 앉으므로 키우고
+              // 2px 끌어올려 광학 중심을 맞춘다.
+              // Galmuri11의 ∿는 19px에서도 잉크 높이가 7.8px뿐이라 키워야
+              // 옆 한글(11px)과 무게가 맞는다. 높이는 0으로 눌러 칩이
+              // 부풀지 않게 하고(그냥 두면 27→34px), flex 중앙정렬에 맡긴다.
+              fontSize: 19,
+              fontWeight: 700,
+              lineHeight: 0,
+              display: "inline-block",
+            }}
+          >
+            ∿
+          </span>{" "}
+          {state.settings.noiseOn ? noiseCount : t(SYS.settings.off)}
         </button>
       </div>
 
