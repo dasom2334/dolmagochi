@@ -332,7 +332,16 @@ export function validateGameData(
     'sys.weather.downpour',
     'sys.weather.snow',
     'sys.weather.petals',
+    'sys.weather.grass',
     'sys.weather.leaves',
+    // 계절·시간대 전환 나레이션 (M22) — 날씨와 같은 동석 축 슬롯
+    'sys.season.spring',
+    'sys.season.summer',
+    'sys.season.autumn',
+    'sys.season.winter',
+    'sys.timeOfDay.day',
+    'sys.timeOfDay.twilight',
+    'sys.timeOfDay.night',
   ];
   const axisSlots = new Set(needsAbsent);
   // 코드가 행동 id로 조립하는 문구들 — 템플릿 리터럴이라 정적 스캔에 안 잡힌다.

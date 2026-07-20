@@ -11,7 +11,14 @@ export type CrisisKind = 'retreat' | 'sick';
 export type Presence = 'present' | 'absent';
 /** 날씨 (M12) — 게이지 무영향(개정 v4-13): 연출·소리·대사 조건만.
  * petals(꽃잎비)=봄, leaves(낙엽비)=가을, snow=겨울 — 계절 의존은 WEATHER_BY_SEASON */
-export type WeatherKind = 'clear' | 'rain' | 'downpour' | 'snow' | 'petals' | 'leaves';
+export type WeatherKind =
+  | 'clear'
+  | 'rain'
+  | 'downpour'
+  | 'snow'
+  | 'petals'
+  | 'grass'
+  | 'leaves';
 /** 계절 (M12) — 기본은 기기 날짜 자동, 설정으로 고정 가능 */
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 /** 시간대 (M12) — 씬·소리 축. UI 테마(M10)와 완전 독립 (B23) */
@@ -415,7 +422,7 @@ export type GameEvent =
   | { type: 'SET_NOISE_LAYER'; layer: string; muted: boolean }
   | { type: 'SET_THEME'; theme: 'auto' | 'light' | 'dark' }
   | { type: 'SET_WEATHER'; weather: WeatherKind; nowMs: number }
-  | { type: 'SET_TIME_OF_DAY'; mode: 'auto' | TimeOfDay }
+  | { type: 'SET_TIME_OF_DAY'; mode: 'auto' | TimeOfDay; nowMs: number }
   | { type: 'SET_SEASON'; mode: 'auto' | Season; nowMs: number }
   | { type: 'SET_NOTIFY'; key: 'enabled' | 'restEnd'; on: boolean }
   | { type: 'SET_FOCUS_NOTIFY'; index: number; on: boolean }

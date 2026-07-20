@@ -243,7 +243,7 @@ export function AmbienceBar({ state }: { state: GameState }) {
                   key={m}
                   label={t(UI.weatherUi.timeModes[m])}
                   selected={state.settings.timeOfDay === m}
-                  onPick={() => dispatch({ type: 'SET_TIME_OF_DAY', mode: m })}
+                  onPick={() => dispatch({ type: 'SET_TIME_OF_DAY', mode: m, nowMs: now() })}
                 />
               ))}
             </OptionGrid>

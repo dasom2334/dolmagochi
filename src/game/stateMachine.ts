@@ -49,7 +49,7 @@ import {
   isBalanced,
 } from './security';
 import { presentState, startAbsence } from './absence';
-import { resolveSeason } from './timeOfDay';
+import { resolveSeason, resolveTimeOfDay } from './timeOfDay';
 import { companionMet, treeStage } from './tree';
 import { pickMoment, settleBadges } from './badges';
 import {
@@ -2403,13 +2403,32 @@ function reduce(
       const weather = weathersOfSeason(season).includes(state.weather)
         ? state.weather
         : rollWeather(season, rng);
-      return { ...state, settings, weather };
+      // 날씨와 같이 전환을 나레이션한다 (M22) — 분위기 축은 전부 말이 붙는다
+      return {
+        ...state,
+        settings,
+        weather,
+        session: {
+          ...state.session,
+          narratorLine: joinPages(
+            pickFor(data.text, SYS.season[season], companyOf(state), rng),
+          ),
+        },
+      };
     }
 
     case 'SET_TIME_OF_DAY': {
+      const settings = { ...state.settings, timeOfDay: event.mode };
+      const tod = resolveTimeOfDay(settings, event.nowMs);
       return {
         ...state,
-        settings: { ...state.settings, timeOfDay: event.mode },
+        settings,
+        session: {
+          ...state.session,
+          narratorLine: joinPages(
+            pickFor(data.text, SYS.timeOfDay[tod], companyOf(state), rng),
+          ),
+        },
       };
     }
 

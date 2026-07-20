@@ -26,7 +26,7 @@ export function dailyMoodTone(dayKey: string, weather: WeatherKind): MoodTone {
   // 기본 1/3씩, 날씨가 경계를 민다 (수치 아님 — 확률만)
   let bright = 0.34;
   let low = 0.33;
-  if (weather === 'clear' || weather === 'petals') {
+  if (weather === 'clear' || weather === 'petals' || weather === 'grass') {
     bright += 0.16;
     low -= 0.11;
   } else if (weather === 'rain' || weather === 'downpour' || weather === 'snow') {
