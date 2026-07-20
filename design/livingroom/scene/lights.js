@@ -126,6 +126,21 @@ function occStrip(x0, w, y0, y1, skew, base, grow = 0.03, sill = null) {
   return r;
 }
 
+/** 소품 bbox 하나로 **창광 오클루더**를 만든다.
+ *  OCCLUDERS 도 손으로 적는 목록이었다 → 새로 그린 소품마다 그림자가 빠졌다.
+ *  GROUNDED 와 똑같은 함정이라 같은 방식으로 뒤집는다: bbox 만 주면 여기서 만든다.
+ *  render.js 가 접지 그림자를 받는 소품 전부에 대해 자동 등록한다 —
+ *  **바닥에 놓인 물건이 창빛을 통과시킬 리 없다.** */
+export function occForProp(x0, x1, yBottom) {
+  const w = Math.max(2, x1 - x0 - 1);
+  const sx = x0 + 1;
+  // 창턱 선반(밑변 y35) 위의 것: 선반에도 자국을 남기고(sill) 바닥까지 늘어진다
+  if (yBottom <= 40) {
+    return occStrip(sx, w, 49, 49 + Math.max(4, Math.round(w * 0.8)), 0.55, 48, 0.03, [sx, w]);
+  }
+  return occStrip(sx, w, yBottom + 1, yBottom + 1 + Math.max(4, Math.round(w * 0.7)), 0.55, yBottom, 0.05);
+}
+
 export const OCCLUDERS = {
   'm-win': {
     'occ-orb':   occStrip(70, 9, 49, 56, 0.55, 48, 0.03, [70, 9]),

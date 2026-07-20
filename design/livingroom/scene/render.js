@@ -8,7 +8,8 @@ import { generateGroups, GX, GY, OX, FLAME_N } from './generate.js';
 import { resolve } from './palette.js';
 import { PROPS } from './props.js';
 import { ROOM_PROPS } from './props-room.js';
-import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO, RUG_MARK, contactShadow } from './lights.js';
+import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO, RUG_MARK,
+         contactShadow, occForProp } from './lights.js';
 import { ROOM_DATA } from './room-data.js';
 import { ANIM, GROUP_ANIM, TILE_H, flameIdx } from './anim.js';
 
@@ -210,6 +211,24 @@ const entry = (id) => {
   if (ROOM_DATA.groups[id]) return { rects: toCanvas(ROOM_DATA.groups[id]) };
   return null;
 };
+
+/** 창광 오클루더 **자동 등록**.
+ *  OCCLUDERS 역시 손으로 적는 목록이라, 새 소품을 그릴 때마다 여기 추가하는 걸
+ *  잊었다(접지 그림자와 판박이). 그 결과 새 소품만 창빛이 그대로 통과했다.
+ *  → 접지 그림자를 받는 소품은 빛도 가리게 한다. 새 소품은 아무것도 안 해도 된다. */
+const NO_OCC = new Set(['p-blanket']);       // 책장 칸 안 — 창빛이 닿지 않는다
+for (const id of GROUNDED) {
+  if (OCC_OF[id] || NO_OCC.has(id)) continue;   // 손으로 잡아 둔 것(돌 등)은 그대로
+  const rects = entry(id)?.rects;
+  if (!rects || !rects.length) continue;
+  let x0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const [x, y, w, h] of rects) {
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x + w - 1); y1 = Math.max(y1, y + h - 1);
+  }
+  const cls = `occ-${id}`;
+  OCCLUDERS['m-win'][cls] = occForProp(x0, x1, y1);
+  OCC_OF[id] = cls;
+}
 
 function drawRects(ctx, rects, pal, alpha) {
   for (const [x, y, w, h, key, op] of rects) {
