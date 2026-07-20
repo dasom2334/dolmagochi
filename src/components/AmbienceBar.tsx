@@ -121,7 +121,7 @@ function SoundMixer({ state }: { state: GameState }) {
       {on && (
         <>
           <p style={{ margin: 0, fontSize: 10, color: 'var(--hint)' }}>
-            {t(SYS.settings.noiseOn)} {t(UI.ambience.mixerHint)}
+            {t(UI.ambience.mixerHint)}
           </p>
           <div
             style={{

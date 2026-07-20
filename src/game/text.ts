@@ -150,8 +150,6 @@ export const SYS = {
   placement: { prompt: 'sys.placement.prompt' },
   hints: { flowtime: 'sys.hints.flowtime' },
   settings: {
-    noiseOn: 'sys.settings.noiseOn',
-    noiseOff: 'sys.settings.noiseOff',
     on: 'sys.settings.on',
     off: 'sys.settings.off',
     farewell: 'sys.settings.farewell',
