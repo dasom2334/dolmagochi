@@ -34,6 +34,37 @@ const chipStyle = (open: boolean, dim: boolean): CSSProperties => ({
   lineHeight: 1,
 });
 
+/**
+ * 소리 칩 아이콘 — 도트로 직접 그린 파형.
+ *
+ * 글자(♪·∿)로는 안 됐다. ♪는 '음악'으로 읽히는데 실제 내용은 빗소리·발소리이고,
+ * ∿는 뜻은 맞지만 Galmuri11의 자형이 낮고 납작해(19px에서 잉크 7.8px) 옆 한글보다
+ * 흐리게 보였다. 폰트 자형은 CSS로 못 고치므로 1px 격자에 직접 그린다 —
+ * 씬 요소와 같은 도트 원칙이고, 굵기·크기를 정확히 통제할 수 있다.
+ *
+ * currentColor라 잠김(흐림)·열림 상태의 칩 색을 그대로 따라간다.
+ */
+// 12px에 두 주기 — 한 주기만 그리면 완만한 곡선이라 물결이 아니라 갈고리로
+// 읽힌다. 진폭은 좁게(0~4) 두고 주기를 촘촘히 해야 파형으로 보인다.
+const WAVE_Y = [2, 0, 0, 2, 4, 4, 2, 0, 0, 2, 4, 4];
+
+function WaveIcon() {
+  return (
+    <svg
+      width={12}
+      height={6}
+      viewBox="0 0 12 6"
+      shapeRendering="crispEdges"
+      aria-hidden="true"
+      style={{ display: "block", flex: "none" }}
+    >
+      {WAVE_Y.map((y, x) => (
+        <rect key={x} x={x} y={y} width={1} height={2} fill="currentColor" />
+      ))}
+    </svg>
+  );
+}
+
 /** 팝오버 안의 선택지 한 칸 — 현재 값이면 테두리로 표시 */
 function Option({
   label,
@@ -272,26 +303,7 @@ export function AmbienceBar({ state }: { state: GameState }) {
           style={chipStyle(open === "sound", false)}
           onClick={() => toggle("sound")}
         >
-          {/* ∿ = 노이즈의 파형. 음표(♪)는 '음악'으로 읽히는데 실제 내용은
-              빗소리·발소리라 뜻이 어긋났고, 나머지 셋(☀❄☂)이 자연 기호라
-              혼자 인공물로 튀었다. 다만 획이 얇아 11px에선 사라지므로
-              이 글자만 키우고 굵힌다. */}
-          <span
-            style={{
-              // Galmuri11의 ∿는 자형이 낮고 납작하다(19px에서 잉크 높이 7.8px,
-              // 베이스라인 위 7.5px). 옆 한글(11px)보다 낮게 앉으므로 키우고
-              // 2px 끌어올려 광학 중심을 맞춘다.
-              // Galmuri11의 ∿는 19px에서도 잉크 높이가 7.8px뿐이라 키워야
-              // 옆 한글(11px)과 무게가 맞는다. 높이는 0으로 눌러 칩이
-              // 부풀지 않게 하고(그냥 두면 27→34px), flex 중앙정렬에 맡긴다.
-              fontSize: 19,
-              fontWeight: 700,
-              lineHeight: 0,
-              display: "inline-block",
-            }}
-          >
-            ∿
-          </span>{" "}
+          <WaveIcon />
           {state.settings.noiseOn ? noiseCount : t(SYS.settings.off)}
         </button>
       </div>
