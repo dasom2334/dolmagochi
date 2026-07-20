@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>거실 소품 검수판</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1b1020; padding:24px 16px; color:#c6b3cb;
+         font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif; }
+  h1 { font-size:16px; font-weight:600; color:#e0cfe6; margin-bottom:4px; }
+  .sub { font-size:12px; color:#7d6a84; margin-bottom:18px; line-height:1.6; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px;
+          max-width:1100px; }
+  .card { background:#241730; border:1px solid #382844; border-radius:10px; padding:10px; }
+  .card canvas { display:block; width:100%; image-rendering:pixelated; border-radius:6px;
+                 background:#2f2340; }
+  .nm { font-size:12px; color:#e0cfe6; margin-top:7px; font-weight:600; }
+  .meta { font-size:10px; color:#7d6a84; margin-top:2px; line-height:1.5; }
+  .bar { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  label { padding:5px 12px; border-radius:999px; background:#2a1c31; border:1px solid #443150;
+          color:#af9cb4; font-size:12px; cursor:pointer; user-select:none; }
+  label.on { background:#d98e4a; border-color:#d98e4a; color:#2a1626; font-weight:600; }
+</style>
+</head>
+<body>
+  <h1>거실 소품 검수판</h1>
+  <div class="sub">방 안에서 찾아다니지 않고 한 자리에서 보기 위한 판. 8배 확대.<br>
+    아래 시간대를 바꾸면 팔레트가 그 상태로 바뀐다 — 소품은 슬롯을 쓰므로 시간·계절을 따라간다.</div>
+  <div class="bar" id="bar"></div>
+  <div class="grid" id="grid"></div>
+
+<script type="module">
+  import { buildRoomProps, ROOM_PROPS } from './scene/props-room.js';
+  import { resolve } from './scene/palette.js';
+  import { ROOM_DATA } from './scene/room-data.js';
+
+  // 무엇이 어디에 놓이는지 — 좌표만 봐서는 알 수 없어 따로 적는다
+  const WHERE = {
+    'p-cushion': '러그 위 왼쪽 · 상점',
+    'p-guestcushion': '러그 위 오른쪽 · 상점(2차)',
+    'p-rockmark': '러그, 돌이 앉던 자리 · 대사',
+    'p-bookstack': '러그 위 · 상점(헌책)',
+    'p-blanket': '러그 위 오른쪽 · 대사(부재)',
+    'p-rockingchair': '바닥 오른쪽 · 상점(대형)',
+    'p-fan': '바닥 왼쪽 · 상점',
+    'p-wateringcan': '바닥 오른쪽 · 상점(2차)',
+    'p-lanternpost': '바닥 맨오른쪽 · 상점(3차)',
+    'p-soda': '바닥 왼쪽 앞 · 상점',
+    'p-tea': '맨틀 위 · 상점(소모품 재고)',
+    'p-cup': '맨틀 위 · 상점',
+    'p-waterglass': '맨틀 위 · 대사',
+    'p-windchime': '창 오른쪽 벽 · 상점(3차)',
+    'p-bird': '창턱 · 대사',
+  };
+
+  const state = { time: 'day', season: 'summer', weather: 'clear' };
+  const props = buildRoomProps();
+  const S = 8;
+
+  const grid = document.getElementById('grid');
+  const cards = [];
+  for (const [id, rects] of Object.entries(props)) {
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const [x, y, w, h] of rects) {
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x + w); y0 = Math.min(y0, y); y1 = Math.max(y1, y + h);
+    }
+    const pad = 2, W = x1 - x0 + pad * 2, H = y1 - y0 + pad * 2;
+    const card = document.createElement('div'); card.className = 'card';
+    const cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = id.replace(/^p-/, '');
+    const meta = document.createElement('div'); meta.className = 'meta';
+    meta.textContent = `${x1 - x0}×${y1 - y0}px · ${WHERE[id] || ''}`;
+    card.append(cv, nm, meta); grid.append(card);
+    cards.push({ cv, rects, x0: x0 - pad, y0: y0 - pad });
+  }
+
+  function draw() {
+    const pal = resolve(state, ROOM_DATA.palette);
+    for (const { cv, rects, x0, y0 } of cards) {
+      const c = cv.getContext('2d');
+      c.imageSmoothingEnabled = false;
+      c.clearRect(0, 0, cv.width, cv.height);
+      for (const [x, y, w, h, slot] of rects) {
+        c.fillStyle = pal[slot] || '#f0f';
+        c.fillRect((x - x0) * S, (y - y0) * S, w * S, h * S);
+      }
+    }
+    for (const [el, on] of pills) el.classList.toggle('on', on());
+  }
+
+  const pills = [];
+  const bar = document.getElementById('bar');
+  for (const [key, opts] of [['time', [['day','낮'],['sunset','노을'],['night','밤']]],
+                             ['season', [['spring','봄'],['summer','여름'],['autumn','가을'],['winter','겨울']]]]) {
+    for (const [val, txt] of opts) {
+      const b = document.createElement('label'); b.textContent = txt;
+      b.onclick = () => { state[key] = val; draw(); };
+      pills.push([b, () => state[key] === val]);
+      bar.append(b);
+    }
+  }
+  draw();
+</script>
+</body>
+</html>

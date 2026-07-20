@@ -411,10 +411,13 @@ function candleFrames(wickX, wickY, tones) {
     const cells = [];
     art.forEach((row, i) => {
       const y = wickY - (art.length - 1) + i;
+      // 격자 폭에 맞춰 심지 위에 **가운데 정렬**한다.
+      // -1 로 고정하면 1칸짜리 격자에서 한 칸 왼쪽으로 어긋난다.
+      const half = Math.floor(row.length / 2);
       [...row].forEach((ch, j) => {
         if (ch === '.') return;
         const tone = ch === 'o' ? tones[0] : ch === 'm' ? tones[1] : tones[2];
-        cells.push([y, wickX - 1 + j, tone]);
+        cells.push([y, wickX - half + j, tone]);
       });
     });
     return emitRows(cells);
