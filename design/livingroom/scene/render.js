@@ -88,13 +88,18 @@ const Z = [
   // 순서가 반대면 바닥이 밑동을 지워, 불만 바닥에 덩그러니 남는다.
   'g-winframe', 'win-sash', 'win-sash-open', 'g-floor', 'g-fireplace', 'g-shelf',
   // [3] 소품 (선반 안 → 맨틀 → 창턱 → 바닥 깔개 → 바닥 스탠딩)
-  'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
+  'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',        // 1번째 칸
+  'bk2-1', 'bk2-2', 'bk2-3', 'bk2-4',                    // 2번째 칸
   'p-blanket',                                            // 개어 둔 담요 — 책장 아래 칸
   'p-windchime', 'p-windchime-tubes',                     // 창 오른쪽 벽
   // 창턱 선반 → 그 위 소품 → 돌 방석 → 돌 → 찻잔(돌 방석 옆)
   'sill-shelf', 'sill-plant', 'p-cushion', 'orb', 'p-cushion-front',
   'p-cup', 'p-cup-tea', 'p-cup-steam',
   'rug', 'orb-rug',
+  // 돌 상태는 돌 **바로 위**. 담요보다 먼저라 담요 자락에 가려진다 — 천이 덮은
+  // 자리의 이끼가 천 위로 비치면 안 된다.
+  'orb-moss', 'orb-wet', 'orb-snow',
+  'orb-sprout-bud', 'orb-sprout-thrive', 'orb-sprout-wither',
   // 담요는 돌보다 **나중** — 그래야 감싼 것으로 보인다
   'p-blanket-wrap',
   // 머그는 담요보다도 **나중**. 러그 위에 놓인 것이라 러그보다 뒤면 러그가 덮고,
@@ -136,6 +141,9 @@ const LIGHT_SOURCE = { 'lp-fire': ['g-fireplace', 'fire'], 'lp-lamp': ['lamp'] }
  *  새 소품은 아무것도 안 해도 그림자를 받는다. */
 const NOT_GROUNDED = new Set([
   'p-cushion-front', 'p-cup-tea', 'p-cup-steam',  // 다른 소품의 부품 — 부모가 이미 갖는다
+  // 돌 상태 오버레이도 돌의 부속이다. 따로 그림자를 주면 돌 밑에 그림자가 겹쳐 두 겹이 된다
+  'orb-moss', 'orb-wet', 'orb-snow',
+  'orb-sprout-bud', 'orb-sprout-thrive', 'orb-sprout-wither',
   'p-windchime', 'p-windchime-tubes',             // 벽에 걸린 것
   'p-bird',                                       // 유리 바깥·하늘 배경 — 발밑 검은 띠는 때로 보인다
 ]);
@@ -200,6 +208,11 @@ function visible(id, st) {
     case 'p-cup-tea': case 'p-cup-steam': return st.cup === 'full';
     case 'orb':     return orb === 'sill';
     case 'orb-rug': return orb === 'rug';
+    // 돌 상태 오버레이는 러그 돌 위에만 얹는다(창턱 돌에는 아직 그림이 없다).
+    // 어느 것을 켤지는 게임이 layerOff 로 고른다 — 여기선 자리만 지킨다.
+    case 'orb-moss': case 'orb-wet': case 'orb-snow':
+    case 'orb-sprout-bud': case 'orb-sprout-thrive': case 'orb-sprout-wither':
+      return orb === 'rug';
     default: return true;
   }
 }

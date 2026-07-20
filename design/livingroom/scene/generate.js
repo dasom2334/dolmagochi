@@ -936,7 +936,9 @@ export const BOXES = {
 };
 /** 상자에 얹혀 함께 앞으로 나와야 하는 것들 */
 const ON_FIREPLACE = [];   // 향초 제거됨
-const ON_SHELF = ['bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6'];
+const ON_SHELF = ['bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
+                  // 2번째 칸 책 — 원래 g-shelf 에 묶여 있던 것을 떼어냈다
+                  'bk2-1', 'bk2-2', 'bk2-3', 'bk2-4'];
 
 /** 절차 그룹 전체를 만든다. 반환: { groupId: rects[] } (캔버스 좌표) */
 export function generateGroups(measured = {}) {

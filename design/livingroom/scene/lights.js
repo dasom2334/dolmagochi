@@ -351,7 +351,21 @@ export function contactShadow(rects, rows = 2) {
   for (let k = 0; k < spread; k++) {
     const grow = k + 1;
     out.push({ r: [x0 - grow, yBase + 1 + k, (x1 - x0 + 1) + grow * 2, 1],
-               fill: '#140c14', alpha: 0.22 / (k + 1), blend: 'multiply' });
+               fill: '#140c14', alpha: 0.38 / (k + 1), blend: 'multiply' });
+  }
+  // 바닥에 **넓게 닿는** 소품은 아래로만 번져선 부족하다 — 담요처럼 폭이 큰 것은
+  // 옆구리에 붙은 러그까지 밝게 남아 천이 바닥에서 떠 보인다.
+  // 밑변 폭이 8칸을 넘으면 **좌우로도** 한두 칸 그늘을 둘러 둘레를 닫는다.
+  const wide = x1 - x0 + 1;
+  if (wide >= 8) {
+    const side = wide >= 16 ? 2 : 1;
+    for (let k = 0; k < side; k++) {
+      const a = 0.20 / (k + 1);
+      for (let yy = Math.max(y0, yBase - 3); yy <= yBase; yy++) {
+        out.push({ r: [x0 - 1 - k, yy, 1, 1], fill: '#140c14', alpha: a, blend: 'multiply' });
+        out.push({ r: [x1 + 1 + k, yy, 1, 1], fill: '#140c14', alpha: a, blend: 'multiply' });
+      }
+    }
   }
   return out;
 }
