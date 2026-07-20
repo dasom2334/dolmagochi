@@ -7,13 +7,19 @@ import { GX, GY } from './generate.js';
 
 // ─────────────────── 색감 오버레이 (시간 / 날씨) ───────────────────
 // 방 영역만 덮는 4조각 + 창유리 1조각. 창은 벽의 구멍이라 따로 다룬다.
+// 유리 틴트는 일부러 약하다 — 하늘 팔레트가 이미 그 시간·계절의 색이라 이중 착색이 된다.
+//
+// zone 태그: 창 구멍 **앞뒤에 놓인 소품**은 이 잘린 영역 때문에 '유리' 취급을 받아
+// 방보다 훨씬 옅게 착색됐다. 그 소품들에 방과 같은 세기를 다시 먹이려면
+// 어느 값이 '방' 값인지 render.js 가 알아야 한다.
+export const GLASS_RECT = [43, 4, 40, 30];
 const strips = (fill, blend) => [
-  { r: [0, 0, 128, 4], fill, blend },
-  { r: [0, 34, 128, 38], fill, blend },
-  { r: [0, 4, 43, 30], fill, blend },      // 창 왼쪽 벽 (창 x43~83)
-  { r: [83, 4, 45, 30], fill, blend },     // 창 오른쪽 벽
+  { r: [0, 0, 128, 4], fill, blend, zone: 'room' },
+  { r: [0, 34, 128, 38], fill, blend, zone: 'room' },
+  { r: [0, 4, 43, 30], fill, blend, zone: 'room' },      // 창 왼쪽 벽 (창 x43~83)
+  { r: [83, 4, 45, 30], fill, blend, zone: 'room' },     // 창 오른쪽 벽
 ];
-const glass = (fill, blend) => [{ r: [43, 4, 40, 30], fill, blend }];
+const glass = (fill, blend) => [{ r: GLASS_RECT, fill, blend, zone: 'glass' }];
 
 export const OVERLAYS = {
   // 낮은 multiply만으로는 실내가 밤과 구분이 안 된다 → screen 앰비언트로 방을 들어올린다

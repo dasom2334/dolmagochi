@@ -9,7 +9,7 @@ import { resolve } from './palette.js';
 import { PROPS } from './props.js';
 import { ROOM_PROPS } from './props-room.js';
 import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO, RUG_MARK,
-         contactShadow, occForProp } from './lights.js';
+         contactShadow, occForProp, GLASS_RECT } from './lights.js';
 import { ROOM_DATA } from './room-data.js';
 import { ANIM, GROUP_ANIM, TILE_H, flameIdx } from './anim.js';
 
@@ -212,6 +212,35 @@ const entry = (id) => {
   return null;
 };
 
+/** 창 구멍 안에 걸치는 소품 — **자동 판별**.
+ *
+ *  색감 오버레이는 방(strips)과 유리(glass)를 나눠 칠하고, 유리 쪽은 일부러 약하다
+ *  (하늘 팔레트가 이미 그 계절색이라 이중 착색이 되므로). 그 영역 구획은
+ *  **창 구멍이 비어 있다는 전제**로 잘라 놓은 것이다.
+ *  그런데 창턱 소품(화분·돌·방석·찻잔)과 창밖 새가 그 구멍 안에 들어와 있다.
+ *  게다가 이들의 색은 PROP_SLOTS 고정색이라 계절/시간 팔레트로 안 바뀐다 →
+ *  약한 유리 틴트만 받으니 계절이 바뀌어도 혼자 그대로다. 그래서 떠 보였다.
+ *  → 이 소품들 위에는 **방과 같은 세기의 오버레이**를 한 번 더 칠한다.
+ *  목록을 손으로 적지 않는다 — 창 구멍과 겹치는지 bbox 로 판별한다. */
+const [GRX, GRY, GRW, GRH] = GLASS_RECT;
+const APERTURE_PROPS = Z.filter((id) => {
+  const rects = entry(id)?.rects;
+  if (!rects || !rects.length) return false;
+  return rects.some(([x, y, w, h]) =>
+    x < GRX + GRW && x + w > GRX && y < GRY + GRH && y + h > GRY);
+});
+
+/** 오버레이별 '방' 착색값 — strips() 가 같은 값을 4조각으로 내보내므로 중복을 뺀다 */
+const ROOM_TINT = Object.fromEntries(Object.entries(OVERLAYS).map(([k, list]) => {
+  const seen = new Set(), out = [];
+  for (const { fill, blend, zone } of list) {
+    if (zone !== 'room' || seen.has(fill + blend)) continue;
+    seen.add(fill + blend);
+    out.push({ fill, blend });
+  }
+  return [k, out];
+}));
+
 /** 창광 오클루더 **자동 등록**.
  *  OCCLUDERS 역시 손으로 적는 목록이라, 새 소품을 그릴 때마다 여기 추가하는 걸
  *  잊었다(접지 그림자와 판박이). 그 결과 새 소품만 창빛이 그대로 통과했다.
@@ -338,6 +367,21 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
       ctx.globalAlpha = 1;
       ctx.fillStyle = w >= 1 ? fill : scaleAlpha(fill, w);
       ctx.fillRect(...r);
+    }
+    // 창 구멍 안에 걸친 소품은 위에서 '유리'(약한 틴트)만 받았다 → 방 세기로 한 번 더.
+    // 구멍 밖으로 나온 부분은 이미 방 틴트를 받았으므로 구멍 안쪽만 덧칠한다.
+    for (const { fill, blend } of ROOM_TINT[oid] || []) {
+      ctx.globalCompositeOperation = blend;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = w >= 1 ? fill : scaleAlpha(fill, w);
+      for (const id of APERTURE_PROPS) {
+        if (!on(id)) continue;
+        for (const [x, y, rw, rh] of entry(id).rects) {
+          const a = Math.max(x, GRX), b = Math.min(x + rw, GRX + GRW);
+          const c = Math.max(y, GRY), d = Math.min(y + (rh || 1), GRY + GRH);
+          if (b > a && d > c) ctx.fillRect(a, c, b - a, d - c);
+        }
+      }
     }
   }
   ctx.globalCompositeOperation = 'source-over';
