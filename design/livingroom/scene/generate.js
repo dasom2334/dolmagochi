@@ -726,15 +726,23 @@ function cloudBank() {
 // 둘러 좌우로 세워 보이게 해야 색이 읽힌다.
 //   p=면 가장자리 P=지면 t=글줄 d=책등 C=표지 D=표지 그늘
 // 17×8. 위로 갈수록 좁아져 바닥에 눕혀 펼친 원근이 된다.
+// 레퍼런스(픽셀아트 펼친 책)를 훑어 보니 **셋 다 공통**인데 내 그림엔 하나도 없었다:
+//   ① 가운데 책등 골짜기 — 두 면이 안쪽으로 기울어 만나고, 위쪽이 V로 벌어진다
+//   ② 종이 뭉치의 두께 — 바깥 가장자리에 밝은 면(P)과 그 아래 어두운 단(p)
+//   ③ 글줄은 **끊긴 짧은 획** — t 를 꽉 채우면 회색 판이지 글이 아니다
+// 예전 판은 위로 갈수록 좁아지는 사다리꼴 한 덩어리라 책보다 '접힌 종이'였다.
+//   p=종이 단 P=지면 t=글줄 d=책등 골 C=표지 D=표지 그늘
+// 19×9.
 const OPENBOOK_ART = [
-  '....ppppdpppp....',
-  '...pPPPPdPPPPp...',
-  '..pPtttPdPtttPp..',
-  '.pPtttttdPttttPp.',
-  'CpPtttttdPttttPpC',
-  'CPPPPPPPdPPPPPPPC',
-  'CCCCCCCCCCCCCCCCC',
-  '.DDDDDDDDDDDDDDD.',
+  '...pppp..d..pppp...',
+  '..pPPPPp.d.pPPPPp..',
+  '.pPtttPPpdpPPtttPp.',
+  '.pPPPPPPpdpPPPPPPp.',
+  'DpPtttPPpdpPPtttPpD',
+  'DpPPPPPPpdpPPPPPPpD',
+  'DDpPtttPpdpPtttPpDD',
+  'CDDppppppdppppppDDC',
+  '.CCCCCCCCCCCCCCCCC.',
 ];
 function openBook(n) {
   const map = { p: '--cer1', P: '--cer2', t: '--cer0',
@@ -747,9 +755,9 @@ function openBook(n) {
       if (ch === '.') { i++; continue; }
       let k = i;
       while (k + 1 < row.length && row[k + 1] === ch) k++;
-      // 러그 돌은 아트 x40~54(중심 47), 밑변 y61 — 책(폭 17)을 중심에 맞춰 앞에 눕힌다.
+      // 러그 돌은 아트 x40~54(중심 47), 밑변 y61 — 책(폭 19)을 중심에 맞춰 앞에 눕힌다.
       // 돌보다 나중에 그리므로 책이 돌 밑동을 살짝 덮어 "앞에 펼쳐 둔" 것으로 읽힌다.
-      out.push([39 + i, 60 + j, k - i + 1, 1, map[ch]]);
+      out.push([37 + i, 60 + j, k - i + 1, 1, map[ch]]);
       i = k + 1;
     }
   });
@@ -930,8 +938,10 @@ export function generateGroups(measured = {}) {
     // 폭우 = 그 2.4배. 방울을 길게(4) 하고 더 촘촘히 뿌린다 — 모양은 같다.
     downpour: rainDrops('--rain', 5, 4, 5, 102),
     snow: fall('--snow-p', 5, 1, 104),
-    'pt-petals': drift('--t2', 3, 106),
-    'pt-leaves': drift('--t1', 3, 108),
+    // 계절 슬롯(--t1/--t2)을 쓰면 같은 계절에서 꽃잎과 낙엽이 같은 색이 된다 —
+    // 그 둘은 나뭇잎 색이라 계절이 정하기 때문. 날씨 파티클은 제 슬롯을 쓴다.
+    'pt-petals': drift('--ptl', 3, 106),
+    'pt-leaves': drift('--lvs', 3, 108),
     'fx-snowcap': snowCap(),
     'sill-shelf': sillShelf(),
     'win-sash-open': sashOpen('--wd1'),

@@ -75,6 +75,8 @@ const Z = [
   'base-scenery', 'halo-sun', 'halo-moon', 'sun', 'moon', 'stars', 'clouds',
   'tree-v1-trunk', 'tree-v1-leaves', 'tree-v2-trunk', 'tree-v2-leaves', 'tree-bare',
   'rain', 'downpour', 'snow', 'pt-leaves', 'pt-petals', 'pt-fireflies', 'fx-drops', 'fx-frost',
+  // 새는 **유리 바깥** 창턱에 앉아 있다 — 벽·창틀보다 먼저 그려야 창틀이 위를 덮는다
+  'p-bird',
   // [2] 방 구조. g-wall 은 측정 질감과 메움을 합친 벽 한 장(generate.js wallPlane)
   'g-wall',
   // [2.5] 창턱 눈 — 벽 위, 창틀 뒤. 창밖에 쌓인 게 아니라 창턱에 쌓인 것으로 읽혀야 한다
@@ -89,7 +91,7 @@ const Z = [
   'p-waterglass',                                         // 러그 옆 바닥
   'p-windchime', 'p-windchime-tubes',                     // 창 오른쪽 벽
   // 창턱 선반 → 그 위 소품 → 돌 방석 → 돌 → 찻잔(돌 방석 옆)
-  'sill-shelf', 'sill-plant', 'p-cushion', 'orb', 'p-cushion-front', 'p-bird',
+  'sill-shelf', 'sill-plant', 'p-cushion', 'orb', 'p-cushion-front',
   'p-cup', 'p-cup-tea', 'p-cup-steam',
   'rug', 'orb-rug',
   // 담요는 돌보다 **나중** — 그래야 감싼 것으로 보인다
@@ -122,8 +124,9 @@ const FIRE_PARTS = { 'fire-body': 'fire', 'lamp-glow': 'lamp',
 const LIGHT_SOURCE = { 'lp-fire': ['g-fireplace', 'fire'], 'lp-lamp': ['lamp'] };
 
 /** 접지 그림자를 붙일 소품 — 바닥·선반에 **놓이는** 것들.
- *  벽에 걸린 것(풍경)과 그림자 자체(돌 자국)는 뺀다. */
-const GROUNDED = ['p-cushion', 'p-cup', 'p-blanket', 'p-blanket-wrap', 'p-bird',
+ *  벽에 걸린 것(풍경), 그림자 자체(돌 자국), 유리 바깥의 새는 뺀다 —
+ *  하늘을 배경으로 한 새 발밑의 검은 띠는 접지가 아니라 때로 보인다. */
+const GROUNDED = ['p-cushion', 'p-cup', 'p-blanket', 'p-blanket-wrap',
   'p-waterglass', 'p-openbook-1', 'p-openbook-2', 'p-openbook-3',
   'p-openbook-4', 'p-openbook-5', 'p-openbook-6'];
 const CONTACT = Object.fromEntries(GROUNDED.map((id) => [id, null]));
