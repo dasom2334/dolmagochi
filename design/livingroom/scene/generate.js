@@ -321,6 +321,13 @@ function rugSpan(y) {
   const t = (y - RUG_Y0) / (RUG_Y1 - RUG_Y0);
   return [pyRound(29 - 10 * t), pyRound(67 + 8 * t)];
 }
+// 레퍼런스 기준 재작화. 앞 판은 가장자리에서 안으로 rg0→rg1→**rg4(밝은 줄)**→rg3
+// →rg2 필드였는데, 두 가지가 레퍼런스와 반대였다:
+//   ① 안쪽 테두리 줄이 **밝은 색**이라 러그가 빛나는 테를 두른 것처럼 보였다.
+//      레퍼런스의 테는 필드보다 **어둡다** — 그래야 '무늬를 짜 넣은 깔개'로 읽힌다.
+//   ② 필드가 중간 톤(rg2)에 어두운 얼룩(rg1)까지 섞여 때 탄 것처럼 지저분했다.
+//      레퍼런스의 필드는 제일 밝고 거의 평평하다.
+// → 바깥부터: 어두운 가장자리 → 밝은 바깥 띠 → **어두운 테 줄** → 밝은 필드.
 function rugCells() {
   const out = [];
   for (let y = RUG_Y0; y <= RUG_Y1; y++) {
@@ -328,16 +335,12 @@ function rugCells() {
     for (let x = x0; x <= x1; x++) {
       const din = Math.min(x - x0, x1 - x, y - RUG_Y0, RUG_Y1 - y);
       let tone;
-      if (din === 0) tone = '--rg0';
-      else if (din === 1) tone = '--rg1';
-      else if (din === 2) tone = '--rg4';            // 밝은 테두리 줄
-      else if (din === 3) tone = '--rg3';
+      if (din === 0) tone = '--rg1';                 // 가장자리 — 바닥에 앉히는 어두운 단
+      else if (din <= 2) tone = '--rg3';             // 바깥 띠
+      else if (din <= 4) tone = '--rg0';             // **테 줄** (필드보다 어둡다)
       else {
-        tone = '--rg2';
-        const r = h2(x, y, 40);
-        if (r < 7) tone = '--rg3';
-        else if (r < 12) tone = '--rg1';
-        if (din === 4 && h2(x, y, 41) < 45) tone = '--rg3';
+        tone = '--rg4';                              // 필드 — 제일 밝고 평평하게
+        if (h2(x, y, 40) < 9) tone = '--rg3';        // 아주 성긴 결만
       }
       out.push([y, x, tone]);
     }
