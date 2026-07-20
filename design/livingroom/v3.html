@@ -29,12 +29,12 @@
   <div class="panel" id="panel"></div>
 
   <script type="module">
-    import { render } from './scene/render.js';
+    import { render, SHOP_PROPS } from './scene/render.js';
     import { reduceMotion } from './scene/anim.js';
 
     const cv = document.getElementById('cv');
     const state = { time:'sunset', season:'summer', weather:'clear', orb:'sill', tree:'v1' };
-    const off = new Set();                      // 꺼진 레이어
+    const off = new Set(SHOP_PROPS);            // 꺼진 레이어 — 상점 소품은 안 산 상태로 시작
 
     const AXES = [
       ['시간', 'time',    [['day','낮'],['sunset','노을'],['night','밤']]],
@@ -58,6 +58,12 @@
                 ['sun','해'],['moon','달'],['stars','별'],['clouds','구름']]],
       ['소품', [['rug','러그'],['orb','창턱 돌'],['orb-rug','러그 돌'],['sill-plant','화분'],
                 ['floor-props','바닥 소품'],['candle','촛대'],['fire','불꽃'],['lamp','스탠드']]],
+      ['상점', [['p-cushion','방석'],['p-guestcushion','손님 방석'],['p-rockingchair','흔들의자'],
+                ['p-fan','선풍기'],['p-cup','찻잔'],['p-tea','차통'],['p-soda','탄산'],
+                ['p-bookstack','헌책'],['p-wateringcan','물뿌리개'],['p-windchime','풍경'],
+                ['p-lanternpost','등불 기둥']]],
+      ['사물', [['p-blanket','담요'],['p-waterglass','물컵'],['p-bird','창턱 새'],
+                ['p-rockmark','돌 자국']]],
       ['효과', [['anim','애니메이션']]],
     ];
 

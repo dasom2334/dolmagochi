@@ -9,6 +9,8 @@
 // 아트는 96×72 로 측정·작화됐다. 화면이 16:9 라 좌우로 16칸씩 넓혀 128×72(=16:9)로 만든다.
 // **아트 좌표는 건드리지 않는다** — 아트 공간 x ∈ [-OX, AW+OX) 로 넓히고,
 // 캔버스로 옮길 때만 +OX 한다. 창문·러그·돌은 그대로 두면 캔버스 중앙에 온다.
+import { buildRoomProps } from './props-room.js';
+
 const AW = 96, GY = 72;      // 원래 아트 폭
 const OX = 16;               // 좌우로 넓힌 여백
 const GX = AW + OX * 2;      // 캔버스 폭 128
@@ -345,19 +347,16 @@ function treeV2() {
 export const FLAME_N = 6;
 
 // ─────────────────────────── 촛불 ───────────────────────────
-// 모닥불 생성기(flameFrames)를 그대로 축소하면 촛불이 안 된다 — 3×3 덩어리가 될 뿐이다.
-// 촛불은 **세로로 긴 물방울**이다: 위는 뾰족하고, 가장 넓은 곳이 아래쪽 1/3,
-// 심지에 닿는 맨 아래는 다시 좁아진다. 안쪽에 밝은 심(core)이 하나 서 있고
-// 바깥 1px 은 주황~붉은 테두리. (레퍼런스: 도트 촛불의 일반 규칙)
-// 이 크기(3×5)에서는 절차 생성보다 프레임을 직접 찍는 게 정확하다.
+// 가정용 초의 불은 **1×2 픽셀**이면 충분하다. 크게 그리면 횃불이 된다.
+// 변화는 크기가 아니라 밝기·높이의 미세한 흔들림으로만 준다.
 //   . = 빈칸  o = 바깥테  m = 중간  c = 심지불꽃(가장 밝음)
 const CANDLE_ART = [
-  ['.o.', 'omo', 'ocm', 'ocm', '.c.'],          // 0 곧게
-  ['.o.', 'om.', 'ocm', 'ocm', '.c.'],          // 1 살짝 왼쪽
-  ['..o', '.mo', 'ocm', 'ocm', '.c.'],          // 2 오른쪽으로 눕는다
-  ['.o.', 'omo', 'ocm', 'ocm', '.c.'],          // 3 곧게
-  ['.o.', '.mo', 'mco', 'ocm', '.c.'],          // 4 왼쪽으로 눕는다
-  ['...', '.o.', 'ocm', 'ocm', '.c.'],          // 5 잠깐 작아진다
+  ['m', 'c'],          // 0 기본
+  ['m', 'c'],          // 1
+  ['o', 'c'],          // 2 끝이 식는다
+  ['m', 'c'],          // 3
+  ['.', 'c'],          // 4 잠깐 줄어든다
+  ['o', 'c'],          // 5
 ];
 /** 심지 끝(wickX, wickY) 기준으로 프레임을 배치한다 — 맨 아랫줄이 심지에 닿는다 */
 function candleFrames(wickX, wickY, tones) {
@@ -671,6 +670,7 @@ export function generateGroups(wallRects = []) {
   candleFrames(5, 27, ['--f0', '--cd2', '--sun1'])
     .forEach((rs, i) => { out[`cflame-f${i}`] = rs; });
   out['lamp-glow'] = lampGlow();
+  Object.assign(out, buildRoomProps());          // 상점 소품·대사 사물
   // 아트 좌표 → 캔버스 좌표 (여기서 한 번만 옮긴다)
   for (const rects of Object.values(out)) for (const r of rects) r[0] += OX;
   return out;

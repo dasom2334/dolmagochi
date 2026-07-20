@@ -82,8 +82,19 @@ const Z = [
   'g-winframe', 'g-fireplace', 'g-shelf', 'g-floor',
   // [3] 소품 (선반 안 → 맨틀 → 창턱 → 바닥 깔개 → 바닥 스탠딩)
   'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
-  'candle', 'sill-plant', 'orb', 'rug', 'orb-rug', 'lamp', 'floor-props',
+  'candle', 'p-tea', 'p-cup', 'p-waterglass',            // 맨틀 위
+  'p-windchime',                                          // 창 오른쪽 벽
+  'sill-plant', 'p-bird', 'orb',                          // 창턱
+  'rug', 'p-rockmark', 'p-cushion', 'p-guestcushion', 'p-blanket', 'p-bookstack',
+  'orb-rug',
+  'lamp', 'p-lanternpost', 'p-rockingchair', 'p-fan', 'p-wateringcan', 'p-soda',
+  'floor-props',
 ];
+
+/** 상점에서 사기 전까지는 없는 것 — 패널에서 기본으로 꺼 둔다 */
+export const SHOP_PROPS = ['p-cushion', 'p-guestcushion', 'p-rockingchair', 'p-fan',
+  'p-cup', 'p-tea', 'p-soda', 'p-bookstack', 'p-wateringcan', 'p-windchime',
+  'p-lanternpost', 'p-blanket', 'p-waterglass', 'p-bird', 'p-rockmark'];
 
 /** 발광체 — 오버레이 위라 밤에도 어두워지지 않는다 */
 const EMISSION = ['fire-body', 'candle-flame', 'lamp-glow'];

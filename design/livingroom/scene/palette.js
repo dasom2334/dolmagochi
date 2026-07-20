@@ -1,8 +1,11 @@
 // 자동 생성(tools/export_palette.py) 후 **여기가 진실의 원천**이 된다. 직접 편집할 것.
 // 슬롯 이름 → 색. 지오메트리는 슬롯 이름만 알고 색은 모른다(팔레트 교체로 48조합 표현).
 
+import { PROP_SLOTS } from './props-room.js';
+
 /** 시간·계절·날씨와 무관한 기본값 */
 export const BASE = {
+    ...PROP_SLOTS,
     "--page-bg": "#241627",
     "--k0": "#1e5c9e",
     "--k1": "#2a6cae",
