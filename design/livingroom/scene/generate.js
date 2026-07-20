@@ -186,16 +186,26 @@ const fwdY = (y, s = BOX_FW) => FLOOR_VPY + (y - FLOOR_VPY) * s;
 // 1px 하이라이트가 없어서, 이 크기에서는 널·턱·보가 전부 "그려 넣은 줄"로 읽힌다.
 // 측정 아트 뒤에 덧그려 구조를 세운다(순서상 나중이라 위에 덮인다).
 
-/** 벽돌 줄눈 — 가로 켜 사이 1px + 세로 이음매를 켜마다 엇갈리게(막힌줄눈).
- *  레퍼런스 도트 벽난로는 예외 없이 벽돌이 한 장씩 보인다. 통짜 단색이면 판자다. */
-function brick(x0, x1, y0, y1, slot = '--s2') {
-  const r = [];
+/** 벽돌 — 레퍼런스는 줄눈만 그은 게 아니라 **벽돌 한 장 한 장에 명암**이 있다.
+ *  1px 줄눈만 그으면 격자무늬로 보이고 돌덩이로는 안 읽힌다.
+ *  블록 4×3, 켜마다 반 장씩 엇갈리고(막힌줄눈), 각 장의 윗면은 밝고 아래·오른쪽은 줄눈. */
+const BW = 4, BH = 3;
+function brick(x0, x1, y0, y1, body = '--s6', hi = '--s10', mortar = '--s2', alt = '--s9') {
+  const cells = [];
   for (let y = y0; y <= y1; y++) {
-    if ((y - y0) % 3 === 0) { r.push([x0, y, x1 - x0 + 1, 1, slot]); continue; }
-    const off = (Math.floor((y - y0) / 3) % 2) * 2;
-    for (let x = x0 + off; x <= x1; x += 4) r.push([x, y, 1, 1, slot]);
+    const row = Math.floor((y - y0) / BH), inRow = (y - y0) % BH;
+    const off = (row % 2) ? 2 : 0;
+    for (let x = x0; x <= x1; x++) {
+      const k = x - x0 + off, bx = Math.floor(k / BW), inCol = k % BW;
+      let slot = inRow === BH - 1 ? mortar
+               : inCol === BW - 1 ? mortar
+               : inRow === 0 ? hi : body;
+      // 장마다 톤을 조금씩 흔들어야 찍어낸 타일로 안 보인다
+      if (slot === body && h2(bx, row, 44) < 26) slot = alt;
+      cells.push([y, x, slot]);
+    }
   }
-  return r;
+  return emitRows(cells);
 }
 
 function fireplaceDetail() {
@@ -204,9 +214,12 @@ function fireplaceDetail() {
   d.push([-2, 31, 26, 1, '--s12']);          // 상판 윗면(가장 밝다)
   d.push([-1, 32, 24, 1, '--s10']);          // 한 단 좁은 앞면
   d.push([0, 33, 22, 1, '--s2']);            // 턱 밑 그림자 — 돌출을 증명하는 건 이것
-  // 벽돌 — 좌우 기둥. 통짜 단색이던 곳에 켜를 넣는다
-  d.push(...brick(1, 5, 34, 47));
-  d.push(...brick(17, 20, 34, 47));
+  // 벽돌 — 좌우 기둥 + 상인방 위 벽까지. 레퍼런스는 아궁이 둘레가 전부 벽돌이다
+  // 줄눈은 가장 어두운 톤으로 — 레퍼런스는 장과 장이 확실히 떨어져 보인다
+  const B = ['--s6', '--s12', '--s1', '--s10'];
+  d.push(...brick(1, 20, 34, 35, ...B));
+  d.push(...brick(1, 5, 36, 47, ...B));
+  d.push(...brick(17, 20, 36, 47, ...B));
   // 상인방 — 아궁이 위를 가로지르는 보(벽돌이 아니라 통돌)
   d.push([2, 36, 18, 1, '--s10']);
   d.push([2, 37, 18, 1, '--s6']);
@@ -246,15 +259,23 @@ function shelfDetail(measured) {
       }
       if (run) d.push([run[0], y, run[1] - run[0] + 1, 1, '--s1']);
     }
-  d.push([77, 16, 20, 1, '--s10']);          // 상판 윗면
-  d.push([77, 17, 20, 1, '--s6']);
-  // 선반 널 앞면 1px 하이라이트 + 밑면 그림자 = 두께.
-  for (const y of [25, 36, 46]) {
-    d.push([78, y, 18, 1, '--s10']);
-    d.push([78, y + 1, 18, 1, '--s5']);
+  // 틀은 **따뜻한 나무**로. 레퍼런스에서 책장이 책장으로 읽히는 결정적 이유는
+  // 틀(밝은 나무)과 안쪽(어두움)의 대비다. 측정본은 틀까지 보라색이라 벽에 묻었다.
+  d.push([77, 16, 20, 1, '--wd2']);          // 상판 윗면(빛 받는 면)
+  d.push([77, 17, 20, 1, '--wd1']);
+  // 좌우 옆기둥 — 왼쪽은 창을 마주 보므로 밝고, 오른쪽은 그늘
+  for (let y = 18; y <= 46; y++) {
+    d.push([78, y, 2, 1, '--wd1']);
+    d.push([78, y, 1, 1, '--wd2']);
+    d.push([94, y, 2, 1, '--wd0']);
   }
-  d.push([77, 47, 20, 1, '--s6']);           // 굽
-  d.push([77, 48, 20, 1, '--s3']);
+  // 선반 널 — 앞면 밝게 + 밑면 어둡게 = 두께
+  for (const y of [25, 36, 46]) {
+    d.push([78, y, 18, 1, '--wd2']);
+    d.push([78, y + 1, 18, 1, '--wd0']);
+  }
+  d.push([77, 47, 20, 1, '--wd1']);          // 굽
+  d.push([77, 48, 20, 1, '--wd0']);
   return d;
 }
 
@@ -756,7 +777,8 @@ function flameFrames(cx, baseY, w, h, salt, n, tones, sparks = 2) {
  *  윗면(맨틀)은 위를 향하니 가장 밝다. */
 export const BOXES = {
   'g-fireplace': { x0: 0, x1: 21, y0: 31, y1: 48, dir: +1, side: '--s9', top: '--s12' },
-  'g-shelf':     { x0: 78, x1: 95, y0: 16, y1: 48, dir: -1, side: '--s10', top: null },
+  // 책장 옆면도 나무 — 틀과 같은 재질이어야 한 덩어리로 읽힌다
+  'g-shelf':     { x0: 78, x1: 95, y0: 16, y1: 48, dir: -1, side: '--wd1', top: null },
 };
 /** 상자에 얹혀 함께 앞으로 나와야 하는 것들 */
 const ON_FIREPLACE = ['candle'];
