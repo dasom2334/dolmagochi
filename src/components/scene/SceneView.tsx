@@ -25,7 +25,7 @@ import { BroomProp } from './props/BroomProp';
 import { BedProp } from './props/BedProp';
 import { UmbrellaProp } from './props/UmbrellaProp';
 import { FireplaceProp } from './props/FireplaceProp';
-import { RockingChairProp } from './props/RockingChairProp';
+import { BlanketProp } from './props/BlanketProp';
 import { BrushProp } from './props/BrushProp';
 import { BoardProp } from './props/BoardProp';
 import { LadleProp } from './props/LadleProp';
@@ -169,7 +169,7 @@ export function SceneView({ state }: { state: GameState }) {
         <UmbrellaProp />
       )}
       {show('fireplace') && <FireplaceProp />}
-      {show('rockingchair') && <RockingChairProp />}
+      {show('blanket') && <BlanketProp />}
       {show('brush') && <BrushProp />}
       {show('board') && <BoardProp />}
       {show('ladle') && <LadleProp />}

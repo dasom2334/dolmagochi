@@ -115,11 +115,11 @@
       "intimacy": 3
     },
     {
-      "textId": "dlg.stage3.rockingchair",
+      "textId": "dlg.stage3.blanket",
       "intimacy": 3,
       "when": {
         "placedItems": [
-          "rockingchair"
+          "blanket"
         ]
       }
     }

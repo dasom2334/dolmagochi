@@ -2,7 +2,7 @@
   {
     "token": "read",
     "variants": [
-      { "when": { "placedItems": ["rockingchair"] }, "textId": "refl.read.rockingchair" },
+      { "when": { "placedItems": ["blanket"] }, "textId": "refl.read.blanket" },
       { "when": { "placedItems": ["fireplace"] }, "textId": "refl.read.fireplace" },
       { "textId": "refl.read.base" }
     ]

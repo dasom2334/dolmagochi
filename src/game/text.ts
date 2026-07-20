@@ -236,7 +236,7 @@ export const UI = {
     footsteps: 'ui.noise.footsteps',
     pageTurn: 'ui.noise.pageTurn',
     pageWriting: 'ui.noise.pageWriting',
-    rockingChair: 'ui.noise.rockingChair',
+    blanket: 'ui.noise.blanket',
     cooking: 'ui.noise.cooking',
     sweeping: 'ui.noise.sweeping',
     rainSoft: 'ui.noise.rainSoft',

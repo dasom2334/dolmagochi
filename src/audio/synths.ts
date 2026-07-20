@@ -266,17 +266,11 @@ function pageWriting(a: Ambience): void {
   );
 }
 
-function rockingChair(a: Ambience): void {
-  // 흔들의자 끼익 — 앞뒤 두 음이 번갈아, 흔들림 주기
-  let forth = true;
-  every(a, 1150, 1350, () => {
-    noiseBurst(a, {
-      band: forth ? [320, 620] : [260, 480],
-      dur: 0.28,
-      vol: 0.05,
-      attack: 0.09,
-    });
-    forth = !forth;
+function blanket(a: Ambience): void {
+  // 담요 — 뒤척일 때만 아주 작게 스친다. 끼익거리는 물건이 아니라 덮는 물건이라
+  // 간격을 길게(4~9초) 두고 고역만 얇게 쓴다
+  every(a, 4000, 9000, () => {
+    noiseBurst(a, { band: [1800, 5200], dur: 0.34, vol: 0.03, attack: 0.14 });
   });
 }
 
@@ -415,7 +409,7 @@ const SYNTHS: Record<LayerId, (a: Ambience) => void> = {
   birdsWind,
   pageTurn,
   pageWriting,
-  rockingChair,
+  blanket,
   cooking,
   sweeping,
   rainSoft,
