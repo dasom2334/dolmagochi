@@ -160,6 +160,22 @@ describe('펼친 책 = 꺼내 온 한 권의 번호', () => {
   it('가진 책이 없으면 읽어도 0 — 없는 칸을 비울 수는 없다', () => {
     expect(sceneStateFrom(reading(base), 0).readBook).toBe(0);
   });
+
+  // 책장은 **왼쪽부터** 채워진다 — 어느 책을 샀든 첫 칸이 먼저 찬다.
+  // 그래서 헌책 한 권만 있으면 그 책이 1번 칸에 꽂히고, 읽는 동안 1번이 빈다.
+  it('헌책만 가지고 읽으면 비는 건 첫 번째 칸이다', () => {
+    const s = reading(withItems('book2'));
+    expect(sceneStateFrom(s, 0).readBook).toBe(1);
+    expect(hiddenLayers(s, false, D).has('bk-1')).toBe(false); // 산 책이라 켜져 있고
+    expect(hiddenLayers(s, false, D).has('bk-2')).toBe(true); // 두 번째는 안 샀다
+  });
+
+  // 세션이 끝나면(휴식) 꺼내 온 책이 제자리로 돌아간다
+  it('세션이 끝나면 다시 채워진다', () => {
+    const s = withItems('book', 'book2');
+    expect(sceneStateFrom(reading(s), 0).readBook).toBe(2);
+    expect(sceneStateFrom({ ...s, phase: 'rest' } as GameState, 0).readBook).toBe(0);
+  });
 });
 
 describe('찻잔 내용물은 차를 사야 생긴다', () => {
