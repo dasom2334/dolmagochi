@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { GameState } from '../../game/types';
 import { isRockPresent, itemBonus } from '../../game/stateMachine';
 import { gameData } from '../../store/gameStore';
@@ -38,6 +39,8 @@ import { SodaProp } from './props/SodaProp';
 import { CupProp } from './props/CupProp';
 import { FanProp } from './props/FanProp';
 import { LampProp } from './props/LampProp';
+import { LivingRoomScene, type HotspotId } from './LivingRoomScene';
+import { sceneStateFrom, hiddenLayers } from '../../scene/livingroom/fromGame';
 import { BookProp } from './props/BookProp';
 
 /** 행동별 풍경 색 (디자인 원본 값 그대로 — cook/chore 씬은 디자인 미정, 방 색으로 폴백) */
@@ -53,6 +56,13 @@ const roomById = (id: string) =>
   gameData.rooms.find((r) => r.id === id) ?? gameData.rooms[1];
 
 export function SceneView({ state }: { state: GameState }) {
+  // 씬을 눌러서 바꾸는 것들 — 아직 게임 축이 아니라 **씬 조작**이라 뷰가 들고 있는다.
+  //   창문   열면 풍경(윈드차임)이 흔들린다
+  //   벽난로·스탠드  광원 on/off. 소품을 없애는 게 아니라 **불만** 끈다
+  // 게임 축이 생기면 state 로 옮긴다.
+  const [windowOpen, setWindowOpen] = useState(false);
+  const [fireOn, setFireOn] = useState(true);
+  const [lampOn, setLampOn] = useState(true);
   const isFocus = state.phase === 'focus';
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
   const sceneId = isFocus ? (action?.sceneId ?? 'free') : 'room';
@@ -108,6 +118,30 @@ export function SceneView({ state }: { state: GameState }) {
               : '#c9a86a';
   const showBook = (isFocus && sceneId === 'read') || show('book2');
 
+  // 거실 씬 — design/livingroom 의 canvas 렌더러.
+  // 휴식이든 집중이든 **그 장면의 방이 거실이면** 새 렌더러로 간다.
+  // sceneRoom 은 집중 중엔 행동의 방(focusRoomOf), 휴식 중엔 지금 보고 있는 방이다.
+  //   거실 = sun(볕쬐기) · read(책읽기) + 계열 밖 행동(free · nurse)
+  //   침실 = lie(누워있기) · personalWork,  주방 = cook · chore,  walk 는 야외(null)
+  // 주방·침실은 아직 이식 전이라 기존 레이어 렌더로 간다.
+  const livingScene = sceneRoom === 'living';
+  const sceneState = sceneStateFrom(state, now(), windowOpen);
+  const sceneOff = hiddenLayers(state, false, gameData.dialogues);
+  // 광원 끄기 — 소품(벽난로 몸체·스탠드 기둥)은 남기고 불과 그 빛만 끈다.
+  // 안 산 소품은 hiddenLayers 가 이미 통째로 껐으므로 여기선 신경 쓸 게 없다.
+  if (!fireOn) {
+    sceneOff.add('fire');
+    sceneOff.add('lp-fire');
+  }
+  if (!lampOn) {
+    sceneOff.add('lamp-glow');
+    sceneOff.add('lp-lamp');
+  }
+  // 없는 소품은 누를 수도 없어야 한다
+  const hotspots = new Set<HotspotId>(['window']);
+  if (!sceneOff.has('g-fireplace')) hotspots.add('fireplace');
+  if (!sceneOff.has('lamp')) hotspots.add('lamp');
+
   const caption = isFocus
     ? t(action?.captionId ?? '')
     : state.planted
@@ -131,66 +165,92 @@ export function SceneView({ state }: { state: GameState }) {
         boxSizing: 'border-box',
       }}
     >
-      {showWindow && <WindowSprite glassColor={glassColor} />}
-      {outdoor && <DaySun variant={tod === 'night' ? 'moon' : 'sun'} />}
-      <Floor bg={colors.floor} line={colors.line} />
-      {isFocus && sceneId === 'sun' && <SunPatch />}
-      {isFocus && sceneId === 'walk' && <GrassTufts />}
-      {state.planted && state.plantedAt !== null ? (
-        // 3차 (M15): 돌의 자리에 나무가 자란다 — 성장은 달력이 정한다
-        <TreeSprite
-          stage={treeStage(state.plantedAt, state.treeBondDays, now())}
-          flowers={itemBonus(state, gameData, 'treeFlowers')}
+      {/* 거실 휴식 씬만 새 렌더러로 — 벽·바닥·창·소품·돌을 canvas 한 장이 다 그린다.
+          집중 씬과 나머지 방은 아직 기존 레이어 컴포넌트를 쓴다. */}
+      {livingScene ? (
+        <LivingRoomScene
+          scene={sceneState}
+          off={sceneOff}
+          hotspots={hotspots}
+          onHotspot={(id) => {
+            if (id === 'window') setWindowOpen((v) => !v);
+            else if (id === 'fireplace') setFireOn((v) => !v);
+            else if (id === 'lamp') setLampOn((v) => !v);
+          }}
         />
-      ) : present ? (
-        <RockSprite
-          moss={placed('moss')}
-          sprout={sproutStageOf(state, gameData.dialogues)}
-          wetness={state.session.wetness}
-        />
-      ) : (
-        <RockShadow />
-      )}
-      {show('cup') && <CupProp />}
-      {showBook && <BookProp />}
-      {show('plant') && <PlantProp />}
-      {show('soda') && <SodaProp />}
-      {show('fan') && <FanProp />}
-      {show('lamp') && <LampProp />}
-      {show('cushion') && <CushionProp />}
-      {show('shoes') && <ShoesProp />}
-      {show('book') && <ReadBookProp />}
-      {show('pot') && <PotProp />}
-      {show('broom') && <BroomProp />}
-      {show('pillow') && <PillowProp />}
-      {show('bed') && <BedProp />}
-      {(show('umbrella') ||
-        (isFocus && sceneId === 'walk' && state.session.umbrella)) && (
-        <UmbrellaProp />
-      )}
-      {show('fireplace') && <FireplaceProp />}
-      {show('blanket') && <BlanketProp />}
-      {show('brush') && <BrushProp />}
-      {show('board') && <BoardProp />}
-      {show('ladle') && <LadleProp />}
-      {show('desk') && <DeskProp />}
-      {show('stationery') && <StationeryProp />}
-      {show('laptop') && <LaptopProp />}
-      {STOCK_PROP_IDS.map((id) =>
-        show(id) && (state.supplies[id] ?? 0) > 0 ? (
-          <StockProp key={id} itemId={id} />
-        ) : null,
-      )}
-      {isFocus && state.session.supply && (
+      ) : null}
+      {/* 세션 중 쓰는 소모품은 캔버스에 없는 그림이라 위에 겹친다.
+          집중 씬까지 캔버스로 넘기면서 이것까지 사라지면 "뭘 쓰고 있는지" 가 안 보인다. */}
+      {livingScene && isFocus && state.session.supply && (
         <SupplyProp
           itemId={state.session.supply.itemId}
           variant={state.session.supply.variant}
         />
       )}
-      {outdoor && state.weather !== 'clear' && (
-        <WeatherFx kind={state.weather} />
+      {!livingScene && (
+        <>
+        {showWindow && <WindowSprite glassColor={glassColor} />}
+        {outdoor && <DaySun variant={tod === 'night' ? 'moon' : 'sun'} />}
+        <Floor bg={colors.floor} line={colors.line} />
+        {isFocus && sceneId === 'sun' && <SunPatch />}
+        {isFocus && sceneId === 'walk' && <GrassTufts />}
+        {state.planted && state.plantedAt !== null ? (
+          // 3차 (M15): 돌의 자리에 나무가 자란다 — 성장은 달력이 정한다
+          <TreeSprite
+            stage={treeStage(state.plantedAt, state.treeBondDays, now())}
+            flowers={itemBonus(state, gameData, 'treeFlowers')}
+          />
+        ) : present ? (
+          <RockSprite
+            moss={placed('moss')}
+            sprout={sproutStageOf(state, gameData.dialogues)}
+            wetness={state.session.wetness}
+          />
+        ) : (
+          <RockShadow />
+        )}
+        {show('cup') && <CupProp />}
+        {showBook && <BookProp />}
+        {show('plant') && <PlantProp />}
+        {show('soda') && <SodaProp />}
+        {show('fan') && <FanProp />}
+        {show('lamp') && <LampProp />}
+        {show('cushion') && <CushionProp />}
+        {show('shoes') && <ShoesProp />}
+        {show('book') && <ReadBookProp />}
+        {show('pot') && <PotProp />}
+        {show('broom') && <BroomProp />}
+        {show('pillow') && <PillowProp />}
+        {show('bed') && <BedProp />}
+        {(show('umbrella') ||
+          (isFocus && sceneId === 'walk' && state.session.umbrella)) && (
+          <UmbrellaProp />
+        )}
+        {show('fireplace') && <FireplaceProp />}
+        {show('blanket') && <BlanketProp />}
+        {show('brush') && <BrushProp />}
+        {show('board') && <BoardProp />}
+        {show('ladle') && <LadleProp />}
+        {show('desk') && <DeskProp />}
+        {show('stationery') && <StationeryProp />}
+        {show('laptop') && <LaptopProp />}
+        {STOCK_PROP_IDS.map((id) =>
+          show(id) && (state.supplies[id] ?? 0) > 0 ? (
+            <StockProp key={id} itemId={id} />
+          ) : null,
+        )}
+        {isFocus && state.session.supply && (
+          <SupplyProp
+            itemId={state.session.supply.itemId}
+            variant={state.session.supply.variant}
+          />
+        )}
+        {outdoor && state.weather !== 'clear' && (
+          <WeatherFx kind={state.weather} />
+        )}
+        {outdoor && <TimeTint tod={tod} />}
+        </>
       )}
-      {outdoor && <TimeTint tod={tod} />}
       <div
         style={{
           position: 'absolute',
