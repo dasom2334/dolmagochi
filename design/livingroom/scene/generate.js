@@ -713,6 +713,38 @@ function cloudBank() {
   return emitRows([...cells.values()]);
 }
 
+// ─────────────────────── 펼쳐 놓은 책 ───────────────────────
+// 러그 가운데 돌(x40~54, 밑변 y61) 바로 앞에 펼쳐 둔다 — 돌이 읽고 있는 것처럼.
+// 책장 책 6권과 **같은 색을 쓴다**. 어느 권을 꺼내 왔는지가 곧 색이고,
+// 꺼내 온 권의 책장 칸은 비어 있어야 한다(render.js visible).
+//   p/P = 종이, d = 책등(어두운 쪽), C = 표지(밝은 쪽)
+// 종이만 크게 그리면 어느 권인지 안 보인다(전부 흰 덩어리). 표지를 **테두리**로
+// 둘러 좌우로 세워 보이게 해야 색이 읽힌다.
+const OPENBOOK_ART = [
+  '..pppp.pppp..',
+  'CpPPPPdPPPPpC',
+  'CpPPPPdPPPPpC',
+  'CCCCCCdCCCCCC',
+  '.DDDDDDDDDDD.',
+];
+function openBook(n) {
+  const map = { p: '--cer1', P: '--cer2', d: `--b${n}x0`, C: `--b${n}x1`, D: `--b${n}x0` };
+  const out = [];
+  OPENBOOK_ART.forEach((row, j) => {
+    let i = 0;
+    while (i < row.length) {
+      const ch = row[i];
+      if (ch === '.') { i++; continue; }
+      let k = i;
+      while (k + 1 < row.length && row[k + 1] === ch) k++;
+      // 러그 돌은 아트 x40~54(중심 47) — 책(폭 13)을 그 중심에 맞춰 바로 앞에 놓는다
+      out.push([41 + i, 62 + j, k - i + 1, 1, map[ch]]);
+      i = k + 1;
+    }
+  });
+  return out;
+}
+
 // ─────────────────────── 여닫이 창 ───────────────────────
 // 측정 창틀에는 세로 문설주(x46~47)와 중간 가로살(y21)이 **붙박이로 구워져** 있다.
 // 창을 열려면 그게 사라져야 하므로 창틀에서 떼어내 따로 관리한다.
@@ -891,6 +923,7 @@ export function generateGroups(measured = {}) {
     'fx-snowcap': snowCap(),
     'sill-shelf': sillShelf(),
     'win-sash-open': sashOpen('--wd1'),
+    ...Object.fromEntries([1, 2, 3, 4, 5, 6].map((n) => [`p-openbook-${n}`, openBook(n)])),
     'g-floor': [...emitRows(floor), ...floorAO],
     rug: emitRows(rugCells()),
     orb: ball(SILL_ROWS),

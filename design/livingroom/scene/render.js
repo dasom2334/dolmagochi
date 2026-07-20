@@ -90,12 +90,14 @@ const Z = [
   // 창턱 선반 → 그 위 소품 → 돌 방석 → 돌 → 찻잔(돌 방석 옆)
   'sill-shelf', 'sill-plant', 'p-bird', 'p-cushion', 'orb',
   'p-cup', 'p-cup-tea', 'p-cup-steam',
-  'rug', 'p-blanket', 'p-bookstack', 'orb-rug',
+  'rug', 'p-blanket', 'orb-rug',
+  // 펼친 책은 러그 돌 **앞**에 — 돌이 읽고 있는 것처럼 보여야 하므로 돌보다 나중
+  ...[1, 2, 3, 4, 5, 6].map((n) => `p-openbook-${n}`),
   'lamp', 'p-rockingchair',
 ];
 
 /** 상점에서 사기 전까지는 없는 것 — 패널에서 기본으로 꺼 둔다 */
-export const SHOP_PROPS = ['p-cushion', 'p-rockingchair', 'p-cup', 'p-bookstack',
+export const SHOP_PROPS = ['p-cushion', 'p-rockingchair', 'p-cup',
   'p-windchime', 'p-windchime-tubes', 'p-blanket', 'p-waterglass', 'p-bird'];
 
 /** 발광체 — 오버레이 위라 밤에도 어두워지지 않는다 */
@@ -144,6 +146,14 @@ function visible(id, st) {
     case 'tree-v1-leaves': return tree === 'v1' && season !== 'winter';
     case 'tree-v2-leaves': return tree === 'v2' && season !== 'winter';
     case 'tree-bare': return season === 'winter';
+    // 펼친 책은 꺼내 온 한 권만. 그 권의 책장 칸은 비어야 한다 —
+    // 같은 책이 책장과 바닥에 동시에 있으면 안 되므로.
+    case 'p-openbook-1': case 'p-openbook-2': case 'p-openbook-3':
+    case 'p-openbook-4': case 'p-openbook-5': case 'p-openbook-6':
+      return +id.slice(-1) === st.readBook;
+    case 'bk-1': case 'bk-2': case 'bk-3':
+    case 'bk-4': case 'bk-5': case 'bk-6':
+      return +id.slice(-1) !== st.readBook;
     // 여닫이 창 — 닫히면 문설주가 제자리, 열리면 양옆에 접힌다
     case 'win-sash':      return st.window !== 'open';
     case 'win-sash-open': return st.window === 'open';

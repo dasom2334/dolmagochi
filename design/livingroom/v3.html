@@ -34,7 +34,7 @@
 
     const cv = document.getElementById('cv');
     const state = { time:'sunset', season:'summer', weather:'clear', orb:'sill', tree:'v1',
-                    window:'closed', cup:'empty' };
+                    window:'closed', cup:'empty', readBook:1 };
     const off = new Set(SHOP_PROPS);            // 꺼진 레이어 — 상점 소품은 안 산 상태로 시작
 
     const AXES = [
@@ -47,6 +47,8 @@
       ['나무', 'tree',    [['v1','v1 침엽'],['v2','v2 활엽']]],
       ['창문', 'window',  [['closed','닫힘'],['open','열림']]],
       ['찻잔', 'cup',     [['empty','빈 잔'],['full','채움·김']]],
+      ['읽는책','readBook',[[0,'없음'],[1,'1권'],[2,'2권'],[3,'3권'],
+                          [4,'4권'],[5,'5권'],[6,'6권']]],
     ];
     const TOGGLES = [
       ['색감', [['light-day','낮'],['light-sunset','노을'],['light-night','밤'],
@@ -62,7 +64,7 @@
       ['소품', [['rug','러그'],['orb','창턱 돌'],['orb-rug','러그 돌'],['sill-plant','화분'],
                 ['fire','불꽃'],['lamp','스탠드']]],
       ['상점', [['p-cushion','돌 방석'],['p-rockingchair','흔들의자'],['p-cup','찻잔'],
-                ['p-bookstack','헌책'],['p-windchime','풍경']]],
+                ['p-windchime','풍경']]],
       ['사물', [['p-blanket','담요'],['p-waterglass','물컵'],['p-bird','창턱 새'],
                 ['rug-mark','돌 자국(그늘)']]],
       ['효과', [['anim','애니메이션']]],
