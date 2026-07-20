@@ -7,7 +7,7 @@
 import { generateGroups, GX, GY, OX, FLAME_N } from './generate.js';
 import { resolve } from './palette.js';
 import { PROPS } from './props.js';
-import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO } from './lights.js';
+import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO, RUG_MARK } from './lights.js';
 import { ROOM_DATA } from './room-data.js';
 import { ANIM, GROUP_ANIM, TILE_H, flameIdx } from './anim.js';
 
@@ -82,23 +82,21 @@ const Z = [
   // 바닥이 벽난로·책장보다 **먼저** 와야 한다 — 둘은 이제 벽면이 아니라 바닥에
   // 서 있어서(generate.js boxFaces) 밑동이 바닥선 아래로 내려온다.
   // 순서가 반대면 바닥이 밑동을 지워, 불만 바닥에 덩그러니 남는다.
-  'g-winframe', 'g-floor', 'g-fireplace', 'g-shelf',
+  'g-winframe', 'win-sash', 'win-sash-open', 'g-floor', 'g-fireplace', 'g-shelf',
   // [3] 소품 (선반 안 → 맨틀 → 창턱 → 바닥 깔개 → 바닥 스탠딩)
   'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
-  'p-cup', 'p-waterglass',                                // 맨틀 위
-  'p-windchime',                                          // 창 오른쪽 벽
-  // 창턱 선반 → 그 위 소품 → 돌의 방석 → 돌
+  'p-waterglass',                                         // 맨틀 위
+  'p-windchime', 'p-windchime-tubes',                     // 창 오른쪽 벽
+  // 창턱 선반 → 그 위 소품 → 돌 방석 → 돌 → 찻잔(돌 방석 옆)
   'sill-shelf', 'sill-plant', 'p-bird', 'p-cushion', 'orb',
-  'rug', 'p-rockmark', 'p-guestcushion', 'p-blanket', 'p-bookstack',
-  'orb-rug',
-  'lamp', 'p-lanternpost', 'p-rockingchair',
-  'floor-props',
+  'p-cup', 'p-cup-tea', 'p-cup-steam',
+  'rug', 'p-blanket', 'p-bookstack', 'orb-rug',
+  'lamp', 'p-rockingchair',
 ];
 
 /** 상점에서 사기 전까지는 없는 것 — 패널에서 기본으로 꺼 둔다 */
-export const SHOP_PROPS = ['p-cushion', 'p-guestcushion', 'p-rockingchair',
-  'p-cup', 'p-bookstack', 'p-windchime', 'p-lanternpost',
-  'p-blanket', 'p-waterglass', 'p-bird', 'p-rockmark'];
+export const SHOP_PROPS = ['p-cushion', 'p-rockingchair', 'p-cup', 'p-bookstack',
+  'p-windchime', 'p-windchime-tubes', 'p-blanket', 'p-waterglass', 'p-bird'];
 
 /** 발광체 — 오버레이 위라 밤에도 어두워지지 않는다 */
 // 향초는 상점에서 '책'으로 교체됐다 → 씬에서 제거(촛대·촛불·촛불광원 전부)
@@ -146,6 +144,11 @@ function visible(id, st) {
     case 'tree-v1-leaves': return tree === 'v1' && season !== 'winter';
     case 'tree-v2-leaves': return tree === 'v2' && season !== 'winter';
     case 'tree-bare': return season === 'winter';
+    // 여닫이 창 — 닫히면 문설주가 제자리, 열리면 양옆에 접힌다
+    case 'win-sash':      return st.window !== 'open';
+    case 'win-sash-open': return st.window === 'open';
+    // 찻잔 내용물·김은 '채움' 상태에만
+    case 'p-cup-tea': case 'p-cup-steam': return st.cup === 'full';
     case 'orb':     return orb === 'sill';
     case 'orb-rug': return orb === 'rug';
     default: return true;
@@ -190,14 +193,16 @@ function drawLayer(ctx, rects, pal, tf = {}, baseAlpha = 1) {
 }
 
 /** 그룹 하나 — 정적 rects + 각자 다른 주기의 애니메이션 레이어 */
-function drawGroup(ctx, id, pal, t, animOn) {
+function drawGroup(ctx, id, pal, t, animOn, st) {
   // 프레임 교체형(불꽃)은 t 로 실루엣 한 장을 고른다. 멈추면 0번 프레임.
   const fx = FRAMED[id];
   const e = fx ? { rects: GEN[fx + (animOn ? flameIdx(t, FLAME_N) : 0)], anim: GROUP_ANIM[id] }
                : entry(id);
   if (!e) return;
   const base = e.opacity ?? 1;
-  const own = GROUP_ANIM[id] || e.anim;
+  // 풍경 대롱은 창이 열려 바람이 들어올 때만 흔들린다
+  const own = (id === 'p-windchime-tubes' && st?.window !== 'open')
+    ? null : (GROUP_ANIM[id] || e.anim);
   const tf = animOn && own && ANIM[own] ? ANIM[own](t) : {};
   if (e.rects) drawLayer(ctx, e.rects, pal, tf, base);
   for (const L of e.layers || []) {
@@ -253,7 +258,7 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
                      && !layerOff.has(FIRE_PARTS[id]) && !layerOff.has(TREE_OF[id]);
 
   // [1~3.5] 베이스 아트
-  for (const id of Z) if (on(id)) drawGroup(ctx, id, pal, t, animOn);
+  for (const id of Z) if (on(id)) drawGroup(ctx, id, pal, t, animOn, st);
 
   // [4] 색감 오버레이 — 시간 → 날씨. 전환 중엔 나가는 쪽·들어오는 쪽을 가중 합성한다
   const ovs = tp >= 1
@@ -273,6 +278,9 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
 
   if (!layerOff.has('shadow')) {
     ctx.globalCompositeOperation = 'multiply';
+    // 돌이 자리를 비웠을 때만 눌린 자국이 드러난다
+    if (st.orb !== 'rug' && !layerOff.has('rug-mark'))
+      for (const m of RUG_MARK) { ctx.globalAlpha = m.alpha; ctx.fillStyle = m.fill; ctx.fillRect(...m.r); }
     for (const a of AO) { ctx.globalAlpha = a.alpha; ctx.fillStyle = a.fill; ctx.fillRect(...a.r); }
     ctx.globalCompositeOperation = 'source-over';
   }
@@ -306,7 +314,7 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
   }
 
   // [6] emission
-  for (const id of EMISSION) if (on(id)) drawGroup(ctx, id, pal, t, animOn);
+  for (const id of EMISSION) if (on(id)) drawGroup(ctx, id, pal, t, animOn, st);
 
   // 비네트 — 가장자리를 눌러 광원 쪽으로 시선을 모은다
   if (!layerOff.has('shadow')) {

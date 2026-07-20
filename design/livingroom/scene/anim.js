@@ -42,6 +42,11 @@ export const ANIM = {
   'f-body':  (t) => ({ scaleY: 1 - 0.035 * pingpong(t, 900) }),
   'c-flame': (t) => ({ scaleY: 1 - 0.06 * pingpong(t, 1400) }),
 
+  // ── 풍경 대롱: 창을 열면 바람이 들어와 흔들린다. 매단 것이라 진자처럼 좌우로
+  'chime-sway': (t) => ({ dx: Math.round(-1 + 2 * pingpong(t, 2600)) }),
+  // ── 찻잔 김: 오르면서 옅어진다
+  'steam-rise': (t) => ({ dy: -stepped(t, 2400, 4, 4), alpha: 0.75 - 0.5 * pingpong(t, 2400) }),
+
   // ── 광원 숨쉬기: 불꽃이 얌전해진 만큼 빛도 덜 출렁이게
   'glow-flicker':      (t) => ({ alpha: 1 - 0.16 * pingpong(t, 2100) }),
   'glow-flicker-slow': (t) => ({ alpha: 1 - 0.18 * pingpong(t, 2900, -800) }),
@@ -56,7 +61,7 @@ export const GROUP_ANIM = {
   'fire-body': 'f-body',
   'lp-fire': 'glow-flicker',
   // 전폭 파티클은 절차 생성(generate.js)이라 props 의 하위 레이어를 못 쓴다 → 여기서 붙인다
-  clouds: 'cloud-drift', rain: 'rain-fall', downpour: 'rain-heavy',
+  'p-cup-steam': 'steam-rise', clouds: 'cloud-drift', rain: 'rain-fall', downpour: 'rain-heavy',
   snow: 'snow-fall-a', 'pt-petals': 'drift-a', 'pt-leaves': 'drift-b',
 };
 

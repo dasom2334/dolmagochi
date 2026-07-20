@@ -713,6 +713,46 @@ function cloudBank() {
   return emitRows([...cells.values()]);
 }
 
+// ─────────────────────── 여닫이 창 ───────────────────────
+// 측정 창틀에는 세로 문설주(x46~47)와 중간 가로살(y21)이 **붙박이로 구워져** 있다.
+// 창을 열려면 그게 사라져야 하므로 창틀에서 떼어내 따로 관리한다.
+//   닫힘: 원래 자리 (win-sash)
+//   열림: 두 짝이 양옆 문설주에 접힌 모습 (win-sash-open)
+// 세로로 서서 옆으로 열리는 여닫이(casement)라 접히면 옆면만 좁게 보인다.
+const SASH_MUL = [46, 47], MID_RAIL = 21;
+const GLASS_L = [27, 45], GLASS_R = [48, 66], GLASS_Y = [4, 33];
+
+/** 측정 창틀을 붙박이(뼈대)와 창짝으로 가른다 */
+function splitWinframe(rects) {
+  const frame = [], sash = [];
+  for (const r of rects) {
+    const [x, y, w, h] = r;
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const cx = x + i, cy = y + j;
+      const isMullion = cx >= SASH_MUL[0] && cx <= SASH_MUL[1]
+                        && cy >= GLASS_Y[0] && cy <= GLASS_Y[1];
+      const isRail = cy === MID_RAIL
+                     && ((cx >= GLASS_L[0] && cx <= GLASS_L[1])
+                      || (cx >= GLASS_R[0] && cx <= GLASS_R[1]));
+      (isMullion || isRail ? sash : frame).push([cx, cy, 1, 1, r[4]]);
+    }
+  }
+  return { frame, sash };
+}
+
+/** 열린 창짝 — 양옆 문설주 안쪽에 접혀 옆면만 보인다 */
+function sashOpen(slot) {
+  const out = [];
+  for (const x0 of [GLASS_L[0], GLASS_R[1] - 2]) {
+    for (let y = GLASS_Y[0]; y <= GLASS_Y[1]; y++) {
+      out.push([x0, y, 3, 1, slot]);
+      out.push([x0 === GLASS_L[0] ? x0 + 2 : x0, y, 1, 1, '--wd2']);  // 실내 쪽 모서리가 밝다
+    }
+    out.push([x0, MID_RAIL, 3, 1, '--wd2']);
+  }
+  return out;
+}
+
 // ─────────────────────── 창턱 선반 ───────────────────────
 // 측정 창틀은 창턱이 x24~70 이라 창(x25~70) 기준으로 왼쪽만 1칸 튀어나온 짝짝이였다.
 // 레퍼런스처럼 **양옆으로 똑같이** 내민 나무 선반으로 다시 놓는다.
@@ -850,6 +890,7 @@ export function generateGroups(measured = {}) {
     'pt-leaves': drift('--t1', 3, 108),
     'fx-snowcap': snowCap(),
     'sill-shelf': sillShelf(),
+    'win-sash-open': sashOpen('--wd1'),
     'g-floor': [...emitRows(floor), ...floorAO],
     rug: emitRows(rugCells()),
     orb: ball(SILL_ROWS),
@@ -884,6 +925,13 @@ export function generateGroups(measured = {}) {
   }
   for (const id of [...ON_FIREPLACE, ...ON_SHELF])
     if (measured[id]) out[id] = pullForward(measured[id]);
+
+  // 창틀에서 창짝(문설주·중간살)을 떼어낸다 — 열림 상태에서 사라져야 하므로
+  if (measured['g-winframe']) {
+    const { frame, sash } = splitWinframe(measured['g-winframe']);
+    out['g-winframe'] = emitRows(frame.map(([x, y, , , s]) => [y, x, s]));
+    out['win-sash'] = emitRows(sash.map(([x, y, , , s]) => [y, x, s]));
+  }
   // 아트 좌표 → 캔버스 좌표 (여기서 한 번만 옮긴다)
   for (const rects of Object.values(out)) for (const r of rects) r[0] += OX;
   return out;

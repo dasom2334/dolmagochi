@@ -198,6 +198,21 @@ export const VIGNETTE = (() => {
   return bandRects(cells, [0.07, 0.14, 0.24, 0.36], '#0b0710');
 })();
 
+// 돌이 오래 앉아 있던 자국 — 러그 가운데 돌(캔버스 x56~70, 밑변 y61) 자리.
+// 색면으로 그리면 파란 얼룩으로 보인다(실제로 그랬다). **눌린 그늘**이라
+// 그림자 계열로 다뤄야 한다 — 타원 거리장 2단, multiply.
+export const RUG_MARK = (() => {
+  const cells = [];
+  const CX = 63, CY = 60.5, RX = 8.5, RY = 2.6;
+  for (let y = Math.floor(CY - RY) - 1; y <= Math.ceil(CY + RY) + 1; y++)
+    for (let x = Math.floor(CX - RX) - 1; x <= Math.ceil(CX + RX) + 1; x++) {
+      const d = Math.hypot((x - CX) / RX, (y - CY) / RY) + (jit(x, y, 23) - 0.5) * 0.16;
+      const lv = d > 1 ? 0 : d > 0.72 ? 1 : 2;
+      if (lv) cells.push([y, x, lv]);
+    }
+  return bandRects(cells, [0.13, 0.24], '#1a0f16');
+})();
+
 // 앰비언트 오클루전 — 빛이 닿지 않는 곳. 세 갈래를 합쳐 최대값을 쓴다:
 //  ① 좌우 벽 구석  ② 천장·벽 접합  ③ 벽↔바닥 접합(가장 깊다)
 // 벽 자체는 평평하게 두고 명암은 전부 여기서 준다 — 그래야 시간대에 따라 명암이 움직인다.

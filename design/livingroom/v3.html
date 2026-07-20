@@ -33,7 +33,8 @@
     import { reduceMotion } from './scene/anim.js';
 
     const cv = document.getElementById('cv');
-    const state = { time:'sunset', season:'summer', weather:'clear', orb:'sill', tree:'v1' };
+    const state = { time:'sunset', season:'summer', weather:'clear', orb:'sill', tree:'v1',
+                    window:'closed', cup:'empty' };
     const off = new Set(SHOP_PROPS);            // 꺼진 레이어 — 상점 소품은 안 산 상태로 시작
 
     const AXES = [
@@ -44,6 +45,8 @@
                           ['snow','눈'],['petals','꽃잎'],['leaves','낙엽']]],
       ['돌',   'orb',     [['sill','창턱'],['rug','러그']]],
       ['나무', 'tree',    [['v1','v1 침엽'],['v2','v2 활엽']]],
+      ['창문', 'window',  [['closed','닫힘'],['open','열림']]],
+      ['찻잔', 'cup',     [['empty','빈 잔'],['full','채움·김']]],
     ];
     const TOGGLES = [
       ['색감', [['light-day','낮'],['light-sunset','노을'],['light-night','밤'],
@@ -57,12 +60,11 @@
       ['창밖', [['base-scenery','풍경'],['tree-v1','나무v1'],['tree-v2','나무v2'],
                 ['sun','해'],['moon','달'],['stars','별'],['clouds','구름']]],
       ['소품', [['rug','러그'],['orb','창턱 돌'],['orb-rug','러그 돌'],['sill-plant','화분'],
-                ['floor-props','바닥 소품'],['fire','불꽃'],['lamp','스탠드']]],
-      ['상점', [['p-cushion','돌 방석'],['p-guestcushion','손님 방석'],
-                ['p-rockingchair','흔들의자'],['p-cup','찻잔'],['p-bookstack','헌책'],
-                ['p-windchime','풍경'],['p-lanternpost','등불 기둥']]],
+                ['fire','불꽃'],['lamp','스탠드']]],
+      ['상점', [['p-cushion','돌 방석'],['p-rockingchair','흔들의자'],['p-cup','찻잔'],
+                ['p-bookstack','헌책'],['p-windchime','풍경']]],
       ['사물', [['p-blanket','담요'],['p-waterglass','물컵'],['p-bird','창턱 새'],
-                ['p-rockmark','돌 자국']]],
+                ['rug-mark','돌 자국(그늘)']]],
       ['효과', [['anim','애니메이션']]],
     ];
 
