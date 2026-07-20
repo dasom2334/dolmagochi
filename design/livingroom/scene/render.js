@@ -74,7 +74,7 @@ const Z = [
   // [1] 창밖: 벽 뒤까지 그린 뒤 벽이 덮는다
   'base-scenery', 'halo-sun', 'halo-moon', 'sun', 'moon', 'stars', 'clouds',
   'tree-v1-trunk', 'tree-v1-leaves', 'tree-v2-trunk', 'tree-v2-leaves', 'tree-bare',
-  'rain', 'downpour', 'snow', 'pt-leaves', 'pt-petals', 'pt-fireflies', 'fx-drops', 'fx-frost',
+  'rain', 'downpour', 'snow', 'pt-petals', 'pt-fireflies', 'fx-drops', 'fx-frost',
   // 새는 **유리 바깥** 창턱에 앉아 있다 — 벽·창틀보다 먼저 그려야 창틀이 위를 덮는다
   'p-bird',
   // [2] 방 구조. g-wall 은 측정 질감과 메움을 합친 벽 한 장(generate.js wallPlane)
@@ -152,9 +152,11 @@ function visible(id, st) {
     case 'fx-drops': return weather === 'rain' || weather === 'downpour';
     case 'snow':  case 'fx-snowcap': return weather === 'snow';
     case 'fx-frost': return season === 'winter';
-    // 계절이 정하는 파티클(기존 규칙)은 그대로 두고, 날씨로 직접 지정하는 길도 연다
-    case 'pt-leaves': return weather === 'leaves' || (season === 'autumn' && clear);
-    case 'pt-petals': return weather === 'petals' || (season === 'spring' && clear);
+    // 꽃잎·낙엽은 한 종류 — 색은 계절(--t2)이 정한다. 봄·가을엔 저절로 날리고,
+    // 날씨로 직접 지정할 수도 있다.
+    case 'pt-petals':
+      return weather === 'petals'
+             || ((season === 'spring' || season === 'autumn') && clear);
     case 'pt-fireflies': return time === 'night' && season === 'summer' && clear;
     // 겨울엔 잎만 떨어지고 줄기는 남는다
     case 'tree-v1-trunk': return tree === 'v1';

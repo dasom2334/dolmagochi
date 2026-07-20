@@ -65,7 +65,7 @@ export const GROUP_ANIM = {
   // (render.js 가 창이 열렸을 때만 이 애니메이션을 먹인다)
   'p-windchime-tubes': 'chime-sway',
   'p-cup-steam': 'steam-rise', clouds: 'cloud-drift', rain: 'rain-fall', downpour: 'rain-heavy',
-  snow: 'snow-fall-a', 'pt-petals': 'drift-a', 'pt-leaves': 'drift-b',
+  snow: 'snow-fall-a', 'pt-petals': 'drift-a',
 };
 
 export const reduceMotion = () =>

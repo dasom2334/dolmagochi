@@ -46,7 +46,6 @@ export const OVERLAYS = {
   // 게임 날씨 추가분 — 폭우는 비보다 더 눌러 어둡게, 꽃잎·낙엽은 맑음에 가깝게 살짝만
   'light-downpour': [...strips('rgba(78,88,116,.46)', 'multiply'), ...glass('rgba(70,80,108,.38)', 'multiply')],
   'light-petals': [...strips('rgba(255,224,236,.10)', 'multiply')],
-  'light-leaves': [...strips('rgba(255,214,170,.12)', 'multiply')],
 };
 
 // ─────────────────── 창문 빛: 앞으로 퍼지는 사다리꼴 ───────────────────
