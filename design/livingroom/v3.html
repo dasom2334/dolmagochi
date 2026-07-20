@@ -92,13 +92,18 @@
       render(cv, state, off, t);
       for (const [el, isOn] of pills) el.classList.toggle('on', isOn());
     }
+    // 애니메이션이 꺼져도 루프는 돈다 — 색 전환(.6s)은 계속 보여야 하므로
+    let paused = false;
     function loop(now) {
-      if (!off.has('anim')) { frozen = now - t0; draw(frozen); }
+      if (!paused) { frozen = now - t0; draw(frozen); }
       requestAnimationFrame(loop);
     }
     draw();
     requestAnimationFrame(loop);
-    window.__scene = { state, off, draw, at: (ms) => { frozen = ms; draw(ms); } };  // 검증용
+    // 검증용 — at() 로 시간을 지정해 프레임을 재현한다 (pause 해야 루프가 덮어쓰지 않는다)
+    window.__scene = { state, off, draw,
+      at: (ms) => { frozen = ms; draw(ms); },
+      pause: (v = true) => { paused = v; } };
   </script>
 </body>
 </html>

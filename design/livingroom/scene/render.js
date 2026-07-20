@@ -13,6 +13,54 @@ import { ANIM, GROUP_ANIM, TILE_H } from './anim.js';
 
 const GEN = generateGroups();   // 지오메트리는 상태와 무관 — 한 번만 만든다
 
+// ─────────────── 팔레트 전환 (v2 의 CSS transition: .6s 대체) ───────────────
+// canvas 는 CSS 트랜지션이 없으니 팔레트 값을 직접 보간한다.
+// 지오메트리는 그대로고 색만 넘어가므로, 팔레트 한 장만 섞으면 씬 전체가 함께 넘어간다.
+const TRANS_MS = 600;
+const stateKey = (st) => `${st.time}|${st.season}|${st.weather}`;
+
+const hex2rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const rgb2hex = (c) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+/** CSS 기본 ease 근사 */
+const ease = (p) => p * p * (3 - 2 * p);
+
+function lerpVal(a, b, p) {
+  if (typeof a === 'string' && a[0] === '#' && typeof b === 'string' && b[0] === '#') {
+    const A = hex2rgb(a), B = hex2rgb(b);
+    return rgb2hex([0, 1, 2].map((i) => A[i] + (B[i] - A[i]) * p));
+  }
+  const na = parseFloat(a), nb = parseFloat(b);
+  if (Number.isFinite(na) && Number.isFinite(nb)) return String(na + (nb - na) * p);
+  return p < 0.5 ? a : b;                      // 보간 불가능한 값은 중간에 스냅
+}
+
+let lastKey = null, fromPal = null, blended = null, transStart = -1;
+let fromTime = null, fromWeather = null;       // 오버레이도 함께 교차 페이드해야 색이 안 튄다
+function currentPalette(st, t) {
+  const target = resolve(st, ROOM_DATA.palette);
+  const k = stateKey(st);
+  if (k !== lastKey) {
+    fromPal = blended || target;               // 전환 중이면 현재 보간값에서 이어간다
+    if (lastKey) [fromTime, fromWeather] = lastKey.split('|');
+    lastKey = k;
+    transStart = t;
+  }
+  const p = transStart < 0 ? 1 : Math.min(1, (t - transStart) / TRANS_MS);
+  if (p >= 1) { blended = target; return { pal: target, p: 1 }; }
+  const e = ease(p), out = {};
+  for (const key of Object.keys(target)) out[key] = lerpVal(fromPal[key] ?? target[key], target[key], e);
+  blended = out;
+  return { pal: out, p: e, fromTime, fromWeather };
+}
+
+/** rgba(...) 의 알파에 배수를 건다 — 오버레이 교차 페이드용 */
+function scaleAlpha(css, k) {
+  const m = css.match(/^rgba\(([^)]+)\)$/);
+  if (!m) return css;
+  const v = m[1].split(',').map((s) => s.trim());
+  return `rgba(${v[0]},${v[1]},${v[2]},${(parseFloat(v[3] ?? 1) * k).toFixed(4)})`;
+}
+
 /** z-순서 (뒤 → 앞). 배열 순서가 곧 그리는 순서다 — 문자열 조작이 필요 없다 */
 const Z = [
   // [1] 창밖: 벽 뒤까지 그린 뒤 벽이 덮는다
@@ -99,15 +147,15 @@ function drawLayer(ctx, rects, pal, tf = {}, baseAlpha = 1) {
 }
 
 /** 그룹 하나 — 정적 rects + 각자 다른 주기의 애니메이션 레이어 */
-function drawGroup(ctx, id, pal, t) {
+function drawGroup(ctx, id, pal, t, animOn) {
   const e = entry(id);
   if (!e) return;
   const base = e.opacity ?? 1;
   const own = GROUP_ANIM[id] || e.anim;
-  const tf = own && ANIM[own] ? ANIM[own](t) : {};
+  const tf = animOn && own && ANIM[own] ? ANIM[own](t) : {};
   if (e.rects) drawLayer(ctx, e.rects, pal, tf, base);
   for (const L of e.layers || []) {
-    const lt = ANIM[L.anim] ? ANIM[L.anim](t) : {};
+    const lt = animOn && ANIM[L.anim] ? ANIM[L.anim](t) : {};
     drawLayer(ctx, L.rects, pal, { ...tf, ...lt }, base);
   }
 }
@@ -116,7 +164,7 @@ function drawGroup(ctx, id, pal, t) {
  *  오프스크린은 (상태, 가려진 소품) 이 같으면 재사용한다 — 매 프레임 새로 만들면 낭비 */
 const lightCache = new Map();
 function lightCanvas(id, def, pal, hidden) {
-  const key = id + '|' + def.rects.length + '|' + pal[def.rects[0]?.slot] + '|' + [...hidden].sort();
+  const key = id + '|' + (def.rects[0] ? pal[def.rects[0].slot] : '') + '|' + [...hidden].sort();
   if (lightCache.has(key)) return lightCache.get(key);
   const off = new OffscreenCanvas(GX, GY);
   const o = off.getContext('2d');
@@ -143,7 +191,9 @@ function lightCanvas(id, def, pal, hidden) {
 
 export function render(canvas, st, layerOff = new Set(), t = 0) {
   const ctx = canvas.getContext('2d');
-  const pal = resolve(st, ROOM_DATA.palette);
+  const animOn = !layerOff.has('anim');
+  // 상태가 바뀌면 .6s 에 걸쳐 넘어간다 (팔레트 보간 + 오버레이 교차 페이드)
+  const { pal, p: tp, fromTime, fromWeather } = currentPalette(st, t);
   ctx.imageSmoothingEnabled = false;
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
@@ -157,15 +207,19 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
                      && !layerOff.has(FIRE_PARTS[id]) && !layerOff.has(TREE_OF[id]);
 
   // [1~3.5] 베이스 아트
-  for (const id of Z) if (on(id)) drawGroup(ctx, id, pal, t);
+  for (const id of Z) if (on(id)) drawGroup(ctx, id, pal, t, animOn);
 
-  // [4] 색감 오버레이 — 시간 → 날씨
-  for (const oid of [`light-${st.time}`, `light-${st.weather}`]) {
-    if (!OVERLAYS[oid] || layerOff.has(oid)) continue;
+  // [4] 색감 오버레이 — 시간 → 날씨. 전환 중엔 나가는 쪽·들어오는 쪽을 가중 합성한다
+  const ovs = tp >= 1
+    ? [[`light-${st.time}`, 1], [`light-${st.weather}`, 1]]
+    : [[`light-${fromTime}`, 1 - tp], [`light-${st.time}`, tp],
+       [`light-${fromWeather}`, 1 - tp], [`light-${st.weather}`, tp]];
+  for (const [oid, w] of ovs) {
+    if (!OVERLAYS[oid] || layerOff.has(oid) || w <= 0) continue;
     for (const { r, fill, blend } of OVERLAYS[oid]) {
       ctx.globalCompositeOperation = blend;
       ctx.globalAlpha = 1;
-      ctx.fillStyle = fill;
+      ctx.fillStyle = w >= 1 ? fill : scaleAlpha(fill, w);
       ctx.fillRect(...r);
     }
   }
@@ -186,7 +240,7 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
     let alpha = parseFloat(pal[def.alphaSlot] ?? 1);
     if (!alpha) continue;
     const fl = GROUP_ANIM[id];                     // 벽난로·촛불 빛은 숨쉰다
-    if (fl && ANIM[fl]) alpha *= ANIM[fl](t).alpha ?? 1;
+    if (animOn && fl && ANIM[fl]) alpha *= ANIM[fl](t).alpha ?? 1;
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = alpha;
@@ -205,7 +259,7 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
   }
 
   // [6] emission
-  for (const id of EMISSION) if (on(id)) drawGroup(ctx, id, pal, t);
+  for (const id of EMISSION) if (on(id)) drawGroup(ctx, id, pal, t, animOn);
 
   // 비네트 — 가장자리를 눌러 광원 쪽으로 시선을 모은다
   if (!layerOff.has('shadow')) {
