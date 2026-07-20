@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { seasonAt, timeOfDayAt } from '../timeOfDay';
-import { deriveLayers } from '../../audio/layers';
+import { ALL_LAYERS, deriveLayers } from '../../audio/layers';
 import { createInitialState, transition } from '../stateMachine';
 import type { GameEvent, GameState } from '../types';
 import { mulberry32, type Rng } from '../rng';
@@ -178,5 +178,57 @@ describe('deriveLayers — 날씨 레이어 (M12)', () => {
     expect(
       deriveLayers({ ...base, season: 'autumn', timeOfDay: 'day', weather: 'clear' }),
     ).not.toContain('cicadas');
+  });
+});
+
+describe('소리풍경 모드 (M22) — 자동 / 완전 커스텀', () => {
+  it('커스텀 진입은 지금 들리던 소리에서 출발한다 (13겹 동시 재생 방지)', () => {
+    const base = createInitialState(T0, 'lie');
+    const s = run(base, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
+    expect(s.settings.noiseMode).toBe('custom');
+    // 진입 시점에 울리던 레이어만 켜져 있다 = 나머지는 전부 음소거 목록에
+    const audible = ALL_LAYERS.filter((l) => !s.settings.noiseMuted.includes(l));
+    expect(audible).toEqual(
+      deriveLayers({
+        phase: 'room',
+        actionId: null,
+        ownedItems: [],
+        weather: base.weather,
+        umbrella: false,
+        season: 'winter',
+        timeOfDay: timeOfDayAt(T0),
+      }),
+    );
+  });
+
+  it('커스텀에서 켠 레이어는 상황을 무시하고 남는다 (겨울 매미)', () => {
+    const base = createInitialState(T0, 'lie'); // T0 = 1월 겨울
+    let s = run(base, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
+    s = run(s, [{ type: 'SET_NOISE_LAYER', layer: 'cicadas', muted: false }]);
+    expect(s.settings.noiseMuted).not.toContain('cicadas');
+    // 겨울이라 자동 모드였다면 매미는 도출되지 않는다 — 커스텀이니 남는다
+    expect(
+      deriveLayers({
+        phase: 'room', actionId: null, ownedItems: [],
+        weather: 'clear', season: 'winter', timeOfDay: 'day',
+      }),
+    ).not.toContain('cicadas');
+  });
+
+  it('자동으로 되돌려도 음소거 목록은 보존된다 (되돌아올 자리)', () => {
+    const base = createInitialState(T0, 'lie');
+    let s = run(base, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
+    const muted = s.settings.noiseMuted;
+    s = run(s, [{ type: 'SET_NOISE_MODE', mode: 'auto', nowMs: T0 }]);
+    expect(s.settings.noiseMode).toBe('auto');
+    expect(s.settings.noiseMuted).toEqual(muted);
+  });
+
+  it('같은 모드 재지정은 no-op — 커스텀 설정이 초기화되지 않는다', () => {
+    const base = createInitialState(T0, 'lie');
+    let s = run(base, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
+    s = run(s, [{ type: 'SET_NOISE_LAYER', layer: 'cicadas', muted: false }]);
+    const again = run(s, [{ type: 'SET_NOISE_MODE', mode: 'custom', nowMs: T0 }]);
+    expect(again.settings.noiseMuted).toEqual(s.settings.noiseMuted);
   });
 });

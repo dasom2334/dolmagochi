@@ -10,7 +10,7 @@ import { notify, requestNotifyPermission } from './notifications';
 import { pushToast } from './toast';
 import { dueFocusMarks } from './game/notify';
 import { ensureAudioContext, playSound, setSoundEnabled } from './sound';
-import { deriveLayers } from './audio/layers';
+import { ALL_LAYERS, deriveLayers } from './audio/layers';
 import { resolveSeason, resolveTimeOfDay } from './game/timeOfDay';
 import { stopSoundscape, syncSoundscape } from './audio/engine';
 import { ToastHost } from './components/ToastHost';
@@ -168,20 +168,26 @@ export function App() {
   useEffect(() => {
     syncSoundscape({
       on: state.settings.noiseOn,
-      layers: deriveLayers({
-        phase: state.phase === 'focus' ? 'focus' : 'room',
-        actionId: state.phase === 'focus' ? state.selectedAction : null,
-        ownedItems: ownedKey ? ownedKey.split(',') : [],
-        weather: state.weather,
-        umbrella: state.session.umbrella,
-        season: resolveSeason(state.settings, Date.now()),
-        timeOfDay: resolveTimeOfDay(state.settings, Date.now()),
-      }),
+      // 커스텀 모드(M22): 상황이 아니라 켜 둔 레이어가 목록이 된다.
+      // 전량을 넘기고 음소거 필터에 맡기면 '내가 고른 대로'가 그대로 울린다.
+      layers:
+        state.settings.noiseMode === 'custom'
+          ? ALL_LAYERS
+          : deriveLayers({
+              phase: state.phase === 'focus' ? 'focus' : 'room',
+              actionId: state.phase === 'focus' ? state.selectedAction : null,
+              ownedItems: ownedKey ? ownedKey.split(',') : [],
+              weather: state.weather,
+              umbrella: state.session.umbrella,
+              season: resolveSeason(state.settings, Date.now()),
+              timeOfDay: resolveTimeOfDay(state.settings, Date.now()),
+            }),
       muted: state.settings.noiseMuted,
     });
   }, [
     state.settings.noiseOn,
     state.settings.noiseMuted,
+    state.settings.noiseMode,
     state.phase,
     state.selectedAction,
     ownedKey,

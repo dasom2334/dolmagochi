@@ -258,7 +258,9 @@ export const UI = {
   } satisfies Record<LayerId, string>,
   /** 분위기 바 (M22) */
   ambience: {
-    mixerHint: 'ui.ambience.mixerHint',
+    modeAuto: 'ui.ambience.mode.auto',
+    modeCustom: 'ui.ambience.mode.custom',
+    modeSwitch: 'ui.ambience.mode.switch',
   },
   /** 날씨·시간대 라벨 (M12) */
   weatherUi: {

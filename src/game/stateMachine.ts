@@ -50,6 +50,7 @@ import {
 } from './security';
 import { presentState, startAbsence } from './absence';
 import { resolveSeason, resolveTimeOfDay } from './timeOfDay';
+import { ALL_LAYERS, deriveLayers } from '../audio/layers';
 import { companionMet, treeStage } from './tree';
 import { pickMoment, settleBadges } from './badges';
 import {
@@ -67,7 +68,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 25;
+export const SCHEMA_VERSION = 26;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -159,6 +160,7 @@ export function createInitialState(
     settings: {
       noiseOn: false,
       noiseMuted: [],
+      noiseMode: 'auto',
       theme: 'auto',
       timeOfDay: 'auto',
       season: 'auto',
@@ -2434,6 +2436,34 @@ function reduce(
 
     case 'SET_THEME': {
       return { ...state, settings: { ...state.settings, theme: event.theme } };
+    }
+
+    case 'SET_NOISE_MODE': {
+      // 소리풍경 모드 전환 (M22) — 자동(상황이 고른다) / 커스텀(내가 고른다).
+      // 커스텀으로 넘어갈 때 지금 들리던 소리에서 출발한다: 그냥 전환하면
+      // 13겹이 한꺼번에 울려 '내가 고른 대로'가 아니라 소음이 된다.
+      if (event.mode === state.settings.noiseMode) return state;
+      if (event.mode === 'auto')
+        return { ...state, settings: { ...state.settings, noiseMode: 'auto' } };
+      const audible = new Set(
+        deriveLayers({
+          phase: state.phase === 'focus' ? 'focus' : 'room',
+          actionId: state.phase === 'focus' ? state.selectedAction : null,
+          ownedItems: Object.keys(state.items),
+          weather: state.weather,
+          umbrella: state.session.umbrella,
+          season: resolveSeason(state.settings, event.nowMs),
+          timeOfDay: resolveTimeOfDay(state.settings, event.nowMs),
+        }),
+      );
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          noiseMode: 'custom',
+          noiseMuted: ALL_LAYERS.filter((l) => !audible.has(l)),
+        },
+      };
     }
 
     case 'SET_NOISE_LAYER': {

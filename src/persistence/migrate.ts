@@ -295,6 +295,14 @@ export function migrateState(state: GameState): GameState | null {
         BALANCE.SPROUT_GATES.filter((g) => s.sproutGrowth >= g).length,
     };
   }
+  if (s.schemaVersion === 25) {
+    // M22: 소리풍경 모드 신설 — 기존 저장은 지금까지의 동작인 자동으로.
+    s = {
+      ...s,
+      schemaVersion: 26,
+      settings: { ...s.settings, noiseMode: s.settings.noiseMode ?? 'auto' },
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

@@ -356,6 +356,12 @@ export interface GameState {
     noiseOn: boolean;
     /** 소리풍경 레이어별 음소거 (M9) — LayerId 목록. 마스터는 noiseOn. */
     noiseMuted: string[];
+    /**
+     * 소리풍경 모드 (M22).
+     *  auto   — 상황(행동×아이템×날씨×계절)이 고르는 레이어만 울린다.
+     *  custom — 상황을 무시하고 켜 둔 레이어를 전부 울린다 (겨울 매미도 가능).
+     */
+    noiseMode: 'auto' | 'custom';
     /** UI 테마 (M10) — 도트 씬은 영향받지 않는다(B23). auto = prefers-color-scheme */
     theme: 'auto' | 'light' | 'dark';
     /** 시간대 (M12) — auto = 실시간, 그 외 고정 */
@@ -419,6 +425,7 @@ export type GameEvent =
   | { type: 'FREE_DELEGATE' }
   | { type: 'DELEGATE_CANCEL' }
   | { type: 'SET_NOISE'; on: boolean }
+  | { type: 'SET_NOISE_MODE'; mode: 'auto' | 'custom'; nowMs: number }
   | { type: 'SET_NOISE_LAYER'; layer: string; muted: boolean }
   | { type: 'SET_THEME'; theme: 'auto' | 'light' | 'dark' }
   | { type: 'SET_WEATHER'; weather: WeatherKind; nowMs: number }

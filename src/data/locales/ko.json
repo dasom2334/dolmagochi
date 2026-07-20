@@ -3139,9 +3139,19 @@
       "바깥 날씨"
     ]
   ],
-  "ui.ambience.mixerHint": [
+  "ui.ambience.mode.auto": [
     [
-      "지금 이 자리에서 들리는 소리만 밝다."
+      "지금 이 자리에서 들리는 대로"
+    ]
+  ],
+  "ui.ambience.mode.custom": [
+    [
+      "모든 게 당신이 선택한 대로"
+    ]
+  ],
+  "ui.ambience.mode.switch": [
+    [
+      "바꾸기"
     ]
   ],
   "ui.weather.kind.clear": [
