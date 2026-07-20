@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { seasonAt, timeOfDayAt } from '../timeOfDay';
 import { ALL_LAYERS, deriveLayers } from '../../audio/layers';
-import { createInitialState, transition } from '../stateMachine';
+import { createInitialState, transition, weathersOfSeason } from '../stateMachine';
 import type { GameEvent, GameState } from '../types';
 import { mulberry32, type Rng } from '../rng';
 import { gameData } from '../../store/gameStore';
@@ -43,10 +43,10 @@ describe('날씨 (M12) — 자연 변화·직접 변경·게이지 무영향', (
     expect(s.weather).toBe('clear');
   });
 
-  it('SET_WEATHER: 무료(M22)·계절 의존 (T0=1월 겨울: 눈만, 비 불가)', () => {
+  it('SET_WEATHER: 무료(M22)·계절 의존 (T0=1월 겨울: 눈 O, 꽃잎비 X)', () => {
     const base = createInitialState(T0, 'lie');
-    // 겨울에 비는 고를 수 없다 (계절 의존)
-    expect(run(base, [{ type: 'SET_WEATHER', weather: 'rain', nowMs: T0 }]).weather).toBe('clear');
+    // 계절 전용 날씨는 그 계절에만 — 꽃잎비는 봄 것이다
+    expect(run(base, [{ type: 'SET_WEATHER', weather: 'petals', nowMs: T0 }]).weather).toBe('clear');
     const changed = run(base, [{ type: 'SET_WEATHER', weather: 'snow', nowMs: T0 }]);
     expect(changed.weather).toBe('snow');
     // 정성 0이어도 바꿀 수 있고, 정성이 깎이지도 않는다
@@ -60,6 +60,28 @@ describe('날씨 (M12) — 자연 변화·직접 변경·게이지 무영향', (
       .toBe('clear');
   });
 
+  it('비·장대비는 네 계절 모두에서 고를 수 있다 (M22)', () => {
+    const base = createInitialState(T0, 'lie');
+    for (const season of ['spring', 'summer', 'autumn', 'winter'] as const) {
+      const s = run(base, [{ type: 'SET_SEASON', mode: season, nowMs: T0 }]);
+      for (const w of ['rain', 'downpour'] as const) {
+        expect(weathersOfSeason(season)).toContain(w);
+        expect(run(s, [{ type: 'SET_WEATHER', weather: w, nowMs: T0 }]).weather).toBe(w);
+      }
+    }
+  });
+
+  it('계절 전용 날씨는 제 계절에서만 (꽃잎비=봄·풀잎비=여름·낙엽비=가을·눈=겨울)', () => {
+    const only = {
+      petals: 'spring', grass: 'summer', leaves: 'autumn', snow: 'winter',
+    } as const;
+    for (const [weather, home] of Object.entries(only)) {
+      for (const season of ['spring', 'summer', 'autumn', 'winter'] as const) {
+        expect(weathersOfSeason(season).includes(weather as never)).toBe(season === home);
+      }
+    }
+  });
+
   it('계절 (M12): 자동 판정·고정 설정·무효 날씨 재추첨·계절 전용 날씨', () => {
     // 1월=겨울, 4월=봄, 7월=여름, 10월=가을
     expect(seasonAt(new Date(2026, 3, 10).getTime())).toBe('spring');
@@ -71,7 +93,7 @@ describe('날씨 (M12) — 자연 변화·직접 변경·게이지 무영향', (
     let s: GameState = { ...base, weather: 'snow' };
     s = run(s, [{ type: 'SET_SEASON', mode: 'spring', nowMs: T0 }], seq([0.9]));
     expect(s.settings.season).toBe('spring');
-    expect(s.weather).toBe('petals'); // 봄 표 [맑음 .5, 비 .2, 꽃잎비 .3]의 끝
+    expect(s.weather).toBe('petals'); // 봄 표 [맑음 .45, 비 .2, 장대비 .05, 꽃잎비 .3]의 끝
     // 봄 고정 상태에서는 꽃잎비를 고를 수 있다
     const rich: GameState = { ...s, care: { points: 2, carryMinutes: 0 }, weather: 'clear' };
     expect(run(rich, [{ type: 'SET_WEATHER', weather: 'petals', nowMs: T0 }]).weather).toBe('petals');
