@@ -9,7 +9,7 @@
   body { min-height:100vh; display:flex; flex-direction:column; align-items:center;
          justify-content:center; gap:18px; background:#1b1020; padding:24px 12px;
          font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif; }
-  #stage { width:100%; max-width:900px; aspect-ratio:4/3; border-radius:12px;
+  #stage { width:100%; max-width:900px; aspect-ratio:16/9; border-radius:12px;
            overflow:hidden; background:#241627; }
   canvas { display:block; width:100%; height:100%; image-rendering:pixelated; }
   .panel { width:100%; max-width:900px; display:flex; flex-direction:column; gap:8px; }
@@ -25,7 +25,7 @@
 </style>
 </head>
 <body>
-  <div id="stage"><canvas id="cv" width="96" height="72"></canvas></div>
+  <div id="stage"><canvas id="cv" width="128" height="72"></canvas></div>
   <div class="panel" id="panel"></div>
 
   <script type="module">
@@ -39,13 +39,15 @@
     const AXES = [
       ['시간', 'time',    [['day','낮'],['sunset','노을'],['night','밤']]],
       ['계절', 'season',  [['spring','봄'],['summer','여름'],['autumn','가을'],['winter','겨울']]],
-      ['날씨', 'weather', [['clear','맑음'],['cloud','흐림'],['rain','비'],['snow','눈']]],
+      ['날씨', 'weather', [['clear','맑음'],['cloud','흐림'],['rain','비'],['downpour','폭우'],
+                          ['snow','눈'],['petals','꽃잎'],['leaves','낙엽']]],
       ['돌',   'orb',     [['sill','창턱'],['rug','러그']]],
       ['나무', 'tree',    [['v1','v1 침엽'],['v2','v2 활엽']]],
     ];
     const TOGGLES = [
-      ['색감', [['light-day','낮 오버레이'],['light-sunset','노을 오버레이'],['light-night','밤 오버레이'],
-                ['light-cloud','흐림'],['light-rain','비'],['light-snow','눈']]],
+      ['색감', [['light-day','낮'],['light-sunset','노을'],['light-night','밤'],['light-cloud','흐림'],
+                ['light-rain','비'],['light-downpour','폭우'],['light-snow','눈'],
+                ['light-petals','꽃잎'],['light-leaves','낙엽']]],
       ['광원', [['lp-sun','창문 햇빛'],['lp-moon','창문 달빛'],['lp-fire','벽난로'],
                 ['lp-candle','촛불'],['lp-lamp','스탠드'],['rim','역광'],['shadow','그림자·비네트']]],
       ['배경', [['g-wall','벽'],['g-floor','바닥'],['g-winframe','창틀'],

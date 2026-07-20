@@ -4,14 +4,22 @@
 // 그룹 격리(자식의 blend 가 그룹 blend 에 먹히는 문제)는 오프스크린으로 명시 처리한다.
 // CSS keyframes 는 없으니 매 프레임 t(ms)를 받아 anim.js 가 변환값을 준다.
 
-import { generateGroups, GX, GY } from './generate.js';
+import { generateGroups, GX, GY, OX } from './generate.js';
 import { resolve } from './palette.js';
 import { PROPS } from './props.js';
 import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO } from './lights.js';
 import { ROOM_DATA } from './room-data.js';
 import { ANIM, GROUP_ANIM, TILE_H } from './anim.js';
 
-const GEN = generateGroups();   // 지오메트리는 상태와 무관 — 한 번만 만든다
+// 지오메트리는 상태와 무관 — 한 번만 만든다. 벽 여백은 측정된 벽 텍스처로 채운다.
+const GEN = generateGroups(ROOM_DATA.groups['g-wall']);
+
+/** 측정·수작화 데이터는 아트 좌표(96 폭)라 캔버스로 옮긴다 */
+const shifted = new Map();
+function toCanvas(rects) {
+  if (!shifted.has(rects)) shifted.set(rects, rects.map((r) => [r[0] + OX, ...r.slice(1)]));
+  return shifted.get(rects);
+}
 
 // ─────────────── 팔레트 전환 (v2 의 CSS transition: .6s 대체) ───────────────
 // canvas 는 CSS 트랜지션이 없으니 팔레트 값을 직접 보간한다.
@@ -68,7 +76,7 @@ const Z = [
   'tree-v1-trunk', 'tree-v1-leaves', 'tree-v2-trunk', 'tree-v2-leaves', 'tree-bare',
   'rain', 'snow', 'pt-leaves', 'pt-petals', 'pt-fireflies', 'fx-drops', 'fx-frost',
   // [2] 방 구조
-  'g-wall', 'g-winframe', 'g-fireplace', 'g-shelf', 'g-floor',
+  'wall-margin', 'g-wall', 'g-winframe', 'g-fireplace', 'g-shelf', 'g-floor',
   // [3] 소품 (선반 안 → 맨틀 → 창턱 → 바닥 깔개 → 바닥 스탠딩)
   'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
   'candle', 'sill-plant', 'orb', 'rug', 'orb-rug', 'lamp', 'floor-props',
@@ -88,17 +96,21 @@ const FIRE_PARTS = { 'fire-out': 'fire', 'fire-mid': 'fire', 'fire-core': 'fire'
 /** 상태별 표시 여부 — CSS 셀렉터 조합 대신 평범한 조건식으로 */
 function visible(id, st) {
   const { time, season, weather, orb, tree } = st;
-  const clear = weather === 'clear';
-  const overcast = weather !== 'clear';
+  // 게임 날씨 6종 + 씬 고유 cloud. 하늘이 가려지는 건 흐림·비·폭우·눈뿐이고
+  // 꽃잎·낙엽은 맑은 날의 연출이라 해·달·별이 그대로 보인다.
+  const OVERCAST = ['cloud', 'rain', 'downpour', 'snow'];
+  const overcast = OVERCAST.includes(weather);
+  const clear = !overcast;
   switch (id) {
     case 'sun':   return time !== 'night' && !overcast;
     case 'moon':  case 'stars': return time === 'night' && !overcast;
     case 'clouds': return overcast;
-    case 'rain':  case 'fx-drops': return weather === 'rain';
+    case 'rain':  case 'fx-drops': return weather === 'rain' || weather === 'downpour';
     case 'snow':  case 'fx-snowcap': return weather === 'snow';
     case 'fx-frost': return season === 'winter';
-    case 'pt-leaves': return season === 'autumn' && (clear || weather === 'cloud');
-    case 'pt-petals': return season === 'spring' && (clear || weather === 'cloud');
+    // 계절이 정하는 파티클(기존 규칙)은 그대로 두고, 날씨로 직접 지정하는 길도 연다
+    case 'pt-leaves': return weather === 'leaves' || (season === 'autumn' && clear);
+    case 'pt-petals': return weather === 'petals' || (season === 'spring' && clear);
     case 'pt-fireflies': return time === 'night' && season === 'summer' && clear;
     // 겨울엔 잎만 떨어지고 줄기는 남는다
     case 'tree-v1-trunk': return tree === 'v1';
@@ -112,11 +124,14 @@ function visible(id, st) {
   }
 }
 
-const entry = (id) =>
-  GEN[id] ? { rects: GEN[id] }
-  : PROPS[id] ? PROPS[id]
-  : ROOM_DATA.groups[id] ? { rects: ROOM_DATA.groups[id] }
-  : null;
+const entry = (id) => {
+  if (GEN[id]) return { rects: GEN[id] };                    // 이미 캔버스 좌표
+  const p = PROPS[id];
+  if (p) return { ...p, rects: p.rects && toCanvas(p.rects),
+                  layers: p.layers?.map((L) => ({ ...L, rects: toCanvas(L.rects) })) };
+  if (ROOM_DATA.groups[id]) return { rects: toCanvas(ROOM_DATA.groups[id]) };
+  return null;
+};
 
 function drawRects(ctx, rects, pal, alpha) {
   for (const [x, y, w, h, key, op] of rects) {

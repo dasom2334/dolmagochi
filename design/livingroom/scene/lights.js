@@ -1,16 +1,17 @@
 // 광원·오버레이 — assemble_v2.py 의 포팅.
+// 좌표는 **캔버스(128×72) 기준**. 아트(96 폭)에서 온 값은 +OX(16) 되어 있다.
 // 광원은 "셰이프 1장 + 상태별 색·세기"다. 셰이프는 시간이 바뀌어도 변하지 않고,
 // 팔레트의 --wl/--ml/--fl/--cl/--ll 과 그 -a(세기)만 바뀐다.
 
 // ─────────────────── 색감 오버레이 (시간 / 날씨) ───────────────────
 // 방 영역만 덮는 4조각 + 창유리 1조각. 창은 벽의 구멍이라 따로 다룬다.
 const strips = (fill, blend) => [
-  { r: [0, 0, 96, 4], fill, blend },
-  { r: [0, 34, 96, 38], fill, blend },
-  { r: [0, 4, 27, 30], fill, blend },
-  { r: [67, 4, 29, 30], fill, blend },
+  { r: [0, 0, 128, 4], fill, blend },
+  { r: [0, 34, 128, 38], fill, blend },
+  { r: [0, 4, 43, 30], fill, blend },      // 창 왼쪽 벽 (창 x43~83)
+  { r: [83, 4, 45, 30], fill, blend },     // 창 오른쪽 벽
 ];
-const glass = (fill, blend) => [{ r: [27, 4, 40, 30], fill, blend }];
+const glass = (fill, blend) => [{ r: [43, 4, 40, 30], fill, blend }];
 
 export const OVERLAYS = {
   // 낮은 multiply만으로는 실내가 밤과 구분이 안 된다 → screen 앰비언트로 방을 들어올린다
@@ -33,6 +34,10 @@ export const OVERLAYS = {
   'light-cloud': [...strips('rgba(158,165,180,.28)', 'multiply'), ...glass('rgba(165,172,188,.22)', 'multiply')],
   'light-rain': [...strips('rgba(105,116,142,.36)', 'multiply'), ...glass('rgba(95,105,132,.28)', 'multiply')],
   'light-snow': [...strips('rgba(182,190,208,.26)', 'multiply'), ...glass('rgba(195,203,220,.20)', 'multiply')],
+  // 게임 날씨 추가분 — 폭우는 비보다 더 눌러 어둡게, 꽃잎·낙엽은 맑음에 가깝게 살짝만
+  'light-downpour': [...strips('rgba(78,88,116,.46)', 'multiply'), ...glass('rgba(70,80,108,.38)', 'multiply')],
+  'light-petals': [...strips('rgba(255,224,236,.10)', 'multiply')],
+  'light-leaves': [...strips('rgba(255,214,170,.12)', 'multiply')],
 };
 
 // ─────────────────── 창문 빛: 앞으로 퍼지는 사다리꼴 ───────────────────
@@ -42,15 +47,15 @@ const WIN_SPREAD = 0.035, WIN_SKEW = 0.55;
 const WIN_ZONES = [[35, 36, 0.9], [49, 55, 1], [56, 62, 0.75], [63, 69, 0.5]];
 
 function poolTrap(slot) {
-  const CX = 46.5, out = [];
+  const CX = 62.5, out = [];        // 창 중심 (아트 46.5 + OX)
   for (const [zy0, zy1, op] of WIN_ZONES) {
     for (let y = zy0; y <= zy1; y++) {
       const t = y <= 36 ? 0 : y - 48;
       const s = 1 + WIN_SPREAD * t, sh = -WIN_SKEW * t;
-      const a = CX + (27 - CX) * s + sh, b = CX + (67 - CX) * s + sh;
-      const m0 = CX + (46 - CX) * s + sh, m1 = CX + (48 - CX) * s + sh;
+      const a = CX + (43 - CX) * s + sh, b = CX + (83 - CX) * s + sh;
+      const m0 = CX + (62 - CX) * s + sh, m1 = CX + (64 - CX) * s + sh;
       for (const [p0, q0] of [[a, m0 - 1], [m1, b - 1]]) {
-        const p = Math.max(1, Math.round(p0)), q = Math.min(94, Math.round(q0));
+        const p = Math.max(1, Math.round(p0)), q = Math.min(126, Math.round(q0));
         if (q >= p) out.push({ r: [p, y, q - p + 1, 1], slot, alpha: op, blend: 'screen' });
       }
     }
@@ -83,17 +88,17 @@ export const LIGHTS = {
   'lp-sun':  { rects: poolTrap('--wl'), alphaSlot: '--wl-a', mask: 'm-win' },
   'lp-moon': { rects: poolTrap('--ml'), alphaSlot: '--ml-a', mask: 'm-win' },
   'lp-fire': {
-    rects: [...rings(11.5, 45, 1.6, [[0, 10, 1], [10, 16, 0.55], [16, 22, 0.28]], [49, 62], [1, 94], '--fl'),
-            ...rings(11.5, 43, 1.0, [[0, 8, 0.45], [8, 14, 0.28], [14, 20, 0.14]], [28, 48], [1, 24], '--fl')],
+    rects: [...rings(27.5, 45, 1.6, [[0, 10, 1], [10, 16, 0.55], [16, 22, 0.28]], [49, 62], [1, 126], '--fl'),
+            ...rings(27.5, 43, 1.0, [[0, 8, 0.45], [8, 14, 0.28], [14, 20, 0.14]], [28, 48], [1, 40], '--fl')],
     alphaSlot: '--fl-a', mask: 'm-fire', anim: 'glow-flicker',
   },
   'lp-candle': {
-    rects: rings(5, 26, 1.0, [[0, 3, 0.9], [3, 5, 0.45], [5, 7, 0.2]], [20, 32], [1, 13], '--cl'),
+    rects: rings(21, 26, 1.0, [[0, 3, 0.9], [3, 5, 0.45], [5, 7, 0.2]], [20, 32], [1, 29], '--cl'),
     alphaSlot: '--cl-a', anim: 'glow-flicker-slow',
   },
   'lp-lamp': {
-    rects: [...rings(74, 35, 1.0, [[0, 5, 0.55], [5, 9, 0.32], [9, 13, 0.16]], [26, 48], [62, 94], '--ll'),
-            ...rings(74, 47, 1.5, [[0, 7, 0.8], [7, 12, 0.4], [12, 16, 0.2]], [49, 58], [62, 94], '--ll')],
+    rects: [...rings(90, 35, 1.0, [[0, 5, 0.55], [5, 9, 0.32], [9, 13, 0.16]], [26, 48], [78, 110], '--ll'),
+            ...rings(90, 47, 1.5, [[0, 7, 0.8], [7, 12, 0.4], [12, 16, 0.2]], [49, 58], [78, 110], '--ll')],
     alphaSlot: '--ll-a',
   },
 };
@@ -116,16 +121,16 @@ function occStrip(x0, w, y0, y1, skew, base, grow = 0.03, sill = null) {
 
 export const OCCLUDERS = {
   'm-win': {
-    'occ-orb':   occStrip(54, 9, 49, 56, 0.55, 48, 0.03, [54, 9]),
-    'occ-plant': occStrip(28, 5, 49, 52, 0.55, 48, 0.03, [28, 5]),
-    'occ-props': occStrip(21, 8, 49, 52, 0.55, 48, 0),
+    'occ-orb':   occStrip(70, 9, 49, 56, 0.55, 48, 0.03, [70, 9]),
+    'occ-plant': occStrip(44, 5, 49, 52, 0.55, 48, 0.03, [44, 5]),
+    'occ-props': occStrip(37, 8, 49, 52, 0.55, 48, 0),
     // 러그 돌은 밑면(y61/x42-51)에서 시작해야 발밑에 붙는다
-    'occ-orb2':  occStrip(42, 10, 62, 68, 0.55, 61, 0.05),
+    'occ-orb2':  occStrip(58, 10, 62, 68, 0.55, 61, 0.05),
   },
   'm-fire': {
-    'occ-props': [{ r: [29, 44, 3, 5], g: 0.5 }, { r: [32, 45, 3, 4], g: 0.69 },
-                  { r: [35, 46, 2, 3], g: 0.82 }, { r: [10, 61, 12, 3], g: 0.6 }],
-    'occ-orb2':  [{ r: [53, 54, 5, 8], g: 0.53 }, { r: [58, 56, 4, 6], g: 0.73 }],
+    'occ-props': [{ r: [45, 44, 3, 5], g: 0.5 }, { r: [48, 45, 3, 4], g: 0.69 },
+                  { r: [51, 46, 2, 3], g: 0.82 }, { r: [26, 61, 12, 3], g: 0.6 }],
+    'occ-orb2':  [{ r: [69, 54, 5, 8], g: 0.53 }, { r: [74, 56, 4, 6], g: 0.73 }],
   },
 };
 
@@ -134,18 +139,18 @@ export const OCCLUDERS = {
 export const VIGNETTE = ['.34', '.24', '.16', '.09', '.04'].flatMap((op, i) => {
   const m = i + 1, a = parseFloat(op), f = '#0b0710';
   return [
-    { r: [0, m - 1, 96, 1], fill: f, alpha: a, blend: 'multiply' },
-    { r: [0, 72 - m, 96, 1], fill: f, alpha: a, blend: 'multiply' },
+    { r: [0, m - 1, 128, 1], fill: f, alpha: a, blend: 'multiply' },
+    { r: [0, 72 - m, 128, 1], fill: f, alpha: a, blend: 'multiply' },
     { r: [m - 1, 0, 1, 72], fill: f, alpha: a, blend: 'multiply' },
-    { r: [96 - m, 0, 1, 72], fill: f, alpha: a, blend: 'multiply' },
+    { r: [128 - m, 0, 1, 72], fill: f, alpha: a, blend: 'multiply' },
   ];
 });
 
 // 구석·벽 하단 앰비언트 오클루전 — 광원이 닿지 않는 곳을 더 눌러 대비를 벌린다
 export const AO = [
-  { r: [0, 34, 24, 15], fill: '#150c18', alpha: 0.22, blend: 'multiply' },
-  { r: [0, 34, 14, 15], fill: '#150c18', alpha: 0.18, blend: 'multiply' },
-  { r: [72, 34, 24, 15], fill: '#150c18', alpha: 0.2, blend: 'multiply' },
-  { r: [82, 34, 14, 15], fill: '#150c18', alpha: 0.16, blend: 'multiply' },
-  { r: [24, 44, 48, 5], fill: '#150c18', alpha: 0.16, blend: 'multiply' },
+  { r: [0, 34, 40, 15], fill: '#150c18', alpha: 0.22, blend: 'multiply' },
+  { r: [0, 34, 22, 15], fill: '#150c18', alpha: 0.18, blend: 'multiply' },
+  { r: [88, 34, 40, 15], fill: '#150c18', alpha: 0.2, blend: 'multiply' },
+  { r: [106, 34, 22, 15], fill: '#150c18', alpha: 0.16, blend: 'multiply' },
+  { r: [40, 44, 48, 5], fill: '#150c18', alpha: 0.16, blend: 'multiply' },
 ];

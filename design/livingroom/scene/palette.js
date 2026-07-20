@@ -67,6 +67,11 @@ export const SEASON = {
 };
 
 export const WEATHER = {
+  // 게임 날씨 6종(clear/rain/downpour/snow/petals/leaves) + 씬 고유 cloud = 7종.
+  // **아무것도 빼지 않는다** — 어느 걸 노출할지는 게임 UI 가 나중에 정한다.
+  "downpour": { "--wl": "#7d8ba6", "--wl-a": ".04", "--ml-a": ".02" },
+  "petals":   { "--wl": "#ffd9e4", "--wl-a": ".22", "--ml-a": ".14" },
+  "leaves":   { "--wl": "#ffce9a", "--wl-a": ".22", "--ml-a": ".14" },
   "cloud": {"--wl": "#c8d2e0", "--wl-a": ".10", "--ml-a": ".06"},
   "rain": {"--wl": "#93a4bc", "--wl-a": ".07", "--ml-a": ".04"},
   "snow": {"--wl": "#dde8f6", "--wl-a": ".16", "--ml-a": ".10"},

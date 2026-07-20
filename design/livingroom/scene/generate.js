@@ -6,7 +6,13 @@
 //
 // rect 형식: [x, y, w, h, slot] — slot 은 색이 아니라 팔레트 자리 이름('--h3' 등)
 
-const GX = 96, GY = 72;
+// 아트는 96×72 로 측정·작화됐다. 화면이 16:9 라 좌우로 16칸씩 넓혀 128×72(=16:9)로 만든다.
+// **아트 좌표는 건드리지 않는다** — 아트 공간 x ∈ [-OX, AW+OX) 로 넓히고,
+// 캔버스로 옮길 때만 +OX 한다. 창문·러그·돌은 그대로 두면 캔버스 중앙에 온다.
+const AW = 96, GY = 72;      // 원래 아트 폭
+const OX = 16;               // 좌우로 넓힌 여백
+const GX = AW + OX * 2;      // 캔버스 폭 128
+const AX0 = -OX, AX1 = AW + OX;   // 아트 공간 x 범위
 
 /** 결정적 의사난수 0..99 — 같은 좌표면 언제나 같은 값 (재생성 안정성)
  *  Python 정수는 무한 정밀도라 96*73856093 이 32bit를 넘는다.
@@ -58,11 +64,11 @@ function ramp(pts, x) {
 }
 
 // 겹산 3중 실루엣 (뒤→앞). 봉우리·골이 뚜렷한 삼각 능선
-const RIDGE_FAR = [[0,27],[6,24],[14,28],[22,25],[33,23],[40,27],[46,26],[52,24],
-                   [58,26],[64,25],[70,28],[78,24],[86,27],[96,25]];
-const RIDGE_MID = [[0,31],[10,29],[18,31],[28,28],[36,31],[44,30],[50,29],[57,31],
-                   [64,29],[72,31],[82,29],[96,31]];
-const RIDGE_NEAR = [[0,33],[14,32],[26,34],[38,33],[50,34],[62,32],[74,34],[86,33],[96,34]];
+const RIDGE_FAR = [[-16,26],[0,27],[6,24],[14,28],[22,25],[33,23],[40,27],[46,26],[52,24],
+                   [58,26],[64,25],[70,28],[78,24],[86,27],[96,25],[112,28]];
+const RIDGE_MID = [[-16,30],[0,31],[10,29],[18,31],[28,28],[36,31],[44,30],[50,29],[57,31],
+                   [64,29],[72,31],[82,29],[96,31],[112,29]];
+const RIDGE_NEAR = [[-16,34],[0,33],[14,32],[26,34],[38,33],[50,34],[62,32],[74,34],[86,33],[96,34],[112,33]];
 
 function synth(y, x) {
   const rf = pyRound(ramp(RIDGE_FAR, x));
@@ -123,7 +129,7 @@ const FLOOR_BANDS = (() => {
 
 function floorCells() {
   const cell = new Map();
-  const put = (y, x, v) => cell.set(y * GX + x, v);
+  const put = (y, x, v) => cell.set(y * 1000 + (x - AX0), v);   // 음수 x 대응
   FLOOR_BANDS.forEach(([y0, y1], bi) => {
     const off = h2(bi, 1, 31) % PLANK_W_REF;
     const xrefs = [];
@@ -131,8 +137,8 @@ function floorCells() {
     for (let y = y0; y <= y1; y++) {
       const s = perspS(y);
       for (let k = 0; k < xrefs.length - 1; k++) {
-        const x0 = Math.max(0, pyRound(perspX(xrefs[k], y)));
-        const x1 = Math.min(96, pyRound(perspX(xrefs[k + 1], y)));
+        const x0 = Math.max(AX0, pyRound(perspX(xrefs[k], y)));
+        const x1 = Math.min(AX1, pyRound(perspX(xrefs[k + 1], y)));
         if (x1 <= x0) continue;
         const r = h2(k, bi, 32) % 12;
         const tone = r < 3 ? '--fb0' : r < 6 ? '--fb2' : '--fb1';
@@ -154,12 +160,12 @@ function floorCells() {
         }
       }
       // 판자 위/아래 모따기 (가로선은 화면과 평행하므로 수평 유지)
-      if (y === y0 && bi > 0) for (let xx = 0; xx < 96; xx++) put(y, xx, '--fbh');
-      if (y === y1) for (let xx = 0; xx < 96; xx++) put(y, xx, '--fbk');
+      if (y === y0 && bi > 0) for (let xx = AX0; xx < AX1; xx++) put(y, xx, '--fbh');
+      if (y === y1) for (let xx = AX0; xx < AX1; xx++) put(y, xx, '--fbk');
       // 맞댐 이음매 1px — 행마다 x가 이동해 결과적으로 소실점으로 기우는 선이 된다
       for (const xr of xrefs) {
         const jx = pyRound(perspX(xr, y));
-        if (jx > 0 && jx < 96) put(y, jx, '--fbk');
+        if (jx > AX0 && jx < AX1) put(y, jx, '--fbk');
       }
     }
   });
@@ -364,20 +370,48 @@ function emitRows(cells) {
   return out;
 }
 
-/** 절차 그룹 전체를 만든다. 반환: { groupId: rects[] } */
-export function generateGroups() {
+/** 넓힌 좌우 여백의 벽 — 측정 데이터에 없는 구간이라 기존 벽 텍스처를 타일링해 채운다.
+ *  소스 열을 고정하면 창문·벽난로·책장과 겹쳐 구멍이 난다 →
+ *  **행마다 그 행에서 실제로 벽인 열들** 중에서 골라 온다. */
+function wallMargins(wallRects) {
+  const byRow = new Map();                      // y -> Map(x -> slot)
+  for (const [x, y, w, h, slot] of wallRects)
+    for (let yy = y; yy < y + h; yy++) {
+      if (!byRow.has(yy)) byRow.set(yy, new Map());
+      const row = byRow.get(yy);
+      for (let xx = x; xx < x + w; xx++) row.set(xx, slot);
+    }
+  const out = [];
+  for (const [y, row] of byRow) {
+    const src = [...row.keys()].sort((a, b) => a - b);
+    if (!src.length) continue;
+    for (const x of [...range(AX0, 0), ...range(AW, AX1)]) {
+      // 좌우로 갈수록 다른 열을 집어 이어붙인 티가 안 나게
+      const sx = src[(((x % src.length) + src.length) % src.length)];
+      out.push([y, x, row.get(sx)]);
+    }
+  }
+  return emitRows(out);
+}
+const range = (a, b) => Array.from({ length: b - a }, (_, i) => a + i);
+
+/** 절차 그룹 전체를 만든다. 반환: { groupId: rects[] } (캔버스 좌표) */
+export function generateGroups(wallRects = []) {
   const scenery = [];
-  for (let y = 0; y < GY; y++) for (let x = 0; x < GX; x++) scenery.push([y, x, synth(y, x)]);
+  for (let y = 0; y < GY; y++)
+    for (let x = AX0; x < AX1; x++) scenery.push([y, x, synth(y, x)]);
 
   const floor = [];
-  for (const [key, v] of floorCells()) floor.push([Math.floor(key / GX), key % GX, v]);
+  for (const [key, v] of floorCells())
+    floor.push([Math.floor(key / 1000), (key % 1000) + AX0, v]);
   // 벽 접합부 AO — 맞닿는 곳의 어두움(허용 범위). 슬롯이 아니라 고정색이라 뒤에 덧그린다
   const floorAO = [[0, 49, 96, 1, '#120c14', 0.38],
                    [0, 50, 96, 1, '#120c14', 0.22],
                    [0, 51, 96, 1, '#120c14', 0.1]];
 
   const v1 = treeV1(), v2 = treeV2();
-  return {
+  const out = {
+    'wall-margin': wallMargins(wallRects),
     'base-scenery': emitRows(scenery),
     'g-floor': [...emitRows(floor), ...floorAO],
     rug: emitRows(rugCells()),
@@ -392,6 +426,9 @@ export function generateGroups() {
     'tree-v2-trunk': v2.trunk,
     'tree-v2-leaves': emitRows(v2.leaves),
   };
+  // 아트 좌표 → 캔버스 좌표 (여기서 한 번만 옮긴다)
+  for (const rects of Object.values(out)) for (const r of rects) r[0] += OX;
+  return out;
 }
 
-export { GX, GY, h2, emitRows };
+export { GX, GY, OX, AW, h2, emitRows };
