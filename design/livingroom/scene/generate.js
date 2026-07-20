@@ -96,13 +96,8 @@ function synth(y, x) {
   }
 
   // 하늘: solid 행 밴드 (스톱이 촘촘해 디더 없이도 계단이 안 보인다)
+  // 후광은 여기 굽지 않는다 — halo-sun / halo-moon 그룹이 따로 얹는다
   let s = Math.max(0, Math.min(SKY_N - 1, pyRound((y - 4.0) / 2.1)));
-  // 태양 후광은 방사형이라 밴드면 동심원 링이 보인다 → 여기만 해시 지터
-  const d = Math.hypot(x - 56.5, (y - 16) * 1.55);
-  if (d < 13.0) {
-    const halo = SKY_N - 0.4 - d * 0.62 + h2(x, y, 60) / 100 - 0.5;
-    s = Math.max(s, Math.max(0, Math.min(SKY_N - 1, pyRound(halo))));
-  }
   // 얇은 층운: 지평선과 평행한 가로 띠
   for (const [cy, cx0, cx1] of [[8,28,50],[11,56,84],[14,14,42],[17,60,92]]) {
     if (y === cy && cx0 - 4 <= x && x <= cx1 + 4) {
@@ -347,6 +342,8 @@ function treeV2() {
   return { trunk, leaves };
 }
 
+export const FLAME_N = 6;
+
 // ─────────────────────── run-merge & 조립 ───────────────────────
 /** [y,x,slot] 목록을 가로로 병합해 rect 로. 셀 맵 입력이라 겹침이 없다 */
 function emitRows(cells) {
@@ -370,10 +367,19 @@ function emitRows(cells) {
   return out;
 }
 
-/** 넓힌 좌우 여백의 벽 — 측정 데이터에 없는 구간이라 기존 벽 텍스처를 타일링해 채운다.
- *  소스 열을 고정하면 창문·벽난로·책장과 겹쳐 구멍이 난다 →
+const range = (a, b) => Array.from({ length: b - a }, (_, i) => a + i);
+
+// ─────────────────────────── 벽 평면 ───────────────────────────
+// 측정된 g-wall 은 창·벽난로·책장 자리가 **실제로 뚫려 있다**. 소품을 끄면 그 뒤로
+// 창밖 하늘이 비친다 — 벽이 한 장의 평면이 아니라 소품 모양대로 오려진 껍데기였던 것.
+// 그래서 g-wall 뒤에 "진짜 벽 한 장"을 깐다. 남기는 구멍은 창 개구부 하나뿐이다.
+const APERTURE = { x0: 27, x1: 66, y0: 4, y1: 33 };   // 실측: 여기만 하늘이 보여야 한다
+const WALL_Y1 = 48;                                    // 49부터는 바닥
+
+/** 벽 평면 — 개구부를 뺀 전 영역을 벽 텍스처로 채운다.
+ *  소스 열을 고정하면 창문과 겹쳐 하늘이 새어 나온다 →
  *  **행마다 그 행에서 실제로 벽인 열들** 중에서 골라 온다. */
-function wallMargins(wallRects) {
+function wallPlane(wallRects) {
   const byRow = new Map();                      // y -> Map(x -> slot)
   for (const [x, y, w, h, slot] of wallRects)
     for (let yy = y; yy < y + h; yy++) {
@@ -381,19 +387,161 @@ function wallMargins(wallRects) {
       const row = byRow.get(yy);
       for (let xx = x; xx < x + w; xx++) row.set(xx, slot);
     }
+  // 벽 셀이 하나도 없는 행(개구부에 완전히 먹힌 행)은 위 행에서 물려받는다
+  let carry = null;
   const out = [];
-  for (const [y, row] of byRow) {
-    const src = [...row.keys()].sort((a, b) => a - b);
-    if (!src.length) continue;
-    for (const x of [...range(AX0, 0), ...range(AW, AX1)]) {
-      // 좌우로 갈수록 다른 열을 집어 이어붙인 티가 안 나게
-      const sx = src[(((x % src.length) + src.length) % src.length)];
-      out.push([y, x, row.get(sx)]);
+  for (const y of range(0, WALL_Y1 + 1)) {
+    const row = byRow.get(y);
+    const src = row && row.size ? [...row.keys()].sort((a, b) => a - b) : null;
+    if (src) carry = { row, src };
+    if (!carry) continue;
+    for (const x of range(AX0, AX1)) {
+      if (x >= APERTURE.x0 && x <= APERTURE.x1 && y >= APERTURE.y0 && y <= APERTURE.y1) continue;
+      const sx = carry.src[(((x % carry.src.length) + carry.src.length) % carry.src.length)];
+      out.push([y, x, carry.row.get(sx)]);
     }
   }
   return emitRows(out);
 }
-const range = (a, b) => Array.from({ length: b - a }, (_, i) => a + i);
+
+// ─────────────────────────── 해·달 후광 ───────────────────────────
+// 후광을 synth 안에 굽지 않는다 — 그러면 중심이 하나로 고정돼 해와 달 중 한쪽은 어긋난다.
+// (실제로 (56.5,16)에 있어 달과는 맞고 해(58.5,17)와는 2px 어긋나 있었다.)
+// 하늘 슬롯(--kN)을 그대로 쓰는 별도 그룹으로 떼어내 시간대별로 켠다.
+function halo(cx, cy, reach, ysquash) {
+  const cells = [];
+  for (let y = 0; y < 36; y++)
+    for (let x = AX0; x < AX1; x++) {
+      const d = Math.hypot(x - cx, (y - cy) * ysquash);
+      if (d >= reach) continue;
+      // 방사형이라 밴드로 깔면 동심원 링이 보인다 → 해시 지터로 경계를 흐트러뜨린다
+      const base = Math.max(0, Math.min(SKY_N - 1, pyRound((y - 4.0) / 2.1)));
+      const lift = SKY_N - 0.4 - (d * 8.06) / reach + h2(x, y, 60) / 100 - 0.5;
+      const s = Math.max(base, Math.max(0, Math.min(SKY_N - 1, pyRound(lift))));
+      if (s > base) cells.push([y, x, `--k${s}`]);
+    }
+  return emitRows(cells);
+}
+
+// ─────────────────────────── 창밖 날씨 ───────────────────────────
+// 파티클은 창 폭(x29~67)에만 그려져 있었다. 다른 씬(창이 더 큰 방·야외)에서 재사용하려면
+// 아트 전폭이어야 한다. 세로 주기는 TILE_H(30)에 맞춘다 — 한 벌을 30px 위에 겹쳐
+// 무한 낙하를 만들기 때문에, 패턴이 30으로 안 나누어떨어지면 이음매가 보인다.
+const PT_H = 30;
+
+/** 낙하 파티클 한 벌. dens=칸당 확률(%), len=세로 길이, slot=색 */
+function fall(slot, dens, len, salt, jitter = 0) {
+  const cells = [];
+  for (let y = 0; y < PT_H; y++)
+    for (let x = AX0; x < AX1; x++) {
+      if (h2(x, y, salt) >= dens) continue;
+      const n = len + (jitter ? h2(x, y, salt + 1) % (jitter + 1) : 0);
+      for (let i = 0; i < n; i++) cells.push([(y + i) % PT_H, x, slot]);
+    }
+  return emitRows(cells);
+}
+
+/** 흩날림 파티클(꽃잎·낙엽) — 낙하보다 성기고 가로로 어긋난다 */
+function drift(slot, dens, salt) {
+  const cells = [];
+  for (let y = 0; y < PT_H; y++)
+    for (let x = AX0; x < AX1; x++)
+      if (h2(x, y, salt) < dens) cells.push([y, x, slot]);
+  return emitRows(cells);
+}
+
+/** 구름 — 전폭으로 흐르는 덩어리.
+ *  가로로 균일한 띠를 쌓으면 하늘 그라디언트와 겹쳐 **가로 줄무늬**로 읽힌다.
+ *  → 띠가 아니라 중심이 흩어진 뭉게구름 덩어리를 겹쳐 세로로도 변화를 준다. */
+const PUFFS = [
+  [-10, 9, 15, 4.0], [12, 13, 12, 3.4], [30, 7, 14, 3.8], [48, 12, 13, 3.2],
+  [66, 8, 15, 4.2], [84, 14, 12, 3.0], [100, 9, 14, 3.6], [116, 13, 13, 3.4],
+  [2, 18, 11, 2.4], [40, 19, 12, 2.6], [78, 17, 11, 2.5], [110, 20, 10, 2.2],
+];
+function cloudBank() {
+  const cells = new Map();
+  PUFFS.forEach(([cx, cy, rx, ry], pi) => {
+    for (let y = Math.floor(cy - ry) - 1; y <= Math.ceil(cy + ry) + 1; y++) {
+      if (y < 3 || y > 32) continue;
+      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        if (x < AX0 || x >= AX1) continue;
+        // 덩어리 윤곽을 저주파 두 개로 울퉁불퉁하게 (원형 티를 없앤다)
+        const lump = 1 + 0.16 * Math.sin(x * 0.42 + pi) + 0.1 * Math.sin(x * 0.15 + pi * 2);
+        const dx = (x - cx) / (rx * lump), dy = (y - cy) / (ry * lump);
+        const d = dx * dx + dy * dy;
+        if (d > 1) continue;
+        if (d > 0.72 && h2(x, y, 90 + pi) < 48) continue;      // 가장자리 성기게
+        // 위가 밝고 아래가 그늘 — 구름이 부피로 읽히게
+        const v = (y - (cy - ry)) / (2 * ry);
+        const tone = v < 0.42 ? '--cloud-1' : '--cloud-2';
+        const key = y * 1000 + (x - AX0);
+        if (!cells.has(key) || tone === '--cloud-1') cells.set(key, [y, x, tone]);
+      }
+    }
+  });
+  return emitRows([...cells.values()]);
+}
+
+// ─────────────────────── 창턱에 쌓인 눈 ───────────────────────
+// 실측 프롭은 창 위 처마(y2)에도 눈을 얹어 뒀는데, 방 안에서 보는 시점이라
+// 바깥 처마 위 눈은 보일 리가 없다 — 벽에 흰 막대가 떠 있는 것처럼 보였다.
+// 안에서 보이는 수평 턱은 가운데 문설주(y21)와 창턱(y34) 둘뿐이라 거기만 얹는다.
+const WIN_APER = [27, 66], MULLION = [46, 47];
+function snowCap() {
+  const cells = [];
+  for (const ledge of [21, 34]) {
+    for (let x = WIN_APER[0]; x <= WIN_APER[1]; x++) {
+      if (x >= MULLION[0] && x <= MULLION[1]) continue;       // 세로 문설주엔 안 쌓인다
+      const d = h2(x, ledge, 140) % 100;
+      if (d < 12) continue;                                    // 군데군데 비어 자연스럽게
+      cells.push([ledge - 1, x, '--snow-p']);
+      if (d > 72) cells.push([ledge - 2, x, '--snow-p']);      // 두툼하게 쌓인 자리
+    }
+  }
+  return emitRows(cells);
+}
+
+// ─────────────────────────── 불꽃 ───────────────────────────
+// 이전에는 정지 실루엣 3장을 scaleY 로 눌렀다 폈다 한 게 전부였다 — 모양이 안 변하니
+// 불이 아니라 "숨쉬는 삼각형"으로 보였다. 프레임마다 실루엣 자체를 다시 만든다.
+const TAU = Math.PI * 2;
+
+/** 불꽃 프레임 n장. 반환: rects[][] — 렌더러가 t로 골라 그린다 */
+function flameFrames(cx, baseY, w, h, salt, n, tones) {
+  const frames = [];
+  for (let f = 0; f < n; f++) {
+    const cells = [];
+    const ph = (f / n) * TAU;
+    for (let i = 0; i < h; i++) {
+      const y = baseY - i, t = i / (h - 1);
+      // 위로 갈수록 좁아지고, 혀가 옆으로 휜다. 휨은 높이에 비례해 커진다.
+      // 진폭을 키우면 불이 춤을 춰서 산만하다 — 끝만 살짝 흔들리는 정도로 억제한다.
+      const sway = (Math.sin(ph + t * 2.6) * 0.7 + Math.sin(ph * 2 + t * 4.1) * 0.3)
+                   * Math.pow(t, 1.8) * w * 0.26;
+      const wob = (h2(f, i, salt) / 100 - 0.5) * 0.25;
+      const hw = (w / 2) * Math.pow(1 - t, 0.55)
+                 * (1 + (h2(f, i, salt + 1) / 100 - 0.5) * 0.14) + wob;
+      if (hw <= 0) continue;
+      const c = cx + sway;
+      const x0 = pyRound(c - hw), x1 = pyRound(c + hw) - 1;
+      for (let x = x0; x <= x1; x++) {
+        // 심지 쪽(아래·중앙)이 가장 뜨겁다 → 코어, 바깥·위로 갈수록 식는다
+        const edge = Math.min(x - x0, x1 - x) / Math.max(1, hw);
+        const heat = (1 - t) * 0.68 + edge * 0.32;
+        const k = heat > 0.72 ? 2 : heat > 0.38 ? 1 : 0;
+        cells.push([y, x, tones[k]]);
+      }
+    }
+    // 불티: 본체 위로 떨어져 나간 점. 자주 튀면 시끄러워 가끔만
+    for (let s = 0; s < 2; s++) {
+      const sy = baseY - h - (h2(f, s, salt + 2) % 3);
+      const sx = pyRound(cx + (h2(f, s, salt + 3) / 100 - 0.5) * w * 0.9);
+      if (h2(f, s, salt + 4) < 28) cells.push([sy, sx, tones[1]]);
+    }
+    frames.push(emitRows(cells));
+  }
+  return frames;
+}
 
 /** 절차 그룹 전체를 만든다. 반환: { groupId: rects[] } (캔버스 좌표) */
 export function generateGroups(wallRects = []) {
@@ -411,8 +559,19 @@ export function generateGroups(wallRects = []) {
 
   const v1 = treeV1(), v2 = treeV2();
   const out = {
-    'wall-margin': wallMargins(wallRects),
+    'wall-plane': wallPlane(wallRects),
     'base-scenery': emitRows(scenery),
+    // 후광: 해는 작고 단단하게, 달은 크고 부드럽게 (달이 큰 게 예쁘다는 판단)
+    'halo-sun': halo(58.5, 17.0, 13.0, 1.55),
+    'halo-moon': halo(56.5, 16.5, 17.0, 1.25),
+    // 날씨 — 아트 전폭. 창이 잘라주므로 넓혀도 방 안엔 안 보인다
+    clouds: cloudBank(),
+    rain: fall('--rain', 4, 2, 100),
+    downpour: fall('--rain', 11, 4, 102, 2),
+    snow: fall('--snow-p', 5, 1, 104),
+    'pt-petals': drift('--t2', 3, 106),
+    'pt-leaves': drift('--t1', 3, 108),
+    'fx-snowcap': snowCap(),
     'g-floor': [...emitRows(floor), ...floorAO],
     rug: emitRows(rugCells()),
     orb: ball(SILL_ROWS),
@@ -426,6 +585,12 @@ export function generateGroups(wallRects = []) {
     'tree-v2-trunk': v2.trunk,
     'tree-v2-leaves': emitRows(v2.leaves),
   };
+  // 불꽃 프레임 — 그룹 하나당 한 장씩 내보내고 렌더러가 t로 골라 그린다
+  // 실측 위치: 벽난로 불 x8~17/y40~47, 촛불 x6/y28~30
+  flameFrames(12.0, 47, 8.0, 8, 120, FLAME_N, ['--f0', '--f1', '--f3'])
+    .forEach((rs, i) => { out[`fire-f${i}`] = rs; });
+  flameFrames(6.5, 30, 2.6, 4, 130, FLAME_N, ['--f0', '--cd2', '--sun1'])
+    .forEach((rs, i) => { out[`cflame-f${i}`] = rs; });
   // 아트 좌표 → 캔버스 좌표 (여기서 한 번만 옮긴다)
   for (const rects of Object.values(out)) for (const r of rects) r[0] += OX;
   return out;

@@ -4,12 +4,12 @@
 // 그룹 격리(자식의 blend 가 그룹 blend 에 먹히는 문제)는 오프스크린으로 명시 처리한다.
 // CSS keyframes 는 없으니 매 프레임 t(ms)를 받아 anim.js 가 변환값을 준다.
 
-import { generateGroups, GX, GY, OX } from './generate.js';
+import { generateGroups, GX, GY, OX, FLAME_N } from './generate.js';
 import { resolve } from './palette.js';
 import { PROPS } from './props.js';
 import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO } from './lights.js';
 import { ROOM_DATA } from './room-data.js';
-import { ANIM, GROUP_ANIM, TILE_H } from './anim.js';
+import { ANIM, GROUP_ANIM, TILE_H, flameIdx } from './anim.js';
 
 // 지오메트리는 상태와 무관 — 한 번만 만든다. 벽 여백은 측정된 벽 텍스처로 채운다.
 const GEN = generateGroups(ROOM_DATA.groups['g-wall']);
@@ -72,40 +72,50 @@ function scaleAlpha(css, k) {
 /** z-순서 (뒤 → 앞). 배열 순서가 곧 그리는 순서다 — 문자열 조작이 필요 없다 */
 const Z = [
   // [1] 창밖: 벽 뒤까지 그린 뒤 벽이 덮는다
-  'base-scenery', 'sun', 'moon', 'stars', 'clouds',
+  'base-scenery', 'halo-sun', 'halo-moon', 'sun', 'moon', 'stars', 'clouds',
   'tree-v1-trunk', 'tree-v1-leaves', 'tree-v2-trunk', 'tree-v2-leaves', 'tree-bare',
-  'rain', 'snow', 'pt-leaves', 'pt-petals', 'pt-fireflies', 'fx-drops', 'fx-frost',
-  // [2] 방 구조
-  'wall-margin', 'g-wall', 'g-winframe', 'g-fireplace', 'g-shelf', 'g-floor',
+  'rain', 'downpour', 'snow', 'pt-leaves', 'pt-petals', 'pt-fireflies', 'fx-drops', 'fx-frost',
+  // [2] 방 구조. wall-plane 은 소품 자리까지 메운 진짜 벽 한 장 — g-wall 은 그 위의 질감이다
+  'wall-plane', 'g-wall',
+  // [2.5] 창턱 눈 — 벽 위, 창틀 뒤. 창밖에 쌓인 게 아니라 창턱에 쌓인 것으로 읽혀야 한다
+  'fx-snowcap',
+  'g-winframe', 'g-fireplace', 'g-shelf', 'g-floor',
   // [3] 소품 (선반 안 → 맨틀 → 창턱 → 바닥 깔개 → 바닥 스탠딩)
   'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
   'candle', 'sill-plant', 'orb', 'rug', 'orb-rug', 'lamp', 'floor-props',
-  // [3.5] 창틀 눈쌓임 — 날씨 틴트를 받도록 오버레이 앞
-  'fx-snowcap',
 ];
 
 /** 발광체 — 오버레이 위라 밤에도 어두워지지 않는다 */
-const EMISSION = ['fire-out', 'fire-mid', 'fire-core', 'candle-flame', 'lamp-glow'];
+const EMISSION = ['fire-body', 'candle-flame', 'lamp-glow'];
+
+/** 프레임 교체 애니메이션 — 그룹 id → [프레임 그룹 접두어, 프레임 수] */
+const FRAMED = { 'fire-body': 'fire-f', 'candle-flame': 'cflame-f' };
 
 /** 소품 토글 → 그 오클루더도 함께 끈다 */
 const OCC_OF = { orb: 'occ-orb', 'orb-rug': 'occ-orb2', 'sill-plant': 'occ-plant',
                  'floor-props': 'occ-props' };
-/** 불꽃 토글은 3단을 한꺼번에 */
-const FIRE_PARTS = { 'fire-out': 'fire', 'fire-mid': 'fire', 'fire-core': 'fire' };
+/** 패널의 '불' 토글 */
+const FIRE_PARTS = { 'fire-body': 'fire' };
 
 /** 상태별 표시 여부 — CSS 셀렉터 조합 대신 평범한 조건식으로 */
 function visible(id, st) {
   const { time, season, weather, orb, tree } = st;
-  // 게임 날씨 6종 + 씬 고유 cloud. 하늘이 가려지는 건 흐림·비·폭우·눈뿐이고
+  // 게임 날씨 6종 + 씬 고유 흐림 2종.
+  //  cloud(구름낀 흐림) — 구름은 끼지만 그 사이로 해가 보인다
+  //  fog(안개낀 흐림)   — 해가 완전히 가려진다
   // 꽃잎·낙엽은 맑은 날의 연출이라 해·달·별이 그대로 보인다.
-  const OVERCAST = ['cloud', 'rain', 'downpour', 'snow'];
-  const overcast = OVERCAST.includes(weather);
-  const clear = !overcast;
+  const CLOUDY = ['cloud', 'fog', 'rain', 'downpour', 'snow'];
+  const SUN_HIDDEN = ['fog', 'rain', 'downpour', 'snow'];
+  const hidden = SUN_HIDDEN.includes(weather);
+  const clear = !CLOUDY.includes(weather);
   switch (id) {
-    case 'sun':   return time !== 'night' && !overcast;
-    case 'moon':  case 'stars': return time === 'night' && !overcast;
-    case 'clouds': return overcast;
-    case 'rain':  case 'fx-drops': return weather === 'rain' || weather === 'downpour';
+    case 'sun': case 'halo-sun':   return time !== 'night' && !hidden;
+    case 'moon': case 'halo-moon': return time === 'night' && !hidden;
+    case 'stars': return time === 'night' && clear;
+    case 'clouds': return CLOUDY.includes(weather);
+    case 'rain': return weather === 'rain';
+    case 'downpour': return weather === 'downpour';
+    case 'fx-drops': return weather === 'rain' || weather === 'downpour';
     case 'snow':  case 'fx-snowcap': return weather === 'snow';
     case 'fx-frost': return season === 'winter';
     // 계절이 정하는 파티클(기존 규칙)은 그대로 두고, 날씨로 직접 지정하는 길도 연다
@@ -163,7 +173,10 @@ function drawLayer(ctx, rects, pal, tf = {}, baseAlpha = 1) {
 
 /** 그룹 하나 — 정적 rects + 각자 다른 주기의 애니메이션 레이어 */
 function drawGroup(ctx, id, pal, t, animOn) {
-  const e = entry(id);
+  // 프레임 교체형(불꽃)은 t 로 실루엣 한 장을 고른다. 멈추면 0번 프레임.
+  const fx = FRAMED[id];
+  const e = fx ? { rects: GEN[fx + (animOn ? flameIdx(t, FLAME_N) : 0)], anim: GROUP_ANIM[id] }
+               : entry(id);
   if (!e) return;
   const base = e.opacity ?? 1;
   const own = GROUP_ANIM[id] || e.anim;

@@ -3,6 +3,8 @@
 // 광원은 "셰이프 1장 + 상태별 색·세기"다. 셰이프는 시간이 바뀌어도 변하지 않고,
 // 팔레트의 --wl/--ml/--fl/--cl/--ll 과 그 -a(세기)만 바뀐다.
 
+import { GX, GY } from './generate.js';
+
 // ─────────────────── 색감 오버레이 (시간 / 날씨) ───────────────────
 // 방 영역만 덮는 4조각 + 창유리 1조각. 창은 벽의 구멍이라 따로 다룬다.
 const strips = (fill, blend) => [
@@ -31,7 +33,14 @@ export const OVERLAYS = {
     ...strips('rgba(25,30,70,.28)', 'multiply'),
     ...glass('rgba(30,38,90,.09)', 'multiply'),
   ],
-  'light-cloud': [...strips('rgba(158,165,180,.28)', 'multiply'), ...glass('rgba(165,172,188,.22)', 'multiply')],
+  // 흐림 2종 — 구름낀 흐림은 구름 사이로 해가 나므로 덜 누르고 살짝 들어올린다,
+  // 안개낀 흐림은 해가 완전히 가려 평평하게 눌린다
+  'light-cloud': [...strips('rgba(176,184,198,.18)', 'multiply'),
+                  ...strips('rgba(200,214,236,.10)', 'screen'),
+                  ...glass('rgba(190,200,216,.12)', 'multiply')],
+  'light-fog': [...strips('rgba(158,165,180,.30)', 'multiply'),
+                ...strips('rgba(150,158,172,.16)', 'screen'),
+                ...glass('rgba(170,178,192,.34)', 'screen')],
   'light-rain': [...strips('rgba(105,116,142,.36)', 'multiply'), ...glass('rgba(95,105,132,.28)', 'multiply')],
   'light-snow': [...strips('rgba(182,190,208,.26)', 'multiply'), ...glass('rgba(195,203,220,.20)', 'multiply')],
   // 게임 날씨 추가분 — 폭우는 비보다 더 눌러 어둡게, 꽃잎·낙엽은 맑음에 가깝게 살짝만
@@ -135,22 +144,82 @@ export const OCCLUDERS = {
 };
 
 // ─────────────────── 대비 강화 그림자 레이어 ───────────────────
-// 비네트: 가장자리를 눌러 창·불 쪽으로 시선을 모은다 (도트답게 계단식)
-export const VIGNETTE = ['.34', '.24', '.16', '.09', '.04'].flatMap((op, i) => {
-  const m = i + 1, a = parseFloat(op), f = '#0b0710';
-  return [
-    { r: [0, m - 1, 128, 1], fill: f, alpha: a, blend: 'multiply' },
-    { r: [0, 72 - m, 128, 1], fill: f, alpha: a, blend: 'multiply' },
-    { r: [m - 1, 0, 1, 72], fill: f, alpha: a, blend: 'multiply' },
-    { r: [128 - m, 0, 1, 72], fill: f, alpha: a, blend: 'multiply' },
-  ];
-});
+// 이전 판은 화면 네 변에 1px 띠 5줄(비네트) + 큰 사각 5장(AO)이었다.
+// 사각형으로 보였던 건 알파 단계가 얕아서가 아니라 **모양이 진짜 사각형**이었기 때문.
+// → 거리장을 계산해 3~4단으로 양자화한다. 계단은 남기되(도트답게) 테두리는 없앤다.
 
-// 구석·벽 하단 앰비언트 오클루전 — 광원이 닿지 않는 곳을 더 눌러 대비를 벌린다
-export const AO = [
-  { r: [0, 34, 40, 15], fill: '#150c18', alpha: 0.22, blend: 'multiply' },
-  { r: [0, 34, 22, 15], fill: '#150c18', alpha: 0.18, blend: 'multiply' },
-  { r: [88, 34, 40, 15], fill: '#150c18', alpha: 0.2, blend: 'multiply' },
-  { r: [106, 34, 22, 15], fill: '#150c18', alpha: 0.16, blend: 'multiply' },
-  { r: [40, 44, 48, 5], fill: '#150c18', alpha: 0.16, blend: 'multiply' },
-];
+/** 셀 [y,x,level] 을 가로 병합해 레벨별 rect 로. level 0 은 버린다 */
+function bandRects(cells, steps, fill) {
+  const byRow = new Map();
+  for (const [y, x, lv] of cells) {
+    if (!lv) continue;
+    if (!byRow.has(y)) byRow.set(y, []);
+    byRow.get(y).push([x, lv]);
+  }
+  const out = [];
+  for (const y of [...byRow.keys()].sort((a, b) => a - b)) {
+    const row = byRow.get(y).sort((a, b) => a[0] - b[0]);
+    let i = 0;
+    while (i < row.length) {
+      let j = i;
+      while (j + 1 < row.length && row[j + 1][0] === row[j][0] + 1 && row[j + 1][1] === row[i][1]) j++;
+      out.push({ r: [row[i][0], y, row[j][0] - row[i][0] + 1, 1], fill,
+                 alpha: steps[row[i][1] - 1], blend: 'multiply' });
+      i = j + 1;
+    }
+  }
+  return out;
+}
+
+/** 계단 경계에 해시 지터를 섞어 등고선이 매끈한 곡선으로 보이지 않게 (도트 질감) */
+const jit = (x, y, s) => (((x * 73856093) ^ (y * 19349663) ^ (s * 83492791)) >>> 0) % 100 / 100;
+
+// 비네트 — 화면 중심에서의 타원 거리.
+// 순수한 타원이면 등고선이 너무 반듯해 "도형을 덧댄" 티가 난다.
+// → 각도에 따라 반지름을 저주파로 흔들고(찌그러진 타원), 중심도 창 쪽으로 살짝 옮긴다.
+//   빛이 창에서 들어오니 어둠의 중심이 화면 정중앙일 이유가 없다.
+const VIG_CX = 60, VIG_CY = 40;
+export const VIGNETTE = (() => {
+  const cells = [];
+  const CUTS = [0.60, 0.76, 0.90, 1.02];        // 4단
+  for (let y = 0; y < GY; y++)
+    for (let x = 0; x < GX; x++) {
+      const dx = (x - VIG_CX) / (GX * 0.52), dy = (y - VIG_CY) / (GY * 0.56);
+      const a = Math.atan2(dy, dx);
+      // 각도 3·5·2주기를 겹쳐 어느 방향으로도 반복이 안 보이게 (±14%)
+      const warp = 1 + 0.085 * Math.sin(a * 3 + 0.7)
+                     + 0.05 * Math.sin(a * 5 - 1.9)
+                     + 0.035 * Math.sin(a * 2 + 2.6);
+      const d = Math.hypot(dx, dy) / warp + (jit(x, y, 7) - 0.5) * 0.05;
+      let lv = 0;
+      for (const c of CUTS) if (d > c) lv++;
+      cells.push([y, x, lv]);
+    }
+  return bandRects(cells, [0.07, 0.14, 0.24, 0.36], '#0b0710');
+})();
+
+// 앰비언트 오클루전 — 빛이 닿지 않는 곳. 세 갈래를 합쳐 최대값을 쓴다:
+//  ① 좌우 벽 구석  ② 천장·벽 접합  ③ 벽↔바닥 접합(가장 깊다)
+// 벽 자체는 평평하게 두고 명암은 전부 여기서 준다 — 그래야 시간대에 따라 명암이 움직인다.
+export const AO = (() => {
+  const cells = [];
+  const FLOOR_Y = 49;
+  for (let y = 0; y < GY; y++)
+    for (let x = 0; x < GX; x++) {
+      // 폭이 일정한 세로 띠면 그것대로 직사각형이 된다 → 경계를 세로로 출렁이게
+      const wob = 1 + 0.22 * Math.sin(y * 0.21) + 0.12 * Math.sin(y * 0.55 + 1.3);
+      const side = Math.min(x, GX - 1 - x) / (30 * wob);      // 0=벽 끝 1=중앙쪽
+      let a = Math.max(0, 1 - side);
+      if (y < FLOOR_Y) {
+        a = Math.max(a, Math.max(0, 1 - y / (7 * (1 + 0.30 * Math.sin(x * 0.09)))) * 0.75);
+        a = Math.max(a, Math.max(0, 1 - (FLOOR_Y - y) / (6 * (1 + 0.25 * Math.sin(x * 0.13 + 2)))));
+      } else {
+        a = Math.max(a, Math.max(0, 1 - (y - FLOOR_Y) / 4));   // 바닥 안쪽 깊이
+        a = Math.max(a, Math.max(0, (y - 62) / 12) * 0.6);     // 화면 앞쪽(가까운 바닥)
+      }
+      const v = a + (jit(x, y, 11) - 0.5) * 0.09;
+      const lv = v > 0.72 ? 3 : v > 0.46 ? 2 : v > 0.22 ? 1 : 0;
+      cells.push([y, x, lv]);
+    }
+  return bandRects(cells, [0.10, 0.20, 0.32], '#150c18');
+})();
