@@ -30,6 +30,7 @@ export const BASE = {
     "--star": "#e8ecff",
     "--rain": "#c9d4ea",
     "--snow-p": "#f4f6fb",
+    "--cloud-0": "#c6cedb",
     "--cloud-1": "#9aa4b5",
     "--cloud-2": "#7e8899",
     "--fb0": "#4a3542",

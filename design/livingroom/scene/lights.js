@@ -97,8 +97,10 @@ export const LIGHTS = {
   'lp-sun':  { rects: poolTrap('--wl'), alphaSlot: '--wl-a', mask: 'm-win' },
   'lp-moon': { rects: poolTrap('--ml'), alphaSlot: '--ml-a', mask: 'm-win' },
   'lp-fire': {
+    // 위쪽 글로우의 y범위를 링 반지름보다 좁게 잡으면 타원이 잘려 **윗변이 직선**이 된다.
+    // 반지름이 닿는 y(43-20=23)까지 열어 타원이 스스로 닫히게 한다.
     rects: [...rings(27.5, 45, 1.6, [[0, 10, 1], [10, 16, 0.55], [16, 22, 0.28]], [49, 62], [1, 126], '--fl'),
-            ...rings(27.5, 43, 1.0, [[0, 8, 0.45], [8, 14, 0.28], [14, 20, 0.14]], [28, 48], [1, 40], '--fl')],
+            ...rings(27.5, 43, 1.0, [[0, 8, 0.45], [8, 14, 0.28], [14, 20, 0.14]], [23, 48], [1, 40], '--fl')],
     alphaSlot: '--fl-a', mask: 'm-fire', anim: 'glow-flicker',
   },
   'lp-candle': {

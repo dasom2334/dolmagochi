@@ -75,8 +75,8 @@ const Z = [
   'base-scenery', 'halo-sun', 'halo-moon', 'sun', 'moon', 'stars', 'clouds',
   'tree-v1-trunk', 'tree-v1-leaves', 'tree-v2-trunk', 'tree-v2-leaves', 'tree-bare',
   'rain', 'downpour', 'snow', 'pt-leaves', 'pt-petals', 'pt-fireflies', 'fx-drops', 'fx-frost',
-  // [2] 방 구조. wall-plane 은 소품 자리까지 메운 진짜 벽 한 장 — g-wall 은 그 위의 질감이다
-  'wall-plane', 'g-wall',
+  // [2] 방 구조. g-wall 은 측정 질감과 메움을 합친 벽 한 장(generate.js wallPlane)
+  'g-wall',
   // [2.5] 창턱 눈 — 벽 위, 창틀 뒤. 창밖에 쌓인 게 아니라 창턱에 쌓인 것으로 읽혀야 한다
   'fx-snowcap',
   'g-winframe', 'g-fireplace', 'g-shelf', 'g-floor',

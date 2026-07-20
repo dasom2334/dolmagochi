@@ -20,8 +20,8 @@ export const TILE_H = 30;
 
 export const ANIM = {
   // ── 낙하: 타일을 30px 내리면 위쪽 복제본이 그 자리를 메운다
-  'rain-fall':   (t) => ({ dy: stepped(t, 1100, 15, TILE_H), tile: true }),
-  'rain-heavy':  (t) => ({ dy: stepped(t, 520, 15, TILE_H), tile: true }),
+  'rain-fall':   (t) => ({ dy: stepped(t, 1000, 15, TILE_H), tile: true }),
+  'rain-heavy':  (t) => ({ dy: stepped(t, 640, 15, TILE_H), tile: true }),
   'snow-fall-a': (t) => ({ dy: stepped(t, 3800, 30, TILE_H), tile: true }),
   'snow-fall-b': (t) => ({ dy: stepped(t, 5400, 30, TILE_H, -2100), tile: true }),
   'drift-a':     (t) => ({ dy: stepped(t, 6500, 30, TILE_H), tile: true }),

@@ -376,9 +376,10 @@ const range = (a, b) => Array.from({ length: b - a }, (_, i) => a + i);
 const APERTURE = { x0: 27, x1: 66, y0: 4, y1: 33 };   // 실측: 여기만 하늘이 보여야 한다
 const WALL_Y1 = 48;                                    // 49부터는 바닥
 
-/** 벽 평면 — 개구부를 뺀 전 영역을 벽 텍스처로 채운다.
- *  소스 열을 고정하면 창문과 겹쳐 하늘이 새어 나온다 →
- *  **행마다 그 행에서 실제로 벽인 열들** 중에서 골라 온다. */
+/** 벽 한 장 — 측정 텍스처(wallRects) + 그것으로 메운 나머지. 개구부는 창 하나뿐.
+ *  메움은 **행마다 그 행에서 실제로 벽인 열들**에서 골라 온다
+ *  (소스 열을 고정하면 창문과 겹쳐 하늘이 새어 나온다).
+ *  메움과 원본이 같은 질감이라 둘을 나눠 둘 이유가 없어 한 그룹으로 합쳤다. */
 function wallPlane(wallRects) {
   const byRow = new Map();                      // y -> Map(x -> slot)
   for (const [x, y, w, h, slot] of wallRects)
@@ -397,6 +398,7 @@ function wallPlane(wallRects) {
     if (!carry) continue;
     for (const x of range(AX0, AX1)) {
       if (x >= APERTURE.x0 && x <= APERTURE.x1 && y >= APERTURE.y0 && y <= APERTURE.y1) continue;
+      if (row && row.has(x)) { out.push([y, x, row.get(x)]); continue; }   // 원본 질감 우선
       const sx = carry.src[(((x % carry.src.length) + carry.src.length) % carry.src.length)];
       out.push([y, x, carry.row.get(sx)]);
     }
@@ -450,35 +452,52 @@ function drift(slot, dens, salt) {
   return emitRows(cells);
 }
 
-/** 구름 — 전폭으로 흐르는 덩어리.
- *  가로로 균일한 띠를 쌓으면 하늘 그라디언트와 겹쳐 **가로 줄무늬**로 읽힌다.
- *  → 띠가 아니라 중심이 흩어진 뭉게구름 덩어리를 겹쳐 세로로도 변화를 준다. */
-const PUFFS = [
-  [-10, 9, 15, 4.0], [12, 13, 12, 3.4], [30, 7, 14, 3.8], [48, 12, 13, 3.2],
-  [66, 8, 15, 4.2], [84, 14, 12, 3.0], [100, 9, 14, 3.6], [116, 13, 13, 3.4],
-  [2, 18, 11, 2.4], [40, 19, 12, 2.6], [78, 17, 11, 2.5], [110, 20, 10, 2.2],
+// ─────────────────────────── 구름 ───────────────────────────
+// 도트 뭉게구름의 정석: **밑면은 평평하고, 위는 원을 여러 개 얹어 울퉁불퉁**하다.
+// (실제 적운이 응결고도에서 밑이 잘리기 때문. 밑까지 둥글면 솜뭉치나 연기로 보인다.)
+// 톤은 3단 — 윗면 1px 하이라이트 / 몸통 / 밑면 그늘. 이게 있어야 부피로 읽힌다.
+//
+// [기준선 y, 밑면 x0, 밑면 x1, 로브들 [중심x, 반지름]]
+const CLOUDS = [
+  [12, -14, 6, [[-10, 4.2], [-4, 5.4], [2, 3.6]]],
+  [8, 14, 34, [[19, 4.0], [25, 5.6], [31, 3.4]]],
+  [17, 26, 44, [[31, 3.2], [37, 4.4], [42, 2.8]]],
+  [10, 50, 74, [[56, 4.6], [63, 5.8], [70, 3.8]]],
+  [19, 68, 84, [[73, 3.0], [79, 4.0]]],
+  [13, 88, 110, [[93, 4.2], [100, 5.2], [106, 3.4]]],
+  [8, 104, 122, [[109, 3.4], [116, 4.6]]],
+  [20, 4, 18, [[9, 2.8], [15, 3.6]]],
 ];
+
 function cloudBank() {
-  const cells = new Map();
-  PUFFS.forEach(([cx, cy, rx, ry], pi) => {
-    for (let y = Math.floor(cy - ry) - 1; y <= Math.ceil(cy + ry) + 1; y++) {
-      if (y < 3 || y > 32) continue;
-      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
-        if (x < AX0 || x >= AX1) continue;
-        // 덩어리 윤곽을 저주파 두 개로 울퉁불퉁하게 (원형 티를 없앤다)
-        const lump = 1 + 0.16 * Math.sin(x * 0.42 + pi) + 0.1 * Math.sin(x * 0.15 + pi * 2);
-        const dx = (x - cx) / (rx * lump), dy = (y - cy) / (ry * lump);
-        const d = dx * dx + dy * dy;
-        if (d > 1) continue;
-        if (d > 0.72 && h2(x, y, 90 + pi) < 48) continue;      // 가장자리 성기게
-        // 위가 밝고 아래가 그늘 — 구름이 부피로 읽히게
-        const v = (y - (cy - ry)) / (2 * ry);
-        const tone = v < 0.42 ? '--cloud-1' : '--cloud-2';
-        const key = y * 1000 + (x - AX0);
-        if (!cells.has(key) || tone === '--cloud-1') cells.set(key, [y, x, tone]);
-      }
+  const solid = new Set();                       // "구름 안" 셀 집합
+  const key = (y, x) => y * 1000 + (x - AX0);
+  for (const [baseY, bx0, bx1, lobes] of CLOUDS) {
+    for (const [lx, lr] of lobes)
+      for (let y = Math.floor(baseY - lr); y <= baseY; y++)
+        for (let x = Math.floor(lx - lr); x <= Math.ceil(lx + lr); x++) {
+          if (x < AX0 || x >= AX1 || x < bx0 || x > bx1) continue;
+          const dx = (x - lx) / lr, dy = (y - baseY) / lr;
+          if (dx * dx + dy * dy <= 1) solid.add(key(y, x));
+        }
+    // 로브 사이가 끊기지 않게 밑면 1~2줄을 평평하게 이어 준다
+    for (let x = bx0; x <= bx1; x++) {
+      if (x < AX0 || x >= AX1) continue;
+      solid.add(key(baseY, x));
+      if (x > bx0 && x < bx1) solid.add(key(baseY - 1, x));
     }
-  });
+  }
+  // 톤 배정: 위가 뚫려 있으면 하이라이트, 아래가 뚫려 있으면 밑면 그늘
+  const cells = new Map();                       // 구름끼리 겹치면 중복 방출되므로 맵으로
+  for (const [baseY, bx0, bx1] of CLOUDS) {
+    for (let y = baseY - 8; y <= baseY; y++)
+      for (let x = Math.max(AX0, bx0); x <= Math.min(AX1 - 1, bx1); x++) {
+        if (!solid.has(key(y, x))) continue;
+        const top = !solid.has(key(y - 1, x));
+        const bot = !solid.has(key(y + 1, x));
+        cells.set(key(y, x), [y, x, top ? '--cloud-0' : bot ? '--cloud-2' : '--cloud-1']);
+      }
+  }
   return emitRows([...cells.values()]);
 }
 
@@ -507,7 +526,7 @@ function snowCap() {
 const TAU = Math.PI * 2;
 
 /** 불꽃 프레임 n장. 반환: rects[][] — 렌더러가 t로 골라 그린다 */
-function flameFrames(cx, baseY, w, h, salt, n, tones) {
+function flameFrames(cx, baseY, w, h, salt, n, tones, sparks = 2) {
   const frames = [];
   for (let f = 0; f < n; f++) {
     const cells = [];
@@ -532,11 +551,17 @@ function flameFrames(cx, baseY, w, h, salt, n, tones) {
         cells.push([y, x, tones[k]]);
       }
     }
-    // 불티: 본체 위로 떨어져 나간 점. 자주 튀면 시끄러워 가끔만
-    for (let s = 0; s < 2; s++) {
-      const sy = baseY - h - (h2(f, s, salt + 2) % 3);
-      const sx = pyRound(cx + (h2(f, s, salt + 3) / 100 - 0.5) * w * 0.9);
-      if (h2(f, s, salt + 4) < 28) cells.push([sy, sx, tones[1]]);
+    // 불티: 한 번 생기면 프레임이 지날수록 위로 올라가며 식는다(코어색 → 중간색).
+    // 프레임마다 무관한 위치에 점을 찍으면 "튀는 노이즈"로 보이고 불티로 안 읽힌다.
+    // 불꽃 끝에서 **바로 이어져** 올라와야 한다 — 멀리 떨어지면 그냥 뜬 점이다.
+    for (let s = 0; s < sparks; s++) {
+      const born = (h2(s, 0, salt + 5) % n);              // 이 불티가 생기는 프레임
+      const age = ((f - born) % n + n) % n;
+      if (age > 2) continue;                              // 3프레임만 살아 있는다
+      const sy = baseY - h + 1 - age;
+      const sx = pyRound(cx + (h2(s, 0, salt + 3) / 100 - 0.5) * w * 0.55)
+                 + (age >= 2 ? (h2(s, age, salt + 6) % 3) - 1 : 0);   // 끝에서 옆으로 흔들림
+      cells.push([sy, sx, age === 0 ? tones[2] : tones[1]]);
     }
     frames.push(emitRows(cells));
   }
@@ -559,15 +584,16 @@ export function generateGroups(wallRects = []) {
 
   const v1 = treeV1(), v2 = treeV2();
   const out = {
-    'wall-plane': wallPlane(wallRects),
+    'g-wall': wallPlane(wallRects),        // 측정 질감 + 메움 = 벽 한 장
     'base-scenery': emitRows(scenery),
     // 후광: 해는 작고 단단하게, 달은 크고 부드럽게 (달이 큰 게 예쁘다는 판단)
     'halo-sun': halo(58.5, 17.0, 13.0, 1.55),
     'halo-moon': halo(56.5, 16.5, 17.0, 1.25),
     // 날씨 — 아트 전폭. 창이 잘라주므로 넓혀도 방 안엔 안 보인다
     clouds: cloudBank(),
-    rain: fall('--rain', 4, 2, 100),
-    downpour: fall('--rain', 11, 4, 102, 2),
+    // 폭우가 기준(원래 밀도), 비는 그보다 성기고 짧게
+    rain: fall('--rain', 2, 2, 100),
+    downpour: fall('--rain', 5, 3, 102, 1),
     snow: fall('--snow-p', 5, 1, 104),
     'pt-petals': drift('--t2', 3, 106),
     'pt-leaves': drift('--t1', 3, 108),
@@ -586,10 +612,13 @@ export function generateGroups(wallRects = []) {
     'tree-v2-leaves': emitRows(v2.leaves),
   };
   // 불꽃 프레임 — 그룹 하나당 한 장씩 내보내고 렌더러가 t로 골라 그린다
-  // 실측 위치: 벽난로 불 x8~17/y40~47, 촛불 x6/y28~30
+  // 실측 위치: 벽난로 불 x8~17/y40~47, 초는 심지(x5)가 y28 에서 끝난다.
+  // 촛불을 y30 밑동으로 잡으면 초 기둥을 덮어 **기둥이 타는 것처럼** 보인다 →
+  // 심지 바로 위(y27)에서 시작하는 작은 물방울 하나로.
   flameFrames(12.0, 47, 8.0, 8, 120, FLAME_N, ['--f0', '--f1', '--f3'])
     .forEach((rs, i) => { out[`fire-f${i}`] = rs; });
-  flameFrames(6.5, 30, 2.6, 4, 130, FLAME_N, ['--f0', '--cd2', '--sun1'])
+  // 촛불엔 불티가 없다(있으면 초가 타는 것처럼 보인다). 물방울 하나로 충분.
+  flameFrames(5.5, 27, 3.0, 4, 130, FLAME_N, ['--f0', '--cd2', '--sun1'], 0)
     .forEach((rs, i) => { out[`cflame-f${i}`] = rs; });
   // 아트 좌표 → 캔버스 좌표 (여기서 한 번만 옮긴다)
   for (const rects of Object.values(out)) for (const r of rects) r[0] += OX;
