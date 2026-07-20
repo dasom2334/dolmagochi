@@ -7,6 +7,7 @@
 import { generateGroups, GX, GY, OX, FLAME_N } from './generate.js';
 import { resolve } from './palette.js';
 import { PROPS } from './props.js';
+import { ROOM_PROPS } from './props-room.js';
 import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO, RUG_MARK, contactShadow } from './lights.js';
 import { ROOM_DATA } from './room-data.js';
 import { ANIM, GROUP_ANIM, TILE_H, flameIdx } from './anim.js';
@@ -88,12 +89,16 @@ const Z = [
   // [3] 소품 (선반 안 → 맨틀 → 창턱 → 바닥 깔개 → 바닥 스탠딩)
   'bk-1', 'bk-2', 'bk-3', 'bk-4', 'bk-5', 'bk-6',
   'p-blanket',                                            // 개어 둔 담요 — 책장 아래 칸
-  'p-waterglass',                                         // 러그 옆 바닥
   'p-windchime', 'p-windchime-tubes',                     // 창 오른쪽 벽
   // 창턱 선반 → 그 위 소품 → 돌 방석 → 돌 → 찻잔(돌 방석 옆)
   'sill-shelf', 'sill-plant', 'p-cushion', 'orb', 'p-cushion-front',
   'p-cup', 'p-cup-tea', 'p-cup-steam',
-  'rug', 'orb-rug',
+  'rug',
+  // 물컵은 러그 **뒤가 아니라 옆 바닥**에 놓인 것 — 러그보다 나중에 그려야 한다.
+  // 앞서 러그보다 먼저 그리는 바람에 러그가 컵을 거의 다 덮어, 컵이 점 하나로
+  // 보였다. "그림이 작아서"가 아니라 z-순서 문제였다.
+  'p-waterglass',
+  'orb-rug',
   // 담요는 돌보다 **나중** — 그래야 감싼 것으로 보인다
   'p-blanket-wrap',
   // 펼친 책은 러그 돌 **앞**에 — 돌이 읽고 있는 것처럼 보여야 하므로 돌보다 나중
@@ -123,12 +128,22 @@ const FIRE_PARTS = { 'fire-body': 'fire', 'lamp-glow': 'lamp',
 /** 광원 → 그 광원을 내는 소품. 소품이 없으면(=아직 안 샀으면) 빛도 없어야 한다 */
 const LIGHT_SOURCE = { 'lp-fire': ['g-fireplace', 'fire'], 'lp-lamp': ['lamp'] };
 
-/** 접지 그림자를 붙일 소품 — 바닥·선반에 **놓이는** 것들.
- *  벽에 걸린 것(풍경), 그림자 자체(돌 자국), 유리 바깥의 새는 뺀다 —
- *  하늘을 배경으로 한 새 발밑의 검은 띠는 접지가 아니라 때로 보인다. */
-const GROUNDED = ['p-cushion', 'p-cup', 'p-blanket', 'p-blanket-wrap',
-  'p-waterglass', 'p-openbook-1', 'p-openbook-2', 'p-openbook-3',
-  'p-openbook-4', 'p-openbook-5', 'p-openbook-6'];
+/** 접지 그림자 — **기본값이 "붙는다"** 여야 한다.
+ *
+ *  예전엔 손으로 적는 허용 목록이었다. 그래서 소품을 새로 그릴 때마다 여기
+ *  추가하는 걸 잊었고(화분이 그랬다), 그 소품만 접지 그림자가 없어 방에
+ *  놓인 게 아니라 **떠 있는 것처럼** 보였다. 빠뜨린 걸 눈으로 찾기도 어렵다.
+ *  → ROOM_PROPS 전체가 자동으로 들어오고, **안 붙는 것만** 아래에 적는다.
+ *  새 소품은 아무것도 안 해도 그림자를 받는다. */
+const NOT_GROUNDED = new Set([
+  'p-cushion-front', 'p-cup-tea', 'p-cup-steam',  // 다른 소품의 부품 — 부모가 이미 갖는다
+  'p-windchime', 'p-windchime-tubes',             // 벽에 걸린 것
+  'p-bird',                                       // 유리 바깥·하늘 배경 — 발밑 검은 띠는 때로 보인다
+]);
+const GROUNDED = [
+  ...Object.keys(ROOM_PROPS),
+  ...[1, 2, 3, 4, 5, 6].map((n) => `p-openbook-${n}`),  // 절차 생성이라 ROOM_PROPS 에 없다
+].filter((id) => !NOT_GROUNDED.has(id));
 const CONTACT = Object.fromEntries(GROUNDED.map((id) => [id, null]));
 
 /** 상태별 표시 여부 — CSS 셀렉터 조합 대신 평범한 조건식으로 */
