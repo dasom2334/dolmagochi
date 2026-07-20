@@ -213,6 +213,25 @@ export const RUG_MARK = (() => {
   return bandRects(cells, [0.13, 0.24], '#1a0f16');
 })();
 
+/** 접지 그림자 — 소품이 방에 **놓인** 것처럼 보이게 하는 결정적 한 겹.
+ *  없으면 아무리 잘 그려도 배경에 붙인 스티커로 보인다("분위기를 모르겠다"의 정체).
+ *  밑변 폭에서 시작해 한 줄마다 좁아지며 옅어진다. */
+export function contactShadow(rects, rows = 2) {
+  if (!rects || !rects.length) return [];
+  let x0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const [x, y, w, h] of rects) {
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x + w - 1); y1 = Math.max(y1, y + h - 1);
+  }
+  const out = [];
+  for (let k = 0; k < rows; k++) {
+    const inset = k + 1, a = x0 + inset, b = x1 - inset;
+    if (b < a) break;
+    out.push({ r: [a, y1 - k, b - a + 1, 1], fill: '#140c14',
+               alpha: [0.30, 0.16, 0.08][k] ?? 0.06, blend: 'multiply' });
+  }
+  return out;
+}
+
 // 앰비언트 오클루전 — 빛이 닿지 않는 곳. 세 갈래를 합쳐 최대값을 쓴다:
 //  ① 좌우 벽 구석  ② 천장·벽 접합  ③ 벽↔바닥 접합(가장 깊다)
 // 벽 자체는 평평하게 두고 명암은 전부 여기서 준다 — 그래야 시간대에 따라 명암이 움직인다.

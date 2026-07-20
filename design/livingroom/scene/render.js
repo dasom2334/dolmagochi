@@ -7,7 +7,7 @@
 import { generateGroups, GX, GY, OX, FLAME_N } from './generate.js';
 import { resolve } from './palette.js';
 import { PROPS } from './props.js';
-import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO, RUG_MARK } from './lights.js';
+import { OVERLAYS, LIGHTS, OCCLUDERS, VIGNETTE, AO, RUG_MARK, contactShadow } from './lights.js';
 import { ROOM_DATA } from './room-data.js';
 import { ANIM, GROUP_ANIM, TILE_H, flameIdx } from './anim.js';
 
@@ -88,7 +88,7 @@ const Z = [
   'p-waterglass',                                         // 맨틀 위
   'p-windchime', 'p-windchime-tubes',                     // 창 오른쪽 벽
   // 창턱 선반 → 그 위 소품 → 돌 방석 → 돌 → 찻잔(돌 방석 옆)
-  'sill-shelf', 'sill-plant', 'p-bird', 'p-cushion', 'orb',
+  'sill-shelf', 'sill-plant', 'p-cushion', 'orb', 'p-cushion-front', 'p-bird',
   'p-cup', 'p-cup-tea', 'p-cup-steam',
   'rug', 'p-blanket', 'orb-rug',
   // 펼친 책은 러그 돌 **앞**에 — 돌이 읽고 있는 것처럼 보여야 하므로 돌보다 나중
@@ -98,7 +98,7 @@ const Z = [
 
 /** 상점에서 사기 전까지는 없는 것 — 패널에서 기본으로 꺼 둔다 */
 export const SHOP_PROPS = ['p-cushion', 'p-rockingchair', 'p-cup',
-  'p-windchime', 'p-windchime-tubes', 'p-blanket', 'p-waterglass', 'p-bird'];
+  'p-windchime', 'p-blanket', 'p-waterglass', 'p-bird'];
 
 /** 발광체 — 오버레이 위라 밤에도 어두워지지 않는다 */
 // 향초는 상점에서 '책'으로 교체됐다 → 씬에서 제거(촛대·촛불·촛불광원 전부)
@@ -111,9 +111,18 @@ const FRAMED = { 'fire-body': 'fire-f' };
 const OCC_OF = { orb: 'occ-orb', 'orb-rug': 'occ-orb2', 'sill-plant': 'occ-plant',
                  'floor-props': 'occ-props' };
 /** 발광 부품 → 그것을 가진 소품. 소품을 끄면 화염·전구도 함께 꺼진다 */
-const FIRE_PARTS = { 'fire-body': 'fire', 'lamp-glow': 'lamp' };
+const FIRE_PARTS = { 'fire-body': 'fire', 'lamp-glow': 'lamp',
+                     'p-windchime-tubes': 'p-windchime',
+                     'p-cushion-front': 'p-cushion' };
 /** 광원 → 그 광원을 내는 소품. 소품이 없으면(=아직 안 샀으면) 빛도 없어야 한다 */
 const LIGHT_SOURCE = { 'lp-fire': ['g-fireplace', 'fire'], 'lp-lamp': ['lamp'] };
+
+/** 접지 그림자를 붙일 소품 — 바닥·선반에 **놓이는** 것들.
+ *  벽에 걸린 것(풍경)과 그림자 자체(돌 자국)는 뺀다. */
+const GROUNDED = ['p-cushion', 'p-cup', 'p-blanket', 'p-rockingchair', 'p-bird',
+  'p-waterglass', 'p-openbook-1', 'p-openbook-2', 'p-openbook-3',
+  'p-openbook-4', 'p-openbook-5', 'p-openbook-6'];
+const CONTACT = Object.fromEntries(GROUNDED.map((id) => [id, null]));
 
 /** 상태별 표시 여부 — CSS 셀렉터 조합 대신 평범한 조건식으로 */
 function visible(id, st) {
@@ -288,6 +297,12 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
 
   if (!layerOff.has('shadow')) {
     ctx.globalCompositeOperation = 'multiply';
+    // 소품 접지 그림자 — 보이는 것만. 이게 있어야 방에 놓인 것으로 읽힌다
+    for (const id of GROUNDED) {
+      if (!on(id)) continue;
+      if (!CONTACT[id]) CONTACT[id] = contactShadow(entry(id)?.rects);
+      for (const c of CONTACT[id]) { ctx.globalAlpha = c.alpha; ctx.fillStyle = c.fill; ctx.fillRect(...c.r); }
+    }
     // 돌이 자리를 비웠을 때만 눌린 자국이 드러난다
     if (st.orb !== 'rug' && !layerOff.has('rug-mark'))
       for (const m of RUG_MARK) { ctx.globalAlpha = m.alpha; ctx.fillStyle = m.fill; ctx.fillRect(...m.r); }

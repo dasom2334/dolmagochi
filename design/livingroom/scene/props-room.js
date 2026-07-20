@@ -30,25 +30,26 @@ export const PROP_SLOTS = {
 
 /** [x, y, 격자, 문자→슬롯] */
 export const ROOM_PROPS = {
-  // 돌 방석 — 창턱 선반의 돌 자리. 창턱 돌은 x53~62(중심 57.5), 밑변 y35.
-  // 돌 폭(10)보다 훨씬 넓게(18) 깔아야 양옆으로 삐져나와 '깔개'로 읽힌다 —
-  // 좁으면 돌 밑에 낀 주황 선으로만 보인다.
-  'p-cushion': [49, 33, [
-    '..oooooooooooooo..',
-    '.ommmmhhhhhhmmmmo.',
-    'oommmmmmmmmmmmmmoo',
+  // 돌 방석 — 창턱 돌(x53~62, 밑변 y35)이 **파묻힌** 것처럼 보여야 한다.
+  // 평평한 깔개를 돌 밑에 깔면 그냥 돌 밑의 판이다. 푹신함은 두 가지로 만든다:
+  //   ① 위로 볼록한 실루엣(가운데가 높고 가장자리로 흘러내림)
+  //   ② 앞 테두리가 **돌 밑동을 덮는다**(p-cushion-front, 돌보다 나중에 그린다)
+  'p-cushion': [49, 31, [
+    '....oooooooo....',
+    '..oommmmmmmmoo..',
+    '.ommmmmmmmmmmmo.',
+    'ommmmmmmmmmmmmmo',
+    'ommmmmmmmmmmmmmo',
+  ], { o: '--cu0', m: '--cu1' }],
+
+  // 돌 양옆으로 부풀어 오른 부분 + 앞 테두리. 돌보다 **나중에** 그려 밑동을 덮는다
+  'p-cushion-front': [49, 34, [
+    'ommh..........mo',
+    'oommhhhhhhhhmmoo',
   ], { o: '--cu0', m: '--cu1', h: '--cu2' }],
 
 
 
-  // 헌책 — 바닥에 쌓아 둔 책더미
-  'p-bookstack': [30, 63, [
-    '.aaaaaaa.',
-    'aaaaaaaaa',
-    '.bbbbbbb.',
-    'bbbbbbbbb',
-    '.ccccccc.',
-  ], { a: '--b2x0', b: '--b4x0', c: '--b6x0' }],
 
   // 담요 — 돌이 없는 날 개어 둔 자리 (대사: dlg.absent.care)
   'p-blanket': [56, 64, [
@@ -90,20 +91,22 @@ export const ROOM_PROPS = {
 
 
 
-  // 찻잔 — 돌 방석 왼쪽, 창턱 선반 위(밑변 y35). 받침·손잡이·림까지 세밀화.
-  // 오른쪽에 두면 스탠드(art x70~77)와 겹친다.
+  // 찻잔 — 돌 방석 왼쪽, 창턱 선반 위(밑변 y35). 오른쪽은 스탠드와 겹친다.
+  // 빈 잔은 **안쪽 벽(밝음)과 바닥(그늘)**이 보여야 비었다고 읽힌다 —
+  // 안을 통째로 어둡게 칠하면 그냥 검은 구멍이다.
   'p-cup': [40, 31, [
-    '.tttttt.',
-    'cDDDDDch',
-    'cbbbbbcH',
-    '.cbbbc..',
-    'ssssssss',
-  ], { t: '--cer2', c: '--cer1', b: '--cer0', D: '--st0', h: '--cer1', H: '--cer0', s: '--cer0' }],
+    '.tttttt..',
+    'cIIIIIIch',
+    'cbeeeebcH',
+    '.cbbbbc..',
+    'ssssssss.',
+  ], { t: '--cer2', I: '--cer1', e: '--st0', c: '--cer1', b: '--cer0',
+       h: '--cer1', H: '--cer0', s: '--cer0' }],
 
-  // 내용물 — '따뜻한 차'를 채운 상태에만
+  // 내용물 — 채운 상태에만. 잔 안쪽을 덮는다
   'p-cup-tea': [41, 32, [
-    'LLLLL',
-    '.LLL.',
+    'LLLLLL',
+    '.LLLL.',
   ], { L: '--lqt' }],
 
   // 김 — 채운 상태에만. 오르며 옅어진다
@@ -140,8 +143,8 @@ export const ROOM_PROPS = {
     '..p..',
   ], { t: '--wd0', m: '--mt2', p: '--wd1' }],
 
-  // 창턱에 앉은 새 (대사: fore.bird)
-  'p-bird': [40, 31, [
+  // 창턱에 앉은 새 (대사: fore.bird). 찻잔 자리와 겹쳐 방석 오른쪽으로 옮김
+  'p-bird': [65, 31, [
     '.BB..',
     'BBBBk',
     'bBBB.',
