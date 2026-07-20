@@ -3,7 +3,12 @@
 
 import { PROP_SLOTS } from './props-room.js';
 
-/** 시간·계절·날씨와 무관한 기본값 */
+/** 시간·계절·날씨와 무관한 기본값.
+ *
+ *  주의: `...PROP_SLOTS` 가 **맨 앞**이라 아래 정의가 같은 이름을 쓰면 조용히 이긴다.
+ *  실제로 담요를 --fb*(fabric) 로 잡았다가 바닥(floor board) --fb* 와 부딪혀,
+ *  담요가 내내 바닥 색으로 그려졌다. 에러도 경고도 없어서 찾는 데 오래 걸렸다.
+ *  → 아래 assertPropSlots() 가 겹치면 즉시 던진다. */
 export const BASE = {
     ...PROP_SLOTS,
     "--page-bg": "#241627",
@@ -108,4 +113,13 @@ export function resolve(state, roomPalette = {}) {
   for (const { when, vars } of COMPOUND)
     if (Object.entries(when).every(([k, v]) => state[k] === v)) Object.assign(p, vars);
   return p;
+}
+
+// PROP_SLOTS 가 BASE 뒤쪽 정의에 덮이면 소품 색이 조용히 무시된다 → 시작할 때 잡는다.
+// (이름 충돌은 에러가 안 나므로 눈으로는 못 찾는다. 담요 --fb* 사고를 겪고 넣었다.)
+for (const k of Object.keys(PROP_SLOTS)) {
+  if (BASE[k] !== PROP_SLOTS[k]) {
+    throw new Error(`팔레트 슬롯 이름 충돌: ${k} — PROP_SLOTS(${PROP_SLOTS[k]})가 `
+      + `BASE 의 뒷정의(${BASE[k]})에 덮였다. 소품 슬롯 이름을 바꿀 것.`);
+  }
 }
