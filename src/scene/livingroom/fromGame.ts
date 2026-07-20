@@ -52,17 +52,40 @@ export function sceneStateFrom(
     // 돌은 러그가 제자리다. 부재 중엔 'sill' 로 둔다 — 돌 자체는 hiddenLayers 가
     // 끄고, 러그에는 **눌린 자국(rug-mark)** 만 남는다. 렌더러가 orb!=='rug' 일 때만
     // 자국을 그리기 때문이다. 'rug' 로 두면 자국도 안 나와 빈 러그가 된다.
-    orb: isRockPresent(state) ? 'rug' : 'sill',
+    orb: orbPresent(state) ? 'rug' : 'sill',
     tree: TREE_PLACEHOLDER,
     window: windowOpen ? 'open' : 'closed',
-    cup: state.items['cup']?.placed ? 'full' : 'empty',
+    // 찻잔 **내용물**은 차를 사야 생긴다. 잔(p-cup)과 별개 품목이라, 잔만 놓고
+    // 김이 오르는 차가 담겨 있으면 차를 사는 의미가 없어진다.
+    cup:
+      state.items['cup']?.placed && (state.supplies['tea'] ?? 0) > 0
+        ? 'full'
+        : 'empty',
     readBook: readBookOf(state),
   };
 }
 
-/** 러그에 펼쳐 놓은 책의 권수 0~6 — 권마다 표지·책등 색이 다르다. */
+/** 돌이 러그에 있나 — 심고 나면 돌은 없다(창밖 나무가 됐다).
+ *  isRockPresent 만 보면, 방문 중에 심기가 성사된 판에서 돌이 러그에 영원히
+ *  남는다. 나무의 방이라는 자막 밑에 돌이 앉아 있게 된다. */
+function orbPresent(state: GameState): boolean {
+  return isRockPresent(state) && !state.planted;
+}
+
+/** 러그에 펼친 책 — **꺼내 온 한 권의 번호**다(0 = 안 읽는 중). 권수가 아니다.
+ *
+ *  렌더러는 이 번호로 세 가지를 한꺼번에 정한다(render.js `visible`):
+ *    · p-openbook-N 을 러그에 편다
+ *    · 그 책의 책장 칸 bk-N 을 비운다 (같은 책이 두 군데 있을 수 없으니까)
+ *    · 담요를 돌에 두른다 (0 이면 책장 옆에 개어 둔다)
+ *
+ *  그래서 **책읽기 세션 중에만** 켠다. 여기에 소장 권수를 넣었더니 책을 사는
+ *  순간부터 러그에 책이 영영 펼쳐져 있고, 책장 한 칸이 이유 없이 비고,
+ *  개어 둔 담요는 볼 수 없었다. */
 function readBookOf(state: GameState): SceneState['readBook'] {
-  return Math.min(6, shelvedBooks(state)) as SceneState['readBook'];
+  if (state.phase !== 'focus' || state.selectedAction !== 'read') return 0;
+  // 꺼내 오는 건 **가진** 책이라야 한다 — 없는 칸을 비워 봐야 보이지도 않는다
+  return shelvedBooks(state) as SceneState['readBook'];
 }
 
 /** 1번째 칸 — 배치형 책(책·헌책). 소지 여부로 센다. */
@@ -138,14 +161,12 @@ export function hiddenLayers(
     off.add('tree-v1');   // 안 쓰는 쪽(침엽)만 끈다 — TREE_PLACEHOLDER 참고
   }
 
-  // 돌 부재 — 돌과 그 부속(방석 앞판·자국)을 함께 끈다.
-  // 담요는 남긴다: 돌이 없어도 담요는 그 자리에 있는 게 자연스럽다.
   // 돌 상태 오버레이 — 기본은 전부 끄고 해당하는 것만 켠다.
   // 기존 RockSprite 가 하던 표현이라 캔버스로 갈아 끼우며 통째로 빠져 있었다.
   const ORB_FX = ['orb-moss', 'orb-wet', 'orb-snow',
     'orb-sprout-bud', 'orb-sprout-thrive', 'orb-sprout-wither'];
   const showFx = new Set<string>();
-  if (isRockPresent(state)) {
+  if (orbPresent(state)) {
     if (placed('moss')) showFx.add('orb-moss');
     if (state.session.wetness === 'wet') showFx.add('orb-wet');
     if (state.session.wetness === 'snowy') showFx.add('orb-snow');
@@ -154,7 +175,9 @@ export function hiddenLayers(
   }
   for (const id of ORB_FX) if (!showFx.has(id)) off.add(id);
 
-  if (!isRockPresent(state)) {
+  // 돌 부재 — 러그의 돌을 끈다. 창턱 자리(orb)는 애초에 안 쓰지만 같이 닫아 둔다.
+  // 담요는 남긴다: 돌이 없어도 담요는 그 자리에 있는 게 자연스럽다.
+  if (!orbPresent(state)) {
     off.add('orb');
     off.add('orb-rug');
   }

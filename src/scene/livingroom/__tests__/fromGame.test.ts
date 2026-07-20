@@ -142,6 +142,62 @@ describe('돌', () => {
   });
 });
 
+describe('펼친 책 = 꺼내 온 한 권의 번호', () => {
+  // 여기에 소장 권수를 넣었더니 책을 사는 순간부터 러그에 책이 영영 펼쳐져
+  // 있었고, 책장 한 칸이 이유 없이 비었고, 개어 둔 담요는 볼 수 없었다.
+  const reading = (s: GameState) =>
+    ({ ...s, phase: 'focus', selectedAction: 'read' }) as GameState;
+
+  it('안 읽는 중이면 0 — 책을 사도 러그에는 안 펴진다', () => {
+    expect(sceneStateFrom(withItems('book', 'book2'), 0).readBook).toBe(0);
+  });
+
+  it('책읽기 세션 중에만 꺼내 온다', () => {
+    expect(sceneStateFrom(reading(withItems('book')), 0).readBook).toBe(1);
+    expect(sceneStateFrom(reading(withItems('book', 'book2')), 0).readBook).toBe(2);
+  });
+
+  it('가진 책이 없으면 읽어도 0 — 없는 칸을 비울 수는 없다', () => {
+    expect(sceneStateFrom(reading(base), 0).readBook).toBe(0);
+  });
+});
+
+describe('찻잔 내용물은 차를 사야 생긴다', () => {
+  it('잔만 놓으면 빈 잔이다', () => {
+    expect(sceneStateFrom(withItems('cup'), 0).cup).toBe('empty');
+  });
+
+  it('차 재고가 있어야 채워진다', () => {
+    const s = { ...withItems('cup'), supplies: { tea: 1 } } as GameState;
+    expect(sceneStateFrom(s, 0).cup).toBe('full');
+  });
+
+  it('잔이 없으면 차가 있어도 안 채워진다', () => {
+    const s = { ...base, supplies: { tea: 1 } } as unknown as GameState;
+    expect(sceneStateFrom(s, 0).cup).toBe('empty');
+  });
+});
+
+describe('심고 나면 돌은 러그에 없다', () => {
+  // 방문 중에 심기가 성사되면 isRockPresent 가 계속 true 라, 나무의 방이라는
+  // 자막 밑에 돌이 영영 앉아 있었다.
+  const plantedVisiting = {
+    ...withItems('moss'),
+    planted: true,
+    plantedAt: 0,
+    apart: { visiting: true },
+  } as unknown as GameState;
+
+  it('방문 중에 심었어도 러그의 돌은 꺼진다', () => {
+    expect(hiddenLayers(plantedVisiting, false, D).has('orb-rug')).toBe(true);
+    expect(sceneStateFrom(plantedVisiting, 0).orb).toBe('sill');
+  });
+
+  it('돌이 없으니 이끼도 같이 사라진다', () => {
+    expect(hiddenLayers(plantedVisiting, false, D).has('orb-moss')).toBe(true);
+  });
+});
+
 describe('시간·계절·날씨 번역', () => {
   it('게임 twilight 은 씬에서 sunset 이다', () => {
     const st = sceneStateFrom(

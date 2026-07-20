@@ -9,6 +9,7 @@ import { allowedIntimacy, attachQuadrant, attachRate } from '../game/security';
 import { startAbsence, presentState } from '../game/absence';
 import { wipeSave } from '../persistence/persist';
 import { BALANCE } from '../game/balance';
+import { roomOfItem } from '../game/rooms';
 import { btnSmall } from '../components/ui';
 
 /**
@@ -320,8 +321,129 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
     location.reload();
   };
 
+  // 씬 확인용 — 거실 캔버스 씬은 시간·계절·날씨·구매 여부마다 다르게 그려진다.
+  // 실제로 그 조합을 보려면 하루를 기다리거나 소품을 하나씩 사야 해서, 여기서
+  // 표시 축만 직접 갈아 끼운다. 게임 진행에 쓰는 값이 아니라 **눈으로 볼 용도**다.
+  const setSettings = (p: Partial<GameState['settings']>) =>
+    patch((s) => ({ settings: { ...s.settings, ...p } }));
+  const setWetness = (wetness: GameState['session']['wetness']) =>
+    patch((s) => ({ session: { ...s.session, wetness } }));
+  // 거실 소품 일괄 배치/해제 — 게이팅이 맞는지 보려면 켠 방과 끈 방을 번갈아 봐야 한다.
+  // 방은 게임과 **같은 규칙**으로 판정한다. shop.json 의 room 만 보면 벽난로·담요처럼
+  // boosts 로 방이 정해지는 물건이 빠져 "다 놨는데 벽난로가 없다" 가 된다.
+  // moss(돌 부착, 방 무관)는 돌 상태 오버레이 확인에 필요해서 같이 놓는다.
+  const livingItems = gameData.shop
+    .filter((i) => i.id === 'moss' || roomOfItem(i, gameData.rooms) === 'living')
+    .map((i) => i.id);
+  const setLivingItems = (placed: boolean) =>
+    patch((s) => ({
+      items: {
+        ...s.items,
+        ...Object.fromEntries(livingItems.map((id) => [id, { placed }])),
+      },
+    }));
+  // 책장 2번째 칸은 일회용 책의 **누적 구매 수**를 따라간다 (supplies 로는 못 센다)
+  const setReadbooks = (n: number) =>
+    patch((s) => ({
+      memory: { ...s.memory, 'buy-readbook': { w: n, count: n, lastAt: nowMs } },
+    }));
+
+  const placedCount = livingItems.filter((id) => state.items[id]?.placed).length;
+
   return (
     <div style={panelStyle}>
+      <Section label="scene (표시 축만 — 진행과 무관)" />
+      <div style={rowWrap}>
+        <span style={dim}>room</span>
+        {gameData.rooms.map((r) => (
+          <button
+            key={r.id}
+            className="hv"
+            style={state.settings.lastRoom === r.id ? btnOn : btnSmall}
+            onClick={() => setSettings({ lastRoom: r.id })}
+          >
+            {r.id}
+          </button>
+        ))}
+      </div>
+      <div style={rowWrap}>
+        <span style={dim}>time</span>
+        {(['auto', 'day', 'twilight', 'night'] as const).map((v) => (
+          <button
+            key={v}
+            className="hv"
+            style={state.settings.timeOfDay === v ? btnOn : btnSmall}
+            onClick={() => setSettings({ timeOfDay: v })}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+      <div style={rowWrap}>
+        <span style={dim}>season</span>
+        {(['auto', 'spring', 'summer', 'autumn', 'winter'] as const).map((v) => (
+          <button
+            key={v}
+            className="hv"
+            style={state.settings.season === v ? btnOn : btnSmall}
+            onClick={() => setSettings({ season: v })}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+      <div style={rowWrap}>
+        <span style={dim}>weather</span>
+        {(['clear', 'rain', 'downpour', 'snow', 'petals', 'leaves'] as const).map(
+          (v) => (
+            <button
+              key={v}
+              className="hv"
+              style={state.weather === v ? btnOn : btnSmall}
+              onClick={() => patch(() => ({ weather: v }))}
+            >
+              {v}
+            </button>
+          ),
+        )}
+      </div>
+      <div style={rowWrap}>
+        <span style={dim}>돌 젖음</span>
+        {([null, 'wet', 'snowy'] as const).map((v) => (
+          <button
+            key={String(v)}
+            className="hv"
+            style={state.session.wetness === v ? btnOn : btnSmall}
+            onClick={() => setWetness(v)}
+          >
+            {v ?? 'none'}
+          </button>
+        ))}
+      </div>
+      <div style={rowWrap}>
+        <span style={dim}>
+          거실 소품 {placedCount}/{livingItems.length}
+        </span>
+        <button className="hv" style={btnSmall} onClick={() => setLivingItems(true)}>
+          전부 배치
+        </button>
+        <button className="hv" style={btnSmall} onClick={() => setLivingItems(false)}>
+          전부 해제
+        </button>
+        <span style={dim}>일회용 책 누적</span>
+        {[0, 1, 2, 3, 4].map((n) => (
+          <button
+            key={n}
+            className="hv"
+            style={
+              (state.memory['buy-readbook']?.count ?? 0) === n ? btnOn : btnSmall
+            }
+            onClick={() => setReadbooks(n)}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
       <Section label="force" />
       <div style={rowWrap}>
         <button className="hv" style={btnSmall} onClick={toggleAbsence}>
@@ -575,6 +697,14 @@ const rowWrap = {
   flexWrap: 'wrap' as const,
   marginBottom: 4,
 };
+
+/** 지금 고른 값 — 축이 여러 줄이라 어느 게 켜져 있는지 보이지 않으면 못 쓴다.
+ *  border 는 축약형으로 통째로 덮는다 — borderColor 만 얹으면 React 가
+ *  "축약형과 개별 속성을 섞지 말라" 고 경고한다. */
+const btnOn = { ...btnSmall, border: '2px solid #c9c0d4', color: '#f2ead8' };
+
+/** 축 이름 — 버튼과 같은 줄에 두되 눌리는 것처럼 보이면 안 된다 */
+const dim = { color: '#8a7f96', alignSelf: 'center' as const, minWidth: 52 };
 
 function TabBtn({
   label,
