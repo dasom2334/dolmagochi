@@ -61,6 +61,25 @@ function deskPlant() {
   return o;
 }
 
+// ── 책상 스탠드 (책상 위 오른쪽) — 유일한 따뜻한 광원. 갓 + 목 + 받침 ──
+function lamp() {
+  const o = [];
+  o.push(R(38, 30, 5, 3, '#8a6a3a'));             // 갓
+  o.push(R(38, 30, 5, 1, '#a8874a'));             // 갓 윗면
+  o.push(R(39, 33, 3, 1, '#ffe6a8'));             // 전구(밝음)
+  o.push(R(40, 33, 1, 4, METAL.m));               // 목
+  o.push(R(38, 37, 5, 1, METAL.d));               // 받침
+  return o;
+}
+// 스탠드 불빛(emission/glow) — 밤에 켜면 책상을 데운다
+function lampGlow() {
+  return [
+    R(39, 33, 3, 1, '#fff1c0'),
+    [37, 32, 7, 4, '#ffd98a', 0.45],
+    [34, 30, 13, 8, '#ffcf80', 0.22],
+  ];
+}
+
 // ── 협탁 (책상과 침대 사이) — 위에 음료 ──
 function nightstand() {
   const x0 = 58, x1 = 71, top = 38;
@@ -147,6 +166,31 @@ function frames() {
   return o;
 }
 
+// ── 돌 — 타원 덩어리(무광원 회색 + 위 하이라이트 + 밑 그림자). cx=가운데밑, r=반지름 ──
+const ORB = { d: '#5c6470', m: '#7c8490', l: '#9aa2ae', hi: '#b6bcc6' };
+export function orbBall(cx, yBase, r) {
+  const o = [];
+  const ry = Math.round(r * 0.72);
+  for (let dy = -ry; dy <= 0; dy++) {
+    const t = dy / -ry;                       // 1=위, 0=밑변
+    const half = Math.round(Math.sqrt(Math.max(0, 1 - ((dy + ry * 0.15) / ry) ** 2)) * r);
+    if (half <= 0) continue;
+    const y = yBase + dy;
+    // 세로 위치로 명암 3단
+    const c = t > 0.72 ? ORB.hi : t > 0.42 ? ORB.l : t > 0.18 ? ORB.m : ORB.d;
+    o.push(R(cx - half, y, half * 2, 1, c));
+  }
+  o.push(R(cx - 2, yBase - ry + 1, 3, 1, ORB.hi));   // 정수리 하이라이트
+  return o;
+}
+
+// 돌 3자리 — 작업=의자 / 누워있기+침대=침대 / 침대없음=러그
+export const ORB_SPOTS = {
+  chair: () => orbBall(26, 41, 6),     // 의자 좌판 위
+  bed:   () => orbBall(99, 36, 6),     // 이불 위(베개 앞)
+  rug:   () => orbBall(65, 61, 7),     // 러그 중앙
+};
+
 /** 침실 가구 그룹 — { groupId: rects[] }. 렌더러가 z-순서로 그린다. */
 export function bedroomProps() {
   return {
@@ -155,6 +199,8 @@ export function bedroomProps() {
     'bd-desk': desk(),
     'bd-laptop': laptop(),
     'bd-deskplant': deskPlant(),
+    'bd-lamp': lamp(),
+    'bd-lamp-glow': lampGlow(),
     'bd-nightstand': nightstand(),
     'bd-nightdrink': nightDrink(),
     'bd-bed': bed(),
@@ -168,7 +214,14 @@ export function bedroomProps() {
 export const BD_Z = [
   'bd-shelf', 'bd-frames',
   'bd-bed', 'bd-fan', 'bd-nightstand', 'bd-nightdrink',
-  'bd-desk', 'bd-laptop', 'bd-deskplant',
+  'bd-desk', 'bd-laptop', 'bd-deskplant', 'bd-lamp',
   'bd-rug',
   'bd-chair',
+];
+
+// 켤 수 있는 소품 목록(인스펙터 토글용). 라벨은 기술명.
+export const BD_PROPS = [
+  'bd-desk', 'bd-chair', 'bd-laptop', 'bd-deskplant', 'bd-lamp',
+  'bd-nightstand', 'bd-nightdrink', 'bd-bed', 'bd-fan',
+  'bd-rug', 'bd-shelf', 'bd-frames',
 ];

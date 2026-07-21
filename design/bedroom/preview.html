@@ -18,13 +18,16 @@
 </style>
 <canvas id="cv" width="128" height="72"></canvas>
 <div class="row" id="time"></div>
+<div class="row" id="season"></div>
 <div class="row" id="weather"></div>
+<div class="row" id="orb"></div>
+<div class="row" id="props"></div>
 
 <script type="module">
 import { generateGroups } from '../livingroom/scene/generate.js';
 import { resolve } from '../livingroom/scene/palette.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
-import { bedroomProps, BD_Z } from './geom.js';
+import { bedroomProps, BD_Z, BD_PROPS, ORB_SPOTS } from './geom.js';
 
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -93,7 +96,12 @@ function drawFrame() {
   ctx.fillRect(x0 - FRAME - 1, y1 + FRAME, x1 - x0 + 1 + 2 * (FRAME + 1), 1);
 }
 
-const state = { time: 'night', season: 'summer', weather: 'clear' };
+const state = {
+  time: 'night', season: 'summer', weather: 'clear',
+  orb: 'chair',                       // none / chair / bed / rug
+  lamp: true,                          // 스탠드 광원 on/off
+  off: new Set(),                      // 끈 소품 id
+};
 
 // rgba(r,g,b,a) 의 알파에 k 를 곱한다 (render.js scaleAlpha 이식)
 function scaleAlpha(css, k) {
@@ -156,13 +164,26 @@ function draw() {
   drawWall();
   drawFrame();
   drawRects(groups['g-floor'], pal);
-  // 5) 가구 (z-순서). 리터럴 색이라 팔레트 무관.
+  // 5) 가구 (z-순서). 끈 소품·스탠드 발광은 건너뛴다. 리터럴 색이라 팔레트 무관.
   const props = bedroomProps();
-  for (const id of BD_Z) if (props[id]) drawRects(props[id], pal);
+  for (const id of BD_Z) {
+    if (id === 'bd-lamp-glow') continue;         // 발광은 오버레이 뒤에
+    if (state.off.has(id)) continue;
+    // 스탠드 몸체는 스탠드가 켜졌든 아니든 보인다(소품이라). glow 만 광원 토글.
+    if (props[id]) drawRects(props[id], pal);
+  }
+  // 5.5) 돌 — 선택 자리에. 지지 가구 위에 얹히므로 가구 뒤에 그린다.
+  if (state.orb !== 'none' && ORB_SPOTS[state.orb]) drawRects(ORB_SPOTS[state.orb](), pal);
   // 6) 색감 오버레이 — 시간 → 날씨 (맑음은 오버레이 없음)
   ctx.globalCompositeOperation = 'source-over';
   applyOverlay(`light-${state.time}`);
   applyOverlay(`light-${state.weather}`);
+  // 6.5) 스탠드 불빛(emission) — 밤에 켜면 방보다 안 어두워진다. 오버레이 뒤에 얹는다.
+  if (state.lamp && !state.off.has('bd-lamp')) {
+    ctx.globalCompositeOperation = 'lighter';
+    drawRects(props['bd-lamp-glow'], pal);
+    ctx.globalCompositeOperation = 'source-over';
+  }
   // 7) 비네트 — 가장자리를 눌러 시선을 모은다 (거실 것 재사용)
   ctx.globalCompositeOperation = 'multiply';
   for (const v of VIGNETTE) { ctx.globalAlpha = v.alpha; ctx.fillStyle = v.fill; ctx.fillRect(...v.r); }
@@ -170,10 +191,11 @@ function draw() {
   ctx.globalAlpha = 1;
 }
 
-// ── 토글 UI (시간·날씨) ──
-function pager(elId, key, opts) {
+// ── 인스펙터 UI ──
+// 단일 선택 행(시간·계절·날씨·돌)
+function pick(elId, label, key, opts) {
   const el = document.getElementById(elId);
-  el.innerHTML = `<span class="lbl">${elId}</span>`;
+  el.innerHTML = `<span class="lbl">${label}</span>`;
   for (const o of opts) {
     const b = document.createElement('button');
     b.textContent = o;
@@ -182,9 +204,30 @@ function pager(elId, key, opts) {
     el.appendChild(b);
   }
 }
+// 소품 다중 토글 (끈 것은 회색)
+function propRow() {
+  const el = document.getElementById('props');
+  el.innerHTML = `<span class="lbl">소품</span>`;
+  for (const id of BD_PROPS) {
+    const b = document.createElement('button');
+    b.textContent = id.replace('bd-', '');
+    b.className = state.off.has(id) ? '' : 'on';
+    b.onclick = () => { state.off.has(id) ? state.off.delete(id) : state.off.add(id); refresh(); };
+    el.appendChild(b);
+  }
+  // 스탠드 광원 on/off (소품과 별개 — 불만 끈다)
+  const lb = document.createElement('button');
+  lb.textContent = state.lamp ? '스탠드불 ▲' : '스탠드불 ▽';
+  lb.className = state.lamp ? 'on' : '';
+  lb.onclick = () => { state.lamp = !state.lamp; refresh(); };
+  el.appendChild(lb);
+}
 function refresh() {
-  pager('time', 'time', ['day', 'sunset', 'night']);
-  pager('weather', 'weather', ['clear', 'cloud', 'fog', 'rain', 'snow', 'petals']);
+  pick('time', 'time', 'time', ['day', 'sunset', 'night']);
+  pick('season', 'season', 'season', ['spring', 'summer', 'autumn', 'winter']);
+  pick('weather', 'weather', 'weather', ['clear', 'cloud', 'fog', 'rain', 'downpour', 'snow', 'petals']);
+  pick('orb', '돌', 'orb', ['none', 'chair', 'bed', 'rug']);
+  propRow();
   draw();
 }
 refresh();
