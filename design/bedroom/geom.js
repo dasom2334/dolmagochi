@@ -13,18 +13,22 @@ import { ball, rim, stoneRows, STONE_ASPECT, h2, emitRows } from '../livingroom/
 // SCENE-RULES: 명암은 광원 레이어가 만든다 — 러그는 질감(무늬·테두리)만 갖는다.
 // 거실 rugCells 와 동일 구조: 외곽 어두운 단 → 밝은 테두리 줄 → 무늬 필드.
 // 침실 자리(가구 사이 앞쪽 중앙)에 맞춘 사다리꼴. 색은 거실 러그 슬롯(--rg0..4) 공유.
-const RUG_Y0 = 53, RUG_Y1 = 68, RUG_CX = 66;
-function rugSpan(y) {
-  const t = (y - RUG_Y0) / (RUG_Y1 - RUG_Y0);
-  const hw = 22 + 10 * t;                      // 뒤(위) 좁고 앞(아래) 넓게 = 원근
-  return [Math.round(RUG_CX - hw), Math.round(RUG_CX + hw)];
-}
-export function bedroomRug() {
+const RUG_Y0 = 53, RUG_Y1 = 68, RUG_CX = 66, RUG_HW_BACK = 22, RUG_HW_FRONT = 32;
+// opts 로 위치·크기 조절 (v4 편집 Phase 2). 기본값이면 원본과 동일.
+export function bedroomRug(opts = {}) {
+  const dy = opts.dy ?? 0;                      // 앞뒤 통이동
+  const cx = opts.cx ?? RUG_CX, y0 = (opts.y0 ?? RUG_Y0) + dy, y1 = (opts.y1 ?? RUG_Y1) + dy;
+  const hwB = opts.hwBack ?? RUG_HW_BACK, hwF = opts.hwFront ?? RUG_HW_FRONT;
+  const rugSpan = (y) => {
+    const t = (y - y0) / (y1 - y0);
+    const hw = hwB + (hwF - hwB) * t;          // 뒤(위) 좁고 앞(아래) 넓게 = 원근
+    return [Math.round(cx - hw), Math.round(cx + hw)];
+  };
   const out = [];
-  for (let y = RUG_Y0; y <= RUG_Y1; y++) {
+  for (let y = y0; y <= y1; y++) {
     const [x0, x1] = rugSpan(y);
     for (let x = x0; x <= x1; x++) {
-      const din = Math.min(x - x0, x1 - x, y - RUG_Y0, RUG_Y1 - y);
+      const din = Math.min(x - x0, x1 - x, y - y0, y1 - y);
       let tone;
       if (din === 0) tone = '--rg0';
       else if (din === 1) tone = '--rg1';

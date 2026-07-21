@@ -106,8 +106,9 @@ export function render(cv, state, off = new Set(), t = 0) {
   //     절차 바닥은 무광원 알베도(팔레트 슬롯)라 두 문제를 동시에 없앤다. 영역도 y49~ 로 같다.
   if (!off.has('g-wall')) paint(ctx, ART['bd-wall'], pal);
   if (!off.has('g-floor')) paint(ctx, prev ? ART['bd-floor'] : groups['g-floor'], pal);
-  // 러그 — 현재는 절차 생성(무광원). 이전 버전은 추출 러그를 가구 z에서 그린다.
-  if (!prev && !off.has('bd-rug')) paint(ctx, bedroomRug(), pal);
+  // 러그 — 현재는 절차 생성(무광원). state.rug = 위치·크기 조절(Phase 2).
+  // 이전 버전은 추출 러그를 가구 z에서 그린다.
+  if (!prev && !off.has('bd-rug')) paint(ctx, bedroomRug(state.rug), pal);
 
   // [2.5] 접지 그림자 (multiply) — 소품 밑, SCENE-RULES §3.4. state.shadowK = 세기 배율.
   if (!off.has('shadow')) {
@@ -117,9 +118,13 @@ export function render(cv, state, off = new Set(), t = 0) {
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   }
 
-  // [3] 가구 (무광원 알베도 base). 게이팅.
-  for (const id of (prev ? Z_FURNITURE_PREV : Z_FURNITURE))
-    if (!off.has(id) && ART[id]) paint(ctx, ART[id], pal);
+  // [3] 가구 (무광원 알베도 base). 게이팅. state.offset[id]=[dx,dy] 로 위치 조절(Phase 2).
+  for (const id of (prev ? Z_FURNITURE_PREV : Z_FURNITURE)) {
+    if (off.has(id) || !ART[id]) continue;
+    const o = state.offset?.[id];
+    if (o && (o[0] || o[1])) { ctx.save(); ctx.translate(o[0] | 0, o[1] | 0); paint(ctx, ART[id], pal); ctx.restore(); }
+    else paint(ctx, ART[id], pal);
+  }
   if (!off.has('bd-lamp')) paint(ctx, lampArt(), pal);
 
   // [3.5] 돌 base

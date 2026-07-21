@@ -132,6 +132,7 @@
     let off = ROOMS[roomKey].off();
     let pills = [];
     let editInputs = [];
+    let posTarget = 'bd-bed';
 
     // ── 앰비언트 (방과 무관하게 공유) — 패널 맨 위 ──
     const ambBox = document.getElementById('ambBox');
@@ -222,6 +223,10 @@
       ['비네트',    'vigK',    0, 2, 0.05, 'state'],
     ];
     const hex6 = (c) => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) ? c : '#000000';
+    // Phase 2 위치·크기 대상 (가구 = offset dx/dy, 러그 = cx/dy/폭)
+    const POS_FURN = [['bd-bed', '침대'], ['bd-desk', '책상'], ['bd-chair', '의자'],
+      ['bd-nightstand', '협탁'], ['bd-fan', '선풍기'], ['bd-frames', '액자'],
+      ['bd-shelf', '선반'], ['bd-laptop', '노트북'], ['bd-deskplant', '화분']];
 
     function buildEdit() {
       editBox.innerHTML = ''; editInputs = [];
@@ -231,13 +236,18 @@
       const head = document.createElement('div'); head.id = 'editHead';
       head.append(document.createTextNode('편집 (화면에서만 임시 적용)'));
       const bReset = document.createElement('button'); bReset.textContent = '초기화';
-      bReset.onclick = () => { delete state.override; delete state.vigK; delete state.shadowK; buildEdit(); draw(); };
+      bReset.onclick = () => { delete state.override; delete state.vigK; delete state.shadowK; delete state.offset; delete state.rug; buildEdit(); draw(); };
       const bCopy = document.createElement('button'); bCopy.textContent = '값 복사';
       const out = document.createElement('textarea'); out.id = 'editOut'; out.readOnly = true;
       bCopy.onclick = () => {
         const o = { ...(state.override || {}) };
         if (state.shadowK != null) o.shadowK = state.shadowK;
         if (state.vigK != null) o.vigK = state.vigK;
+        if (state.rug && Object.keys(state.rug).length) o.rug = state.rug;
+        if (state.offset && Object.keys(state.offset).length) {
+          const nz = Object.fromEntries(Object.entries(state.offset).filter(([, v]) => v[0] || v[1]));
+          if (Object.keys(nz).length) o.offset = nz;
+        }
         out.value = Object.keys(o).length ? JSON.stringify(o, null, 2) : '(바꾼 값 없음)';
         out.style.display = 'block';
         navigator.clipboard?.writeText(out.value);
@@ -278,6 +288,43 @@
         };
         row.append(name, inp, val); editBox.append(row);
       }
+
+      // ── 위치·크기 (Phase 2) — 대상 고르고 슬라이더로 이동/크기 ──
+      const posRow = mkRow('위치·크기');
+      const posPills = [];
+      for (const [id, label] of [...POS_FURN, ['rug', '러그']]) {
+        const b = document.createElement('label'); b.textContent = label;
+        b.onclick = () => { posTarget = id; buildPos(); posPills.forEach(([el, f]) => el.classList.toggle('on', f())); };
+        posPills.push([b, () => posTarget === id]); posRow.append(b);
+      }
+      posPills.forEach(([el, f]) => el.classList.toggle('on', f()));
+      const posBox = document.createElement('div'); editBox.append(posBox);
+      const mkSlide = (label, min, max, step, cur, on) => {
+        const row = document.createElement('div'); row.className = 'slide';
+        const n = document.createElement('span'); n.textContent = label;
+        const inp = document.createElement('input'); inp.type = 'range';
+        inp.min = min; inp.max = max; inp.step = step; inp.value = cur;
+        const v = document.createElement('span'); v.textContent = String(cur);
+        inp.oninput = () => { const x = +inp.value; v.textContent = String(x); on(x); draw(); };
+        row.append(n, inp, v); posBox.append(row);
+      };
+      function buildPos() {
+        posBox.innerHTML = '';
+        if (posTarget === 'rug') {
+          const r = state.rug || (state.rug = {});
+          mkSlide('좌우', 40, 92, 1, r.cx ?? 66, (x) => r.cx = x);
+          mkSlide('앞뒤', -8, 8, 1, r.dy ?? 0, (x) => r.dy = x);
+          mkSlide('뒤폭', 8, 42, 1, r.hwBack ?? 22, (x) => r.hwBack = x);
+          mkSlide('앞폭', 12, 48, 1, r.hwFront ?? 32, (x) => r.hwFront = x);
+        } else {
+          const o = state.offset || (state.offset = {});
+          const cur = o[posTarget] || [0, 0];
+          mkSlide('좌우', -30, 30, 1, cur[0], (x) => (o[posTarget] || (o[posTarget] = [0, 0]))[0] = x);
+          mkSlide('상하', -20, 20, 1, cur[1], (x) => (o[posTarget] || (o[posTarget] = [0, 0]))[1] = x);
+        }
+      }
+      buildPos();
+
       editBox.append(out);
     }
     // 오버라이드 안 된 색 스와치는 시간/계절이 바뀌면 현재 실제색으로 갱신
