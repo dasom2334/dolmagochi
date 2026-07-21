@@ -6,7 +6,42 @@
 const R = (x, y, w, h, c, a) => (a == null ? [x, y, w, h, c] : [x, y, w, h, c, a]);
 
 // ── 돌 — 거실에서 생성한 돌 그대로(ball/rim, 팔레트 슬롯 --o0..o4/--wl) ──
-import { ball, rim, stoneRows, STONE_ASPECT } from '../livingroom/scene/generate.js';
+import { ball, rim, stoneRows, STONE_ASPECT, h2, emitRows } from '../livingroom/scene/generate.js';
+
+// ── 러그 — 거실 절차 러그와 **같은 방식**(무광원 팔레트 슬롯 + 무늬)으로 생성한다.
+// 추출 러그(레퍼런스)는 창햇빛이 대각선으로 **구워져** 있어 디라이팅으로도 안 지워졌다.
+// SCENE-RULES: 명암은 광원 레이어가 만든다 — 러그는 질감(무늬·테두리)만 갖는다.
+// 거실 rugCells 와 동일 구조: 외곽 어두운 단 → 밝은 테두리 줄 → 무늬 필드.
+// 침실 자리(가구 사이 앞쪽 중앙)에 맞춘 사다리꼴. 색은 거실 러그 슬롯(--rg0..4) 공유.
+const RUG_Y0 = 53, RUG_Y1 = 68, RUG_CX = 66;
+function rugSpan(y) {
+  const t = (y - RUG_Y0) / (RUG_Y1 - RUG_Y0);
+  const hw = 22 + 10 * t;                      // 뒤(위) 좁고 앞(아래) 넓게 = 원근
+  return [Math.round(RUG_CX - hw), Math.round(RUG_CX + hw)];
+}
+export function bedroomRug() {
+  const out = [];
+  for (let y = RUG_Y0; y <= RUG_Y1; y++) {
+    const [x0, x1] = rugSpan(y);
+    for (let x = x0; x <= x1; x++) {
+      const din = Math.min(x - x0, x1 - x, y - RUG_Y0, RUG_Y1 - y);
+      let tone;
+      if (din === 0) tone = '--rg0';
+      else if (din === 1) tone = '--rg1';
+      else if (din === 2) tone = '--rg4';       // 밝은 테두리 줄
+      else if (din === 3) tone = '--rg3';
+      else {
+        tone = '--rg2';
+        const r = h2(x, y, 40);
+        if (r < 7) tone = '--rg3';
+        else if (r < 12) tone = '--rg1';
+        if (din === 4 && h2(x, y, 41) < 45) tone = '--rg3';
+      }
+      out.push([y, x, tone]);
+    }
+  }
+  return emitRows(out);
+}
 const orbAt = (cx, baseY, w) => {
   const rows = stoneRows(cx, baseY, w, Math.round(w / STONE_ASPECT));
   return { base: ball(rows), rim: rim(rows) };
@@ -24,8 +59,10 @@ export const ORB_SPOTS = {
 // 셰이프 고정 — 색(--wl/--ml)·세기(--wl-a/--ml-a)만 시간이 정한다. screen 블렌드.
 const WIN_CX = 38, WIN_L = 22, WIN_R = 54, WIN_MULL = 37, WIN_SILL = 32;
 const WIN_SPREAD = 0.04, WIN_SKEW = 0.7;
-// 창턱 상단(y33-34)과 바닥(y49+)에만 — 창 밑 벽(y35-48)은 빛 없음(그림자)
-const POOL_ZONES = [[33, 34, 0.85], [49, 71, 1]];
+// 창턱 상단(y33-34)과 바닥(y49+)에만 — 창 밑 벽(y35-48)은 빛 없음(그림자).
+// **앞으로 갈수록 감쇠**(거실 WIN_ZONES 방식) — 창턱 근처가 가장 밝고 전방으로 사그라든다.
+// 균일 1.0 으로 바닥 끝까지 깔면 창빛이 방 전체를 덮어 물리적으로 어색했다(#3).
+const POOL_ZONES = [[33, 34, 0.8], [49, 54, 1.0], [55, 61, 0.72], [62, 71, 0.46]];
 export function windowPool(slot, alphaSlot) {
   const out = [];
   for (const [zy0, zy1, op] of POOL_ZONES) {

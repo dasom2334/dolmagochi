@@ -5,9 +5,10 @@
 // 색·오버레이·비네트·AMBIENT 는 거실 모듈을 그대로 공유. 정적 아트는 레퍼런스 추출본.
 import { generateGroups } from '../livingroom/scene/generate.js';
 import { resolve } from '../livingroom/scene/palette.js';
+import { ROOM_DATA } from '../livingroom/scene/room-data.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
 import { BD_ART, BD_GLASS } from './geom-art.js';
-import { ORB_SPOTS, lampArt, lampGlowArt, windowPool, groundShadows } from './geom.js';
+import { ORB_SPOTS, lampArt, lampGlowArt, windowPool, groundShadows, bedroomRug } from './geom.js';
 
 const GX = 128, GY = 72;
 const groups = generateGroups({});           // 절차 창밖(하늘·산·해달별·구름·날씨)
@@ -16,9 +17,10 @@ const groups = generateGroups({});           // 절차 창밖(하늘·산·해�
 export const SHOP_PROPS = ['bd-desk', 'bd-chair', 'bd-laptop', 'bd-deskplant',
   'bd-nightstand', 'bd-bed', 'bd-fan', 'bd-lamp'];
 
-// z-순서 (뒤→앞) — 창밖은 [1]에서 따로, 여기는 방 구조·가구
+// z-순서 (뒤→앞) — 창밖은 [1]에서 따로, 여기는 방 구조·가구.
+// bd-rug 는 추출본을 안 쓰고 절차 러그(bedroomRug)로 대체 → 목록에서 뺀다.
 const Z_FURNITURE = ['bd-frames', 'bd-shelf', 'bd-bed', 'bd-fan', 'bd-nightstand',
-  'bd-rug', 'bd-desk', 'bd-laptop', 'bd-deskplant', 'bd-chair'];
+  'bd-desk', 'bd-laptop', 'bd-deskplant', 'bd-chair'];
 // 창밖 개별 레이어(거실 '창밖' 토글 대응)
 const SCENERY = ['base-scenery', 'halo-moon', 'halo-sun', 'sun', 'moon', 'stars', 'clouds'];
 
@@ -75,7 +77,8 @@ function orbSprite(state) {
 
 export function render(cv, state, off = new Set(), t = 0) {
   const ctx = cv.getContext('2d');
-  const pal = resolve(state);
+  // 방 팔레트(--rg* 러그 등)까지 넘긴다 — 거실과 동일. 없으면 러그가 #f0f 로 뜬다.
+  const pal = resolve(state, ROOM_DATA.palette);
   ctx.imageSmoothingEnabled = false;
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -87,8 +90,13 @@ export function render(cv, state, off = new Set(), t = 0) {
   for (const id of SCENERY) if (groups[id] && !off.has(id)) paint(ctx, groups[id], pal);
 
   // [2] 벽·창틀(유리 구멍) → 바닥
+  //     바닥은 **거실 절차 바닥(g-floor)** 을 그대로 쓴다. 추출 바닥(BD_ART['bd-floor'])은
+  //     ① 디테일이 거실과 다르고 ② 창햇빛 명암이 구워져 있었다(질감만 있어야 함).
+  //     절차 바닥은 무광원 알베도(팔레트 슬롯)라 두 문제를 동시에 없앤다. 영역도 y49~ 로 같다.
   if (!off.has('g-wall')) paint(ctx, BD_ART['bd-wall'], pal);
-  if (!off.has('g-floor')) paint(ctx, BD_ART['bd-floor'], pal);
+  if (!off.has('g-floor')) paint(ctx, groups['g-floor'], pal);
+  // 러그 — 절차 생성(무광원). 바닥 바로 위, 가구·그림자 아래.
+  if (!off.has('bd-rug')) paint(ctx, bedroomRug(), pal);
 
   // [2.5] 접지 그림자 (multiply) — 소품 밑, SCENE-RULES §3.4
   if (!off.has('shadow')) {

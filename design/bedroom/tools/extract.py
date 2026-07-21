@@ -41,13 +41,60 @@ lum2=lum2**0.92
 alb=alb*(lum2/np.maximum(lum,1e-4))
 l3=alb.mean(2,keepdims=True)
 alb=l3+(alb-l3)*1.38                                    # 채도 ×1.38 (초록 튐 완화)
-albedo=np.clip(alb*255,0,255).astype('uint8')
+albedo=np.clip(alb*255,0,255)                           # float 유지 — 아래 디셰이드까지
+
+# 4.3) 소품 디셰이드 — **질감만 남기고 구운 창햇빛 명암 제거**(사용자 지시 #2).
+#   러그·침대는 레퍼런스에서 창햇빛이 대각선으로 구워져 있다. 휘도 플랫필드(1단계)는
+#   휘도만 펴서 warm/cool **색조** 그라디언트가 남고, punch가 그걸 키웠다.
+#   여기서 소품 bbox마다 **채널별** 저주파 플랫필드로 나눈다:
+#     flat[c] = px[c] * mean[c] / blur[c]   (blur = 소품 크기 반경)
+#   · 저주파(대각선 명암·색조) → 나눠서 평탄화
+#   · 고주파(무늬·결)·외곽선 → 반경보다 작아 그대로 보존
+def deshade(a, box, rad=8):
+    x0,y0,x1,y1=box
+    reg=a[y0:y1+1, x0:x1+1].astype(float)
+    bl=reg.copy()
+    for _ in range(3): bl=box_blur(bl, rad)
+    m=reg.reshape(-1,3).mean(0)
+    reg=reg*(m[None,None,:]/np.maximum(bl,1.0))
+    a[y0:y1+1, x0:x1+1]=np.clip(reg,0,255)
+    return a
+for box in [(77,29,121,49)]:                            # bd-bed (러그는 절차 생성으로 대체됨)
+    albedo=deshade(albedo, box)
+albedo=albedo.astype('uint8')
 Image.fromarray(albedo).resize((128*6,72*6),Image.NEAREST).save(os.path.join(HERE,'albedo_x6.png'))
 
 # 4) 양자화 40색
 q=Image.fromarray(albedo).quantize(colors=40,method=Image.MEDIANCUT).convert('RGB')
-q.save(os.path.join(HERE,'base128.png'))
 b=np.array(q).astype(int)
+
+# 4.5) 엣지보존 디테일 감소 — **외곽선은 그대로, 면 속 색만 뭉갠다**(사용자 지시).
+#   median/blur 는 외곽선을 무너뜨린다. 대신 "고립 스펙클"만 제거한다:
+#   8이웃 중 THR개 이상이 한 색으로 일치하고 중심이 그와 다르면 그 색으로 스냅.
+#   · 평탄한 면 속 홀로 튄 노이즈 → 다수색으로 흡수(면 색 단순화)
+#   · 외곽선/1px 선분 → 선을 따라 같은 색 이웃이 있어 THR을 못 넘겨 **보존**
+def despeckle(a, passes=2, thr=5):
+    H,W,_=a.shape
+    for _ in range(passes):
+        out=a.copy()
+        for y in range(H):
+            for x in range(W):
+                cnt={}
+                for dy in (-1,0,1):
+                    for dx in (-1,0,1):
+                        if dx==0 and dy==0: continue
+                        ny,nx=y+dy,x+dx
+                        if 0<=ny<H and 0<=nx<W:
+                            k=(a[ny,nx,0],a[ny,nx,1],a[ny,nx,2])
+                            cnt[k]=cnt.get(k,0)+1
+                if not cnt: continue
+                mk=max(cnt,key=cnt.get)
+                if cnt[mk]>=thr and mk!=(a[y,x,0],a[y,x,1],a[y,x,2]):
+                    out[y,x]=mk
+        a=out
+    return a
+b=despeckle(b)
+Image.fromarray(b.astype('uint8')).save(os.path.join(HERE,'base128.png'))
 FLOOR_Y=49
 
 BOX={'bd-frames':(69,7,101,24),'bd-shelf':(53,9,71,16),'bd-bed':(77,29,121,49),
