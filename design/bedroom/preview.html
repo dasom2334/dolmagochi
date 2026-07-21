@@ -1,0 +1,132 @@
+<!-- 침실 씬 프로토타입 — 마일스톤 1: 방 껍데기(왼쪽 창 + 벽 + 바닥 + 창밖 하늘).
+     하늘·바닥·팔레트는 거실 모듈에서 그대로 재사용하고, 벽·창만 새로 그린다.
+     소품·광원·돌은 다음 마일스톤. -->
+<!doctype html>
+<meta charset="utf-8" />
+<title>침실 씬 프로토타입 (셸)</title>
+<style>
+  body { margin: 0; background: #15101c; color: #c9c0d4;
+         font: 13px ui-monospace, monospace; display: flex; flex-direction: column;
+         align-items: center; gap: 12px; padding: 16px; }
+  canvas { image-rendering: pixelated; width: 640px; height: 360px;
+           border: 2px solid #3a3350; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; max-width: 660px; }
+  button { border: 2px solid #6b6178; background: transparent; color: #c9c0d4;
+           font: inherit; padding: 4px 9px; cursor: pointer; border-radius: 3px; }
+  button.on { border-color: #c9c0d4; color: #f2ead8; }
+  span.lbl { align-self: center; color: #8a7f96; min-width: 44px; }
+</style>
+<canvas id="cv" width="128" height="72"></canvas>
+<div class="row" id="time"></div>
+<div class="row" id="weather"></div>
+
+<script type="module">
+import { generateGroups } from '../livingroom/scene/generate.js';
+import { resolve } from '../livingroom/scene/palette.js';
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+// 침실 창 — **왼쪽**. 거실은 가운데(x43~83)였다. HD 레퍼런스 눈측을 128 로 환산.
+const WIN = { x0: 16, y0: 5, x1: 49, y1: 32 };   // 하늘이 보이는 개구부(안쪽)
+const FRAME = 2;                                  // 창틀 두께
+const WALL_Y1 = 48;                               // 49부터 바닥
+
+// 방-종속 색(프로토타입 리터럴). 확정되면 room-data 로 뺀다.
+const C = {
+  wall0: '#1a1826', wall1: '#201c30', wallLine: '#141020',
+  frameHi: '#8a6540', frame: '#6b4a2e', frameLo: '#3a2818', sill: '#7a5638',
+};
+
+// 거실의 절차 그룹만(측정 벽·소품 없이). base-scenery=하늘, g-floor=바닥 재사용.
+const groups = generateGroups({});
+
+function slot(pal, v) { return v[0] === '#' ? v : (pal[v] || '#f0f'); }
+
+function drawRects(rects, pal) {
+  for (const [x, y, w, h, v, a] of rects) {
+    ctx.globalAlpha = a == null ? 1 : a;    // floorAO 등은 6번째에 알파를 준다
+    ctx.fillStyle = slot(pal, v);
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// 벽 한 장 — y0..WALL_Y1 을 꽉 채우되 창 개구부는 비운다(뒤 하늘이 보이게).
+function drawWall() {
+  for (let y = 0; y <= WALL_Y1; y++) {
+    for (let x = 0; x < 128; x++) {
+      const inWin = x >= WIN.x0 && x <= WIN.x1 && y >= WIN.y0 && y <= WIN.y1;
+      if (inWin) continue;                       // 개구부 = 하늘
+      // 은은한 마름모 무늬(2톤) + 접합부 아주 옅은 라인
+      const diamond = ((x + y) % 8 < 2) || ((x - y + 128) % 8 < 2);
+      ctx.fillStyle = diamond ? C.wall1 : C.wall0;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+
+// 창틀 — 개구부 둘레 프레임 + 창살(세로 1 / 가로 1) + 창턱.
+function drawFrame() {
+  const { x0, y0, x1, y1 } = WIN;
+  // 바깥 프레임
+  for (let t = 1; t <= FRAME; t++) {
+    ctx.fillStyle = t === 1 ? C.frameHi : C.frame;
+    ctx.fillRect(x0 - t, y0 - t, x1 - x0 + 1 + 2 * t, 1);          // 위
+    ctx.fillStyle = C.frameLo;
+    ctx.fillRect(x0 - t, y1 + t, x1 - x0 + 1 + 2 * t, 1);          // 아래
+    ctx.fillStyle = C.frame;
+    ctx.fillRect(x0 - t, y0 - t, 1, y1 - y0 + 1 + 2 * t);          // 왼
+    ctx.fillRect(x1 + t, y0 - t, 1, y1 - y0 + 1 + 2 * t);          // 오른
+  }
+  // 창살 — 세로(가운데) / 가로(가운데)
+  const mx = Math.round((x0 + x1) / 2), my = Math.round((y0 + y1) / 2);
+  ctx.fillStyle = C.frame;
+  ctx.fillRect(mx, y0, 1, y1 - y0 + 1);
+  ctx.fillRect(x0, my, x1 - x0 + 1, 1);
+  ctx.fillStyle = C.frameHi;
+  ctx.fillRect(mx, y0, 1, 1);
+  // 창턱 — 개구부 아래 약간 돌출
+  ctx.fillStyle = C.sill;
+  ctx.fillRect(x0 - FRAME - 1, y1 + FRAME, x1 - x0 + 1 + 2 * (FRAME + 1), 1);
+}
+
+const state = { time: 'night', season: 'summer', weather: 'clear' };
+
+function draw() {
+  const pal = resolve(state);
+  ctx.clearRect(0, 0, 128, 72);
+  // 1) 창 개구부에만 하늘(+산·달) — 벽 뒤라 클립해서 그린다
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(WIN.x0, WIN.y0, WIN.x1 - WIN.x0 + 1, WIN.y1 - WIN.y0 + 1);
+  ctx.clip();
+  drawRects(groups['base-scenery'], pal);
+  // 달/별/구름도 창 안에서 보이게
+  for (const id of ['halo-moon', 'halo-sun', 'clouds']) if (groups[id]) drawRects(groups[id], pal);
+  ctx.restore();
+  // 2) 벽(개구부 제외)  3) 창틀  4) 바닥
+  drawWall();
+  drawFrame();
+  drawRects(groups['g-floor'], pal);
+}
+
+// ── 토글 UI (시간·날씨) ──
+function pager(elId, key, opts) {
+  const el = document.getElementById(elId);
+  el.innerHTML = `<span class="lbl">${elId}</span>`;
+  for (const o of opts) {
+    const b = document.createElement('button');
+    b.textContent = o;
+    b.className = state[key] === o ? 'on' : '';
+    b.onclick = () => { state[key] = o; refresh(); };
+    el.appendChild(b);
+  }
+}
+function refresh() {
+  pager('time', 'time', ['day', 'sunset', 'night']);
+  pager('weather', 'weather', ['clear', 'cloud', 'fog', 'rain', 'snow', 'petals']);
+  draw();
+}
+refresh();
+</script>
