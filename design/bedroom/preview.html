@@ -120,18 +120,25 @@ function drawWindowPool() {
   if (['fog', 'rain', 'downpour', 'snow'].includes(state.weather)) return;
   const tint = POOL_TINT[state.time];
   if (!tint) return;
+  // 결정적 해시(경계 디더용) — 하드 엣지를 흩뜨려 부드럽게 만든다
+  const h = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
   ctx.fillStyle = tint;
-  // 창 개구부(x16~49) 바로 아래 창턱(y34)부터 바닥 끝(y71)까지, 행마다 skew+widen
+  // 창 개구부 바로 아래 창턱(y34)부터 바닥 끝(y71)까지, 행마다 skew+widen
   for (let y = 34; y <= 71; y++) {
-    const t = (y - 34) / (71 - 34);           // 0=창턱, 1=바닥
-    const x0 = Math.round(20 + t * 18);        // 왼끝: 오른쪽으로 흐름
-    const x1 = Math.round(50 + t * 30);        // 오른끝: 넓어짐
-    // 창살 그림자 2줄(세로 멀리언 x32, 가로 멀리언은 창 안이라 생략)
-    const mull = Math.round(32 + t * 12);
+    const t = (y - 34) / (71 - 34);            // 0=창턱, 1=바닥
+    const x0 = Math.round(20 + t * 18);         // 왼끝: 오른쪽으로 흐름
+    const x1 = Math.round(50 + t * 30);         // 오른끝: 넓어짐
+    const mull = Math.round(32 + t * 12);       // 세로 멀리언 그림자
     for (let x = x0; x <= x1; x++) {
-      if (Math.abs(x - mull) <= 1) continue;   // 멀리언 그림자
+      // 양끝 2px 는 해시로 페이드(딱딱한 사다리꼴 경계 완화)
+      const edge = Math.min(x - x0, x1 - x);
+      if (edge < 2 && (h(x, y) & 1)) continue;
+      // 멀리언 그림자도 가장자리만 흩뜨려 부드럽게
+      const dm = Math.abs(x - mull);
+      if (dm === 0) continue;
+      if (dm === 1 && (h(x, y) & 2)) continue;
       ctx.fillRect(x, y, 1, 1);
     }
   }
