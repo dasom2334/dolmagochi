@@ -112,6 +112,26 @@ function deskPlant() {
   return o;
 }
 
+// ── 책상 스탠드 — 추출 레퍼런스(낮)엔 꺼져 있어 별도로 얹는다. 밤 작업 조명. ──
+export function lampArt() {
+  const o = [];
+  o.push(R(43, 28, 6, 1, '#8a6a3a'));            // 갓 윗면
+  o.push(R(42, 29, 7, 2, '#6e5230'));            // 갓
+  o.push(R(42, 31, 7, 1, '#4e3a22'));            // 갓 밑 AO
+  o.push(R(44, 31, 3, 1, '#c9a86a'));            // 전구 자리
+  o.push(R(45, 32, 1, 4, '#4a4150'));            // 목
+  o.push(R(43, 36, 5, 1, '#3a3242')); o.push(R(43, 37, 5, 1, '#241f2e'));  // 받침+AO
+  return o;
+}
+export function lampGlowArt() {
+  return [
+    R(44, 31, 3, 2, '#fff1c0'),
+    R(42, 30, 7, 5, '#ffd98a', 0.5),
+    R(39, 28, 13, 9, '#ffcf80', 0.24),
+    R(36, 26, 19, 13, '#ffc266', 0.1),
+  ];
+}
+
 // ── 책상 스탠드 — 유일한 따뜻한 광원. 갓 + 목 + 받침 ──
 function lamp() {
   const o = [];

@@ -1,16 +1,16 @@
-<!-- 침실 씬 프로토타입 — 마일스톤 1: 방 껍데기(왼쪽 창 + 벽 + 바닥 + 창밖 하늘).
-     하늘·바닥·팔레트는 거실 모듈에서 그대로 재사용하고, 벽·창만 새로 그린다.
-     소품·광원·돌은 다음 마일스톤. -->
+<!-- 침실 씬 — 레퍼런스(times/day.png) 128×72 추출 기준.
+     벽·바닥·창틀·가구는 tools/extract.py 산출물(geom-art.js)을 그린다.
+     창 유리 구멍엔 절차 하늘(거실 모듈), 그 위에 시간·날씨 오버레이·비네트.
+     돌은 거실 생성 돌(ball/rim). -->
 <!doctype html>
 <meta charset="utf-8" />
-<title>침실 씬 프로토타입 (셸)</title>
+<title>침실 씬 (레퍼런스 추출)</title>
 <style>
   body { margin: 0; background: #15101c; color: #c9c0d4;
          font: 13px ui-monospace, monospace; display: flex; flex-direction: column;
-         align-items: center; gap: 12px; padding: 16px; }
-  canvas { image-rendering: pixelated; width: 640px; height: 360px;
-           border: 2px solid #3a3350; }
-  .row { display: flex; gap: 6px; flex-wrap: wrap; max-width: 660px; }
+         align-items: center; gap: 10px; padding: 16px; }
+  canvas { image-rendering: pixelated; width: 640px; height: 360px; border: 2px solid #3a3350; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; max-width: 680px; }
   button { border: 2px solid #6b6178; background: transparent; color: #c9c0d4;
            font: inherit; padding: 4px 9px; cursor: pointer; border-radius: 3px; }
   button.on { border-color: #c9c0d4; color: #f2ead8; }
@@ -28,164 +28,66 @@
 import { generateGroups } from '../livingroom/scene/generate.js';
 import { resolve } from '../livingroom/scene/palette.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
-import { bedroomProps, BD_Z, BD_PROPS, ORB_SPOTS, groundShadows } from './geom.js';
+import { BD_ART, BD_ART_Z, BD_ART_PROPS, BD_GLASS } from './geom-art.js';
+import { ORB_SPOTS, lampArt, lampGlowArt } from './geom.js';
 
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
+const groups = generateGroups({});           // 절차 하늘·산·달·구름·날씨
 
-// 침실 창 — **왼쪽**. 거실은 가운데(x43~83)였다. HD 레퍼런스 눈측을 128 로 환산.
-const WIN = { x0: 16, y0: 5, x1: 49, y1: 32 };   // 하늘이 보이는 개구부(안쪽)
-const FRAME = 2;                                  // 창틀 두께
-const WALL_Y1 = 48;                               // 49부터 바닥
+// 시간대별 오버레이 세기 배율 — 베이스가 **낮 추출**이라 낮은 약하게, 밤·노을은 강하게
+const OVL_GAIN = { day: 0.35, sunset: 1, night: 1 };
 
-// 방-종속 색(프로토타입 리터럴). 확정되면 room-data 로 뺀다.
-const C = {
-  wall0: '#1a1826', wall1: '#201c30', wallLine: '#141020',
-  frameHi: '#8a6540', frame: '#6b4a2e', frameLo: '#3a2818', sill: '#7a5638',
+const state = {
+  time: 'day', season: 'summer', weather: 'clear',
+  orb: 'chair', lamp: false, off: new Set(),
 };
 
-// 거실의 절차 그룹만(측정 벽·소품 없이). base-scenery=하늘, g-floor=바닥 재사용.
-const groups = generateGroups({});
-
 function slot(pal, v) { return v[0] === '#' ? v : (pal[v] || '#f0f'); }
-
 function drawRects(rects, pal) {
-  for (const [x, y, w, h, v, a] of rects) {
-    ctx.globalAlpha = a == null ? 1 : a;    // floorAO 등은 6번째에 알파를 준다
-    ctx.fillStyle = slot(pal, v);
-    ctx.fillRect(x, y, w, h);
+  for (const r of rects) {
+    ctx.globalAlpha = r[5] == null ? 1 : r[5];
+    ctx.fillStyle = slot(pal, r[4]);
+    ctx.fillRect(r[0], r[1], r[2], r[3]);
   }
   ctx.globalAlpha = 1;
 }
 
-// 벽 한 장 — y0..WALL_Y1 을 꽉 채우되 창 개구부는 비운다(뒤 하늘이 보이게).
-function drawWall() {
-  for (let y = 0; y <= WALL_Y1; y++) {
-    for (let x = 0; x < 128; x++) {
-      const inWin = x >= WIN.x0 && x <= WIN.x1 && y >= WIN.y0 && y <= WIN.y1;
-      if (inWin) continue;                       // 개구부 = 하늘
-      // 은은한 다마스크 — 격자 교점에만 1px 점(레퍼런스처럼 과하지 않게).
-      // 위가 살짝 밝고 아래로 어두워지는 세로 그라디언트도 얹는다.
-      const dot = (x % 8 === 0) && (y % 6 === 0);
-      let c = dot ? C.wall1 : C.wall0;
-      if (y > 30) c = C.wallLine;                // 하단(가구 뒤)은 더 어둡게
-      ctx.fillStyle = c;
-      ctx.fillRect(x, y, 1, 1);
-    }
-  }
-}
-
-// 창틀 — 개구부 둘레 프레임 + 창살(세로 1 / 가로 1) + 창턱.
-function drawFrame() {
-  const { x0, y0, x1, y1 } = WIN;
-  // 바깥 프레임
-  for (let t = 1; t <= FRAME; t++) {
-    ctx.fillStyle = t === 1 ? C.frameHi : C.frame;
-    ctx.fillRect(x0 - t, y0 - t, x1 - x0 + 1 + 2 * t, 1);          // 위
-    ctx.fillStyle = C.frameLo;
-    ctx.fillRect(x0 - t, y1 + t, x1 - x0 + 1 + 2 * t, 1);          // 아래
-    ctx.fillStyle = C.frame;
-    ctx.fillRect(x0 - t, y0 - t, 1, y1 - y0 + 1 + 2 * t);          // 왼
-    ctx.fillRect(x1 + t, y0 - t, 1, y1 - y0 + 1 + 2 * t);          // 오른
-  }
-  // 창살 — 세로(가운데) / 가로(가운데)
-  const mx = Math.round((x0 + x1) / 2), my = Math.round((y0 + y1) / 2);
-  ctx.fillStyle = C.frame;
-  ctx.fillRect(mx, y0, 1, y1 - y0 + 1);
-  ctx.fillRect(x0, my, x1 - x0 + 1, 1);
-  ctx.fillStyle = C.frameHi;
-  ctx.fillRect(mx, y0, 1, 1);
-  // 창턱 — 개구부 아래 약간 돌출
-  ctx.fillStyle = C.sill;
-  ctx.fillRect(x0 - FRAME - 1, y1 + FRAME, x1 - x0 + 1 + 2 * (FRAME + 1), 1);
-}
-
-const state = {
-  time: 'night', season: 'summer', weather: 'clear',
-  orb: 'chair',                       // none / chair / bed / rug
-  lamp: true,                          // 스탠드 광원 on/off
-  off: new Set(),                      // 끈 소품 id
-};
-
-// 창빛 웅덩이 — 왼쪽 창에서 바닥으로 떨어지는 사다리꼴. 창이 왼쪽이라
-// 아래로 갈수록 **오른쪽으로** 흐르고 넓어진다(저고도 광선). screen 합성.
-// 색·세기는 시간이 정한다: 낮=따뜻한 흰빛 / 노을=주황 / 밤=푸른 달빛.
-const POOL_TINT = {
-  day:    'rgba(255,248,225,0.16)',
-  sunset: 'rgba(255,150,70,0.16)',
-  night:  'rgba(120,150,220,0.10)',
-};
-function drawWindowPool() {
-  // 흐림·비·눈이면 창빛이 죽는다 → 약하게
-  if (['fog', 'rain', 'downpour', 'snow'].includes(state.weather)) return;
-  const tint = POOL_TINT[state.time];
-  if (!tint) return;
-  // 결정적 해시(경계 디더용) — 하드 엣지를 흩뜨려 부드럽게 만든다
-  const h = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
-  ctx.fillStyle = tint;
-  // 창 개구부 바로 아래 창턱(y34)부터 바닥 끝(y71)까지, 행마다 skew+widen
-  for (let y = 34; y <= 71; y++) {
-    const t = (y - 34) / (71 - 34);            // 0=창턱, 1=바닥
-    const x0 = Math.round(20 + t * 18);         // 왼끝: 오른쪽으로 흐름
-    const x1 = Math.round(50 + t * 30);         // 오른끝: 넓어짐
-    const mull = Math.round(32 + t * 12);       // 세로 멀리언 그림자
-    for (let x = x0; x <= x1; x++) {
-      // 양끝 2px 는 해시로 페이드(딱딱한 사다리꼴 경계 완화)
-      const edge = Math.min(x - x0, x1 - x);
-      if (edge < 2 && (h(x, y) & 1)) continue;
-      // 멀리언 그림자도 가장자리만 흩뜨려 부드럽게
-      const dm = Math.abs(x - mull);
-      if (dm === 0) continue;
-      if (dm === 1 && (h(x, y) & 2)) continue;
-      ctx.fillRect(x, y, 1, 1);
-    }
-  }
-  ctx.restore();
-}
-
-// rgba(r,g,b,a) 의 알파에 k 를 곱한다 (render.js scaleAlpha 이식)
 function scaleAlpha(css, k) {
-  const m = css.match(/rgba?\(([^)]+)\)/);
-  if (!m) return css;
+  const m = css.match(/rgba?\(([^)]+)\)/); if (!m) return css;
   const p = m[1].split(',').map((s) => s.trim());
   const a = p.length > 3 ? parseFloat(p[3]) : 1;
   return `rgba(${p[0]},${p[1]},${p[2]},${a * k})`;
 }
 
-// 창 개구부를 뺀 '방' 영역으로 클립 (evenodd: 바깥 사각 − 창 사각)
+// 유리 구멍(4판)으로 클립 → 절차 하늘
+function clipGlass() {
+  ctx.beginPath();
+  for (const [x0, y0, x1, y1] of BD_GLASS) ctx.rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+  ctx.clip();
+}
+// 방 영역(유리 제외)으로 클립 — 오버레이가 하늘을 이중착색하지 않게
 function clipRoom() {
   ctx.beginPath();
   ctx.rect(0, 0, 128, 72);
-  ctx.rect(WIN.x0, WIN.y0, WIN.x1 - WIN.x0 + 1, WIN.y1 - WIN.y0 + 1);
+  for (const [x0, y0, x1, y1] of BD_GLASS) ctx.rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
   ctx.clip('evenodd');
 }
 
-// 시간·날씨 색감 오버레이 — 거실 OVERLAYS 를 zone 태그째 재활용한다.
-//   zone 'room'  → 방 영역(창 제외)에 한 번   (strips 4장은 같은 fill 이라 dedup)
-//   zone 'glass' → 창 개구부에            (하늘은 이미 그 시간색이라 약하게)
-//   tune 이 붙은 층의 세기는 AMBIENT 가 정한다(패널 슬라이더 축).
-function applyOverlay(oid) {
-  const list = OVERLAYS[oid];
-  if (!list) return;
+// 시간·날씨 오버레이 — 거실 OVERLAYS 를 zone 태그째. 낮은 OVL_GAIN 으로 약화.
+function applyOverlay(oid, gain) {
+  const list = OVERLAYS[oid]; if (!list) return;
   const seen = new Set();
   for (const { fill, blend, tune, zone } of list) {
     const key = `${zone}|${fill}|${blend}|${tune || ''}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const s = tune ? (AMBIENT[oid]?.[tune] ?? 0) : 1;
+    if (seen.has(key)) continue; seen.add(key);
+    let s = (tune ? (AMBIENT[oid]?.[tune] ?? 0) : 1) * gain;
     if (s <= 0) continue;
     ctx.save();
     ctx.globalCompositeOperation = blend;
-    ctx.globalAlpha = 1;
     ctx.fillStyle = s >= 1 ? fill : scaleAlpha(fill, s);
-    if (zone === 'glass') {
-      ctx.fillRect(WIN.x0, WIN.y0, WIN.x1 - WIN.x0 + 1, WIN.y1 - WIN.y0 + 1);
-    } else {
-      clipRoom();
-      ctx.fillRect(0, 0, 128, 72);
-    }
+    if (zone === 'glass') { clipGlass(); ctx.fillRect(0, 0, 128, 72); }
+    else { clipRoom(); ctx.fillRect(0, 0, 128, 72); }
     ctx.restore();
   }
 }
@@ -196,53 +98,34 @@ function draw() {
   ctx.clearRect(0, 0, 128, 72);
   ctx.fillStyle = pal['--page-bg'] || '#1a1330';
   ctx.fillRect(0, 0, 128, 72);
-  // 1) 창 개구부에만 하늘(+산·달) — 벽 뒤라 클립해서 그린다
+  // 1) 창밖 하늘 — 유리 구멍에만
   if (!off.has('bg')) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(WIN.x0, WIN.y0, WIN.x1 - WIN.x0 + 1, WIN.y1 - WIN.y0 + 1);
-    ctx.clip();
+    ctx.save(); clipGlass();
     drawRects(groups['base-scenery'], pal);
-    // 달/별/구름도 창 안에서 보이게
     for (const id of ['halo-moon', 'halo-sun', 'clouds']) if (groups[id]) drawRects(groups[id], pal);
-    // 날씨 파티클도 창 안에
-    for (const id of ['rain', 'downpour', 'snow', 'pt-petals'])
-      if (groups[id] && (`light-${state.weather}` === `light-${id.replace('pt-', '')}` ||
-          (id === 'pt-petals' && state.weather === 'petals'))) drawRects(groups[id], pal);
     ctx.restore();
   }
-  // 2) 벽(개구부 제외)  3) 창틀  4) 바닥
-  if (!off.has('wall')) drawWall();
-  if (!off.has('winframe')) drawFrame();
-  if (!off.has('floor')) drawRects(groups['g-floor'], pal);
-  // 4.5) 접지 그림자 — 바닥 위, 가구 아래. multiply.
-  if (!off.has('shadow')) {
-    ctx.globalCompositeOperation = 'multiply';
-    for (const [x, y, w, h, c, a] of groundShadows(state.off)) {
-      ctx.globalAlpha = a == null ? 1 : a; ctx.fillStyle = c; ctx.fillRect(x, y, w, h);
-    }
-    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  // 2) 벽·창틀(유리는 구멍) 3) 바닥
+  if (!off.has('wall')) drawRects(BD_ART['bd-wall'], pal);
+  if (!off.has('floor')) drawRects(BD_ART['bd-floor'], pal);
+  // 4) 가구 (z-순서, 게이팅)
+  for (const id of BD_ART_Z) {
+    if (id === 'bd-wall' || id === 'bd-floor') continue;
+    if (off.has(id)) continue;
+    drawRects(BD_ART[id], pal);
   }
-  // 5) 가구 (z-순서). 끈 소품·스탠드 발광은 건너뛴다. 리터럴 색이라 팔레트 무관.
-  const props = bedroomProps();
-  for (const id of BD_Z) {
-    if (id === 'bd-lamp-glow') continue;         // 발광은 오버레이 뒤에
-    if (state.off.has(id)) continue;
-    // 스탠드 몸체는 스탠드가 켜졌든 아니든 보인다(소품이라). glow 만 광원 토글.
-    if (props[id]) drawRects(props[id], pal);
-  }
-  // 5.5) 돌 — 거실 돌(ball). 몸체는 여기, 역광(rim)은 광원 패스에서.
+  // 4.5) 스탠드 (밤 작업 조명) — 추출본엔 없어 별도로 얹는다
+  if (!off.has('bd-lamp')) drawRects(lampArt(), pal);
+  // 5) 돌 — 거실 돌
   const orb = (state.orb !== 'none' && ORB_SPOTS[state.orb]) ? ORB_SPOTS[state.orb]() : null;
   if (orb) drawRects(orb.base, pal);
-  // 6) 색감 오버레이 — 시간 → 날씨 (맑음은 오버레이 없음)
+  // 6) 시간·날씨 색감 오버레이
   ctx.globalCompositeOperation = 'source-over';
   if (!off.has('overlay')) {
-    applyOverlay(`light-${state.time}`);
-    applyOverlay(`light-${state.weather}`);
+    applyOverlay(`light-${state.time}`, OVL_GAIN[state.time] ?? 1);
+    applyOverlay(`light-${state.weather}`, 1);
   }
-  // 6.3) 창빛 웅덩이 — 왼쪽 창에서 바닥으로
-  if (!off.has('pool')) drawWindowPool();
-  // 6.4) 돌 역광(rim) — 창빛 색을 따라간다(밤엔 달빛 --ml). 광원 패스라 screen.
+  // 6.5) 돌 역광
   if (orb) {
     const sunOn = state.time !== 'night';
     const rimPal = { ...pal, '--wl': sunOn ? pal['--wl'] : (pal['--ml'] || pal['--wl']) };
@@ -250,13 +133,13 @@ function draw() {
     drawRects(orb.rim, rimPal);
     ctx.globalCompositeOperation = 'source-over';
   }
-  // 6.5) 스탠드 불빛(emission) — 밤에 켜면 방보다 안 어두워진다. 오버레이 뒤에 얹는다.
-  if (state.lamp && !state.off.has('bd-lamp')) {
+  // 6.7) 스탠드 불빛(emission)
+  if (state.lamp && !off.has('bd-lamp')) {
     ctx.globalCompositeOperation = 'lighter';
-    drawRects(props['bd-lamp-glow'], pal);
+    drawRects(lampGlowArt(), pal);
     ctx.globalCompositeOperation = 'source-over';
   }
-  // 7) 비네트 — 가장자리를 눌러 시선을 모은다 (거실 것 재사용)
+  // 7) 비네트
   if (!off.has('vignette')) {
     ctx.globalCompositeOperation = 'multiply';
     for (const v of VIGNETTE) { ctx.globalAlpha = v.alpha; ctx.fillStyle = v.fill; ctx.fillRect(...v.r); }
@@ -265,50 +148,26 @@ function draw() {
   ctx.globalAlpha = 1;
 }
 
-// ── 인스펙터 UI ──
-// 단일 선택 행(시간·계절·날씨·돌)
+// ── 인스펙터 ──
 function pick(elId, label, key, opts) {
   const el = document.getElementById(elId);
   el.innerHTML = `<span class="lbl">${label}</span>`;
   for (const o of opts) {
     const b = document.createElement('button');
-    b.textContent = o;
-    b.className = state[key] === o ? 'on' : '';
+    b.textContent = o; b.className = state[key] === o ? 'on' : '';
     b.onclick = () => { state[key] = o; refresh(); };
     el.appendChild(b);
   }
 }
-// 소품 다중 토글 (끈 것은 회색)
-function propRow() {
-  const el = document.getElementById('props');
-  el.innerHTML = `<span class="lbl">소품</span>`;
-  for (const id of BD_PROPS) {
+const SCENE_LAYERS = [['bg', '창밖배경'], ['wall', '벽/창틀'], ['floor', '바닥'],
+  ['overlay', '색감'], ['vignette', '비네트']];
+function multi(elId, label, items, getState, toggle) {
+  const el = document.getElementById(elId);
+  el.innerHTML = `<span class="lbl">${label}</span>`;
+  for (const [id, name] of items) {
     const b = document.createElement('button');
-    b.textContent = id.replace('bd-', '');
-    b.className = state.off.has(id) ? '' : 'on';
-    b.onclick = () => { state.off.has(id) ? state.off.delete(id) : state.off.add(id); refresh(); };
-    el.appendChild(b);
-  }
-  // 스탠드 광원 on/off (소품과 별개 — 불만 끈다)
-  const lb = document.createElement('button');
-  lb.textContent = state.lamp ? '스탠드불 ▲' : '스탠드불 ▽';
-  lb.className = state.lamp ? 'on' : '';
-  lb.onclick = () => { state.lamp = !state.lamp; refresh(); };
-  el.appendChild(lb);
-}
-// 장면 레이어 다중 토글 (배경·창틀·벽·바닥·창빛·비네트 등 — 거실 v3 참고)
-const SCENE_LAYERS = [
-  ['bg', '창밖배경'], ['winframe', '창틀'], ['wall', '벽'], ['floor', '바닥'],
-  ['shadow', '접지그림자'], ['overlay', '색감'], ['pool', '창빛'], ['vignette', '비네트'],
-];
-function layerRow() {
-  const el = document.getElementById('layers');
-  el.innerHTML = `<span class="lbl">장면</span>`;
-  for (const [id, label] of SCENE_LAYERS) {
-    const b = document.createElement('button');
-    b.textContent = label;
-    b.className = state.off.has(id) ? '' : 'on';
-    b.onclick = () => { state.off.has(id) ? state.off.delete(id) : state.off.add(id); refresh(); };
+    b.textContent = name; b.className = getState(id) ? 'on' : '';
+    b.onclick = () => { toggle(id); refresh(); };
     el.appendChild(b);
   }
 }
@@ -317,8 +176,17 @@ function refresh() {
   pick('season', 'season', 'season', ['spring', 'summer', 'autumn', 'winter']);
   pick('weather', 'weather', 'weather', ['clear', 'cloud', 'fog', 'rain', 'downpour', 'snow', 'petals']);
   pick('orb', '돌', 'orb', ['none', 'chair', 'bed', 'rug']);
-  layerRow();
-  propRow();
+  multi('layers', '장면', SCENE_LAYERS, (id) => !state.off.has(id),
+        (id) => state.off.has(id) ? state.off.delete(id) : state.off.add(id));
+  const props = BD_ART_PROPS.map((id) => [id, id.replace('bd-', '')]).concat([['bd-lamp', 'lamp']]);
+  multi('props', '소품', props, (id) => !state.off.has(id),
+        (id) => state.off.has(id) ? state.off.delete(id) : state.off.add(id));
+  // 스탠드불 토글(별도)
+  const lb = document.createElement('button');
+  lb.textContent = state.lamp ? '스탠드불 ▲' : '스탠드불 ▽';
+  lb.className = state.lamp ? 'on' : '';
+  lb.onclick = () => { state.lamp = !state.lamp; refresh(); };
+  document.getElementById('props').appendChild(lb);
   draw();
 }
 refresh();
