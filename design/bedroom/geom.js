@@ -18,6 +18,57 @@ export const ORB_SPOTS = {
   rug:   () => orbAt(66, 62, 14),
 };
 
+// ── 창광 = 앞으로 퍼지는 사다리꼴 (거실 poolTrap 이식, SCENE-RULES §3.1) ──
+// 침실 창은 **왼쪽**(유리 x22~54, 중심 38). 빛이 왼쪽 위에서 와 아래로 갈수록
+// 오른쪽으로 흐르고(skew+) 넓어진다(spread). 멀리언(x37) 그림자로 분할.
+// 셰이프 고정 — 색(--wl/--ml)·세기(--wl-a/--ml-a)만 시간이 정한다. screen 블렌드.
+const WIN_CX = 38, WIN_L = 22, WIN_R = 54, WIN_MULL = 37, WIN_SILL = 32;
+const WIN_SPREAD = 0.04, WIN_SKEW = 0.7;
+// 창턱 상단(y33-34)과 바닥(y49+)에만 — 창 밑 벽(y35-48)은 빛 없음(그림자)
+const POOL_ZONES = [[33, 34, 0.85], [49, 71, 1]];
+export function windowPool(slot, alphaSlot) {
+  const out = [];
+  for (const [zy0, zy1, op] of POOL_ZONES) {
+    for (let y = zy0; y <= zy1; y++) {
+      const t = y <= 34 ? 0 : y - WIN_SILL;
+      const s = 1 + WIN_SPREAD * t, sh = WIN_SKEW * t;
+      const a = WIN_CX + (WIN_L - WIN_CX) * s + sh;
+      const b = WIN_CX + (WIN_R - WIN_CX) * s + sh;
+      const m0 = WIN_CX + (WIN_MULL - WIN_CX) * s + sh;
+      for (const [p0, q0] of [[a, m0 - 1], [m0 + 1, b - 1]]) {
+        const p = Math.max(1, Math.round(p0)), q = Math.min(126, Math.round(q0));
+        if (q >= p) out.push([p, y, q - p + 1, 1, slot, op]);
+      }
+    }
+  }
+  return { rects: out, alphaSlot };
+}
+
+// ── 접지 그림자 — 소품 밑변에서 창광 반대쪽(오른쪽)으로 늘어진다 (multiply) ──
+// SCENE-RULES §3.4: 바닥에 놓인 물건은 창빛을 통과 못 시킨다. 소품 끄면 함께 꺼진다.
+const FLOOR_Y = 49;
+function contact(x0, w, yBase, len, skew = 0.5) {
+  const o = [];
+  for (let k = 0; k <= len; k++) {
+    const f = k / Math.max(1, len);
+    const g = f < 0.35 ? 0.42 : f < 0.7 ? 0.26 : 0.12;   // 본영→반영
+    const sh = Math.round(skew * k);                       // 오른쪽으로
+    const gw = Math.round(w * (1 + 0.06 * k));
+    o.push([x0 + sh, yBase + 1 + k, gw, 1, '#0b0710', g]);
+  }
+  return o;
+}
+export function groundShadows(off) {
+  const s = [];
+  const add = (id, x, w, y, len) => { if (!off.has(id)) s.push(...contact(x, w, y, len)); };
+  add('bd-desk', 12, 38, FLOOR_Y - 1, 2);
+  add('bd-chair', 30, 12, FLOOR_Y - 1, 2);
+  add('bd-nightstand', 66, 14, FLOOR_Y - 1, 2);
+  add('bd-bed', 80, 38, FLOOR_Y - 1, 2);
+  add('bd-fan', 118, 9, FLOOR_Y - 1, 2);
+  return s;
+}
+
 // ── 책상 스탠드 — 밤 작업 조명. 낮 추출본엔 꺼져 있어 별도로 얹는다. ──
 export function lampArt() {
   return [

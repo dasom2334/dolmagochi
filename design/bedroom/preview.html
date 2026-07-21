@@ -29,14 +29,14 @@ import { generateGroups } from '../livingroom/scene/generate.js';
 import { resolve } from '../livingroom/scene/palette.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
 import { BD_ART, BD_ART_Z, BD_ART_PROPS, BD_GLASS } from './geom-art.js';
-import { ORB_SPOTS, lampArt, lampGlowArt } from './geom.js';
+import { ORB_SPOTS, lampArt, lampGlowArt, windowPool, groundShadows } from './geom.js';
 
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 const groups = generateGroups({});           // 절차 하늘·산·달·구름·날씨
 
-// 시간대별 오버레이 세기 배율 — 베이스가 **낮 추출**이라 낮은 약하게, 밤·노을은 강하게
-const OVL_GAIN = { day: 0.35, sunset: 1, night: 1 };
+// 베이스가 **디라이팅된 무광원 알베도**라 시간 오버레이는 풀 강도(SCENE-RULES §0·§6)
+const OVL_GAIN = { day: 1, sunset: 1, night: 1 };
 
 const state = {
   time: 'day', season: 'summer', weather: 'clear',
@@ -98,17 +98,28 @@ function draw() {
   ctx.clearRect(0, 0, 128, 72);
   ctx.fillStyle = pal['--page-bg'] || '#1a1330';
   ctx.fillRect(0, 0, 128, 72);
-  // 1) 창밖 하늘 — 유리 구멍에만
+  // 1) 창밖 풍경 — **캔버스 전체**에 그린다(SCENE-RULES §1). 창은 벽의 구멍일 뿐,
+  //    벽[2]이 덮어 개구부로만 보인다. 창 크기로 잘라 그리지 않는다.
   if (!off.has('bg')) {
-    ctx.save(); clipGlass();
     drawRects(groups['base-scenery'], pal);
     for (const id of ['halo-moon', 'halo-sun', 'clouds']) if (groups[id]) drawRects(groups[id], pal);
-    ctx.restore();
+  } else {
+    // 배경 끄면 유리 구멍만 page-bg 로 (풍경 자리 확인용)
   }
-  // 2) 벽·창틀(유리는 구멍) 3) 바닥
+  // 2) 벽·창틀 — 풍경을 덮고 유리 구멍만 남긴다(bd-wall 은 유리에 픽셀이 없다)
   if (!off.has('wall')) drawRects(BD_ART['bd-wall'], pal);
+  else { // 벽 끄면 유리 밖 풍경을 가려 창만 남긴다
+    ctx.save(); clipRoom(); ctx.fillStyle = pal['--page-bg'] || '#1a1330'; ctx.fillRect(0, 0, 128, 48); ctx.restore();
+  }
+  // 3) 바닥
   if (!off.has('floor')) drawRects(BD_ART['bd-floor'], pal);
-  // 4) 가구 (z-순서, 게이팅)
+  // 3.5) 접지 그림자 — 바닥 위, 가구 아래 (multiply). SCENE-RULES §2 shadow 레이어.
+  if (!off.has('shadow')) {
+    ctx.globalCompositeOperation = 'multiply';
+    for (const r of groundShadows(off)) { ctx.globalAlpha = r[5]; ctx.fillStyle = r[4]; ctx.fillRect(r[0], r[1], r[2], r[3]); }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+  // 4) 가구 (z-순서, 게이팅) — 무광원 알베도 base
   for (const id of BD_ART_Z) {
     if (id === 'bd-wall' || id === 'bd-floor') continue;
     if (off.has(id)) continue;
@@ -124,6 +135,18 @@ function draw() {
   if (!off.has('overlay')) {
     applyOverlay(`light-${state.time}`, OVL_GAIN[state.time] ?? 1);
     applyOverlay(`light-${state.weather}`, 1);
+  }
+  // 6.3) 창광 — 앞으로 퍼지는 사다리꼴(거실 poolTrap). 색·세기는 시간이 정한다.
+  //   낮·노을=햇빛(--wl/--wl-a), 밤=달빛(--ml/--ml-a). screen. 흐림·비·눈은 죽는다.
+  if (!off.has('pool') && !['fog', 'rain', 'downpour', 'snow'].includes(state.weather)) {
+    const sunOn = state.time !== 'night';
+    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a');
+    const a = parseFloat(pal[alphaSlot] ?? 0);
+    if (a > 0) {
+      ctx.globalCompositeOperation = 'screen';
+      for (const r of rects) { ctx.globalAlpha = r[5] * a; ctx.fillStyle = slot(pal, r[4]); ctx.fillRect(r[0], r[1], r[2], r[3]); }
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    }
   }
   // 6.5) 돌 역광
   if (orb) {
@@ -160,7 +183,7 @@ function pick(elId, label, key, opts) {
   }
 }
 const SCENE_LAYERS = [['bg', '창밖배경'], ['wall', '벽/창틀'], ['floor', '바닥'],
-  ['overlay', '색감'], ['vignette', '비네트']];
+  ['shadow', '접지그림자'], ['overlay', '색감'], ['pool', '창광'], ['vignette', '비네트']];
 function multi(elId, label, items, getState, toggle) {
   const el = document.getElementById(elId);
   el.innerHTML = `<span class="lbl">${label}</span>`;
