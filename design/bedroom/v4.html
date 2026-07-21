@@ -60,8 +60,53 @@
     import { AMBIENT } from '../livingroom/scene/lights.js';
     import { resolve } from '../livingroom/scene/palette.js';
     import { ROOM_DATA } from '../livingroom/scene/room-data.js';
+    import { BD_ART } from './geom-art.js';
+    import { emitRows } from '../livingroom/scene/generate.js';
 
     const cv = document.getElementById('cv');
+
+    // ── 픽셀 드로잉 (Phase 3) — rect 레이어를 셀맵으로 편집 ──
+    // 레이어 선택 시 BD_ART[id] 를 셀맵(state.paintCells)으로 펼쳐 편집, render 가 이걸 그린다.
+    const PAINT_LAYERS = [['bd-wall', '벽'], ['bd-frames', '액자'], ['bd-shelf', '선반'],
+      ['bd-bed', '침대'], ['bd-fan', '선풍기'], ['bd-nightstand', '협탁'], ['bd-desk', '책상'],
+      ['bd-laptop', '노트북'], ['bd-deskplant', '화분'], ['bd-chair', '의자']];
+    let drawTool = 'pencil', drawColor = '#c8a060', drawColorInput = null;
+
+    function enterPaint(id) {
+      off.delete(id);                             // 편집하려면 켜져 있어야 보인다
+      state.paintLayer = id;
+      state.paintCells = new Map();
+      for (const [x, y, w, h, color] of (BD_ART[id] || []))
+        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++)
+          state.paintCells.set((x + i) + ',' + (y + j), color);
+      draw();
+    }
+    function exportLayer() {
+      if (!state.paintCells) return '(레이어 없음)';
+      const cells = [];
+      for (const [k, hex] of state.paintCells) { const c = k.indexOf(','); cells.push([+k.slice(c + 1), +k.slice(0, c), hex]); }
+      return '"' + state.paintLayer + '": ' + JSON.stringify(emitRows(cells));
+    }
+    function paintAt(e) {
+      if (!state.paintLayer || !state.paintCells) return;
+      const r = cv.getBoundingClientRect();
+      const x = Math.floor((e.clientX - r.left) / r.width * 128);
+      const y = Math.floor((e.clientY - r.top) / r.height * 72);
+      if (x < 0 || x >= 128 || y < 0 || y >= 72) return;
+      const key = x + ',' + y, cells = state.paintCells;
+      if (drawTool === 'eraser') cells.delete(key);
+      else if (drawTool === 'eyedrop') {
+        const p = cv.getContext('2d').getImageData(x, y, 1, 1).data;
+        drawColor = '#' + [p[0], p[1], p[2]].map((n) => n.toString(16).padStart(2, '0')).join('');
+        if (drawColorInput) drawColorInput.value = drawColor;
+      } else cells.set(key, drawColor);
+      draw();
+    }
+    let painting = false;
+    cv.addEventListener('pointerdown', (e) => { if (!state.paintLayer) return; painting = true; try { cv.setPointerCapture(e.pointerId); } catch (_) { } paintAt(e); });
+    cv.addEventListener('pointermove', (e) => { if (painting) paintAt(e); });
+    cv.addEventListener('pointerup', () => { painting = false; });
+    cv.addEventListener('pointerleave', () => { painting = false; });
 
     // ── 방별 설정 (거실 축·토글은 v3.html 에서 그대로 가져옴) ──
     const ROOMS = {
@@ -236,7 +281,7 @@
       const head = document.createElement('div'); head.id = 'editHead';
       head.append(document.createTextNode('편집 (화면에서만 임시 적용)'));
       const bReset = document.createElement('button'); bReset.textContent = '초기화';
-      bReset.onclick = () => { delete state.override; delete state.vigK; delete state.shadowK; delete state.offset; delete state.rug; buildEdit(); draw(); };
+      bReset.onclick = () => { delete state.override; delete state.vigK; delete state.shadowK; delete state.offset; delete state.rug; delete state.paintLayer; delete state.paintCells; buildEdit(); draw(); };
       const bCopy = document.createElement('button'); bCopy.textContent = '값 복사';
       const out = document.createElement('textarea'); out.id = 'editOut'; out.readOnly = true;
       bCopy.onclick = () => {
@@ -324,6 +369,40 @@
         }
       }
       buildPos();
+
+      // ── 그리기 (Phase 3) — rect 레이어 선택 후 캔버스에 픽셀 편집 ──
+      const drawRow = mkRow('그리기');
+      const drawPills = [];
+      for (const [id, label] of PAINT_LAYERS) {
+        const b = document.createElement('label'); b.textContent = label;
+        b.onclick = () => { enterPaint(id); drawPills.forEach(([el, f]) => el.classList.toggle('on', f())); buildDrawTools(); };
+        drawPills.push([b, () => state.paintLayer === id]); drawRow.append(b);
+      }
+      drawPills.forEach(([el, f]) => el.classList.toggle('on', f()));
+      const drawTools = document.createElement('div'); editBox.append(drawTools);
+      function buildDrawTools() {
+        drawTools.innerHTML = '';
+        if (!state.paintLayer) return;
+        const row = document.createElement('div'); row.className = 'group';
+        const l = document.createElement('span'); l.className = 'g-label'; l.textContent = '도구'; row.append(l);
+        const toolPills = [];
+        for (const [t, label] of [['pencil', '연필'], ['eraser', '지우개'], ['eyedrop', '스포이드']]) {
+          const b = document.createElement('label'); b.textContent = label;
+          b.onclick = () => { drawTool = t; toolPills.forEach(([el, tt]) => el.classList.toggle('on', tt === drawTool)); };
+          toolPills.push([b, t]); row.append(b);
+        }
+        toolPills.forEach(([el, tt]) => el.classList.toggle('on', tt === drawTool));
+        const cwrap = document.createElement('label'); cwrap.className = 'sw';
+        const ci = document.createElement('input'); ci.type = 'color'; ci.value = drawColor;
+        ci.oninput = () => { drawColor = ci.value; }; drawColorInput = ci;
+        const cs = document.createElement('span'); cs.textContent = '색'; cwrap.append(ci, cs); row.append(cwrap);
+        const bExit = document.createElement('label'); bExit.textContent = '나가기';
+        bExit.onclick = () => { delete state.paintLayer; delete state.paintCells; buildEdit(); draw(); };
+        const bExp = document.createElement('label'); bExp.textContent = '내보내기';
+        bExp.onclick = () => { out.value = exportLayer(); out.style.display = 'block'; navigator.clipboard?.writeText(out.value); };
+        row.append(bExit, bExp); drawTools.append(row);
+      }
+      buildDrawTools();
 
       editBox.append(out);
     }

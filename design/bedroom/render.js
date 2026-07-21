@@ -37,6 +37,11 @@ function paint(ctx, rects, pal) {
   }
   ctx.globalAlpha = 1;
 }
+// 픽셀 드로잉(Phase 3) — state.paintCells(Map "x,y"→hex) 를 1×1 로 그린다.
+function drawPaintCells(ctx, cells) {
+  ctx.globalAlpha = 1;
+  for (const [k, hex] of cells) { const c = k.indexOf(','); ctx.fillStyle = hex; ctx.fillRect(+k.slice(0, c), +k.slice(c + 1), 1, 1); }
+}
 function scaleAlpha(css, k) {
   const m = css.match(/rgba?\(([^)]+)\)/); if (!m) return css;
   const p = m[1].split(',').map((s) => s.trim());
@@ -104,7 +109,10 @@ export function render(cv, state, off = new Set(), t = 0) {
   //     바닥은 **거실 절차 바닥(g-floor)** 을 그대로 쓴다. 추출 바닥(BD_ART['bd-floor'])은
   //     ① 디테일이 거실과 다르고 ② 창햇빛 명암이 구워져 있었다(질감만 있어야 함).
   //     절차 바닥은 무광원 알베도(팔레트 슬롯)라 두 문제를 동시에 없앤다. 영역도 y49~ 로 같다.
-  if (!off.has('g-wall')) paint(ctx, ART['bd-wall'], pal);
+  if (!off.has('g-wall')) {
+    if (state.paintLayer === 'bd-wall' && state.paintCells) drawPaintCells(ctx, state.paintCells);
+    else paint(ctx, ART['bd-wall'], pal);
+  }
   if (!off.has('g-floor')) paint(ctx, prev ? ART['bd-floor'] : groups['g-floor'], pal);
   // 러그 — 현재는 절차 생성(무광원). state.rug = 위치·크기 조절(Phase 2).
   // 이전 버전은 추출 러그를 가구 z에서 그린다.
@@ -121,6 +129,7 @@ export function render(cv, state, off = new Set(), t = 0) {
   // [3] 가구 (무광원 알베도 base). 게이팅. state.offset[id]=[dx,dy] 로 위치 조절(Phase 2).
   for (const id of (prev ? Z_FURNITURE_PREV : Z_FURNITURE)) {
     if (off.has(id) || !ART[id]) continue;
+    if (state.paintLayer === id && state.paintCells) { drawPaintCells(ctx, state.paintCells); continue; }
     const o = state.offset?.[id];
     if (o && (o[0] || o[1])) { ctx.save(); ctx.translate(o[0] | 0, o[1] | 0); paint(ctx, ART[id], pal); ctx.restore(); }
     else paint(ctx, ART[id], pal);
