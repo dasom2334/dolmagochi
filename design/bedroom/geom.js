@@ -166,29 +166,18 @@ function frames() {
   return o;
 }
 
-// ── 돌 — 타원 덩어리(무광원 회색 + 위 하이라이트 + 밑 그림자). cx=가운데밑, r=반지름 ──
-const ORB = { d: '#5c6470', m: '#7c8490', l: '#9aa2ae', hi: '#b6bcc6' };
-export function orbBall(cx, yBase, r) {
-  const o = [];
-  const ry = Math.round(r * 0.72);
-  for (let dy = -ry; dy <= 0; dy++) {
-    const t = dy / -ry;                       // 1=위, 0=밑변
-    const half = Math.round(Math.sqrt(Math.max(0, 1 - ((dy + ry * 0.15) / ry) ** 2)) * r);
-    if (half <= 0) continue;
-    const y = yBase + dy;
-    // 세로 위치로 명암 3단
-    const c = t > 0.72 ? ORB.hi : t > 0.42 ? ORB.l : t > 0.18 ? ORB.m : ORB.d;
-    o.push(R(cx - half, y, half * 2, 1, c));
-  }
-  o.push(R(cx - 2, yBase - ry + 1, 3, 1, ORB.hi));   // 정수리 하이라이트
-  return o;
-}
-
+// ── 돌 — **거실에서 생성한 돌을 그대로** 쓴다(ball/rim, 팔레트 슬롯 --o0..o4/--wl).
+// 자리별로 중심·크기만 다르게 stoneRows 로 만든다. base=몸체, rim=역광(광원 패스에서).
+import { ball, rim, stoneRows, STONE_ASPECT } from '../livingroom/scene/generate.js';
+const orbAt = (cx, baseY, w) => {
+  const rows = stoneRows(cx, baseY, w, Math.round(w / STONE_ASPECT));
+  return { base: ball(rows), rim: rim(rows) };
+};
 // 돌 3자리 — 작업=의자 / 누워있기+침대=침대 / 침대없음=러그
 export const ORB_SPOTS = {
-  chair: () => orbBall(26, 41, 6),     // 의자 좌판 위
-  bed:   () => orbBall(99, 36, 6),     // 이불 위(베개 앞)
-  rug:   () => orbBall(65, 61, 7),     // 러그 중앙
+  chair: () => orbAt(26, 40, 11),     // 의자 좌판 위
+  bed:   () => orbAt(99, 35, 12),     // 이불 위(베개 앞)
+  rug:   () => orbAt(65, 62, 14),     // 러그 중앙
 };
 
 /** 침실 가구 그룹 — { groupId: rects[] }. 렌더러가 z-순서로 그린다. */

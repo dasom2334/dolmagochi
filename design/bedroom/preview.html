@@ -203,14 +203,23 @@ function draw() {
     // 스탠드 몸체는 스탠드가 켜졌든 아니든 보인다(소품이라). glow 만 광원 토글.
     if (props[id]) drawRects(props[id], pal);
   }
-  // 5.5) 돌 — 선택 자리에. 지지 가구 위에 얹히므로 가구 뒤에 그린다.
-  if (state.orb !== 'none' && ORB_SPOTS[state.orb]) drawRects(ORB_SPOTS[state.orb](), pal);
+  // 5.5) 돌 — 거실 돌(ball). 몸체는 여기, 역광(rim)은 광원 패스에서.
+  const orb = (state.orb !== 'none' && ORB_SPOTS[state.orb]) ? ORB_SPOTS[state.orb]() : null;
+  if (orb) drawRects(orb.base, pal);
   // 6) 색감 오버레이 — 시간 → 날씨 (맑음은 오버레이 없음)
   ctx.globalCompositeOperation = 'source-over';
   applyOverlay(`light-${state.time}`);
   applyOverlay(`light-${state.weather}`);
   // 6.3) 창빛 웅덩이 — 왼쪽 창에서 바닥으로
   drawWindowPool();
+  // 6.4) 돌 역광(rim) — 창빛 색을 따라간다(밤엔 달빛 --ml). 광원 패스라 screen.
+  if (orb) {
+    const sunOn = state.time !== 'night';
+    const rimPal = { ...pal, '--wl': sunOn ? pal['--wl'] : (pal['--ml'] || pal['--wl']) };
+    ctx.globalCompositeOperation = 'screen';
+    drawRects(orb.rim, rimPal);
+    ctx.globalCompositeOperation = 'source-over';
+  }
   // 6.5) 스탠드 불빛(emission) — 밤에 켜면 방보다 안 어두워진다. 오버레이 뒤에 얹는다.
   if (state.lamp && !state.off.has('bd-lamp')) {
     ctx.globalCompositeOperation = 'lighter';
