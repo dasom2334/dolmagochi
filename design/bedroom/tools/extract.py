@@ -26,12 +26,22 @@ lum=small.mean(2); L=lum.copy()
 for _ in range(3): L=box_blur(L,10)
 L=np.maximum(L,25)
 albedo=small*(L.mean()*1.12/L)[:,:,None]
-# 2) 웜캐스트 60% 중화
+# 2) 웜캐스트 부분 중화 (0.5 — 과하면 파랑이 초록으로 튄다)
 Wc=albedo.reshape(-1,3).mean(0); Wc=Wc/Wc.mean()
-albedo=albedo/(Wc[None,None,:]**0.6)
+albedo=albedo/(Wc[None,None,:]**0.5)
 # 3) 채도 소폭 감소
 l2=albedo.mean(2,keepdims=True); albedo=l2+(albedo-l2)*0.88
-albedo=np.clip(albedo,0,255).astype('uint8')
+# 4) punch — 디라이팅으로 눌린 대비·채도 복원 (거실 §4.6/§22). 거실과 퀄리티 맞춤.
+#    명도 S커브(중간 기준 벌림)로 대비, 채도 부스트. 발광체 없으니 전체 적용.
+alb=albedo/255.0
+lum=alb.mean(2,keepdims=True)
+lum2=np.clip(0.5+(lum-0.5)*1.24, 0, 1)                 # 명도 대비 ×1.24 (그림자 과증폭 방지)
+# 어두운 구석을 살짝 들어올린다(거실처럼 방 전체가 죽지 않게) — 감마 0.92
+lum2=lum2**0.92
+alb=alb*(lum2/np.maximum(lum,1e-4))
+l3=alb.mean(2,keepdims=True)
+alb=l3+(alb-l3)*1.38                                    # 채도 ×1.38 (초록 튐 완화)
+albedo=np.clip(alb*255,0,255).astype('uint8')
 Image.fromarray(albedo).resize((128*6,72*6),Image.NEAREST).save(os.path.join(HERE,'albedo_x6.png'))
 
 # 4) 양자화 40색
