@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>침실 씬 v4 — 거실 구조 이식</title>
+<title>씬 v4 — 거실/침실 통합 뷰어</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { min-height:100vh; display:flex; flex-direction:column; align-items:center;
-         justify-content:center; gap:18px; background:#1b1020; padding:24px 12px;
+         justify-content:center; gap:16px; background:#1b1020; padding:24px 12px;
          font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif; }
   #stage { width:100%; max-width:900px; aspect-ratio:16/9; border-radius:12px;
            overflow:hidden; background:#241627; }
@@ -20,6 +20,7 @@
           transition:background .15s,color .15s,border-color .15s; }
   label:hover { border-color:#6b5175; }
   label.on { background:#d98e4a; border-color:#d98e4a; color:#2a1626; font-weight:600; }
+  label.room { padding:6px 16px; font-size:13px; }
   .divider { height:1px; background:#2e2036; margin:2px 0; }
   .note { color:#6f5e76; font-size:11px; }
   .slide { display:flex; align-items:center; gap:8px; }
@@ -31,90 +32,117 @@
 </head>
 <body>
   <div id="stage"><canvas id="cv" width="128" height="72"></canvas></div>
-  <div class="panel" id="panel"></div>
+  <div class="panel">
+    <div class="group" id="roomRow"></div>
+    <div class="divider"></div>
+    <div id="ambBox"></div>
+    <div class="divider"></div>
+    <div id="roomPanel"></div>
+    <div class="note" id="note"></div>
+  </div>
 
   <script type="module">
-    import { render, SHOP_PROPS } from './render.js';
+    import { render as renderLiving, SHOP_PROPS as LIVING_SHOP } from '../livingroom/scene/render.js';
+    import { render as renderBedroom, SHOP_PROPS as BD_SHOP } from './render.js';
     import { reduceMotion } from '../livingroom/scene/anim.js';
     import { AMBIENT } from '../livingroom/scene/lights.js';
 
     const cv = document.getElementById('cv');
-    const state = { time:'day', season:'summer', weather:'clear', orb:'chair', lamp:'off' };
-    // 아트 검수용이라 **가득 찬 방**으로 시작한다(거실 v3 는 상점 소품 off 로 시작하지만,
-    // 여기선 추출 아트를 바로 보는 게 목적). 게이팅은 소품 토글로 확인.
-    const off = new Set();
-    void SHOP_PROPS;
 
-    const AXES = [
-      ['시간', 'time',    [['day','낮'],['sunset','노을'],['night','밤']]],
-      ['계절', 'season',  [['spring','봄'],['summer','여름'],['autumn','가을'],['winter','겨울']]],
-      ['날씨', 'weather', [['clear','맑음'],['cloud','구름흐림'],['fog','안개흐림'],
-                          ['rain','비'],['downpour','폭우'],['snow','눈'],['petals','꽃잎·낙엽']]],
-      ['돌',   'orb',     [['none','없음'],['chair','의자(작업)'],['bed','침대'],['rug','러그']]],
-      ['스탠드','lamp',    [['off','끔'],['on','켬']]],
-    ];
-    const TOGGLES = [
-      ['색감', [['light-day','낮'],['light-sunset','노을'],['light-night','밤'],
-                ['light-cloud','구름흐림'],['light-fog','안개흐림'],
-                ['light-rain','비'],['light-downpour','폭우'],['light-snow','눈'],
-                ['light-petals','꽃잎·낙엽']]],
-      ['광원', [['lp-sun','창문 햇빛'],['lp-moon','창문 달빛'],['lamp-glow','스탠드'],
-                ['rim','역광'],['shadow','그림자·비네트']]],
-      ['배경', [['g-wall','벽/창틀'],['g-floor','바닥']]],
-      ['창밖', [['base-scenery','풍경'],['sun','해'],['moon','달'],['stars','별'],['clouds','구름']]],
-      ['소품', [['bd-desk','책상'],['bd-chair','의자'],['bd-laptop','노트북'],['bd-deskplant','화분'],
-                ['bd-lamp','스탠드'],['bd-nightstand','협탁'],['bd-bed','침대'],['bd-fan','선풍기'],
-                ['bd-rug','러그'],['bd-shelf','선반'],['bd-frames','액자'],['orb','돌']]],
-    ];
-
-    const panel = document.getElementById('panel');
-    const pills = [];
-    const mk = (labelText, items, isAxis, key) => {
-      const row = document.createElement('div'); row.className = 'group';
-      const l = document.createElement('span'); l.className = 'g-label'; l.textContent = labelText;
-      row.append(l);
-      for (const [val, txt] of items) {
-        const b = document.createElement('label'); b.textContent = txt;
-        b.onclick = () => {
-          if (isAxis) state[key] = val;
-          else off.has(val) ? off.delete(val) : off.add(val);
-          draw();
-        };
-        pills.push([b, isAxis ? () => state[key] === val : () => !off.has(val)]);
-        row.append(b);
-      }
-      panel.append(row);
+    // ── 방별 설정 (거실 축·토글은 v3.html 에서 그대로 가져옴) ──
+    const ROOMS = {
+      living: {
+        name: '거실', render: renderLiving,
+        state: () => ({ time:'sunset', season:'summer', weather:'clear', orb:'sill', tree:'v1',
+                        window:'closed', cup:'empty', readBook:1 }),
+        off: () => new Set(LIVING_SHOP),
+        axes: [
+          ['시간','time',[['day','낮'],['sunset','노을'],['night','밤']]],
+          ['계절','season',[['spring','봄'],['summer','여름'],['autumn','가을'],['winter','겨울']]],
+          ['날씨','weather',[['clear','맑음'],['cloud','구름흐림'],['fog','안개흐림'],
+                            ['rain','비'],['downpour','폭우'],['snow','눈'],['petals','꽃잎·낙엽']]],
+          ['돌','orb',[['sill','창턱'],['rug','러그']]],
+          ['나무','tree',[['v1','v1 침엽'],['v2','v2 활엽']]],
+          ['창문','window',[['closed','닫힘'],['open','열림']]],
+          ['찻잔','cup',[['empty','빈 잔'],['full','채움·김']]],
+          ['읽는책','readBook',[[0,'없음'],[1,'1권'],[2,'2권'],[3,'3권'],[4,'4권'],[5,'5권'],[6,'6권']]],
+        ],
+        toggles: [
+          ['색감',[['light-day','낮'],['light-sunset','노을'],['light-night','밤'],
+                  ['light-cloud','구름흐림'],['light-fog','안개흐림'],['light-rain','비'],
+                  ['light-downpour','폭우'],['light-snow','눈'],['light-petals','꽃잎·낙엽']]],
+          ['광원',[['lp-sun','창문 햇빛'],['lp-moon','창문 달빛'],['lp-fire','벽난로'],
+                  ['lp-lamp','스탠드'],['rim','역광'],['shadow','그림자·비네트']]],
+          ['배경',[['g-wall','벽'],['sill-shelf','창턱선반'],['g-floor','바닥'],['g-winframe','창틀'],
+                  ['g-fireplace','벽난로'],['g-shelf','책장']]],
+          ['창밖',[['base-scenery','풍경'],['tree-v1','나무v1'],['tree-v2','나무v2'],
+                  ['sun','해'],['moon','달'],['stars','별'],['clouds','구름']]],
+          ['소품',[['rug','러그'],['orb','창턱 돌'],['orb-rug','러그 돌'],['sill-plant','화분'],
+                  ['fire','불꽃'],['lamp','스탠드']]],
+          ['상점',[['p-cushion','돌 방석'],['p-cup','찻잔'],['p-windchime','풍경']]],
+          ['사물',[['p-blanket','담요'],['p-waterglass','물컵'],['p-bird','창턱 새'],['rug-mark','돌 자국']]],
+          ['효과',[['anim','애니메이션']]],
+        ],
+      },
+      bedroom: {
+        name: '침실', render: renderBedroom,
+        state: () => ({ time:'day', season:'summer', weather:'clear', orb:'chair', lamp:'off' }),
+        off: () => new Set(),                   // 아트 검수용 — 가득 찬 방으로 시작
+        axes: [
+          ['시간','time',[['day','낮'],['sunset','노을'],['night','밤']]],
+          ['계절','season',[['spring','봄'],['summer','여름'],['autumn','가을'],['winter','겨울']]],
+          ['날씨','weather',[['clear','맑음'],['cloud','구름흐림'],['fog','안개흐림'],
+                            ['rain','비'],['downpour','폭우'],['snow','눈'],['petals','꽃잎·낙엽']]],
+          ['돌','orb',[['none','없음'],['chair','의자(작업)'],['bed','침대'],['rug','러그']]],
+          ['스탠드','lamp',[['off','끔'],['on','켬']]],
+        ],
+        toggles: [
+          ['색감',[['light-day','낮'],['light-sunset','노을'],['light-night','밤'],
+                  ['light-cloud','구름흐림'],['light-fog','안개흐림'],['light-rain','비'],
+                  ['light-downpour','폭우'],['light-snow','눈'],['light-petals','꽃잎·낙엽']]],
+          ['광원',[['lp-sun','창문 햇빛'],['lp-moon','창문 달빛'],['lamp-glow','스탠드'],
+                  ['rim','역광'],['shadow','그림자·비네트']]],
+          ['배경',[['g-wall','벽/창틀'],['g-floor','바닥']]],
+          ['창밖',[['base-scenery','풍경'],['sun','해'],['moon','달'],['stars','별'],['clouds','구름']]],
+          ['소품',[['bd-desk','책상'],['bd-chair','의자'],['bd-laptop','노트북'],['bd-deskplant','화분'],
+                  ['bd-lamp','스탠드'],['bd-nightstand','협탁'],['bd-bed','침대'],['bd-fan','선풍기'],
+                  ['bd-rug','러그'],['bd-shelf','선반'],['bd-frames','액자'],['orb','돌']]],
+        ],
+      },
     };
 
-    // 앰비언트 배분 — 거실과 동일(공유 AMBIENT). 어느 오버레이를 만지는지 항상 표시.
+    let roomKey = 'living';
+    let state = ROOMS[roomKey].state();
+    let off = ROOMS[roomKey].off();
+    let pills = [];
+
+    // ── 앰비언트 (방과 무관하게 공유) — 패널 맨 위 ──
+    const ambBox = document.getElementById('ambBox');
     const AMB_TARGETS = [['light-day','낮'],['light-sunset','노을'],['light-night','밤'],
-                         ['light-cloud','구름흐림'],['light-fog','안개흐림'],
-                         ['light-rain','비'],['light-downpour','폭우'],
-                         ['light-snow','눈'],['light-petals','꽃잎·낙엽']];
+                         ['light-cloud','구름흐림'],['light-fog','안개흐림'],['light-rain','비'],
+                         ['light-downpour','폭우'],['light-snow','눈'],['light-petals','꽃잎·낙엽']];
     let ambTarget = 'light-day';
+    const ambPills = [];
     const ambRow = document.createElement('div'); ambRow.className = 'group';
-    const ambLab = document.createElement('span'); ambLab.className = 'g-label';
-    ambLab.textContent = '앰비언트';
+    const ambLab = document.createElement('span'); ambLab.className = 'g-label'; ambLab.textContent = '앰비언트';
     ambRow.append(ambLab);
     for (const [oid, txt] of AMB_TARGETS) {
       const b = document.createElement('label'); b.textContent = txt;
       b.onclick = () => { ambTarget = oid; syncAmb(); draw(); };
-      pills.push([b, () => ambTarget === oid]);
-      ambRow.append(b);
+      ambPills.push([b, () => ambTarget === oid]); ambRow.append(b);
     }
-    panel.append(ambRow);
-    const ambName = document.createElement('div'); ambName.className = 'note'; panel.append(ambName);
-
-    const AMB = [['screen', 'screen'], ['overlay', 'overlay'], ['saturation', '세츄레이션']];
+    ambBox.append(ambRow);
+    const ambName = document.createElement('div'); ambName.className = 'note'; ambBox.append(ambName);
+    const AMB = [['screen','screen'],['overlay','overlay'],['saturation','세츄레이션']];
     const ambInputs = [];
     for (const [key, txt] of AMB) {
       const row = document.createElement('div'); row.className = 'slide';
       const name = document.createElement('span'); name.textContent = txt;
       const inp = document.createElement('input');
-      inp.type = 'range'; inp.min = 0; inp.max = 0.6; inp.step = 0.01;
+      inp.type='range'; inp.min=0; inp.max=0.6; inp.step=0.01;
       const val = document.createElement('span');
-      inp.oninput = () => { AMBIENT[ambTarget][key] = +inp.value; val.textContent = (+inp.value).toFixed(2); draw(); };
-      row.append(name, inp, val); panel.append(row);
+      inp.oninput = () => { AMBIENT[ambTarget][key]=+inp.value; val.textContent=(+inp.value).toFixed(2); draw(); };
+      row.append(name, inp, val); ambBox.append(row);
       ambInputs.push([key, inp, val]);
     }
     function syncAmb() {
@@ -122,31 +150,65 @@
       const dim = off.has(ambTarget) ? ' — 지금 꺼져 있어 화면에 안 보인다' : '';
       ambName.textContent = `조정 대상: ${txt} (${ambTarget})${dim}`;
       for (const [key, inp, val] of ambInputs) {
-        inp.value = AMBIENT[ambTarget][key];
-        val.textContent = AMBIENT[ambTarget][key].toFixed(2);
+        inp.value = AMBIENT[ambTarget][key]; val.textContent = AMBIENT[ambTarget][key].toFixed(2);
       }
     }
-    syncAmb();
-    const div0 = document.createElement('div'); div0.className = 'divider'; panel.append(div0);
 
-    for (const [t, key, items] of AXES) mk(t, items, true, key);
-    const div = document.createElement('div'); div.className = 'divider'; panel.append(div);
-    for (const [t, items] of TOGGLES) mk(t, items, false);
+    // ── 방 스위처 ──
+    const roomRow = document.getElementById('roomRow');
+    const roomLab = document.createElement('span'); roomLab.className = 'g-label'; roomLab.textContent = '방';
+    roomRow.append(roomLab);
+    const roomPills = [];
+    for (const key of Object.keys(ROOMS)) {
+      const b = document.createElement('label'); b.className = 'room'; b.textContent = ROOMS[key].name;
+      b.onclick = () => switchRoom(key);
+      roomPills.push([b, () => roomKey === key]); roomRow.append(b);
+    }
 
-    const note = document.createElement('div'); note.className = 'note';
-    note.textContent = '정적 아트는 레퍼런스 추출(geom-art.js) · 창밖·색·오버레이·비네트는 거실 모듈 공유 · '
-                     + '렌더 패스는 거실 render.js 구조(render.js). 벽을 끄면 창밖 풍경이 통째로 드러난다.';
-    panel.append(note);
+    // ── 방별 축·토글 패널 (전환 시 재생성) ──
+    const roomPanel = document.getElementById('roomPanel');
+    function buildPanel() {
+      roomPanel.innerHTML = ''; pills = [];
+      const cfg = ROOMS[roomKey];
+      const mk = (labelText, items, isAxis, key) => {
+        const row = document.createElement('div'); row.className = 'group';
+        const l = document.createElement('span'); l.className = 'g-label'; l.textContent = labelText;
+        row.append(l);
+        for (const [val, txt] of items) {
+          const b = document.createElement('label'); b.textContent = txt;
+          b.onclick = () => { if (isAxis) state[key]=val; else (off.has(val)?off.delete(val):off.add(val)); draw(); };
+          pills.push([b, isAxis ? () => state[key]===val : () => !off.has(val)]);
+          row.append(b);
+        }
+        roomPanel.append(row);
+      };
+      for (const [t, key, items] of cfg.axes) mk(t, items, true, key);
+      const div = document.createElement('div'); div.className='divider'; roomPanel.append(div);
+      for (const [t, items] of cfg.toggles) mk(t, items, false);
+    }
+    function switchRoom(key) {
+      roomKey = key;
+      state = ROOMS[key].state();
+      off = ROOMS[key].off();
+      if (reduceMotion()) off.add('anim');
+      buildPanel(); syncAmb(); draw();
+    }
+
+    document.getElementById('note').textContent =
+      '거실=런타임 생성, 침실=레퍼런스 추출. 렌더 패스·UI·오버레이·비네트·AMBIENT 공유. 벽을 끄면 창밖 풍경이 통째로 드러난다.';
 
     if (reduceMotion()) off.add('anim');
+    buildPanel(); syncAmb();
+
     let t0 = performance.now(), frozen = 0, paused = false;
     function draw(t = frozen) {
-      render(cv, state, off, t);
-      for (const [el, isOn] of pills) el.classList.toggle('on', isOn());
+      ROOMS[roomKey].render(cv, state, off, t);
+      for (const [el, isOn] of [...roomPills, ...ambPills, ...pills]) el.classList.toggle('on', isOn());
     }
     function loop(now) { if (!paused) { frozen = now - t0; draw(frozen); } requestAnimationFrame(loop); }
     draw(); requestAnimationFrame(loop);
-    window.__scene = { state, off, draw, pause: (v = true) => { paused = v; } };
+    window.__scene = { get state(){return state;}, get off(){return off;}, draw,
+                       room: switchRoom, pause: (v=true)=>{paused=v;} };
   </script>
 </body>
 </html>
