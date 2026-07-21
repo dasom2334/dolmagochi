@@ -82,7 +82,9 @@ function orbSprite(state) {
 export function render(cv, state, off = new Set(), t = 0) {
   const ctx = cv.getContext('2d');
   // 방 팔레트(--rg* 러그 등)까지 넘긴다 — 거실과 동일. 없으면 러그가 #f0f 로 뜬다.
-  const pal = resolve(state, ROOM_DATA.palette);
+  // state.override: v4 편집 패널의 컬러피커·강도 슬라이더가 특정 슬롯을 덮어쓴다(검수용).
+  //   색 슬롯(--rg2 등) 또는 알파 슬롯(--wl-a 창광 세기)을 임시로 바꾼다. 기본은 원본.
+  const pal = { ...resolve(state, ROOM_DATA.palette), ...(state.override || {}) };
   // 이전 버전 토글 — state.variant==='prev' 이면 오늘 4건 수정 전 상태로 그린다.
   //   현재: 절차 바닥·절차 러그·전방감쇠 창광·스펙클제거 가구
   //   이전: 추출 바닥·추출(구운) 러그·균일 창광·비스펙클 가구
@@ -107,10 +109,11 @@ export function render(cv, state, off = new Set(), t = 0) {
   // 러그 — 현재는 절차 생성(무광원). 이전 버전은 추출 러그를 가구 z에서 그린다.
   if (!prev && !off.has('bd-rug')) paint(ctx, bedroomRug(), pal);
 
-  // [2.5] 접지 그림자 (multiply) — 소품 밑, SCENE-RULES §3.4
+  // [2.5] 접지 그림자 (multiply) — 소품 밑, SCENE-RULES §3.4. state.shadowK = 세기 배율.
   if (!off.has('shadow')) {
+    const shK = state.shadowK ?? 1;
     ctx.globalCompositeOperation = 'multiply';
-    for (const r of groundShadows(off)) { ctx.globalAlpha = r[5]; ctx.fillStyle = r[4]; ctx.fillRect(r[0], r[1], r[2], r[3]); }
+    for (const r of groundShadows(off)) { ctx.globalAlpha = r[5] * shK; ctx.fillStyle = r[4]; ctx.fillRect(r[0], r[1], r[2], r[3]); }
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   }
 
@@ -157,10 +160,11 @@ export function render(cv, state, off = new Set(), t = 0) {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // [7] 비네트 — 거실 것 재사용
+  // [7] 비네트 — 거실 것 재사용. state.vigK = 세기 배율.
   if (!off.has('shadow')) {
+    const vigK = state.vigK ?? 1;
     ctx.globalCompositeOperation = 'multiply';
-    for (const v of VIGNETTE) { ctx.globalAlpha = v.alpha; ctx.fillStyle = v.fill; ctx.fillRect(...v.r); }
+    for (const v of VIGNETTE) { ctx.globalAlpha = v.alpha * vigK; ctx.fillStyle = v.fill; ctx.fillRect(...v.r); }
   }
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;

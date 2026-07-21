@@ -28,6 +28,16 @@
   .slide input { flex:1; max-width:260px; accent-color:#d98e4a; }
   .slide > span:last-child { width:38px; flex:none; color:#8d7a92; font-size:11px;
                              font-variant-numeric:tabular-nums; text-align:right; }
+  .sw { display:flex; align-items:center; gap:4px; color:#af9cb4; font-size:11px; }
+  .sw input[type=color] { width:22px; height:22px; padding:0; border:1px solid #443150;
+                          border-radius:4px; background:none; cursor:pointer; }
+  #editHead { display:flex; align-items:center; gap:8px; color:#d98e4a; font-size:12px;
+              letter-spacing:.04em; margin-bottom:2px; }
+  #editHead button { padding:3px 10px; border-radius:999px; background:#2a1c31;
+                     border:1px solid #443150; color:#af9cb4; font-size:11px; cursor:pointer; }
+  #editOut { width:100%; max-width:560px; height:64px; margin-top:4px; display:none;
+             background:#140c1a; border:1px solid #443150; border-radius:6px; color:#c9b6cf;
+             font:11px ui-monospace,monospace; padding:6px; resize:vertical; }
 </style>
 </head>
 <body>
@@ -38,6 +48,8 @@
     <div id="ambBox"></div>
     <div class="divider"></div>
     <div id="roomPanel"></div>
+    <div class="divider"></div>
+    <div id="editBox"></div>
     <div class="note" id="note"></div>
   </div>
 
@@ -46,6 +58,8 @@
     import { render as renderBedroom, SHOP_PROPS as BD_SHOP } from './render.js';
     import { reduceMotion } from '../livingroom/scene/anim.js';
     import { AMBIENT } from '../livingroom/scene/lights.js';
+    import { resolve } from '../livingroom/scene/palette.js';
+    import { ROOM_DATA } from '../livingroom/scene/room-data.js';
 
     const cv = document.getElementById('cv');
 
@@ -117,6 +131,7 @@
     let state = ROOMS[roomKey].state();
     let off = ROOMS[roomKey].off();
     let pills = [];
+    let editInputs = [];
 
     // ── 앰비언트 (방과 무관하게 공유) — 패널 맨 위 ──
     const ambBox = document.getElementById('ambBox');
@@ -130,7 +145,7 @@
     ambRow.append(ambLab);
     for (const [oid, txt] of AMB_TARGETS) {
       const b = document.createElement('label'); b.textContent = txt;
-      b.onclick = () => { ambTarget = oid; syncAmb(); draw(); };
+      b.onclick = () => { ambTarget = oid; syncAmb(); redraw(); };
       ambPills.push([b, () => ambTarget === oid]); ambRow.append(b);
     }
     ambBox.append(ambRow);
@@ -143,7 +158,7 @@
       const inp = document.createElement('input');
       inp.type='range'; inp.min=0; inp.max=0.6; inp.step=0.01;
       const val = document.createElement('span');
-      inp.oninput = () => { AMBIENT[ambTarget][key]=+inp.value; val.textContent=(+inp.value).toFixed(2); draw(); };
+      inp.oninput = () => { AMBIENT[ambTarget][key]=+inp.value; val.textContent=(+inp.value).toFixed(2); redraw(); };
       row.append(name, inp, val); ambBox.append(row);
       ambInputs.push([key, inp, val]);
     }
@@ -178,7 +193,7 @@
         row.append(l);
         for (const [val, txt] of items) {
           const b = document.createElement('label'); b.textContent = txt;
-          b.onclick = () => { if (isAxis) state[key]=val; else (off.has(val)?off.delete(val):off.add(val)); draw(); };
+          b.onclick = () => { if (isAxis) state[key]=val; else (off.has(val)?off.delete(val):off.add(val)); redraw(); };
           pills.push([b, isAxis ? () => state[key]===val : () => !off.has(val)]);
           row.append(b);
         }
@@ -188,19 +203,105 @@
       const div = document.createElement('div'); div.className='divider'; roomPanel.append(div);
       for (const [t, items] of cfg.toggles) mk(t, items, false);
     }
+
+    // ── 편집 패널 (Phase 1: 색·빛 강도) — 침실 전용. state.override/vigK/shadowK 를 바꾼다 ──
+    const editBox = document.getElementById('editBox');
+    const EDIT_COLORS = [
+      ['하늘', [['--k1', '상단'], ['--k9', '지평선']]],
+      ['산',   [['--h0', '먼 산'], ['--h2', '앞 산']]],
+      ['바닥', [['--fb0', '판자a'], ['--fb1', '판자b'], ['--fb2', '판자c'], ['--fbk', '줄눈']]],
+      ['러그', [['--rg0', '외곽'], ['--rg2', '필드'], ['--rg4', '테두리']]],
+      ['돌',   [['--o0', '아래'], ['--o2', '중간'], ['--o4', '위']]],
+      ['빛',   [['--wl', '햇빛색'], ['--ml', '달빛색']]],
+    ];
+    // [라벨, 키, min, max, step, 종류] — override=팔레트 슬롯(--wl-a 등), state=배율(그림자/비네트)
+    const EDIT_SLIDERS = [
+      ['창광(햇빛)', '--wl-a', 0, 1, 0.02, 'override'],
+      ['창광(달빛)', '--ml-a', 0, 1, 0.02, 'override'],
+      ['그림자',    'shadowK', 0, 2, 0.05, 'state'],
+      ['비네트',    'vigK',    0, 2, 0.05, 'state'],
+    ];
+    const hex6 = (c) => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) ? c : '#000000';
+
+    function buildEdit() {
+      editBox.innerHTML = ''; editInputs = [];
+      if (roomKey !== 'bedroom') return;         // 침실 render 만 override 를 읽는다
+      const def = resolve(state, ROOM_DATA.palette);
+
+      const head = document.createElement('div'); head.id = 'editHead';
+      head.append(document.createTextNode('편집 (화면에서만 임시 적용)'));
+      const bReset = document.createElement('button'); bReset.textContent = '초기화';
+      bReset.onclick = () => { delete state.override; delete state.vigK; delete state.shadowK; buildEdit(); draw(); };
+      const bCopy = document.createElement('button'); bCopy.textContent = '값 복사';
+      const out = document.createElement('textarea'); out.id = 'editOut'; out.readOnly = true;
+      bCopy.onclick = () => {
+        const o = { ...(state.override || {}) };
+        if (state.shadowK != null) o.shadowK = state.shadowK;
+        if (state.vigK != null) o.vigK = state.vigK;
+        out.value = Object.keys(o).length ? JSON.stringify(o, null, 2) : '(바꾼 값 없음)';
+        out.style.display = 'block';
+        navigator.clipboard?.writeText(out.value);
+      };
+      head.append(bReset, bCopy);
+      editBox.append(head);
+
+      const mkRow = (label) => {
+        const row = document.createElement('div'); row.className = 'group';
+        const l = document.createElement('span'); l.className = 'g-label'; l.textContent = label;
+        row.append(l); editBox.append(row); return row;
+      };
+      for (const [g, items] of EDIT_COLORS) {
+        const row = mkRow(g);
+        for (const [slot, label] of items) {
+          const wrap = document.createElement('label'); wrap.className = 'sw';
+          const inp = document.createElement('input'); inp.type = 'color';
+          inp.value = hex6(state.override?.[slot] ?? def[slot]);
+          inp.oninput = () => { (state.override || (state.override = {}))[slot] = inp.value; draw(); };
+          const s = document.createElement('span'); s.textContent = label;
+          wrap.append(inp, s); row.append(wrap);
+          editInputs.push([slot, inp]);
+        }
+      }
+      for (const [label, key, min, max, step, kind] of EDIT_SLIDERS) {
+        const row = document.createElement('div'); row.className = 'slide';
+        const name = document.createElement('span'); name.textContent = label;
+        const inp = document.createElement('input'); inp.type = 'range';
+        inp.min = min; inp.max = max; inp.step = step;
+        const cur = kind === 'override' ? parseFloat(state.override?.[key] ?? def[key] ?? 0) : (state[key] ?? 1);
+        inp.value = cur;
+        const val = document.createElement('span'); val.textContent = (+cur).toFixed(2);
+        inp.oninput = () => {
+          const v = +inp.value; val.textContent = v.toFixed(2);
+          if (kind === 'override') (state.override || (state.override = {}))[key] = v;
+          else state[key] = v;
+          draw();
+        };
+        row.append(name, inp, val); editBox.append(row);
+      }
+      editBox.append(out);
+    }
+    // 오버라이드 안 된 색 스와치는 시간/계절이 바뀌면 현재 실제색으로 갱신
+    function syncEditSwatches() {
+      if (roomKey !== 'bedroom' || !editInputs.length) return;
+      const def = resolve(state, ROOM_DATA.palette);
+      for (const [slot, inp] of editInputs)
+        if (!(state.override && slot in state.override)) inp.value = hex6(def[slot]);
+    }
+    function redraw() { draw(); syncEditSwatches(); }
+
     function switchRoom(key) {
       roomKey = key;
       state = ROOMS[key].state();
       off = ROOMS[key].off();
       if (reduceMotion()) off.add('anim');
-      buildPanel(); syncAmb(); draw();
+      buildPanel(); buildEdit(); syncAmb(); draw();
     }
 
     document.getElementById('note').textContent =
       '거실=런타임 생성, 침실=레퍼런스 추출. 렌더 패스·UI·오버레이·비네트·AMBIENT 공유. 벽을 끄면 창밖 풍경이 통째로 드러난다.';
 
     if (reduceMotion()) off.add('anim');
-    buildPanel(); syncAmb();
+    buildPanel(); buildEdit(); syncAmb();
 
     let t0 = performance.now(), frozen = 0, paused = false;
     function draw(t = frozen) {
