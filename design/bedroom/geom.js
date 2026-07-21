@@ -63,9 +63,10 @@ const WIN_SPREAD = 0.04, WIN_SKEW = 0.7;
 // **앞으로 갈수록 감쇠**(거실 WIN_ZONES 방식) — 창턱 근처가 가장 밝고 전방으로 사그라든다.
 // 균일 1.0 으로 바닥 끝까지 깔면 창빛이 방 전체를 덮어 물리적으로 어색했다(#3).
 const POOL_ZONES = [[33, 34, 0.8], [49, 54, 1.0], [55, 61, 0.72], [62, 71, 0.46]];
-export function windowPool(slot, alphaSlot) {
+const POOL_ZONES_PREV = [[33, 34, 0.85], [49, 71, 1]];   // 이전 버전(균일) — A/B 비교용
+export function windowPool(slot, alphaSlot, prev = false) {
   const out = [];
-  for (const [zy0, zy1, op] of POOL_ZONES) {
+  for (const [zy0, zy1, op] of (prev ? POOL_ZONES_PREV : POOL_ZONES)) {
     for (let y = zy0; y <= zy1; y++) {
       const t = y <= 34 ? 0 : y - WIN_SILL;
       const s = 1 + WIN_SPREAD * t, sh = WIN_SKEW * t;

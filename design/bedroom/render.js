@@ -8,6 +8,7 @@ import { resolve } from '../livingroom/scene/palette.js';
 import { ROOM_DATA } from '../livingroom/scene/room-data.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
 import { BD_ART, BD_GLASS } from './geom-art.js';
+import * as PREV from './geom-art-prev.js';   // 이전 버전(오늘 4건 수정 전) 정적 아트 — A/B 비교용
 import { ORB_SPOTS, lampArt, lampGlowArt, windowPool, groundShadows, bedroomRug } from './geom.js';
 
 const GX = 128, GY = 72;
@@ -21,6 +22,9 @@ export const SHOP_PROPS = ['bd-desk', 'bd-chair', 'bd-laptop', 'bd-deskplant',
 // bd-rug 는 추출본을 안 쓰고 절차 러그(bedroomRug)로 대체 → 목록에서 뺀다.
 const Z_FURNITURE = ['bd-frames', 'bd-shelf', 'bd-bed', 'bd-fan', 'bd-nightstand',
   'bd-desk', 'bd-laptop', 'bd-deskplant', 'bd-chair'];
+// 이전 버전 z-순서 — 추출 러그(bd-rug)를 가구로 포함(절차 러그를 안 쓰던 때)
+const Z_FURNITURE_PREV = ['bd-frames', 'bd-shelf', 'bd-bed', 'bd-fan', 'bd-nightstand',
+  'bd-rug', 'bd-desk', 'bd-laptop', 'bd-deskplant', 'bd-chair'];
 // 창밖 개별 레이어(거실 '창밖' 토글 대응)
 const SCENERY = ['base-scenery', 'halo-moon', 'halo-sun', 'sun', 'moon', 'stars', 'clouds'];
 
@@ -79,6 +83,11 @@ export function render(cv, state, off = new Set(), t = 0) {
   const ctx = cv.getContext('2d');
   // 방 팔레트(--rg* 러그 등)까지 넘긴다 — 거실과 동일. 없으면 러그가 #f0f 로 뜬다.
   const pal = resolve(state, ROOM_DATA.palette);
+  // 이전 버전 토글 — state.variant==='prev' 이면 오늘 4건 수정 전 상태로 그린다.
+  //   현재: 절차 바닥·절차 러그·전방감쇠 창광·스펙클제거 가구
+  //   이전: 추출 바닥·추출(구운) 러그·균일 창광·비스펙클 가구
+  const prev = state.variant === 'prev';
+  const ART = prev ? PREV.BD_ART : BD_ART;
   ctx.imageSmoothingEnabled = false;
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -93,10 +102,10 @@ export function render(cv, state, off = new Set(), t = 0) {
   //     바닥은 **거실 절차 바닥(g-floor)** 을 그대로 쓴다. 추출 바닥(BD_ART['bd-floor'])은
   //     ① 디테일이 거실과 다르고 ② 창햇빛 명암이 구워져 있었다(질감만 있어야 함).
   //     절차 바닥은 무광원 알베도(팔레트 슬롯)라 두 문제를 동시에 없앤다. 영역도 y49~ 로 같다.
-  if (!off.has('g-wall')) paint(ctx, BD_ART['bd-wall'], pal);
-  if (!off.has('g-floor')) paint(ctx, groups['g-floor'], pal);
-  // 러그 — 절차 생성(무광원). 바닥 바로 위, 가구·그림자 아래.
-  if (!off.has('bd-rug')) paint(ctx, bedroomRug(), pal);
+  if (!off.has('g-wall')) paint(ctx, ART['bd-wall'], pal);
+  if (!off.has('g-floor')) paint(ctx, prev ? ART['bd-floor'] : groups['g-floor'], pal);
+  // 러그 — 현재는 절차 생성(무광원). 이전 버전은 추출 러그를 가구 z에서 그린다.
+  if (!prev && !off.has('bd-rug')) paint(ctx, bedroomRug(), pal);
 
   // [2.5] 접지 그림자 (multiply) — 소품 밑, SCENE-RULES §3.4
   if (!off.has('shadow')) {
@@ -106,7 +115,8 @@ export function render(cv, state, off = new Set(), t = 0) {
   }
 
   // [3] 가구 (무광원 알베도 base). 게이팅.
-  for (const id of Z_FURNITURE) if (!off.has(id) && BD_ART[id]) paint(ctx, BD_ART[id], pal);
+  for (const id of (prev ? Z_FURNITURE_PREV : Z_FURNITURE))
+    if (!off.has(id) && ART[id]) paint(ctx, ART[id], pal);
   if (!off.has('bd-lamp')) paint(ctx, lampArt(), pal);
 
   // [3.5] 돌 base
@@ -123,7 +133,7 @@ export function render(cv, state, off = new Set(), t = 0) {
   const poolId = sunOn ? 'lp-sun' : 'lp-moon';
   const wet = ['fog', 'rain', 'downpour', 'snow'].includes(state.weather);
   if (!off.has(poolId) && !wet) {
-    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a');
+    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a', prev);
     const a = parseFloat(pal[alphaSlot] ?? 0);
     if (a > 0) {
       ctx.globalCompositeOperation = 'screen';
