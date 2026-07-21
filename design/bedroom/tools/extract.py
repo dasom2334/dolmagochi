@@ -23,7 +23,7 @@ def box_blur(a,r):
 
 # 1) 휘도 플랫필드 — 광 웅덩이·글로우·비네트 제거, 색조 보존 (delight.py)
 lum=small.mean(2); L=lum.copy()
-for _ in range(3): L=box_blur(L,6)
+for _ in range(3): L=box_blur(L,10)
 L=np.maximum(L,25)
 albedo=small*(L.mean()*1.12/L)[:,:,None]
 # 2) 웜캐스트 60% 중화
