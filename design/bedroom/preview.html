@@ -23,6 +23,7 @@
 <script type="module">
 import { generateGroups } from '../livingroom/scene/generate.js';
 import { resolve } from '../livingroom/scene/palette.js';
+import { bedroomProps, BD_Z } from './geom.js';
 
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -109,6 +110,9 @@ function draw() {
   drawWall();
   drawFrame();
   drawRects(groups['g-floor'], pal);
+  // 5) 가구 (z-순서). 리터럴 색이라 팔레트 무관.
+  const props = bedroomProps();
+  for (const id of BD_Z) if (props[id]) drawRects(props[id], pal);
 }
 
 // ── 토글 UI (시간·날씨) ──
