@@ -21,6 +21,7 @@
 <div class="row" id="season"></div>
 <div class="row" id="weather"></div>
 <div class="row" id="orb"></div>
+<div class="row" id="layers"></div>
 <div class="row" id="props"></div>
 
 <script type="module">
@@ -63,9 +64,12 @@ function drawWall() {
     for (let x = 0; x < 128; x++) {
       const inWin = x >= WIN.x0 && x <= WIN.x1 && y >= WIN.y0 && y <= WIN.y1;
       if (inWin) continue;                       // 개구부 = 하늘
-      // 은은한 마름모 무늬(2톤) + 접합부 아주 옅은 라인
-      const diamond = ((x + y) % 8 < 2) || ((x - y + 128) % 8 < 2);
-      ctx.fillStyle = diamond ? C.wall1 : C.wall0;
+      // 은은한 다마스크 — 격자 교점에만 1px 점(레퍼런스처럼 과하지 않게).
+      // 위가 살짝 밝고 아래로 어두워지는 세로 그라디언트도 얹는다.
+      const dot = (x % 8 === 0) && (y % 6 === 0);
+      let c = dot ? C.wall1 : C.wall0;
+      if (y > 30) c = C.wallLine;                // 하단(가구 뒤)은 더 어둡게
+      ctx.fillStyle = c;
       ctx.fillRect(x, y, 1, 1);
     }
   }
@@ -181,26 +185,37 @@ function applyOverlay(oid) {
 
 function draw() {
   const pal = resolve(state);
+  const off = state.off;
   ctx.clearRect(0, 0, 128, 72);
+  ctx.fillStyle = pal['--page-bg'] || '#1a1330';
+  ctx.fillRect(0, 0, 128, 72);
   // 1) 창 개구부에만 하늘(+산·달) — 벽 뒤라 클립해서 그린다
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(WIN.x0, WIN.y0, WIN.x1 - WIN.x0 + 1, WIN.y1 - WIN.y0 + 1);
-  ctx.clip();
-  drawRects(groups['base-scenery'], pal);
-  // 달/별/구름도 창 안에서 보이게
-  for (const id of ['halo-moon', 'halo-sun', 'clouds']) if (groups[id]) drawRects(groups[id], pal);
-  ctx.restore();
-  // 2) 벽(개구부 제외)  3) 창틀  4) 바닥
-  drawWall();
-  drawFrame();
-  drawRects(groups['g-floor'], pal);
-  // 4.5) 접지 그림자 — 바닥 위, 가구 아래. multiply.
-  ctx.globalCompositeOperation = 'multiply';
-  for (const [x, y, w, h, c, a] of groundShadows(state.off)) {
-    ctx.globalAlpha = a == null ? 1 : a; ctx.fillStyle = c; ctx.fillRect(x, y, w, h);
+  if (!off.has('bg')) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(WIN.x0, WIN.y0, WIN.x1 - WIN.x0 + 1, WIN.y1 - WIN.y0 + 1);
+    ctx.clip();
+    drawRects(groups['base-scenery'], pal);
+    // 달/별/구름도 창 안에서 보이게
+    for (const id of ['halo-moon', 'halo-sun', 'clouds']) if (groups[id]) drawRects(groups[id], pal);
+    // 날씨 파티클도 창 안에
+    for (const id of ['rain', 'downpour', 'snow', 'pt-petals'])
+      if (groups[id] && (`light-${state.weather}` === `light-${id.replace('pt-', '')}` ||
+          (id === 'pt-petals' && state.weather === 'petals'))) drawRects(groups[id], pal);
+    ctx.restore();
   }
-  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  // 2) 벽(개구부 제외)  3) 창틀  4) 바닥
+  if (!off.has('wall')) drawWall();
+  if (!off.has('winframe')) drawFrame();
+  if (!off.has('floor')) drawRects(groups['g-floor'], pal);
+  // 4.5) 접지 그림자 — 바닥 위, 가구 아래. multiply.
+  if (!off.has('shadow')) {
+    ctx.globalCompositeOperation = 'multiply';
+    for (const [x, y, w, h, c, a] of groundShadows(state.off)) {
+      ctx.globalAlpha = a == null ? 1 : a; ctx.fillStyle = c; ctx.fillRect(x, y, w, h);
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
   // 5) 가구 (z-순서). 끈 소품·스탠드 발광은 건너뛴다. 리터럴 색이라 팔레트 무관.
   const props = bedroomProps();
   for (const id of BD_Z) {
@@ -214,10 +229,12 @@ function draw() {
   if (orb) drawRects(orb.base, pal);
   // 6) 색감 오버레이 — 시간 → 날씨 (맑음은 오버레이 없음)
   ctx.globalCompositeOperation = 'source-over';
-  applyOverlay(`light-${state.time}`);
-  applyOverlay(`light-${state.weather}`);
+  if (!off.has('overlay')) {
+    applyOverlay(`light-${state.time}`);
+    applyOverlay(`light-${state.weather}`);
+  }
   // 6.3) 창빛 웅덩이 — 왼쪽 창에서 바닥으로
-  drawWindowPool();
+  if (!off.has('pool')) drawWindowPool();
   // 6.4) 돌 역광(rim) — 창빛 색을 따라간다(밤엔 달빛 --ml). 광원 패스라 screen.
   if (orb) {
     const sunOn = state.time !== 'night';
@@ -233,8 +250,10 @@ function draw() {
     ctx.globalCompositeOperation = 'source-over';
   }
   // 7) 비네트 — 가장자리를 눌러 시선을 모은다 (거실 것 재사용)
-  ctx.globalCompositeOperation = 'multiply';
-  for (const v of VIGNETTE) { ctx.globalAlpha = v.alpha; ctx.fillStyle = v.fill; ctx.fillRect(...v.r); }
+  if (!off.has('vignette')) {
+    ctx.globalCompositeOperation = 'multiply';
+    for (const v of VIGNETTE) { ctx.globalAlpha = v.alpha; ctx.fillStyle = v.fill; ctx.fillRect(...v.r); }
+  }
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
 }
@@ -270,11 +289,28 @@ function propRow() {
   lb.onclick = () => { state.lamp = !state.lamp; refresh(); };
   el.appendChild(lb);
 }
+// 장면 레이어 다중 토글 (배경·창틀·벽·바닥·창빛·비네트 등 — 거실 v3 참고)
+const SCENE_LAYERS = [
+  ['bg', '창밖배경'], ['winframe', '창틀'], ['wall', '벽'], ['floor', '바닥'],
+  ['shadow', '접지그림자'], ['overlay', '색감'], ['pool', '창빛'], ['vignette', '비네트'],
+];
+function layerRow() {
+  const el = document.getElementById('layers');
+  el.innerHTML = `<span class="lbl">장면</span>`;
+  for (const [id, label] of SCENE_LAYERS) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.className = state.off.has(id) ? '' : 'on';
+    b.onclick = () => { state.off.has(id) ? state.off.delete(id) : state.off.add(id); refresh(); };
+    el.appendChild(b);
+  }
+}
 function refresh() {
   pick('time', 'time', 'time', ['day', 'sunset', 'night']);
   pick('season', 'season', 'season', ['spring', 'summer', 'autumn', 'winter']);
   pick('weather', 'weather', 'weather', ['clear', 'cloud', 'fog', 'rain', 'downpour', 'snow', 'petals']);
   pick('orb', '돌', 'orb', ['none', 'chair', 'bed', 'rug']);
+  layerRow();
   propRow();
   draw();
 }
