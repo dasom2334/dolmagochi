@@ -27,7 +27,7 @@
 import { generateGroups } from '../livingroom/scene/generate.js';
 import { resolve } from '../livingroom/scene/palette.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
-import { bedroomProps, BD_Z, BD_PROPS, ORB_SPOTS } from './geom.js';
+import { bedroomProps, BD_Z, BD_PROPS, ORB_SPOTS, groundShadows } from './geom.js';
 
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -195,6 +195,12 @@ function draw() {
   drawWall();
   drawFrame();
   drawRects(groups['g-floor'], pal);
+  // 4.5) 접지 그림자 — 바닥 위, 가구 아래. multiply.
+  ctx.globalCompositeOperation = 'multiply';
+  for (const [x, y, w, h, c, a] of groundShadows(state.off)) {
+    ctx.globalAlpha = a == null ? 1 : a; ctx.fillStyle = c; ctx.fillRect(x, y, w, h);
+  }
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   // 5) 가구 (z-순서). 끈 소품·스탠드 발광은 건너뛴다. 리터럴 색이라 팔레트 무관.
   const props = bedroomProps();
   for (const id of BD_Z) {
