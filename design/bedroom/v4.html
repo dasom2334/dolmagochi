@@ -45,11 +45,10 @@
   <div class="panel">
     <div class="group" id="roomRow"></div>
     <div class="divider"></div>
+    <div id="editWrap"><div id="editBox"></div><div class="divider"></div></div>
     <div id="ambBox"></div>
     <div class="divider"></div>
     <div id="roomPanel"></div>
-    <div class="divider"></div>
-    <div id="editBox"></div>
     <div class="note" id="note"></div>
   </div>
 
@@ -252,6 +251,18 @@
 
     // ── 편집 패널 (Phase 1: 색·빛 강도) — 침실 전용. state.override/vigK/shadowK 를 바꾼다 ──
     const editBox = document.getElementById('editBox');
+    // 방 스위처 옆 '편집' 토글로 접기/펴기. 기본 접힘.
+    const editWrap = document.getElementById('editWrap');
+    editWrap.style.display = 'none';
+    const editToggle = document.createElement('label');
+    editToggle.className = 'room'; editToggle.textContent = '편집 ▸'; editToggle.style.marginLeft = '12px';
+    editToggle.onclick = () => {
+      const open = editWrap.style.display === 'none';
+      editWrap.style.display = open ? '' : 'none';
+      editToggle.classList.toggle('on', open);
+      editToggle.textContent = open ? '편집 ▾' : '편집 ▸';
+    };
+    document.getElementById('roomRow').append(editToggle);
     const EDIT_COLORS = [
       ['하늘', [['--k1', '상단'], ['--k9', '지평선']]],
       ['산',   [['--h0', '먼 산'], ['--h2', '앞 산']]],
