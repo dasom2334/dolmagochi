@@ -24,7 +24,11 @@ export async function requestNotifyPermission(): Promise<void> {
 export function notify(body: string): void {
   if (!notifySupported() || Notification.permission !== 'granted') return;
   try {
-    const n = new Notification(body);
+    const base = import.meta.env.BASE_URL; // 배포 base('/' 등)에 맞춘 공개 에셋 경로
+    const n = new Notification(body, {
+      icon: `${base}icons/icon-192.png`, // 알림 큰 아이콘 (돌)
+      badge: `${base}icons/icon-192.png`, // 모바일 상태바 단색 배지
+    });
     // 누르면 이 앱 창을 앞으로 가져온다 — 알림은 백그라운드(document.hidden)에서만
     // 뜨므로, 클릭 = 돌마고치로 돌아오기. (페이지 생성 알림이라 window.focus로 충분)
     n.onclick = () => {
