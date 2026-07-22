@@ -160,6 +160,22 @@ describe('펼친 책 = 꺼내 온 한 권의 번호', () => {
   it('가진 책이 없으면 읽어도 0 — 없는 칸을 비울 수는 없다', () => {
     expect(sceneStateFrom(reading(base), 0).readBook).toBe(0);
   });
+
+  // 책장은 **왼쪽부터** 채워진다 — 어느 책을 샀든 첫 칸이 먼저 찬다.
+  // 그래서 헌책 한 권만 있으면 그 책이 1번 칸에 꽂히고, 읽는 동안 1번이 빈다.
+  it('헌책만 가지고 읽으면 비는 건 첫 번째 칸이다', () => {
+    const s = reading(withItems('book2'));
+    expect(sceneStateFrom(s, 0).readBook).toBe(1);
+    expect(hiddenLayers(s, false, D).has('bk-1')).toBe(false); // 산 책이라 켜져 있고
+    expect(hiddenLayers(s, false, D).has('bk-2')).toBe(true); // 두 번째는 안 샀다
+  });
+
+  // 세션이 끝나면(휴식) 꺼내 온 책이 제자리로 돌아간다
+  it('세션이 끝나면 다시 채워진다', () => {
+    const s = withItems('book', 'book2');
+    expect(sceneStateFrom(reading(s), 0).readBook).toBe(2);
+    expect(sceneStateFrom({ ...s, phase: 'rest' } as GameState, 0).readBook).toBe(0);
+  });
 });
 
 describe('찻잔 내용물은 차를 사야 생긴다', () => {
@@ -195,6 +211,38 @@ describe('심고 나면 돌은 러그에 없다', () => {
 
   it('돌이 없으니 이끼도 같이 사라진다', () => {
     expect(hiddenLayers(plantedVisiting, false, D).has('orb-moss')).toBe(true);
+  });
+});
+
+describe('돌의 자리 — 볕쬐기는 창턱, 그 밖은 러그', () => {
+  // 기획서: "돌의 창가 지정석은 창가 선반(창턱)". 볕쬐기 세션 동안 돌이 창턱
+  // 방석으로 올라간다. 이걸 빠뜨려서 볕쬐기·책읽기가 화면상 구분되지 않았다.
+  const focus = (action: string) =>
+    ({ ...base, phase: 'focus', selectedAction: action }) as GameState;
+
+  it('볕쬐기 세션이면 창턱에 올라간다', () => {
+    expect(sceneStateFrom(focus('sun'), 0).orb).toBe('sill');
+  });
+
+  it('창턱에 올라가면 러그 돌은 꺼지고 창턱 돌이 켜진다', () => {
+    const off = hiddenLayers(focus('sun'), false, D);
+    expect(off.has('orb')).toBe(false); // 창턱 돌
+    expect(off.has('orb-rug')).toBe(false); // 러그 돌은 렌더러가 orb!=='rug' 로 숨긴다
+    // (레이어는 켜 두고, 자리에 따라 렌더러가 택한다 — orb-rug 를 여기서 끄지 않는다)
+  });
+
+  it('책읽기 세션은 러그에 남는다 — 담요를 두르는 자리다', () => {
+    expect(sceneStateFrom(focus('read'), 0).orb).toBe('rug');
+  });
+
+  it('휴식 중에는 러그가 제자리다', () => {
+    expect(sceneStateFrom(base, 0).orb).toBe('rug');
+  });
+
+  it('부재 중이면 볕쬐기든 아니든 창턱(자국만)이다', () => {
+    const away = { ...focus('sun'), presence: { state: 'away' } } as unknown as GameState;
+    expect(sceneStateFrom(away, 0).orb).toBe('sill');
+    expect(hiddenLayers(away, false, D).has('orb')).toBe(true); // 돌 자체는 꺼진다
   });
 });
 

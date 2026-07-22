@@ -49,10 +49,7 @@ export function sceneStateFrom(
     time: tod === 'twilight' ? 'sunset' : tod,
     season,
     weather: WEATHER[state.weather] ?? 'clear',
-    // 돌은 러그가 제자리다. 부재 중엔 'sill' 로 둔다 — 돌 자체는 hiddenLayers 가
-    // 끄고, 러그에는 **눌린 자국(rug-mark)** 만 남는다. 렌더러가 orb!=='rug' 일 때만
-    // 자국을 그리기 때문이다. 'rug' 로 두면 자국도 안 나와 빈 러그가 된다.
-    orb: orbPresent(state) ? 'rug' : 'sill',
+    orb: orbSpotOf(state),
     tree: TREE_PLACEHOLDER,
     window: windowOpen ? 'open' : 'closed',
     // 찻잔 **내용물**은 차를 사야 생긴다. 잔(p-cup)과 별개 품목이라, 잔만 놓고
@@ -65,11 +62,26 @@ export function sceneStateFrom(
   };
 }
 
-/** 돌이 러그에 있나 — 심고 나면 돌은 없다(창밖 나무가 됐다).
+/** 돌이 방에 있나 — 심고 나면 돌은 없다(창밖 나무가 됐다).
  *  isRockPresent 만 보면, 방문 중에 심기가 성사된 판에서 돌이 러그에 영원히
  *  남는다. 나무의 방이라는 자막 밑에 돌이 앉아 있게 된다. */
 function orbPresent(state: GameState): boolean {
   return isRockPresent(state) && !state.planted;
+}
+
+/** 돌의 자리 — 창턱(sill) / 러그(rug).
+ *
+ *  볕쬐기 세션 동안 돌은 **창턱 방석**으로 올라간다 — 기획서의 "돌의 창가
+ *  지정석은 창가 선반(창턱)". 방석(x49~64)은 이미 그 창턱 돌(x53~62)이
+ *  파묻히도록 그려져 있다. 그 밖에는 러그가 제자리다(책읽기·휴식·부재).
+ *
+ *  부재 중에도 'sill' 을 쓴다 — 돌 자체는 hiddenLayers 가 끄고, 러그에는
+ *  **눌린 자국(rug-mark)** 만 남는다. 렌더러가 orb!=='rug' 일 때만 자국을
+ *  그리기 때문이다. 'rug' 로 두면 자국도 안 나와 빈 러그가 된다. */
+function orbSpotOf(state: GameState): SceneState['orb'] {
+  if (!orbPresent(state)) return 'sill'; // 부재 → 러그 자국만
+  const sunbathing = state.phase === 'focus' && state.selectedAction === 'sun';
+  return sunbathing ? 'sill' : 'rug';
 }
 
 /** 러그에 펼친 책 — **꺼내 온 한 권의 번호**다(0 = 안 읽는 중). 권수가 아니다.
