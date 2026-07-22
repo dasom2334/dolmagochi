@@ -1394,3 +1394,78 @@ describe('테마 설정 (M10)', () => {
     expect(s.settings.theme).toBe('auto');
   });
 });
+
+describe('밤 얼굴 (tod 축, M23) — 햇빛쬐기 계열', () => {
+  const sunState = (tod: 'day' | 'night'): GameState => {
+    const s = init();
+    return {
+      ...s,
+      settings: { ...s.settings, timeOfDay: tod },
+      selectedAction: 'sun',
+    };
+  };
+
+  it('밤엔 시작줄이 달빛 화법(.night)으로 나온다', () => {
+    const s = run(sunState('night'), [{ type: 'START_FOCUS', nowMs: T0 }]);
+    expect(s.session.narratorLine).toBe(T('act.sun.start.night'));
+    expect(s.session.narratorLine).toContain('달빛');
+  });
+
+  it('낮엔 시작줄이 기본(볕/빛) 문구로 나온다', () => {
+    const s = run(sunState('day'), [{ type: 'START_FOCUS', nowMs: T0 }]);
+    expect(s.session.narratorLine).toBe(T('act.sun.start'));
+  });
+
+  it('밤 앰비언트는 .night 변형을 순환한다 (TICK의 nowMs로 판정)', () => {
+    let s = run(sunState('night'), [{ type: 'START_FOCUS', nowMs: T0 }]);
+    // 40초 경계를 넘겨 앰비언트 1회 회전
+    s = run(s, [{ type: 'TICK', dtSec: 90, nowMs: T0 }]);
+    expect(variantsOf('act.sun.ambient.night')).toContain(
+      s.session.narratorLine,
+    );
+  });
+
+  it('밤엔 선택 결과줄도 달빛 화법(.night)으로 나온다', () => {
+    let s = run(sunState('night'), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(BALANCE.CHOICE_FIRST_AT_SEC + 10),
+    ]);
+    expect(s.session.choiceState).not.toBeNull();
+    s = run(s, [{ type: 'CHOICE_PICKED', optionIndex: 0, nowMs: T0 }]);
+    expect(variantsOf('act.sun.c0.o0.r0.night')).toContain(
+      s.session.narratorLine,
+    );
+  });
+});
+
+describe('서술 최소 간격 (M23) — 선택 직후 겹침 방지', () => {
+  it('선택 결과줄은 MIN_NARRATION_GAP_SEC 안에는 앰비언트에 덮이지 않는다', () => {
+    let s = run(init(), [
+      { type: 'START_FOCUS', nowMs: T0 },
+      ...ticks(BALANCE.CHOICE_FIRST_AT_SEC + 10),
+    ]);
+    s = run(s, [{ type: 'CHOICE_PICKED', optionIndex: 0, nowMs: T0 }]);
+    const picked = s.session.narratorLine;
+    const pickedAt = s.session.elapsedSec;
+    expect(s.session.lastNarrationAtSec).toBe(pickedAt);
+
+    // 간격 미만: 앰비언트 경계를 넘겨도 결과줄이 유지된다
+    s = run(s, [{ type: 'TICK', dtSec: BALANCE.MIN_NARRATION_GAP_SEC - 10 }]);
+    expect(s.session.narratorLine).toBe(picked);
+
+    // 간격 경과 후: 앰비언트가 다시 흐른다
+    s = run(s, ticks(BALANCE.MIN_NARRATION_GAP_SEC + 50));
+    expect(s.session.narratorLine).not.toBe(picked);
+  });
+
+  it('평상시 앰비언트 리듬(40초)은 간격(30초)에 눌리지 않는다', () => {
+    // 시작줄(el=0) 이후 첫 경계 40초, 그다음 80초 — 각각 흘러야 한다
+    let s = run(init(), [{ type: 'START_FOCUS', nowMs: T0 }]);
+    const start = s.session.narratorLine;
+    s = run(s, [{ type: 'TICK', dtSec: 45 }]);
+    const first = s.session.narratorLine;
+    expect(first).not.toBe(start);
+    s = run(s, [{ type: 'TICK', dtSec: 45 }]); // el=90, 다음 경계 통과
+    expect(s.session.narratorLine).not.toBe(first);
+  });
+});

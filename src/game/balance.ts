@@ -18,6 +18,9 @@ export const BALANCE = {
   AMBIENT_ROTATE_SEC: 40,
   CHOICE_FIRST_AT_SEC: 300,
   CHOICE_SECOND_AT_SEC: 1500,
+  // 화자 서술 최소 간격(초) — 선택 결과 줄이 곧바로 앰비언트·반추·문턱 줄에
+  // 덮이지 않도록. 앰비언트 로테이션(40초)보다 짧게 둬 평상시 리듬은 그대로.
+  MIN_NARRATION_GAP_SEC: 30,
 
   // 대화
   FORESHADOW_PROB: 0.45,

@@ -38,6 +38,10 @@ export function App() {
   const [nowMs, setNowMs] = useState(() => now());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [booted, setBooted] = useState(false);
+  // 오디오 언락 여부 — 첫 사용자 제스처 전까지 소리풍경을 시작하지 않는다.
+  // 새로고침 복원 때 noiseOn=true라도 제스처 전에 레이어를 켜면 AudioContext가
+  // suspended로 생성되고 resume이 no-op이라 영영 무음이 된다 (특히 iOS).
+  const [audioReady, setAudioReady] = useState(false);
   // 'claiming': 활성 탭 락 판정 중 · 'active': 이 탭이 활성 · 'occupied': 다른 탭이 이미 활성(읽기전용)
   const [tabRole, setTabRole] = useState<'claiming' | 'active' | 'occupied'>(
     'claiming',
@@ -172,7 +176,10 @@ export function App() {
   const nowTod = resolveTimeOfDay(state.settings, nowMs);
   useEffect(() => {
     syncSoundscape({
-      on: state.settings.noiseOn,
+      // 언락 전에는 on:false로 넘긴다 — 레이어는 wanted가 비면 시작되지 않고,
+      // 컨텍스트 생성 자체가 제스처 뒤로 미뤄진다. 언락되면 이 효과가 다시 돌아
+      // running 컨텍스트에서 레이어가 실제로 시작된다.
+      on: state.settings.noiseOn && audioReady,
       // 커스텀 모드(M22): 상황이 아니라 켜 둔 레이어가 목록이 된다.
       // 전량을 넘기고 음소거 필터에 맡기면 '내가 고른 대로'가 그대로 울린다.
       layers:
@@ -190,6 +197,7 @@ export function App() {
       muted: state.settings.noiseMuted,
     });
   }, [
+    audioReady,
     state.settings.noiseOn,
     state.settings.noiseMuted,
     state.settings.noiseMode,
@@ -231,9 +239,13 @@ export function App() {
     }
   }, [state.settings.theme]);
 
-  // iOS 등 오디오 언락 — 첫 사용자 제스처에서 AudioContext resume (1회성)
+  // iOS 등 오디오 언락 — 첫 사용자 제스처에서 AudioContext resume (1회성).
+  // audioReady를 올려 소리풍경 효과가 running 컨텍스트에서 레이어를 시작하게 한다.
   useEffect(() => {
-    const unlock = () => ensureAudioContext();
+    const unlock = () => {
+      ensureAudioContext();
+      setAudioReady(true);
+    };
     document.addEventListener('pointerdown', unlock, { once: true });
     return () => document.removeEventListener('pointerdown', unlock);
   }, []);

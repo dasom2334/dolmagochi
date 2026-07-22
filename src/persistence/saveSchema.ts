@@ -123,6 +123,8 @@ function normalizeState(state: GameState): GameState {
       freeCareVia: state.session?.freeCareVia ?? null,
       freeWorked: state.session?.freeWorked === true,
       restMult: finiteOr(state.session?.restMult, 1),
+      // 서술 간격 스탬프 — 구 세이브(집중 중 저장)엔 없을 수 있다
+      lastNarrationAtSec: finiteOr(state.session?.lastNarrationAtSec, 0),
     },
     // 2차 독립기 필드 방어 (M14)
     sproutGrowth: finiteOr(state.sproutGrowth, 0),

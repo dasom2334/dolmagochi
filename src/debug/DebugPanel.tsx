@@ -33,7 +33,8 @@ export default function DebugPanel({
   // 빨리감기 — 집중은 ffMin분 경과, 휴식은 ffMin분만큼 남은 시간 차감
   const fastForward = () => {
     const sec = Math.max(1, ffMin) * 60;
-    if (state.phase === 'focus') dispatch({ type: 'TICK', dtSec: sec });
+    if (state.phase === 'focus')
+      dispatch({ type: 'TICK', dtSec: sec, nowMs: Date.now() });
     else if (state.phase === 'rest')
       appStore.setState((prev) => ({
         state: {

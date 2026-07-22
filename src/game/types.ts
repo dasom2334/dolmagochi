@@ -234,6 +234,8 @@ export interface GameState {
     narratorLine: string;
     /** 마지막 반추 추출 시점(초) */
     lastReflectAtSec: number;
+    /** 마지막 화자 서술 노출 시점(초) — 선택 직후 다른 줄이 몇 초 만에 덮는 걸 막는다 */
+    lastNarrationAtSec: number;
     /** 이번 집중에서 발화된 시간 문턱 인덱스 (timeMarks.focus) */
     timeMarksFired: number[];
     /** 이번 세션에 소모된 소모품과 뽑힌 랜덤 종류 (씬·대사·보너스용) */
@@ -417,7 +419,7 @@ export type GameEvent =
       /** 세션 포크 (M18, 개막 후): 곁에서(near) / 한 발 떨어져(apart) */
       approach?: 'near' | 'apart';
     }
-  | { type: 'TICK'; dtSec: number }
+  | { type: 'TICK'; dtSec: number; nowMs?: number }
   | { type: 'SET_PAUSED'; paused: boolean }
   | { type: 'CHOICE_PICKED'; optionIndex: number; nowMs: number }
   | { type: 'END_FOCUS'; nowMs: number }
