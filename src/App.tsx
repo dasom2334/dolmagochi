@@ -6,7 +6,12 @@ import { resolveSlot, SYS } from './game/text';
 import { bootRestore, flushSave, startAutosave } from './persistence/persist';
 import { claimSingleTab } from './persistence/singleTab';
 import { OccupiedScreen } from './components/OccupiedScreen';
-import { notify, requestNotifyPermission } from './notifications';
+import {
+  cancelRestEnd,
+  notify,
+  requestNotifyPermission,
+  scheduleRestEnd,
+} from './notifications';
 import { pushToast } from './toast';
 import { dueFocusMarks } from './game/notify';
 import { ensureAudioContext, playSound, setSoundEnabled } from './sound';
@@ -141,6 +146,35 @@ export function App() {
       w.postMessage({ type: 'clear' });
     }
   }, [state.phase, state.rest.endsAt, booted]);
+
+  // 휴식 종료 알림 예약 (Notification Triggers, 지원 기기만) — 앱이 얼거나 닫혀도
+  // OS가 종료 시각에 대신 띄운다. 워커 경로(앱 살아 있을 때)의 점진적 개선.
+  // 화면을 보고 있을 땐 예약을 취소한다: 그 땐 종소리로 알리므로 OS 알림은 불필요·성가심.
+  // 상황이 바뀌면(집중 재시작·조기종료·설정 OFF·복귀) 취소돼 엉뚱한 시각 발화를 막는다.
+  useEffect(() => {
+    const evaluate = () => {
+      const nf = state.settings.notify;
+      const restActive =
+        state.phase === 'rest' && state.rest.endsAt > Date.now();
+      if (restActive && nf.enabled && nf.restEnd && document.hidden) {
+        const body = t(
+          resolveSlot(gameData.text, SYS.notification.restEnd, companyOf(state)),
+        );
+        scheduleRestEnd(state.rest.endsAt, body);
+      } else {
+        cancelRestEnd();
+      }
+    };
+    evaluate();
+    document.addEventListener('visibilitychange', evaluate);
+    return () => document.removeEventListener('visibilitychange', evaluate);
+  }, [
+    state.phase,
+    state.rest.endsAt,
+    state.settings.notify,
+    state.era,
+    booted,
+  ]);
 
   // 시간 진행: 집중 세션만 카운트업. 휴식은 종료 시각 타임스탬프 기준(M3에서 워커로 강화).
   useEffect(() => {
