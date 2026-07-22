@@ -2,7 +2,7 @@
 docs/
 design/
 CLAUDE.local.md
-node_modules/
+node_modules
 dist/
 .DS_Store
 tsconfig.tsbuildinfo
