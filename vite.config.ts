@@ -17,6 +17,8 @@ export default defineConfig({
       // 기본 globPatterns엔 woff2가 빠져 폰트가 프리캐시 안 됨 → 오프라인 폰트를 위해 추가
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+        // 생성 SW에 알림 클릭 핸들러(public/sw-push.js) 합침 — 설치형 PWA 알림 클릭 포커스
+        importScripts: ['sw-push.js'],
       },
       manifest: {
         name: '돌 키우기 뽀모도로',

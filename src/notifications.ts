@@ -23,19 +23,33 @@ export async function requestNotifyPermission(): Promise<void> {
 /** 권한이 있으면 알림을 띄운다. 없으면 조용히 무시. */
 export function notify(body: string): void {
   if (!notifySupported() || Notification.permission !== 'granted') return;
+  const base = import.meta.env.BASE_URL; // 배포 base('/' 등)에 맞춘 공개 에셋 경로
+  const options: NotificationOptions = {
+    icon: `${base}icons/icon-192.png`, // 알림 큰 아이콘 (돌)
+    badge: `${base}icons/icon-192.png`, // 모바일 상태바 단색 배지
+    tag: 'dol-rest-end', // 같은 알림은 덮어쓴다 (중복 방지)
+  };
+  // 설치형·모바일 PWA(Android·iOS)에선 new Notification()이 금지(Illegal constructor)라
+  // 조용히 실패했다 — 활성 SW가 있으면 registration.showNotification으로 띄운다.
+  // 클릭 포커스는 SW의 notificationclick 핸들러(public/sw-push.js)가 담당한다.
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    void navigator.serviceWorker.ready
+      .then((reg) => reg.showNotification(body, options))
+      .catch(() => pageNotify(body, options));
+    return;
+  }
+  pageNotify(body, options);
+}
+
+/** SW가 없을 때(구형·비설치 데스크톱) 폴백 — 페이지 생성 알림, 클릭 시 창 포커스 */
+function pageNotify(body: string, options: NotificationOptions): void {
   try {
-    const base = import.meta.env.BASE_URL; // 배포 base('/' 등)에 맞춘 공개 에셋 경로
-    const n = new Notification(body, {
-      icon: `${base}icons/icon-192.png`, // 알림 큰 아이콘 (돌)
-      badge: `${base}icons/icon-192.png`, // 모바일 상태바 단색 배지
-    });
-    // 누르면 이 앱 창을 앞으로 가져온다 — 알림은 백그라운드(document.hidden)에서만
-    // 뜨므로, 클릭 = 돌마고치로 돌아오기. (페이지 생성 알림이라 window.focus로 충분)
+    const n = new Notification(body, options);
     n.onclick = () => {
       window.focus();
       n.close();
     };
   } catch {
-    /* 무시 */
+    /* 무시 — 모바일/설치형은 위 SW 경로가 담당 */
   }
 }
