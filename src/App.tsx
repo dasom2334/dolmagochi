@@ -14,6 +14,7 @@ import { deriveLayers } from './audio/layers';
 import { resolveSeason, resolveTimeOfDay } from './game/timeOfDay';
 import { stopSoundscape, syncSoundscape } from './audio/engine';
 import { ToastHost } from './components/ToastHost';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
 import { NarratorLog } from './components/NarratorLog';
@@ -368,6 +369,7 @@ export function App() {
         )}
       </div>
       <ToastHost />
+      <UpdatePrompt />
     </div>
   );
 }
