@@ -6,6 +6,26 @@
     <meta name="theme-color" content="#262031" />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" />
     <title>돌 키우기 뽀모도로</title>
+    <!--
+      테마 선반영 — global.css의 :root(무표시) 팔레트가 다크라, 스탬프가 찍히기
+      전까진 라이트 시스템에서도 다크로 그려진다. 세이브는 IndexedDB(비동기)라
+      마운트 후에나 읽히므로, 페인트 전에 시스템 설정만이라도 먼저 찍는다.
+      기본 설정이 '자동'이니 대부분은 이 값이 최종값과 같다 — 테마를 시스템과
+      반대로 고정해 둔 경우에만 마운트 시 한 번 바뀐다.
+      ⚠️ 두 hex는 global.css의 --bg-deep(다크/라이트)과 수동 동기화.
+    -->
+    <script>
+      (function () {
+        try {
+          var light = matchMedia('(prefers-color-scheme: light)').matches;
+          document.documentElement.dataset.theme = light ? 'light' : 'dark';
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', light ? '#e7decb' : '#262031');
+        } catch (e) {
+          /* matchMedia 미지원 — CSS 기본값(다크)으로 둔다 */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

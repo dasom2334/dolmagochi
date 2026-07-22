@@ -43,7 +43,10 @@ export interface SoundSituation {
   /** 보유 아이템 id 목록 (배치 여부 무관 — 기획 초안 "구매되어 있으면") */
   ownedItems: readonly string[];
   /** 현재 날씨 (M12) — 비·장대비면 빗소리 레이어 추가 */
-  weather?: 'clear' | 'rain' | 'downpour' | 'snow' | 'petals' | 'leaves';
+  weather?:
+    | 'clear' | 'cloud' | 'fog'
+    | 'rain' | 'downpour' | 'snow'
+    | 'petals' | 'grass' | 'leaves';
   /** 이번 산책에 우산을 썼는가 (M12) — 야외 빗소리가 우산 위 소리로 바뀐다 */
   umbrella?: boolean;
   /** 계절 (M12) — 여름 낮·황혼이면 매미가 운다 */

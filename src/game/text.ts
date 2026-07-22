@@ -150,8 +150,6 @@ export const SYS = {
   placement: { prompt: 'sys.placement.prompt' },
   hints: { flowtime: 'sys.hints.flowtime' },
   settings: {
-    noiseOn: 'sys.settings.noiseOn',
-    noiseOff: 'sys.settings.noiseOff',
     on: 'sys.settings.on',
     off: 'sys.settings.off',
     farewell: 'sys.settings.farewell',
@@ -218,11 +216,27 @@ export const SYS = {
   /** 날씨 변경 서술 (M12) — 종류별 */
   weather: {
     clear: 'sys.weather.clear',
+    cloud: 'sys.weather.cloud',
+    fog: 'sys.weather.fog',
     rain: 'sys.weather.rain',
     downpour: 'sys.weather.downpour',
     snow: 'sys.weather.snow',
     petals: 'sys.weather.petals',
+    grass: 'sys.weather.grass',
     leaves: 'sys.weather.leaves',
+  } as Record<string, string>,
+  /** 계절 전환 나레이션 (M22) — 날씨와 같은 자연 도래 화법 */
+  season: {
+    spring: 'sys.season.spring',
+    summer: 'sys.season.summer',
+    autumn: 'sys.season.autumn',
+    winter: 'sys.season.winter',
+  } as Record<string, string>,
+  /** 시간대 전환 나레이션 (M22) */
+  timeOfDay: {
+    day: 'sys.timeOfDay.day',
+    twilight: 'sys.timeOfDay.twilight',
+    night: 'sys.timeOfDay.night',
   } as Record<string, string>,
 } as const;
 
@@ -244,17 +258,25 @@ export const UI = {
     umbrellaRain: 'ui.noise.umbrellaRain',
     cicadas: 'ui.noise.cicadas',
   } satisfies Record<LayerId, string>,
+  /** 분위기 바 (M22) */
+  ambience: {
+    modeAuto: 'ui.ambience.mode.auto',
+    modeCustom: 'ui.ambience.mode.custom',
+    modeSwitch: 'ui.ambience.mode.switch',
+  },
   /** 날씨·시간대 라벨 (M12) */
   weatherUi: {
     now: 'ui.weather.now',
-    change: 'ui.weather.change', // {price}
     kinds: {
       clear: 'ui.weather.kind.clear',
+      cloud: 'ui.weather.kind.cloud',
+      fog: 'ui.weather.kind.fog',
       rain: 'ui.weather.kind.rain',
       downpour: 'ui.weather.kind.downpour',
       snow: 'ui.weather.kind.snow',
       // 계절 한정 날씨 (M12) — 빠져 있어 봄·가을 상점에서 '[MISSING TEXT]'가 떴다
       petals: 'ui.weather.kind.petals',
+      grass: 'ui.weather.kind.grass',
       leaves: 'ui.weather.kind.leaves',
     } as Record<string, string>,
     umbrellaAsk: 'ui.weather.umbrellaAsk',

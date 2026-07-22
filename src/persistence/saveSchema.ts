@@ -141,7 +141,11 @@ function normalizeState(state: GameState): GameState {
     treeBondToday: finiteOr(state.treeBondToday, 0),
     apart: { ...state.apart, held: state.apart?.held === true },
     // 날씨 필드 방어 (M12)
-    weather: (['clear', 'rain', 'downpour', 'snow', 'petals', 'leaves'] as const).includes(state.weather)
+    weather: ([
+      'clear', 'cloud', 'fog',
+      'rain', 'downpour', 'snow',
+      'petals', 'grass', 'leaves',
+    ] as const).includes(state.weather)
       ? state.weather
       : 'clear',
     lastWeatherDate: state.lastWeatherDate ?? null,
@@ -185,6 +189,10 @@ function normalizeState(state: GameState): GameState {
           : 'living',
       notify: normalizeNotify(state.settings.notify, flowtime.bounds.length),
       // 소리풍경 음소거 목록 방어 (M9) — 손상 세이브가 배열이 아니면 초기화
+      noiseMode: state.settings.noiseMode === 'custom' ? 'custom' : 'auto',
+      noiseCustom: Array.isArray(state.settings.noiseCustom)
+        ? state.settings.noiseCustom.filter((l): l is string => typeof l === 'string')
+        : [],
       noiseMuted: Array.isArray(state.settings.noiseMuted)
         ? state.settings.noiseMuted.filter((l): l is string => typeof l === 'string')
         : [],

@@ -62,6 +62,25 @@ export function TimerCard({
           <span style={{ fontSize: 12, color: 'var(--accent)' }}>
             {tf(UI.labels.care, { points: state.care.points })}
           </span>
+          {/* 테마 (M22) — 분위기 바가 아니라 여기다. 바는 '방'이고 테마는 '화면'이라,
+              나란히 두면 시간대 '밤'과 테마 '다크'를 같은 것으로 읽는다 (B23은 둘을
+              일부러 독립시켰다). 3상태뿐이라 순환으로 충분하다. */}
+          {/* 라벨은 기호 한 글자 — '라이트'(3자)를 넣으면 375px에서 타이머 줄이
+              통째로 무너진다(집중·설정까지 두 줄로 쪼개짐). 현재 값은 툴팁으로. */}
+          <button
+            className="hv"
+            style={{ ...btnSmall, padding: '5px 9px' }}
+            title={`${t(UI.theme.setting)} — ${t(UI.theme[state.settings.theme])}`}
+            aria-label={`${t(UI.theme.setting)} — ${t(UI.theme[state.settings.theme])}`}
+            onClick={() => {
+              const order = ['auto', 'light', 'dark'] as const;
+              const next =
+                order[(order.indexOf(state.settings.theme) + 1) % order.length];
+              dispatch({ type: 'SET_THEME', theme: next });
+            }}
+          >
+            {{ auto: '◐', light: '○', dark: '●' }[state.settings.theme]}
+          </button>
           <button className="hv" style={btnSmall} onClick={onOpenSettings}>
             {t(UI.buttons.settings)}
           </button>

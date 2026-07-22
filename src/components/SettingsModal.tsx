@@ -5,7 +5,6 @@ import { SYS, UI } from '../game/text';
 import { exportSaveJson, importSaveJson } from '../persistence/exportImport';
 import { requestNotifyPermission } from '../notifications';
 import { cloneFlowtime } from '../game/timer';
-import { ALL_LAYERS } from '../audio/layers';
 
 const numInput = {
   width: 42,
@@ -146,7 +145,7 @@ export function SettingsModal({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState('');
-  const [sub, setSub] = useState<'sound' | 'timer' | null>(null);
+  const [sub, setSub] = useState<'timer' | null>(null);
 
   const nf = state.settings.notify;
   const onOff = (v: boolean) => t(v ? SYS.settings.on : SYS.settings.off);
@@ -217,12 +216,15 @@ export function SettingsModal({
           * {t(UI.buttons.settings)}
         </div>
 
+        {/* 효과음만 남는다 — 화이트노이즈·레이어 믹서는 분위기 바(M22)로 */}
         <button
           className="hv-text"
           style={settingBtn}
-          onClick={() => setSub('sound')}
+          onClick={() =>
+            dispatch({ type: 'SET_SOUND', on: !state.settings.soundOn })
+          }
         >
-          * {t(UI.labels.soundGroup)} ▸
+          * {t(UI.labels.soundSetting)} — {onOff(state.settings.soundOn)}
         </button>
         <button
           className="hv-text"
@@ -245,49 +247,7 @@ export function SettingsModal({
           * {t(UI.labels.pauseOnHide)} — {onOff(state.settings.pauseOnHide)}
         </button>
 
-        {/* 테마 (M10) — 자동 → 라이트 → 다크 순환. 도트 씬은 영향받지 않는다 */}
-        <button
-          className="hv-text"
-          style={settingBtn}
-          onClick={() => {
-            const order = ['auto', 'light', 'dark'] as const;
-            const next =
-              order[(order.indexOf(state.settings.theme) + 1) % order.length];
-            dispatch({ type: 'SET_THEME', theme: next });
-          }}
-        >
-          * {t(UI.theme.setting)} — {t(UI.theme[state.settings.theme])}
-        </button>
-
-        {/* 시간대 (M12) — 씬·소리 축, 테마와 독립 (B23) */}
-        <button
-          className="hv-text"
-          style={settingBtn}
-          onClick={() => {
-            const order = ['auto', 'day', 'twilight', 'night'] as const;
-            const next =
-              order[(order.indexOf(state.settings.timeOfDay) + 1) % order.length];
-            dispatch({ type: 'SET_TIME_OF_DAY', mode: next });
-          }}
-        >
-          * {t(UI.weatherUi.timeSetting)} —{' '}
-          {t(UI.weatherUi.timeModes[state.settings.timeOfDay])}
-        </button>
-
-        {/* 계절 (M12) — 자동(기기 날짜) 또는 고정. 날씨 가용성이 계절에 의존 */}
-        <button
-          className="hv-text"
-          style={settingBtn}
-          onClick={() => {
-            const order = ['auto', 'spring', 'summer', 'autumn', 'winter'] as const;
-            const next =
-              order[(order.indexOf(state.settings.season) + 1) % order.length];
-            dispatch({ type: 'SET_SEASON', mode: next, nowMs: now() });
-          }}
-        >
-          * {t(UI.weatherUi.seasonSetting)} —{' '}
-          {t(UI.weatherUi.seasonModes[state.settings.season])}
-        </button>
+        {/* 테마는 타이머 카드로, 시간대·계절·날씨·소리풍경은 분위기 바로 이관 (M22) */}
 
         <button className="hv-text" style={settingBtn} onClick={doExport}>
           * {t(UI.buttons.exportSave)}
@@ -356,53 +316,6 @@ export function SettingsModal({
         </div>
       </div>
     </div>
-
-    {sub === 'sound' && (
-      <SubSheet titleId={UI.labels.soundGroup} onBack={() => setSub(null)}>
-        <button
-          className="hv-text"
-          style={settingBtn}
-          onClick={() =>
-            dispatch({ type: 'SET_SOUND', on: !state.settings.soundOn })
-          }
-        >
-          * {t(UI.labels.soundSetting)} — {onOff(state.settings.soundOn)}
-        </button>
-        <button
-          className="hv-text"
-          style={settingBtn}
-          onClick={() =>
-            dispatch({ type: 'SET_NOISE', on: !state.settings.noiseOn })
-          }
-        >
-          * {t(UI.labels.noiseSetting)} —{' '}
-          {t(
-            state.settings.noiseOn
-              ? SYS.settings.noiseOn
-              : SYS.settings.noiseOff,
-          )}
-        </button>
-        {/* 소리풍경 레이어별 음소거 (M9) — 마스터가 켜져 있을 때만 노출 */}
-        {state.settings.noiseOn &&
-          ALL_LAYERS.map((layer) => (
-            <button
-              key={layer}
-              className="hv-text"
-              style={{ ...settingBtn, fontSize: 12, color: 'var(--ink)', paddingLeft: 12 }}
-              onClick={() =>
-                dispatch({
-                  type: 'SET_NOISE_LAYER',
-                  layer,
-                  muted: !state.settings.noiseMuted.includes(layer),
-                })
-              }
-            >
-              - {t(UI.noiseLayers[layer])} —{' '}
-              {onOff(!state.settings.noiseMuted.includes(layer))}
-            </button>
-          ))}
-      </SubSheet>
-    )}
 
     {sub === 'timer' && (
       <SubSheet titleId={UI.labels.timerGroup} onBack={() => setSub(null)}>

@@ -13,15 +13,18 @@ import { resolveTimeOfDay } from '../../game/timeOfDay';
 import { resolveSeason } from '../../game/timeOfDay';
 import type { SceneState, SceneSeason, SceneWeather } from './types';
 
-/** 게임 날씨 6종 → 씬 날씨.
- *  꽃잎·낙엽은 씬에서 **한 종류**로 합쳤다(색은 계절 팔레트가 정한다) — 그래서 둘 다 petals.
- *  씬 고유의 cloud/fog 는 게임에 대응 축이 없어 여기서는 안 나온다. */
+/** 게임 날씨 9종 → 씬 날씨.
+ *  꽃잎·풀잎·낙엽은 씬에서 **한 종류**로 합쳤다(색은 계절 팔레트가 정한다) — 그래서 둘 다 petals.
+ *  cloud/fog 는 M22에서 게임 축이 생겨 그대로 이어진다. */
 const WEATHER: Record<GameState['weather'], SceneWeather> = {
   clear: 'clear',
+  cloud: 'cloud',
+  fog: 'fog',
   rain: 'rain',
   downpour: 'downpour',
   snow: 'snow',
   petals: 'petals',
+  grass: 'petals',
   leaves: 'petals',
 };
 
