@@ -2,7 +2,7 @@
 
 집중용 Flowtime 타이머 + 돌 육성 웹게임. 서버 없는 리액트 SPA. 내가 쓰려고 만듬.
 
-**▶ 플레이: https://dasom2334.github.io/dolmagochi/**
+**▶ 플레이: https://dolmagochi.dacotton.dev**
 
 ## 실행
 
