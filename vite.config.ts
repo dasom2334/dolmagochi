@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  // GitHub Pages 프로젝트 페이지: dasom2334.github.io/dolmagochi/
-  base: '/dolmagochi/',
+  // Vercel 서브도메인 배포(dolmagochi.dacotton.dev): 루트 서빙
+  base: '/',
   plugins: [
     react(),
     VitePWA({
