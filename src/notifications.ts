@@ -24,7 +24,13 @@ export async function requestNotifyPermission(): Promise<void> {
 export function notify(body: string): void {
   if (!notifySupported() || Notification.permission !== 'granted') return;
   try {
-    new Notification(body);
+    const n = new Notification(body);
+    // 누르면 이 앱 창을 앞으로 가져온다 — 알림은 백그라운드(document.hidden)에서만
+    // 뜨므로, 클릭 = 돌마고치로 돌아오기. (페이지 생성 알림이라 window.focus로 충분)
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
   } catch {
     /* 무시 */
   }
