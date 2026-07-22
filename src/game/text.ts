@@ -338,6 +338,11 @@ export const UI = {
     resetFlowtime: 'ui.buttons.resetFlowtime',
     back: 'ui.buttons.back',
   },
+  /** 새 버전 대기 배너 (PWA 갱신, src/pwa.ts) */
+  update: {
+    ready: 'ui.update.ready',
+    action: 'ui.update.action',
+  },
   labels: {
     locked: 'ui.labels.locked',
     modeFocus: 'ui.labels.modeFocus',

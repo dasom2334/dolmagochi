@@ -9,7 +9,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate', // 새 버전은 다음 열림에 자동 반영(화면 안 끊음)
+      // 갱신 타이밍을 앱이 직접 제어(src/pwa.ts) — 새로 열면 조용히 자동 반영,
+      // 이미 열어둔 채면 화면 안 끊고 배너로 알린다.
+      registerType: 'prompt',
+      injectRegister: false, // 자동 주입 대신 main.tsx에서 initPWA()로 등록
       includeAssets: ['icons/apple-touch-icon-180.png'],
       // 기본 globPatterns엔 woff2가 빠져 폰트가 프리캐시 안 됨 → 오프라인 폰트를 위해 추가
       workbox: {

@@ -2553,6 +2553,16 @@
       "◂ 뒤로"
     ]
   ],
+  "ui.update.ready": [
+    [
+      "새 버전이 준비됐어요"
+    ]
+  ],
+  "ui.update.action": [
+    [
+      "새로고침 ▸"
+    ]
+  ],
   "ui.labels.locked": [
     [
       "(잠김)"
