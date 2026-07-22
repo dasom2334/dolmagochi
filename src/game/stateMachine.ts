@@ -49,7 +49,8 @@ import {
   isBalanced,
 } from './security';
 import { presentState, startAbsence } from './absence';
-import { resolveSeason } from './timeOfDay';
+import { resolveSeason, resolveTimeOfDay } from './timeOfDay';
+import { deriveLayers } from '../audio/layers';
 import { companionMet, treeStage } from './tree';
 import { pickMoment, settleBadges } from './badges';
 import {
@@ -67,7 +68,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 25;
+export const SCHEMA_VERSION = 27;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -159,6 +160,8 @@ export function createInitialState(
     settings: {
       noiseOn: false,
       noiseMuted: [],
+      noiseCustom: [],
+      noiseMode: 'auto',
       theme: 'auto',
       timeOfDay: 'auto',
       season: 'auto',
@@ -2365,11 +2368,12 @@ function reduce(
     }
 
     case 'SET_WEATHER': {
-      // 날씨 변경 (M12) — 정성 지불. 자연 변화는 무료(SETTLE), 원할 때만 산다.
+      // 날씨 변경 (M12 → M22 무료화) — 분위기 바에서 언제든 고른다.
+      // 집중 중 변경만 막는다: 산책 우산 판정이 세션 시작에 확정되므로
+      // 도중에 비로 바꾸면 우산 없이 빗속을 걷는 모순이 생긴다.
       if (state.phase !== 'rest' && state.phase !== 'actionSelect') return state;
       if (event.weather === state.weather) return state;
-      if (state.care.points < BALANCE.WEATHER_CHANGE_COST) return state;
-      // 계절 의존 (M12): 이 계절에 없는 날씨는 살 수 없다 (눈은 겨울에만)
+      // 계절 의존 (M12): 이 계절에 없는 날씨는 고를 수 없다 (눈은 겨울에만)
       if (
         !weathersOfSeason(
           resolveSeason(state.settings, event.nowMs),
@@ -2380,10 +2384,6 @@ function reduce(
         ...state,
         weather: event.weather,
         lastWeatherDate: dateKey(event.nowMs),
-        care: {
-          ...state.care,
-          points: state.care.points - BALANCE.WEATHER_CHANGE_COST,
-        },
         session: {
           ...state.session,
           // 동석 축으로 변형 선택 (피드백4-2) — 돌 반응 누출 방지
@@ -2400,19 +2400,42 @@ function reduce(
     }
 
     case 'SET_SEASON': {
-      // 계절 고정/자동 (M12) — 바뀐 계절에 현재 날씨가 무효면 그 계절 날씨로 재추첨
+      // 계절 고정/자동 (M12) — 바뀐 계절에 현재 날씨가 무효면 그 계절 날씨로 재추첨.
+      // 집중 중 금지 (M22): 이 재추첨이 날씨를 갈아끼우므로, 마른 날 시작한 산책이
+      // 도중에 눈·비로 바뀌어 우산도 못 쓴 채 젖는 모순이 생긴다. SET_WEATHER와
+      // 같은 게이트를 쓴다 — 바깥 조건은 세션이 시작될 때 정해진다.
+      if (state.phase !== 'rest' && state.phase !== 'actionSelect') return state;
       const settings = { ...state.settings, season: event.mode };
       const season = resolveSeason(settings, event.nowMs);
       const weather = weathersOfSeason(season).includes(state.weather)
         ? state.weather
         : rollWeather(season, rng);
-      return { ...state, settings, weather };
+      // 날씨와 같이 전환을 나레이션한다 (M22) — 분위기 축은 전부 말이 붙는다
+      return {
+        ...state,
+        settings,
+        weather,
+        session: {
+          ...state.session,
+          narratorLine: joinPages(
+            pickFor(data.text, SYS.season[season], companyOf(state), rng),
+          ),
+        },
+      };
     }
 
     case 'SET_TIME_OF_DAY': {
+      const settings = { ...state.settings, timeOfDay: event.mode };
+      const tod = resolveTimeOfDay(settings, event.nowMs);
       return {
         ...state,
-        settings: { ...state.settings, timeOfDay: event.mode },
+        settings,
+        session: {
+          ...state.session,
+          narratorLine: joinPages(
+            pickFor(data.text, SYS.timeOfDay[tod], companyOf(state), rng),
+          ),
+        },
       };
     }
 
@@ -2420,8 +2443,47 @@ function reduce(
       return { ...state, settings: { ...state.settings, theme: event.theme } };
     }
 
+    case 'SET_NOISE_MODE': {
+      // 소리풍경 모드 전환 (M22) — 자동(상황이 고른다) / 커스텀(내가 고른다).
+      // 커스텀으로 넘어갈 때 지금 들리던 소리에서 출발한다: 그냥 전환하면
+      // 13겹이 한꺼번에 울려 '내가 고른 대로'가 아니라 소음이 된다.
+      // 두 모드는 **다른 목록**을 쓴다: 자동은 noiseMuted(음소거), 커스텀은
+      // noiseCustom(켜 둔 것). 한 필드를 공유하면 커스텀을 한 번 거쳤다 돌아온
+      // 순간 자동 모드의 음소거 설정이 통째로 덮여, 자동이 영영 조용해진다.
+      if (event.mode === state.settings.noiseMode) return state;
+      if (event.mode === 'auto')
+        return { ...state, settings: { ...state.settings, noiseMode: 'auto' } };
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          noiseMode: 'custom',
+          // 지금 들리던 소리에서 출발한다 — 그냥 켜면 13겹이 한꺼번에 울린다
+          noiseCustom: deriveLayers({
+            phase: state.phase === 'focus' ? 'focus' : 'room',
+            actionId: state.phase === 'focus' ? state.selectedAction : null,
+            ownedItems: Object.keys(state.items),
+            weather: state.weather,
+            umbrella: state.session.umbrella,
+            season: resolveSeason(state.settings, event.nowMs),
+            timeOfDay: resolveTimeOfDay(state.settings, event.nowMs),
+          }).slice(),
+        },
+      };
+    }
+
     case 'SET_NOISE_LAYER': {
-      // 소리풍경 레이어 음소거 토글 (M9) — 중복 없이 목록 유지
+      // 레이어 토글 — 지금 모드가 쓰는 목록만 건드린다 (M22).
+      // 커스텀은 '켜 둔 것' 목록이라 의미가 반대다.
+      if (state.settings.noiseMode === 'custom') {
+        const cur = state.settings.noiseCustom;
+        const noiseCustom = event.muted
+          ? cur.filter((l) => l !== event.layer)
+          : cur.includes(event.layer)
+            ? cur
+            : [...cur, event.layer];
+        return { ...state, settings: { ...state.settings, noiseCustom } };
+      }
       const cur = state.settings.noiseMuted;
       const noiseMuted = event.muted
         ? cur.includes(event.layer)

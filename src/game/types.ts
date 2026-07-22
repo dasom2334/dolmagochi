@@ -10,8 +10,19 @@ export type Era = 'raising' | 'cohabit' | 'apart';
 export type CrisisKind = 'retreat' | 'sick';
 export type Presence = 'present' | 'absent';
 /** 날씨 (M12) — 게이지 무영향(개정 v4-13): 연출·소리·대사 조건만.
- * petals(꽃잎비)=봄, leaves(낙엽비)=가을, snow=겨울 — 계절 의존은 WEATHER_BY_SEASON */
-export type WeatherKind = 'clear' | 'rain' | 'downpour' | 'snow' | 'petals' | 'leaves';
+ * 사계절 공통: clear·cloud(흐림)·fog(안개)·rain·downpour.
+ * 계절 전용: petals(꽃잎비)=봄, grass(풀잎비)=여름, leaves(낙엽비)=가을, snow=겨울.
+ * 가용성·자연 확률은 WEATHER_BY_SEASON. */
+export type WeatherKind =
+  | 'clear'
+  | 'cloud'
+  | 'fog'
+  | 'rain'
+  | 'downpour'
+  | 'snow'
+  | 'petals'
+  | 'grass'
+  | 'leaves';
 /** 계절 (M12) — 기본은 기기 날짜 자동, 설정으로 고정 가능 */
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 /** 시간대 (M12) — 씬·소리 축. UI 테마(M10)와 완전 독립 (B23) */
@@ -349,6 +360,15 @@ export interface GameState {
     noiseOn: boolean;
     /** 소리풍경 레이어별 음소거 (M9) — LayerId 목록. 마스터는 noiseOn. */
     noiseMuted: string[];
+    /** 커스텀 모드에서 **켜 둔** 레이어 (M22) — 자동의 noiseMuted와 의미가 반대다.
+     *  두 목록을 분리해야 모드를 오가도 서로의 설정이 살아남는다. */
+    noiseCustom: string[];
+    /**
+     * 소리풍경 모드 (M22).
+     *  auto   — 상황(행동×아이템×날씨×계절)이 고르는 레이어만 울린다.
+     *  custom — 상황을 무시하고 켜 둔 레이어를 전부 울린다 (겨울 매미도 가능).
+     */
+    noiseMode: 'auto' | 'custom';
     /** UI 테마 (M10) — 도트 씬은 영향받지 않는다(B23). auto = prefers-color-scheme */
     theme: 'auto' | 'light' | 'dark';
     /** 시간대 (M12) — auto = 실시간, 그 외 고정 */
@@ -412,10 +432,11 @@ export type GameEvent =
   | { type: 'FREE_DELEGATE' }
   | { type: 'DELEGATE_CANCEL' }
   | { type: 'SET_NOISE'; on: boolean }
+  | { type: 'SET_NOISE_MODE'; mode: 'auto' | 'custom'; nowMs: number }
   | { type: 'SET_NOISE_LAYER'; layer: string; muted: boolean }
   | { type: 'SET_THEME'; theme: 'auto' | 'light' | 'dark' }
   | { type: 'SET_WEATHER'; weather: WeatherKind; nowMs: number }
-  | { type: 'SET_TIME_OF_DAY'; mode: 'auto' | TimeOfDay }
+  | { type: 'SET_TIME_OF_DAY'; mode: 'auto' | TimeOfDay; nowMs: number }
   | { type: 'SET_SEASON'; mode: 'auto' | Season; nowMs: number }
   | { type: 'SET_NOTIFY'; key: 'enabled' | 'restEnd'; on: boolean }
   | { type: 'SET_FOCUS_NOTIFY'; index: number; on: boolean }

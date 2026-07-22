@@ -245,9 +245,12 @@ export function SceneView({ state }: { state: GameState }) {
             variant={state.session.supply.variant}
           />
         )}
-        {outdoor && state.weather !== 'clear' && (
-          <WeatherFx kind={state.weather} />
-        )}
+        {/* 입자가 있는 날씨만 — 맑음·흐림·안개는 떨어지는 것이 없다.
+            흐림·안개는 빛으로만 표현된다 (씬 렌더러의 light-cloud/light-fog) */}
+        {outdoor &&
+          state.weather !== 'clear' &&
+          state.weather !== 'cloud' &&
+          state.weather !== 'fog' && <WeatherFx kind={state.weather} />}
         {outdoor && <TimeTint tod={tod} />}
         </>
       )}

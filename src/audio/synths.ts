@@ -46,12 +46,14 @@ interface Ambience {
   ctx: AudioContext;
   out: GainNode;
   nodes: AudioNode[];
-  timers: ReturnType<typeof setTimeout>[];
+  /** **대기 중인** 타이머만 담는다 — 끝난 id를 쌓아 두면 장시간 재생에서
+   *  무한정 자란다 (발소리는 0.7초마다, 담요는 한 번에 4~8개씩 예약된다). */
+  timers: Set<ReturnType<typeof setTimeout>>;
   stopped: boolean;
 }
 
 function ambience(ctx: AudioContext, out: GainNode): Ambience {
-  return { ctx, out, nodes: [], timers: [], stopped: false };
+  return { ctx, out, nodes: [], timers: new Set(), stopped: false };
 }
 
 function finish(a: Ambience): LayerHandle {
@@ -59,6 +61,7 @@ function finish(a: Ambience): LayerHandle {
     stop() {
       a.stopped = true;
       for (const t of a.timers) clearTimeout(t);
+      a.timers.clear();
       for (const n of a.nodes) {
         try {
           if (n instanceof AudioBufferSourceNode || n instanceof OscillatorNode)
@@ -146,6 +149,16 @@ function noiseBurst(
   }
 }
 
+/** 타이머 예약 — 발화하는 순간 목록에서 스스로 빠진다 (대기 중인 것만 남는다) */
+function later(a: Ambience, ms: number, fire: () => void): void {
+  const id = setTimeout(() => {
+    a.timers.delete(id);
+    if (a.stopped) return;
+    fire();
+  }, ms);
+  a.timers.add(id);
+}
+
 /** 랜덤 간격 반복 스케줄러 */
 function every(
   a: Ambience,
@@ -155,13 +168,10 @@ function every(
 ): void {
   const next = () => {
     if (a.stopped) return;
-    const delay = minMs + Math.random() * (maxMs - minMs);
-    const id = setTimeout(() => {
-      if (a.stopped) return;
+    later(a, minMs + Math.random() * (maxMs - minMs), () => {
       fire();
       next();
-    }, delay);
-    a.timers.push(id);
+    });
   };
   next();
 }
@@ -299,18 +309,15 @@ function cooking(a: Ambience): void {
   every(a, 5000, 12000, () => {
     const taps = 4 + Math.floor(Math.random() * 5);
     for (let i = 0; i < taps; i++) {
-      const id = setTimeout(
-        () =>
-          noiseBurst(a, {
-            band: [120, 900],
-            dur: 0.05,
-            vol: 0.11,
-            attack: 0.003,
-            lowpass: true,
-          }),
-        i * (120 + Math.random() * 40),
+      later(a, i * (120 + Math.random() * 40), () =>
+        noiseBurst(a, {
+          band: [120, 900],
+          dur: 0.05,
+          vol: 0.11,
+          attack: 0.003,
+          lowpass: true,
+        }),
       );
-      a.timers.push(id);
     }
   });
 }

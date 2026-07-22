@@ -3,8 +3,13 @@
  * 추후 도트 에셋 교체를 위해 개별 컴포넌트로 분리. image-rendering 유지.
  * 입자 배치는 인덱스 기반 유사난수 — 리렌더에도 흔들리지 않는다.
  */
-export function WeatherFx({ kind }: { kind: 'rain' | 'downpour' | 'snow' | 'petals' | 'leaves' }) {
-  const drifting = kind === 'snow' || kind === 'petals' || kind === 'leaves';
+export function WeatherFx({
+  kind,
+}: {
+  kind: 'rain' | 'downpour' | 'snow' | 'petals' | 'grass' | 'leaves';
+}) {
+  const drifting =
+    kind === 'snow' || kind === 'petals' || kind === 'grass' || kind === 'leaves';
   const count = kind === 'downpour' ? 26 : kind === 'rain' ? 14 : 18;
   const drops = Array.from({ length: count }, (_, i) => {
     const left = ((i * 37) % 100) + ((i * 13) % 7) / 10;
@@ -38,9 +43,11 @@ export function WeatherFx({ kind }: { kind: 'rain' | 'downpour' | 'snow' | 'peta
               background:
                 kind === 'petals'
                   ? 'rgba(240,182,200,0.85)' // 꽃잎 — 봄
-                  : kind === 'leaves'
-                    ? 'rgba(200,134,63,0.85)' // 낙엽 — 가을
-                    : 'rgba(232,238,244,0.85)', // 눈 — 겨울
+                  : kind === 'grass'
+                    ? 'rgba(150,196,120,0.85)' // 풀잎 — 여름
+                    : kind === 'leaves'
+                      ? 'rgba(200,134,63,0.85)' // 낙엽 — 가을
+                      : 'rgba(232,238,244,0.85)', // 눈 — 겨울
               animation: `snowFall ${d.dur}s linear ${d.delay}s infinite`,
             }}
           />
