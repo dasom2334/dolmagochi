@@ -3,7 +3,8 @@ import { createGameStore, gameData, type GameStore } from './gameStore';
 import type { GameEvent } from '../game/types';
 import { playSound, setSoundEnabled, type SoundName } from '../sound';
 import { isActionUnlocked } from '../game/stateMachine';
-import { SYS } from '../game/text';
+import { nightVariant, SYS } from '../game/text';
+import type { TimeOfDay } from '../game/types';
 import { pushToast } from '../toast';
 
 /** 앱 전역 스토어 싱글턴 (테스트는 createGameStore를 직접 사용) */
@@ -92,6 +93,14 @@ export function now(): number {
  */
 export function t(id: string): string {
   return (gameData.text[id]?.[0] ?? [`[MISSING TEXT: ${id}]`]).join('\n');
+}
+
+/**
+ * 시간대(밤) 반영 UI 텍스트 — 밤이고 `{id}.night`가 있으면 그 문구로.
+ * 햇빛쬐기 계열(버튼·캡션·선택지)이 밤에 달빛 화법으로 바뀌는 공통 경로.
+ */
+export function tNight(id: string, tod: TimeOfDay | undefined): string {
+  return t(nightVariant(gameData.text, id, tod));
 }
 
 /** {var} 치환 포함 */

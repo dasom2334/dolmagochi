@@ -83,6 +83,7 @@ export function createGameStore(
     now,
     dispatch: (event) =>
       set((s) => ({ state: transition(s.state, event, ctx) })),
-    tick: (dtSec) => get().dispatch({ type: 'TICK', dtSec }),
+    // nowMs를 실어 TICK 안에서 시간대(밤 얼굴)를 해석할 수 있게 한다
+    tick: (dtSec) => get().dispatch({ type: 'TICK', dtSec, nowMs: get().now() }),
   }));
 }

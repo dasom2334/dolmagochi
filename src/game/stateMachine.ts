@@ -60,7 +60,15 @@ import {
   recordRemembrance,
 } from './outcomes';
 import { randInt } from './rng';
-import { fillPages, pickFor, pickText, resolveSlot, textVariantAt, SYS } from './text';
+import {
+  fillPages,
+  nightVariant,
+  pickFor,
+  pickText,
+  resolveSlot,
+  textVariantAt,
+  SYS,
+} from './text';
 import type { Company } from './text';
 
 export interface TransitionCtx {
@@ -186,6 +194,7 @@ function emptySession(): GameState['session'] {
     ambIdx: 0,
     narratorLine: '',
     lastReflectAtSec: 0,
+    lastNarrationAtSec: 0,
     timeMarksFired: [],
     supply: null,
     freeCare: null,
@@ -424,7 +433,11 @@ function resolveOption(
     labelId: option.labelId,
     resultId: picked.resultId,
   });
-  const text = joinPages(pickText(data.text, picked.resultId, rng));
+  // 밤이면 결과 줄도 달빛 화법으로 (햇빛쬐기 계열) — 공통 tod 축 경유
+  const tod = resolveTimeOfDay(state.settings, nowMs);
+  const text = joinPages(
+    pickText(data.text, nightVariant(data.text, picked.resultId, tod), rng),
+  );
   return {
     ...next,
     memory: remember(
@@ -436,6 +449,9 @@ function resolveOption(
     session: {
       ...next.session,
       narratorLine: text,
+      // 선택 결과 줄은 즉시 노출 + 스탬프 — 이후 앰비언트/반추/문턱이 이 간격 안에는
+      // 덮지 못한다 (MIN_NARRATION_GAP_SEC). 플레이어 조작이므로 자신은 억제 없음.
+      lastNarrationAtSec: next.session.elapsedSec,
       journal: addJournal(next.session.journal, next.session.elapsedSec, text),
     },
   };
@@ -817,12 +833,20 @@ function reduce(
         };
       }
       const company = companyOf(next);
+      const startTod = resolveTimeOfDay(state.settings, event.nowMs);
       const startLine = joinPages(
-        pickFor(data.text, action.startLineId, company, rng, {
-          absent: SYS.journal.sessionStartAbsent,
-          // 각성 후에는 '돌이 없는 방'이 아니라 아이가 있는 창밖 (피드백6-3)
-          companion: SYS.journal.sessionStartCompanion,
-        }),
+        pickFor(
+          data.text,
+          action.startLineId,
+          company,
+          rng,
+          {
+            absent: SYS.journal.sessionStartAbsent,
+            // 각성 후에는 '돌이 없는 방'이 아니라 아이가 있는 창밖 (피드백6-3)
+            companion: SYS.journal.sessionStartCompanion,
+          },
+          startTod,
+        ),
       );
       // 직전 휴식 준수 배율 — 이번 세션의 게이지 정산에 곱한다 (개정 v4-4).
       // 1 미만이면 관찰 문장으로 텔레그래프 (수치 비노출 — 돌의 기색으로만).
@@ -896,27 +920,42 @@ function reduce(
       const s = state.session;
       const el = s.elapsedSec + event.dtSec;
       const present = isRockPresent(state);
+      // 밤 얼굴 — 햇빛쬐기 앰비언트가 밤엔 달빛 화법으로 (공통 tod 축).
+      // 실제 스토어는 nowMs를 싣지만, 디버그·테스트 틱은 없을 수 있어 0으로 방어.
+      const tod = resolveTimeOfDay(state.settings, event.nowMs ?? 0);
       let next: GameState = { ...state, session: { ...s, elapsedSec: el } };
 
       // 1) 화자 관찰 로테이션 — 카탈로그 변형을 순서대로 순환
       // 선택지가 떠 있어도 서술은 계속 흐른다(선택지는 아래 별도 박스로 남는다)
       const ambientVariants =
         data.text[
-          resolveSlot(data.text, action.ambientId, companyOf(next), {
-            absent: SYS.absentAmbient,
-            companion: SYS.absentAmbientCompanion,
-          })
+          resolveSlot(
+            data.text,
+            action.ambientId,
+            companyOf(next),
+            {
+              absent: SYS.absentAmbient,
+              companion: SYS.absentAmbientCompanion,
+            },
+            tod,
+          )
         ] ?? [];
       if (ambientVariants.length > 0) {
         const wantIdx =
           Math.floor(el / BALANCE.AMBIENT_ROTATE_SEC) % ambientVariants.length;
-        if (wantIdx !== next.session.ambIdx) {
+        // 최소 간격 게이트 — 미달이면 ambIdx를 올리지 않고 다음 틱에 다시 시도한다
+        // (간격이 지나면 그때의 wantIdx로 발화). 선택 직후 몇 초 만에 덮는 걸 막는다.
+        const gapOk =
+          el - (next.session.lastNarrationAtSec ?? 0) >=
+          BALANCE.MIN_NARRATION_GAP_SEC;
+        if (wantIdx !== next.session.ambIdx && gapOk) {
           next = {
             ...next,
             session: {
               ...next.session,
               ambIdx: wantIdx,
               narratorLine: joinPages(ambientVariants[wantIdx]),
+              lastNarrationAtSec: el,
             },
           };
         }
@@ -1068,9 +1107,15 @@ function reduce(
         // 선택지가 떠 있어도 자유행동 반추 서술은 계속 흐른다(선택지는 아래 별도 박스).
         // 단, 이번 틱에 시간 문턱이 발화하면 반추 서술은 억제(수치는 위에서 이미 적용).
         // 추억 순간은 문턱보다 우선해 서술로 남긴다 (놓치면 아까운 한 줄).
+        // 순간은 희귀·소중 — 최소 간격을 무시하고 항상 노출한다. 그 외 자유행동
+        // 반추 서술만 간격 게이트(선택 직후 겹침 방지). 일지 기록은 그대로 남긴다.
+        const gapOk =
+          el - (next.session.lastNarrationAtSec ?? 0) >=
+          BALANCE.MIN_NARRATION_GAP_SEC;
         const showAsNarrator =
           momentNow !== null ||
-          (action.id === 'free' && present && !timeMarkFiring);
+          (action.id === 'free' && present && !timeMarkFiring && gapOk);
+        const wroteLine = showAsNarrator && !!line;
         next = {
           ...next,
           memory,
@@ -1083,14 +1128,16 @@ function reduce(
             ...next.session,
             momentFired: next.session.momentFired || momentNow !== null,
             lastReflectAtSec: el,
+            lastNarrationAtSec: wroteLine
+              ? el
+              : (next.session.lastNarrationAtSec ?? 0),
             freeCare: next.session.freeCare ?? careNowNeed,
             freeCareVia: next.session.freeCareVia ?? careNowVia,
             journal:
               line && (momentNow !== null || !timeMarkFiring)
                 ? addJournal(next.session.journal, el, line)
                 : next.session.journal,
-            narratorLine:
-              showAsNarrator && line ? line : next.session.narratorLine,
+            narratorLine: wroteLine ? line : next.session.narratorLine,
           },
         };
       }
@@ -1098,6 +1145,9 @@ function reduce(
       // 5) 시간 문턱 발화 — 집중이 길어질수록 문턱별 1회 (기획서 요청)
       // 분 표기는 문구에 박지 않고 문턱값({mins})을 채운다 — 데이터 수정에도 어긋나지 않게
       data.timeMarks.focus.forEach((mark, i) => {
+        // 문턱은 드문 마일스톤(25/50/90분) — 간격으로 미루지 않고 항상 발화하되,
+        // 스탬프를 남겨 뒤따르는 앰비언트가 곧바로 덮지 않게 한다. (선택 직후
+        // 겹침은 '선택→문턱' 순서가 아니라 앰비언트에서 오므로 여기선 게이트 불필요.)
         if (el >= mark.minSec && !next.session.timeMarksFired.includes(i)) {
           const markLine = joinPages(
             fillPages(pickFor(data.text, mark.textId, companyOf(next), rng), {
@@ -1109,6 +1159,7 @@ function reduce(
             session: {
               ...next.session,
               timeMarksFired: [...next.session.timeMarksFired, i],
+              lastNarrationAtSec: el,
               journal: markLine
                 ? addJournal(next.session.journal, el, markLine)
                 : next.session.journal,

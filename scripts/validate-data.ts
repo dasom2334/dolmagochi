@@ -473,7 +473,13 @@ export function validateGameData(
     // 축으로 실제 해석되는 슬롯만 예외 — 아무 id에나 .absent를 붙여 두고
     // 참조된 척하는 죽은 문구를 걸러낸다 (리뷰)
     const viaAxis = axisBase !== id && axisSlots.has(axisBase);
-    if (!referenced.has(id) && !codeRefs.has(id) && !viaAxis)
+    // 시간대 축 변형(`X.night`, M23) — nightVariant가 기반 id 어디에나 얹힐 수
+    // 있으니, 기반이 실제 참조돼 있으면 인정한다(죽은 .night는 기반 부재로 걸림).
+    const nightBase = id.replace(/\.night$/, '');
+    const viaNight =
+      nightBase !== id &&
+      (referenced.has(nightBase) || codeRefs.has(nightBase));
+    if (!referenced.has(id) && !codeRefs.has(id) && !viaAxis && !viaNight)
       warnings.push(`카탈로그 "${id}" 어디서도 참조되지 않음 (orphan)`);
   }
 

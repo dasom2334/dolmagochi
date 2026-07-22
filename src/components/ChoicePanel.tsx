@@ -1,6 +1,7 @@
 import type { GameState } from '../game/types';
 import { gameData } from '../store/gameStore';
-import { dispatch, now, t } from '../store/appStore';
+import { dispatch, now, tNight } from '../store/appStore';
+import { resolveTimeOfDay } from '../game/timeOfDay';
 import { btnOutline, card } from './ui';
 
 /** 집중 중 조용한 선택지 — 팝업·사운드 없음, 화면 하단에 머문다 */
@@ -16,6 +17,8 @@ export function ChoicePanel({ state }: { state: GameState }) {
   if (!choice) return null;
 
   const promptId = choice.promptId;
+  // 밤 얼굴 — 햇빛쬐기 계열 프롬프트·라벨이 밤엔 달빛 화법으로 (공통 tod 축)
+  const tod = resolveTimeOfDay(state.settings, now());
   return (
     <div
       style={{
@@ -36,7 +39,7 @@ export function ChoicePanel({ state }: { state: GameState }) {
           animation: 'logFade .4s steps(3) both',
         }}
       >
-        * {t(promptId)}
+        * {tNight(promptId, tod)}
       </p>
       <div
         style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}
@@ -50,7 +53,7 @@ export function ChoicePanel({ state }: { state: GameState }) {
               dispatch({ type: 'CHOICE_PICKED', optionIndex: i, nowMs: now() })
             }
           >
-            {t(o.labelId)}
+            {tNight(o.labelId, tod)}
           </button>
         ))}
       </div>

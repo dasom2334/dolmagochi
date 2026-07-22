@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { GameState } from '../../game/types';
 import { isRockPresent, itemBonus } from '../../game/stateMachine';
 import { gameData } from '../../store/gameStore';
-import { appStore, now, t } from '../../store/appStore';
+import { appStore, now, t, tNight } from '../../store/appStore';
 import { SYS } from '../../game/text';
 import { Floor } from './Floor';
 import { WindowSprite } from './WindowSprite';
@@ -143,7 +143,7 @@ export function SceneView({ state }: { state: GameState }) {
   if (!sceneOff.has('lamp')) hotspots.add('lamp');
 
   const caption = isFocus
-    ? t(action?.captionId ?? '')
+    ? tNight(action?.captionId ?? '', tod)
     : state.planted
       ? t(SYS.captions.treeRoom)
       : state.era === 'apart' && !state.apart.visiting

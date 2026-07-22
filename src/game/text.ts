@@ -1,4 +1,4 @@
-import type { TextId } from './types';
+import type { TextId, TimeOfDay } from './types';
 import type { Rng } from './rng';
 import type { LayerId } from '../audio/layers';
 
@@ -31,16 +31,33 @@ export function textVariantAt(
 export type Company = 'present' | 'absent' | 'companion';
 
 /**
+ * 시간대 축 (M23) — 밤이고 `{id}.night` 변형이 있으면 그 id로, 없으면 원본.
+ * 낮·황혼은 항상 원본. 햇빛쬐기 계열이 밤에 달빛 화법으로 바뀌는 공통 경로다.
+ * (동석 축과 달리 present일 때만 적용 — 부재 문구는 볕을 언급하지 않는다.)
+ */
+export function nightVariant(
+  catalog: TextCatalog,
+  id: TextId,
+  tod: TimeOfDay | undefined,
+): TextId {
+  if (tod !== 'night') return id;
+  const n: TextId = `${id}.night`;
+  return catalog[n] ? n : id;
+}
+
+/**
  * 상황에 맞는 변형 id를 고른다 — 구체(축 접미사) → 공용 폴백 → 기본 순.
  * companion(3차 아이)은 부재의 한 종류라, 전용 변형이 없으면 absent로 내려온다.
+ * tod가 오면 present 얼굴에 밤 변형을 겹쳐 고른다(공통 처리).
  */
 export function resolveSlot(
   catalog: TextCatalog,
   baseId: TextId,
   company: Company,
   shared?: Partial<Record<Company, TextId>>,
+  tod?: TimeOfDay,
 ): TextId {
-  if (company === 'present') return baseId;
+  if (company === 'present') return nightVariant(catalog, baseId, tod);
   const chain: TextId[] =
     company === 'companion'
       ? [
@@ -60,8 +77,13 @@ export function pickFor(
   company: Company,
   rng: Rng,
   shared?: Partial<Record<Company, TextId>>,
+  tod?: TimeOfDay,
 ): string[] {
-  return pickText(catalog, resolveSlot(catalog, baseId, company, shared), rng);
+  return pickText(
+    catalog,
+    resolveSlot(catalog, baseId, company, shared, tod),
+    rng,
+  );
 }
 
 /** {var} 치환 — 페이지 전체에 적용 */
