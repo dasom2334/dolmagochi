@@ -124,6 +124,7 @@ export function createInitialState(
     dialogue: { usedByPool: {} },
     pendingEvent: null,
     foreUsed: [],
+    recentChoices: [],
     awakeningPending: false,
     sproutGatesCleared: 0,
     delegate: null,
@@ -397,6 +398,26 @@ function applyIntimacy(
     };
   }
   return next;
+}
+
+/** 선택지를 제시했다 — 기본은 '안 고름'(false)으로 넣고, 고르면 뒤집는다. */
+function pushChoiceOffer(log: boolean[]): boolean[] {
+  return [...log, false].slice(-BALANCE.CHOICE_WINDOW);
+}
+
+/** 방금 제시한 선택지를 골랐다. 슬롯이 하나뿐이라 마지막 기록이 곧 그것이다. */
+function markChoicePicked(log: boolean[]): boolean[] {
+  return log.length === 0 ? log : [...log.slice(0, -1), true];
+}
+
+/**
+ * 선택지에 응답하지 않는 유형인가 (M25).
+ * 표본이 차기 전에는 판정하지 않는다. 롤링 윈도우라 다시 고르기 시작하면 스스로 풀린다.
+ */
+export function ignoresChoices(state: GameState): boolean {
+  const log = state.recentChoices ?? [];
+  if (log.length < BALANCE.CHOICE_MIN_SAMPLE) return false;
+  return log.filter(Boolean).length / log.length < BALANCE.CHOICE_IGNORE_RATE;
 }
 
 function milestoneDue(m: MilestoneData, state: GameState): boolean {
@@ -970,6 +991,7 @@ function reduce(
         if (foreshadowFits && el >= BALANCE.CHOICE_FIRST_AT_SEC) {
           next = {
             ...next,
+            recentChoices: pushChoiceOffer(next.recentChoices),
             session: {
               ...next.session,
               choiceState: { source: 'foreshadow', index: 0, shownAtSec: el },
@@ -985,6 +1007,7 @@ function reduce(
           if (el >= at) {
             next = {
               ...next,
+              recentChoices: pushChoiceOffer(next.recentChoices),
               session: {
                 ...next.session,
                 choiceState: {
@@ -1188,6 +1211,8 @@ function reduce(
       next = {
         ...next,
         pendingEvent: cs.source === 'foreshadow' ? null : next.pendingEvent,
+        // 응답한 사람 — 무응답 판정 윈도우에 '골랐다'로 남는다
+        recentChoices: markChoicePicked(next.recentChoices),
         session: {
           ...next.session,
           choiceState: null,
@@ -1869,9 +1894,22 @@ function reduce(
         if (markLine) journal = addJournal(journal, state.session.elapsedSec, markLine);
       }
 
+      // 포섀도를 띄운 채 세션이 끝났고, 선택지에 응답하지 않는 유형이라면 흘려보낸다.
+      // 슬롯이 하나뿐이라 그대로 두면 그 하나가 자리를 물고 있어 나머지 복선이
+      // 영영 안 나온다. 응답하는 사람에게는 종전대로 계속 기다린다.
+      //
+      // ⚠️ 슬롯만 비우면 안 된다 — 포섀도는 **예약 시점에 이미 foreUsed에 등록**되므로
+      // 그냥 버리면 그 복선은 다시 안 뽑힌다(실금·울림은 1회용이라 영구 소실).
+      // 그래서 마지막 인덱스를 풀에 되돌린다. 예약은 pendingEvent가 없을 때만
+      // 일어나므로 foreUsed의 마지막 항목이 곧 지금 예약된 그것이다.
+      const foreExpires =
+        state.session.choiceState?.source === 'foreshadow' &&
+        ignoresChoices(state);
       const displayMins = Math.max(1, Math.round(mins));
       return {
         ...next,
+        pendingEvent: foreExpires ? null : next.pendingEvent,
+        foreUsed: foreExpires ? next.foreUsed.slice(0, -1) : next.foreUsed,
         phase: 'rest',
         restStep: 'journal',
         // 병간호 중이면 '병간호하기'로 강제, 회복하면 유효한 기본 행동으로 리셋
