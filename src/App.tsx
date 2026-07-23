@@ -153,28 +153,26 @@ export function App() {
   // 상황이 바뀌면(집중 재시작·조기종료·설정 OFF·복귀) 취소돼 엉뚱한 시각 발화를 막는다.
   useEffect(() => {
     const evaluate = () => {
-      const nf = state.settings.notify;
-      const restActive =
-        state.phase === 'rest' && state.rest.endsAt > Date.now();
+      // 리스너가 사는 동안 상태가 바뀔 수 있으므로 스토어에서 최신을 읽는다
+      // (클로저의 state를 쓰면 동석 축 문구가 옛 값으로 굳는다).
+      const s = appStore.getState().state;
+      const nf = s.settings.notify;
+      const restActive = s.phase === 'rest' && s.rest.endsAt > Date.now();
       if (restActive && nf.enabled && nf.restEnd && document.hidden) {
         const body = t(
-          resolveSlot(gameData.text, SYS.notification.restEnd, companyOf(state)),
+          resolveSlot(gameData.text, SYS.notification.restEnd, companyOf(s)),
         );
-        scheduleRestEnd(state.rest.endsAt, body);
+        scheduleRestEnd(s.rest.endsAt, body);
       } else {
+        // 예약한 적 없어도 무조건 취소한다 — 새로고침·탭 복원으로 ref가 초기화돼도
+        // 이전 세션의 예약이 남아 엉뚱하게 뜨는 걸 막는 방어(비용은 비동기 SW 호출 1회).
         cancelRestEnd();
       }
     };
     evaluate();
     document.addEventListener('visibilitychange', evaluate);
     return () => document.removeEventListener('visibilitychange', evaluate);
-  }, [
-    state.phase,
-    state.rest.endsAt,
-    state.settings.notify,
-    state.era,
-    booted,
-  ]);
+  }, [state.phase, state.rest.endsAt, state.settings.notify, booted]);
 
   // 시간 진행: 집중 세션만 카운트업. 휴식은 종료 시각 타임스탬프 기준(M3에서 워커로 강화).
   useEffect(() => {
