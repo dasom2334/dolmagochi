@@ -7,6 +7,7 @@ import { needsLevelOf } from '../game/stats';
 import { affectionTier } from '../game/dialogue';
 import { allowedIntimacy, attachQuadrant, attachRate } from '../game/security';
 import { startAbsence, presentState } from '../game/absence';
+import { ignoresChoices } from '../game/stateMachine';
 import { wipeSave } from '../persistence/persist';
 import { BALANCE } from '../game/balance';
 import { roomOfItem } from '../game/rooms';
@@ -537,6 +538,22 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
           </button>
         ))}
       </div>
+      {/* 포섀도 흐름 진단 — 무응답 유형이면 뜬 포섀도를 세션 끝에 흘려보낸다 */}
+      <Section label="foreshadow" />
+      <div style={rowWrap}>
+        <span style={dim}>
+          선택 {state.recentChoices.filter(Boolean).length}/
+          {state.recentChoices.length} (표본 {BALANCE.CHOICE_MIN_SAMPLE})
+        </span>
+        <span style={dim}>
+          {ignoresChoices(state) ? '무응답 유형 ON' : '무응답 유형 off'}
+        </span>
+        <span style={dim}>
+          사용 {state.foreUsed.length}/{gameData.events.foreshadow.length}
+          {state.pendingEvent ? ' · 예약중' : ''}
+        </span>
+      </div>
+
       <Section label="milestone preview" />
       <div style={rowWrap}>
         {gameData.events.milestones.map((m) => (

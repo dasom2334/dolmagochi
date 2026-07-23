@@ -279,6 +279,11 @@ export interface GameState {
   dialogue: { usedByPool: Record<string, number[]> };
   pendingEvent: ForeshadowEventData | null;
   foreUsed: number[];
+  /**
+   * 최근 선택지 제시 결과 (true=골랐다). 최대 BALANCE.CHOICE_WINDOW개만 남는
+   * 롤링 윈도우 — 누적으로 세면 초반에 안 고른 사람이 영영 낙인찍힌다.
+   */
+  recentChoices: boolean[];
   /** 엔딩 전 대화 소진 수 */
   endingTalksSeen: number;
   /** 엔딩 전 대화를 소진한 마지막 달력일 — 하루 1개 게이트 (개정 v4-7) */

@@ -142,6 +142,10 @@ function normalizeState(state: GameState): GameState {
     lastTreeBondDate: state.lastTreeBondDate ?? null,
     treeBondToday: finiteOr(state.treeBondToday, 0),
     apart: { ...state.apart, held: state.apart?.held === true },
+    // 선택 응답 윈도우 (M25) — 구 세이브엔 없다. 빈 배열이면 표본 미달로 판정 보류
+    recentChoices: Array.isArray(state.recentChoices)
+      ? state.recentChoices.filter((v: unknown) => typeof v === 'boolean')
+      : [],
     // 날씨 필드 방어 (M12)
     weather: ([
       'clear', 'cloud', 'fog',
