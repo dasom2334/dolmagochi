@@ -11,6 +11,7 @@ import {
   notify,
   requestNotifyPermission,
   scheduleRestEnd,
+  userAway,
 } from './notifications';
 import { pushToast } from './toast';
 import { dueFocusMarks } from './game/notify';
@@ -105,14 +106,15 @@ export function App() {
       { type: 'module' },
     );
     // 휴식 종료 알림 — 워커가 endsAt 도달 시 통지. '휴식 종료 알림'이 켜진 경우에만,
-    // 포그라운드=인앱 종소리(효과음 설정과 무관한 알림 채널이라 force), 백그라운드=OS 알림.
+    // 보고 있으면=인앱 종소리(효과음 설정과 무관한 알림 채널이라 force), 자리 비움=OS 알림.
+    // '자리 비움' 판정은 userAway() — 창이 다른 앱 뒤에 있는 경우(macOS)도 포함한다.
     // (앱은 REST_END를 UI에서 쓰지 않고 rest→START_FOCUS 직행이므로 종료 신호는 워커가 담당)
     worker.onmessage = () => {
       const s = appStore.getState().state;
       const nf = s.settings.notify;
       if (!nf.enabled || !nf.restEnd) return;
       // 동석 축으로 변형 선택 (피드백4-2) — 돌이 없으면 '기다린다'가 나오지 않는다
-      if (document.hidden)
+      if (userAway())
         notify(
           t(
             resolveSlot(gameData.text, SYS.notification.restEnd, companyOf(s)),
@@ -149,8 +151,9 @@ export function App() {
 
   // 휴식 종료 알림 예약 (Notification Triggers, 지원 기기만) — 앱이 얼거나 닫혀도
   // OS가 종료 시각에 대신 띄운다. 워커 경로(앱 살아 있을 때)의 점진적 개선.
-  // 화면을 보고 있을 땐 예약을 취소한다: 그 땐 종소리로 알리므로 OS 알림은 불필요·성가심.
+  // 보고 있을 땐 예약을 취소한다: 그 땐 종소리로 알리므로 OS 알림은 불필요·성가심.
   // 상황이 바뀌면(집중 재시작·조기종료·설정 OFF·복귀) 취소돼 엉뚱한 시각 발화를 막는다.
+  // '자리 비움'은 userAway() — 포커스도 보므로 창 전환(focus/blur)까지 구독한다.
   useEffect(() => {
     const evaluate = () => {
       // 리스너가 사는 동안 상태가 바뀔 수 있으므로 스토어에서 최신을 읽는다
@@ -158,7 +161,7 @@ export function App() {
       const s = appStore.getState().state;
       const nf = s.settings.notify;
       const restActive = s.phase === 'rest' && s.rest.endsAt > Date.now();
-      if (restActive && nf.enabled && nf.restEnd && document.hidden) {
+      if (restActive && nf.enabled && nf.restEnd && userAway()) {
         const body = t(
           resolveSlot(gameData.text, SYS.notification.restEnd, companyOf(s)),
         );
@@ -171,7 +174,13 @@ export function App() {
     };
     evaluate();
     document.addEventListener('visibilitychange', evaluate);
-    return () => document.removeEventListener('visibilitychange', evaluate);
+    window.addEventListener('focus', evaluate);
+    window.addEventListener('blur', evaluate);
+    return () => {
+      document.removeEventListener('visibilitychange', evaluate);
+      window.removeEventListener('focus', evaluate);
+      window.removeEventListener('blur', evaluate);
+    };
   }, [state.phase, state.rest.endsAt, state.settings.notify, booted]);
 
   // 시간 진행: 집중 세션만 카운트업. 휴식은 종료 시각 타임스탬프 기준(M3에서 워커로 강화).
@@ -300,7 +309,8 @@ export function App() {
       state.settings.flowtime,
     )) {
       const body = tf(SYS.notification.focusMark, { min });
-      if (document.hidden) notify(body);
+      // 자리 비움 판정은 userAway() — 창이 다른 앱 뒤에 있어도 토스트가 아니라 알림으로
+      if (userAway()) notify(body);
       else pushToast(body);
     }
     focusMarkRef.current = cur;

@@ -8,6 +8,18 @@ export function notifySupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window;
 }
 
+/**
+ * "지금 유저가 앱을 안 보고 있는가" — 알림을 띄울지, 인앱 종소리로 끝낼지의 기준.
+ *
+ * document.hidden만으론 데스크톱에서 안 맞는다: macOS에서 창을 다른 앱 뒤에 두면
+ * 여전히 visible이라, 정작 딴 일 하는 동안 알림이 안 뜨고 종소리만 났다.
+ * 포커스가 없으면(다른 앱/창을 보고 있으면) 자리를 비운 것으로 본다.
+ */
+export function userAway(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.hidden || !document.hasFocus();
+}
+
 /** 첫 진입 시 1회 권한 요청. 이미 결정됐으면 아무 것도 하지 않는다. */
 export async function requestNotifyPermission(): Promise<void> {
   if (!notifySupported()) return;
