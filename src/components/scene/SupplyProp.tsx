@@ -11,7 +11,7 @@ const SUPPLY_COLORS: Record<string, { body: string; accent: string }> = {
   // 따뜻한 차 — 찻잔 색
   'tea.green': { body: '#7fa066', accent: '#5a7a4a' },
   'tea.black': { body: '#a05a3a', accent: '#7a4a2e' },
-  'tea.coffee': { body: '#5a3a2a', accent: '#3a2a1e' },
+  'tea.herb': { body: '#c8b86a', accent: '#9a8a48' },
   // 도시락 — 내용물
   'lunchbox.riceball': { body: '#f2f0e8', accent: '#2a2a3a' },
   'lunchbox.sandwich': { body: '#d8b878', accent: '#a05a3a' },

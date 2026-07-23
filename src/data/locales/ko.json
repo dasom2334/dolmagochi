@@ -384,9 +384,9 @@
       "홍차"
     ]
   ],
-  "shop.tea.var.coffee": [
+  "shop.tea.var.herb": [
     [
-      "커피"
+      "허브차"
     ]
   ],
   "shop.lunchbox.var.riceball": [
@@ -549,9 +549,9 @@
       "오늘의 차는 홍차였다. 진한 향이 창가에 머물렀다."
     ]
   ],
-  "shop.tea.use.coffee": [
+  "shop.tea.use.herb": [
     [
-      "오늘의 차는 커피였다. 차는 아니지만, 아무도 따지지 않았다."
+      "오늘의 차는 허브차였다. 맛은 옅고 향만 오래 남았다."
     ]
   ],
   "shop.fireplace.name": [
