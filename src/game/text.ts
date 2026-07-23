@@ -327,6 +327,21 @@ export const UI = {
     light: 'ui.theme.light',
     dark: 'ui.theme.dark',
   },
+  /**
+   * 알림 권한 안내 (M24) — 첫 진입 소프트 프롬프트 + 설정의 권한 상태 표시.
+   * 네이티브 다이얼로그는 사실상 일회용이라(거부되면 재요청 불가) 먼저 여기서 묻는다.
+   */
+  notify: {
+    ask: 'ui.notify.ask',
+    askYes: 'ui.notify.askYes',
+    askLater: 'ui.notify.askLater',
+    permission: 'ui.notify.permission',
+    permGranted: 'ui.notify.permGranted',
+    permDenied: 'ui.notify.permDenied',
+    permDefault: 'ui.notify.permDefault',
+    permUnsupported: 'ui.notify.permUnsupported',
+    deniedHint: 'ui.notify.deniedHint',
+  },
   /** 도감 앨범 (M19d) */
   album: {
     pickHint: 'ui.album.pickHint',

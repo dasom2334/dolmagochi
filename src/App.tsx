@@ -9,7 +9,6 @@ import { OccupiedScreen } from './components/OccupiedScreen';
 import {
   cancelRestEnd,
   notify,
-  requestNotifyPermission,
   scheduleRestEnd,
   userAway,
 } from './notifications';
@@ -21,6 +20,7 @@ import { resolveSeason, resolveTimeOfDay } from './game/timeOfDay';
 import { stopSoundscape, syncSoundscape } from './audio/engine';
 import { ToastHost } from './components/ToastHost';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { NotifyPrompt } from './components/NotifyPrompt';
 import { TimerCard } from './components/TimerCard';
 import { SceneView } from './components/scene/SceneView';
 import { AmbienceBar } from './components/AmbienceBar';
@@ -77,10 +77,9 @@ export function App() {
               paused: pauseOnHide && document.hidden,
             });
           }
-          if (!appStore.getState().state.settings.notifAsked) {
-            await requestNotifyPermission();
-            dispatch({ type: 'MARK_NOTIF_ASKED' });
-          }
+          // 알림 권한은 여기서 묻지 않는다 — 켜자마자 뜬 네이티브 다이얼로그는
+          // 반사적으로 닫혀 'denied'로 굳기 쉽고, 그러면 브라우저가 다시 묻지 않는다.
+          // 대신 NotifyPrompt(첫 진입 안내)에서 사용자가 눌렀을 때 요청한다.
           // 다른 창이 닫혀 이 탭이 승격·재로드된 경우 안내 문구
           if (sessionStorage.getItem('dol-promoted') === '1') {
             sessionStorage.removeItem('dol-promoted');
@@ -442,6 +441,7 @@ export function App() {
       </div>
       <ToastHost />
       <UpdatePrompt />
+      <NotifyPrompt state={state} />
     </div>
   );
 }

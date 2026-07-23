@@ -3,7 +3,7 @@ import type { GameState } from '../game/types';
 import { appStore, dispatch, now, t } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { exportSaveJson, importSaveJson } from '../persistence/exportImport';
-import { requestNotifyPermission } from '../notifications';
+import { notifyPermission, requestNotifyPermission } from '../notifications';
 import { cloneFlowtime } from '../game/timer';
 
 const numInput = {
@@ -102,6 +102,43 @@ const closeBtn = {
   padding: '6px 18px',
   cursor: 'pointer',
 };
+
+/**
+ * 브라우저 알림 권한 상태 한 줄 (M24).
+ * 인앱 토글이 켜져 있어도 브라우저 권한이 막히면 알림은 오지 않는데, 그동안 그 사실이
+ * 어디에도 안 보여 원인을 알 수 없었다. 특히 'denied'는 앱에서 되돌릴 수 없어
+ * (브라우저가 재요청을 막는다) 푸는 방법을 함께 안내한다.
+ * ⚠️ OS 차단(시스템 설정·집중 모드)은 웹에서 알 수 없어 여기 표시되지 않는다.
+ */
+function NotifyPermissionRow() {
+  const perm = notifyPermission();
+  const label =
+    perm === 'granted'
+      ? UI.notify.permGranted
+      : perm === 'denied'
+        ? UI.notify.permDenied
+        : perm === 'unsupported'
+          ? UI.notify.permUnsupported
+          : UI.notify.permDefault;
+  return (
+    <div style={{ paddingLeft: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ fontSize: 12, color: 'var(--text-soft)' }}>
+        - {t(UI.notify.permission)} — {t(label)}
+      </div>
+      {perm === 'denied' && (
+        <div
+          style={{
+            fontSize: 11,
+            color: 'var(--hint-dim)',
+            lineHeight: 1.7,
+          }}
+        >
+          {t(UI.notify.deniedHint)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** 하위 설정 모달(뎁스 +1) — 사운드/알림을 각각 별도 시트로. */
 function SubSheet({
@@ -336,6 +373,7 @@ export function SettingsModal({
             - {t(UI.labels.notifyRest)} — {onOff(nf.restEnd)}
           </button>
         )}
+        <NotifyPermissionRow />
 
         <div style={{ height: 2, background: 'var(--line)', margin: '4px 0' }} />
 

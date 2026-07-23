@@ -3422,6 +3422,51 @@
       "그림을 고르면 그날의 기록이 보인다."
     ]
   ],
+  "ui.notify.ask": [
+    [
+      "자리를 비운 사이에 알려드릴까요?\n휴식이 끝날 때, 그리고 집중이 길어질 때 알림이 옵니다.\n화면을 보고 있는 동안에는 오지 않습니다.\n\n켜려면 브라우저 알림 권한이 필요합니다."
+    ]
+  ],
+  "ui.notify.askYes": [
+    [
+      "알림 켜기"
+    ]
+  ],
+  "ui.notify.askLater": [
+    [
+      "나중에"
+    ]
+  ],
+  "ui.notify.permission": [
+    [
+      "브라우저 알림 권한"
+    ]
+  ],
+  "ui.notify.permGranted": [
+    [
+      "허용됨"
+    ]
+  ],
+  "ui.notify.permDenied": [
+    [
+      "차단됨"
+    ]
+  ],
+  "ui.notify.permDefault": [
+    [
+      "아직 묻지 않음"
+    ]
+  ],
+  "ui.notify.permUnsupported": [
+    [
+      "이 브라우저는 지원하지 않음"
+    ]
+  ],
+  "ui.notify.deniedHint": [
+    [
+      "이 브라우저에서 알림이 차단되어 있어, 앱에서는 다시 물어볼 수 없습니다. 주소창의 자물쇠 → 사이트 설정에서 알림을 허용해 주세요."
+    ]
+  ],
   "ui.approach.near.lie": [
     [
       "▸ 곁에 나란히 눕는다"
