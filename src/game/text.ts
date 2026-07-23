@@ -280,11 +280,17 @@ export const UI = {
     umbrellaRain: 'ui.noise.umbrellaRain',
     cicadas: 'ui.noise.cicadas',
   } satisfies Record<LayerId, string>,
-  /** 분위기 바 (M22) */
+  /**
+   * 분위기 바 (M22) — 소리 모드.
+   * Short는 세그먼트 탭 라벨(둘 다 늘 보인다), 긴 쪽은 고른 모드의 설명 한 줄.
+   * 설명에 '아래 격자가 무슨 뜻인지'를 같이 적는다 — 모드에 따라 격자의 의미가
+   * 뒤집히는데(끌 것 고르기 ↔ 틀 것 고르기) 그게 안 보여 아무도 몰랐다.
+   */
   ambience: {
+    modeAutoShort: 'ui.ambience.mode.autoShort',
+    modeCustomShort: 'ui.ambience.mode.customShort',
     modeAuto: 'ui.ambience.mode.auto',
     modeCustom: 'ui.ambience.mode.custom',
-    modeSwitch: 'ui.ambience.mode.switch',
   },
   /** 날씨·시간대 라벨 (M12) */
   weatherUi: {

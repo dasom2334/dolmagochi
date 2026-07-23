@@ -3211,19 +3211,24 @@
       "바깥 날씨"
     ]
   ],
+  "ui.ambience.mode.autoShort": [
+    [
+      "이 자리대로"
+    ]
+  ],
   "ui.ambience.mode.auto": [
     [
-      "지금 이 자리에서 들리는 대로"
+      "상황이 알아서 고른다. 아래에선 끌 소리를 고른다."
+    ]
+  ],
+  "ui.ambience.mode.customShort": [
+    [
+      "내가 고른 대로"
     ]
   ],
   "ui.ambience.mode.custom": [
     [
-      "모든 게 당신이 선택한 대로"
-    ]
-  ],
-  "ui.ambience.mode.switch": [
-    [
-      "바꾸기"
+      "고른 것만 울린다. 아래에선 틀 소리를 고른다."
     ]
   ],
   "ui.weather.kind.clear": [

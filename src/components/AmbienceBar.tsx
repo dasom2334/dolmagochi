@@ -159,37 +159,49 @@ function SoundMixer({ state }: { state: GameState }) {
       </button>
       {on && (
         <>
-          {/* 모드 전환 (M22) — 자동은 상황이 고르고, 커스텀은 내가 고른다 */}
-          <button
-            className="hv"
+          {/* 모드 전환 (M22 → M26) — 한 줄 문장 + [바꾸기]였을 땐 컨트롤로 보이지도,
+              모드가 둘이라는 것도 알 수 없었다. 상점 탭과 같은 세그먼트로 바꿔
+              둘 다 늘 보이게 하고, 아래 설명 줄이 '지금 격자가 무슨 뜻인지'를 말한다. */}
+          <div style={{ display: "flex", gap: 4 }}>
+            {(["auto", "custom"] as const).map((m) => {
+              const sel = custom === (m === "custom");
+              return (
+                <button
+                  key={m}
+                  className="hv"
+                  style={{
+                    flex: 1,
+                    border: `2px solid ${sel ? "var(--text)" : "var(--line)"}`,
+                    background: sel ? "var(--text)" : "transparent",
+                    color: sel ? "var(--panel)" : "var(--ink-soft)",
+                    fontFamily: "inherit",
+                    fontSize: 11,
+                    padding: "3px 6px",
+                    cursor: "pointer",
+                  }}
+                  onClick={() =>
+                    dispatch({ type: "SET_NOISE_MODE", mode: m, nowMs: now() })
+                  }
+                >
+                  {t(
+                    m === "custom"
+                      ? UI.ambience.modeCustomShort
+                      : UI.ambience.modeAutoShort,
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <div
             style={{
-              border: "2px solid var(--hint-dim)",
-              background: "transparent",
-              color: "var(--ink-soft)",
-              fontFamily: "inherit",
               fontSize: 11,
-              padding: "5px 8px",
-              textAlign: "left",
-              cursor: "pointer",
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 8,
+              lineHeight: 1.6,
+              color: "var(--hint)",
+              marginTop: -2,
             }}
-            onClick={() =>
-              dispatch({
-                type: "SET_NOISE_MODE",
-                mode: custom ? "auto" : "custom",
-                nowMs: now(),
-              })
-            }
           >
-            <span>
-              {t(custom ? UI.ambience.modeCustom : UI.ambience.modeAuto)}
-            </span>
-            <span style={{ color: "var(--hint)" }}>
-              [{t(UI.ambience.modeSwitch)}]
-            </span>
-          </button>
+            {t(custom ? UI.ambience.modeCustom : UI.ambience.modeAuto)}
+          </div>
           <div
             style={{
               display: "grid",
