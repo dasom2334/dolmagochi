@@ -11,6 +11,11 @@ import { wipeSave } from '../persistence/persist';
 import { BALANCE } from '../game/balance';
 import { roomOfItem } from '../game/rooms';
 import { btnSmall } from '../components/ui';
+import {
+  notify,
+  notifyPermission,
+  requestNotifyPermission,
+} from '../notifications';
 
 /**
  * 개발용 디버그 패널 — DEV 전용. App이 import.meta.env.DEV + ?debug=1 게이트로 동적 로드하므로
@@ -444,6 +449,26 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
             {n}
           </button>
         ))}
+      </div>
+      {/* 알림 진단 — OS 차단(시스템 설정·집중 모드)은 웹에서 조회할 수 없어,
+          실제로 띄워 보는 것만이 확인 방법이다. 안 뜨면 권한 위쪽(OS)이 막는 것. */}
+      <Section label="notify" />
+      <div style={rowWrap}>
+        <span style={dim}>권한 {notifyPermission()}</span>
+        <button
+          className="hv"
+          style={btnSmall}
+          onClick={() => void requestNotifyPermission()}
+        >
+          권한 요청
+        </button>
+        <button
+          className="hv"
+          style={btnSmall}
+          onClick={() => notify('테스트 알림 — 이게 보이면 알림 경로는 정상')}
+        >
+          테스트 알림
+        </button>
       </div>
       <Section label="force" />
       <div style={rowWrap}>

@@ -8,9 +8,39 @@ export function notifySupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window;
 }
 
-/** 첫 진입 시 1회 권한 요청. 이미 결정됐으면 아무 것도 하지 않는다. */
-export async function requestNotifyPermission(): Promise<void> {
-  if (!notifySupported()) return;
+/**
+ * "지금 유저가 앱을 안 보고 있는가" — 알림을 띄울지, 인앱 종소리로 끝낼지의 기준.
+ *
+ * document.hidden만으론 데스크톱에서 안 맞는다: macOS에서 창을 다른 앱 뒤에 두면
+ * 여전히 visible이라, 정작 딴 일 하는 동안 알림이 안 뜨고 종소리만 났다.
+ * 포커스가 없으면(다른 앱/창을 보고 있으면) 자리를 비운 것으로 본다.
+ */
+export function userAway(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.hidden || !document.hasFocus();
+}
+
+export type NotifyPermission = 'granted' | 'denied' | 'default' | 'unsupported';
+
+/**
+ * 현재 브라우저 알림 권한.
+ * ⚠️ OS 차단(macOS 시스템 설정·집중 모드)은 웹에서 알 수 없다 — granted인데도
+ * 조용히 안 뜰 수 있다. 그 경우는 디버그 패널의 '테스트 알림'으로만 확인된다.
+ */
+export function notifyPermission(): NotifyPermission {
+  if (!notifySupported()) return 'unsupported';
+  return Notification.permission;
+}
+
+/**
+ * 권한 요청 — 결과 권한을 돌려준다.
+ *
+ * 'default'일 때만 실제 다이얼로그가 뜬다. 이미 'denied'면 브라우저 정책상 사이트가
+ * 다시 물어볼 수 없어(다이얼로그 없이 즉시 반환) 유저가 사이트 설정에서 직접 풀어야 한다.
+ * iOS/Safari는 사용자 제스처에서만 요청이 허용되므로 반드시 클릭 핸들러에서 부를 것.
+ */
+export async function requestNotifyPermission(): Promise<NotifyPermission> {
+  if (!notifySupported()) return 'unsupported';
   try {
     if (Notification.permission === 'default') {
       await Notification.requestPermission();
@@ -18,6 +48,7 @@ export async function requestNotifyPermission(): Promise<void> {
   } catch {
     /* 무시 */
   }
+  return notifyPermission();
 }
 
 /** 휴식 종료 알림 tag — 예약분·즉시분이 같은 tag라 겹쳐도 하나만 보인다(중복 방지) */
