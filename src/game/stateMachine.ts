@@ -2358,8 +2358,10 @@ function reduce(
       // 아니면 '아직 준비가 안 됐다'가 화면에 남아 다시 위임할 때까지 걸린다
       if (state.delegate?.kind === 'locked' && state.delegate.item === item.id)
         state = { ...state, delegate: null };
-      // 소모품: 재고 0/1 — 소모 후 재구매 가능. 배치도 가능(재고가 방에 보인다):
-      // 첫 구매만 배치를 묻고, 재구매는 기억된 배치 자리를 그대로 따른다.
+      // 소모품: 재고 0/1 — 소모 후 재구매 가능. 재고는 사면 바로 방에 보인다.
+      // 배치를 **묻지 않는다**: 재고 그림(책장의 오늘의 책 등)이 이미 나와 있는데
+      // "배치하시겠습니까?"가 뒤늦게 뜨는 게 앞뒤가 안 맞았다. 대신 첫 구매에 배치된
+      // 상태로 들여놓고, 치우고 싶으면 소장품 탭에서 보관으로 바꾸면 된다.
       if (item.consumable) {
         if ((state.supplies[item.id] ?? 0) > 0) return state; // 아직 안 씀
         const firstBuy = !(item.id in state.items);
@@ -2373,9 +2375,9 @@ function reduce(
           supplies: { ...bought.supplies, [item.id]: 1 },
           supplyVariants: { ...bought.supplyVariants, [item.id]: variant },
           items: firstBuy
-            ? { ...bought.items, [item.id]: { placed: false } }
+            ? { ...bought.items, [item.id]: { placed: true } }
             : bought.items,
-          pendingPlacement: firstBuy ? item.id : bought.pendingPlacement,
+          pendingPlacement: bought.pendingPlacement,
           memory: remember(
             bought.memory,
             `buy-${item.id}`,

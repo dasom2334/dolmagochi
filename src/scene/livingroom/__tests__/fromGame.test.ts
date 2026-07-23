@@ -92,17 +92,30 @@ describe('책장', () => {
     expect(off.has('bk-3')).toBe(true);
   });
 
-  it('2번째 칸 — 일회용 책은 **누적 구매 수**만큼 꽂힌다', () => {
+  it('일회용 책은 **누적 구매 수**만큼, 배치형 책 뒤를 이어 1번째 칸부터 꽂힌다', () => {
     // supplies 는 0/1 이라 못 센다. memory 의 buy-readbook count 가 누적이다.
     const twice = {
       ...base,
       memory: { 'buy-readbook': { w: 2, count: 2, lastAt: 0 } },
     } as unknown as GameState;
     const off = hiddenLayers(twice, false, D);
-    expect(off.has('bk2-1')).toBe(false);
-    expect(off.has('bk2-2')).toBe(false);
-    expect(off.has('bk2-3')).toBe(true);
-    expect(off.has('bk2-4')).toBe(true);
+    // 배치형 책이 없으니 1번째 칸 앞자리부터 채운다 — 2번째 칸은 아직 안 쓴다
+    expect(off.has('bk-1')).toBe(false);
+    expect(off.has('bk-2')).toBe(false);
+    expect(off.has('bk-3')).toBe(true);
+    for (let n = 1; n <= 4; n++) expect(off.has(`bk2-${n}`)).toBe(true);
+  });
+
+  it('1번째 칸(6권)이 다 차야 2번째 칸으로 넘어간다', () => {
+    const many = {
+      ...base,
+      items: { book: { placed: true }, book2: { placed: true } },
+      memory: { 'buy-readbook': { w: 5, count: 5, lastAt: 0 } },
+    } as unknown as GameState;
+    const off = hiddenLayers(many, false, D); // 배치형 2 + 일회용 5 = 7권
+    for (let n = 1; n <= 6; n++) expect(off.has(`bk-${n}`)).toBe(false);
+    expect(off.has('bk2-1')).toBe(false); // 넘친 1권
+    expect(off.has('bk2-2')).toBe(true);
   });
 
   it('2번째 칸도 처음엔 비어 있다', () => {

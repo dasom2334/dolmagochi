@@ -46,14 +46,13 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
     expect('bed' in s.items).toBe(true);
   });
 
-  it('소모품: 첫 구매만 배치 프롬프트, 재고 있으면 재구매 거절', () => {
+  it('소모품: 배치를 묻지 않고 바로 내놓는다, 재고 있으면 재구매 거절', () => {
     let s = restRich();
     s = run(s, [{ type: 'BUY', itemId: 'nightdrink', nowMs: T0 }]);
     expect(s.supplies['nightdrink']).toBe(1);
-    // 소모품도 배치 가능 — 첫 구매 시 배치 결정을 묻는다
-    expect(s.items['nightdrink']).toEqual({ placed: false });
-    expect(s.pendingPlacement).toBe('nightdrink');
-    s = run(s, [{ type: 'SET_PLACEMENT', itemId: 'nightdrink', placed: true }]);
+    // 재고 그림이 사자마자 방에 보이므로 배치를 되묻지 않는다 — 배치된 채로 들어온다
+    expect(s.items['nightdrink']).toEqual({ placed: true });
+    expect(s.pendingPlacement).toBeNull();
     const points = s.care.points;
     s = run(s, [{ type: 'BUY', itemId: 'nightdrink', nowMs: T0 }]);
     expect(s.care.points).toBe(points); // 거절 — 재고가 아직 있다
