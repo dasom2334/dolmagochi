@@ -27,7 +27,7 @@
   {"id": "mo-soda", "when": {"placedItems": ["soda"]}, "summaryId": "rem.mo-soda.summary", "revealId": "rem.mo-soda.reveal"},
   {"id": "mo-cup", "when": {"placedItems": ["cup"]}, "summaryId": "rem.mo-cup.summary", "revealId": "rem.mo-cup.reveal"},
   {"id": "mo-moss", "when": {"placedItems": ["moss"]}, "summaryId": "rem.mo-moss.summary", "revealId": "rem.mo-moss.reveal"},
-  {"id": "mo-book2", "when": {"placedItems": ["book2"]}, "summaryId": "rem.mo-book2.summary", "revealId": "rem.mo-book2.reveal"},
+  {"id": "mo-book2", "when": {"placedItems": ["book"]}, "summaryId": "rem.mo-book2.summary", "revealId": "rem.mo-book2.reveal"},
   {"id": "mo-lamp", "when": {"placedItems": ["lamp"]}, "summaryId": "rem.mo-lamp.summary", "revealId": "rem.mo-lamp.reveal"},
   {"id": "mo-cushion", "when": {"placedItems": ["cushion"]}, "summaryId": "rem.mo-cushion.summary", "revealId": "rem.mo-cushion.reveal"},
   {"id": "mo-bed", "when": {"action": "lie", "placedItems": ["bed"]}, "summaryId": "rem.mo-bed.summary", "revealId": "rem.mo-bed.reveal"},

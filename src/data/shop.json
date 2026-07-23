@@ -28,7 +28,6 @@
   {"id": "fan", "nameId": "shop.fan.name", "price": 2, "descId": "shop.fan.desc", "room": "living"},
   {"id": "floorlamp", "nameId": "shop.floorlamp.name", "price": 3, "descId": "shop.floorlamp.desc", "room": "living"},
   {"id": "moss", "nameId": "shop.moss.name", "price": 2, "descId": "shop.moss.desc"},
-  {"id": "book2", "nameId": "shop.book2.name", "price": 2, "descId": "shop.book2.desc", "room": "living"},
   {"id": "lamp", "nameId": "shop.lamp.name", "price": 3, "descId": "shop.lamp.desc", "room": "bedroom"},
   {"id": "guestcushion", "nameId": "shop.guestcushion.name", "price": 3, "descId": "shop.guestcushion.desc", "room": "living", "unlock": {"era": "apart", "planted": false}, "visitBonus": 0.1},
   {"id": "teaset", "nameId": "shop.teaset.name", "price": 4, "descId": "shop.teaset.desc", "room": "kitchen", "unlock": {"era": "apart", "planted": false}, "visitBonus": 0.08},
