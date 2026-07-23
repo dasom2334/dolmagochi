@@ -25,7 +25,7 @@
   {"id": "use-lunchbox-fruit", "nameId": "shop.lunchbox.var.fruit", "lineId": "shop.lunchbox.use.fruit", "when": {"token": "use-lunchbox-fruit"}},
   {"id": "use-tea-green", "nameId": "shop.tea.var.green", "lineId": "shop.tea.use.green", "when": {"token": "use-tea-green"}},
   {"id": "use-tea-black", "nameId": "shop.tea.var.black", "lineId": "shop.tea.use.black", "when": {"token": "use-tea-black"}},
-  {"id": "use-tea-coffee", "nameId": "shop.tea.var.coffee", "lineId": "shop.tea.use.coffee", "when": {"token": "use-tea-coffee"}},
+  {"id": "use-tea-herb", "nameId": "shop.tea.var.herb", "lineId": "shop.tea.use.herb", "when": {"token": "use-tea-herb"}},
   {"id": "use-readbook-tech", "nameId": "shop.readbook.var.tech", "lineId": "shop.readbook.use.tech", "when": {"token": "use-readbook-tech"}},
   {"id": "use-readbook-romance", "nameId": "shop.readbook.var.romance", "lineId": "shop.readbook.use.romance", "when": {"token": "use-readbook-romance"}},
   {"id": "use-readbook-comic", "nameId": "shop.readbook.var.comic", "lineId": "shop.readbook.use.comic", "when": {"token": "use-readbook-comic"}},

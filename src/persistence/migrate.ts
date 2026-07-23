@@ -322,6 +322,37 @@ export function migrateState(state: GameState): GameState | null {
       },
     };
   }
+  if (s.schemaVersion === 27) {
+    // 따뜻한 차의 '커피'를 허브차로 바꾸며 변형 키도 coffee → herb 로 갈았다.
+    // 코드가 변형 키로 문구 id를 조립하므로(`shop.tea.use.${variant}`), 옛 키가 남은
+    // 세이브는 [MISSING TEXT]가 뜨고 보너스도 안 붙는다. 키가 남는 자리를 전부 옮긴다:
+    // 아직 안 쓴 재고 · 이번 휴식의 진열 · 모은 뱃지 · 기억 토큰.
+    const swap = <T,>(
+      rec: Record<string, T>,
+      from: string,
+      to: string,
+    ): Record<string, T> => {
+      if (!rec || !(from in rec)) return rec;
+      const next = { ...rec };
+      next[to] = next[from];
+      delete next[from];
+      return next;
+    };
+    s = {
+      ...s,
+      schemaVersion: 28,
+      supplyVariants:
+        s.supplyVariants?.tea === 'coffee'
+          ? { ...s.supplyVariants, tea: 'herb' }
+          : s.supplyVariants,
+      rest:
+        s.rest?.offers?.tea === 'coffee'
+          ? { ...s.rest, offers: { ...s.rest.offers, tea: 'herb' } }
+          : s.rest,
+      badges: swap(s.badges, 'use-tea-coffee', 'use-tea-herb'),
+      memory: swap(s.memory, 'use-tea-coffee', 'use-tea-herb'),
+    };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

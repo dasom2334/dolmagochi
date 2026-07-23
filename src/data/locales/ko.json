@@ -384,7 +384,7 @@
       "홍차"
     ]
   ],
-  "shop.tea.var.coffee": [
+  "shop.tea.var.herb": [
     [
       "허브차"
     ]
@@ -549,7 +549,7 @@
       "오늘의 차는 홍차였다. 진한 향이 창가에 머물렀다."
     ]
   ],
-  "shop.tea.use.coffee": [
+  "shop.tea.use.herb": [
     [
       "오늘의 차는 허브차였다. 맛은 옅고 향만 오래 남았다."
     ]
