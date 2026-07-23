@@ -85,24 +85,36 @@ describe('책장', () => {
     for (let n = 1; n <= 6; n++) expect(off.has(`bk-${n}`)).toBe(true);
   });
 
-  it('1번째 칸 — 배치형 책(책·헌책)을 살수록 왼쪽부터 는다', () => {
-    const off = hiddenLayers(withItems('book', 'book2'), false, D);
+  it('1번째 칸 — 배치형 책(헌책)이 첫 칸을 잡는다', () => {
+    const off = hiddenLayers(withItems('book'), false, D);
     expect(off.has('bk-1')).toBe(false);
-    expect(off.has('bk-2')).toBe(false);
-    expect(off.has('bk-3')).toBe(true);
+    expect(off.has('bk-2')).toBe(true); // 배치형 책은 헌책 하나뿐
   });
 
-  it('2번째 칸 — 일회용 책은 **누적 구매 수**만큼 꽂힌다', () => {
+  it('일회용 책은 **누적 구매 수**만큼, 배치형 책 뒤를 이어 1번째 칸부터 꽂힌다', () => {
     // supplies 는 0/1 이라 못 센다. memory 의 buy-readbook count 가 누적이다.
     const twice = {
       ...base,
       memory: { 'buy-readbook': { w: 2, count: 2, lastAt: 0 } },
     } as unknown as GameState;
     const off = hiddenLayers(twice, false, D);
-    expect(off.has('bk2-1')).toBe(false);
-    expect(off.has('bk2-2')).toBe(false);
-    expect(off.has('bk2-3')).toBe(true);
-    expect(off.has('bk2-4')).toBe(true);
+    // 배치형 책이 없으니 1번째 칸 앞자리부터 채운다 — 2번째 칸은 아직 안 쓴다
+    expect(off.has('bk-1')).toBe(false);
+    expect(off.has('bk-2')).toBe(false);
+    expect(off.has('bk-3')).toBe(true);
+    for (let n = 1; n <= 4; n++) expect(off.has(`bk2-${n}`)).toBe(true);
+  });
+
+  it('1번째 칸(6권)이 다 차야 2번째 칸으로 넘어간다', () => {
+    const many = {
+      ...base,
+      items: { book: { placed: true } },
+      memory: { 'buy-readbook': { w: 6, count: 6, lastAt: 0 } },
+    } as unknown as GameState;
+    const off = hiddenLayers(many, false, D); // 헌책 1 + 일회용 6 = 7권
+    for (let n = 1; n <= 6; n++) expect(off.has(`bk-${n}`)).toBe(false);
+    expect(off.has('bk2-1')).toBe(false); // 넘친 1권
+    expect(off.has('bk2-2')).toBe(true);
   });
 
   it('2번째 칸도 처음엔 비어 있다', () => {
@@ -149,12 +161,11 @@ describe('펼친 책 = 꺼내 온 한 권의 번호', () => {
     ({ ...s, phase: 'focus', selectedAction: 'read' }) as GameState;
 
   it('안 읽는 중이면 0 — 책을 사도 러그에는 안 펴진다', () => {
-    expect(sceneStateFrom(withItems('book', 'book2'), 0).readBook).toBe(0);
+    expect(sceneStateFrom(withItems('book'), 0).readBook).toBe(0);
   });
 
   it('책읽기 세션 중에만 꺼내 온다', () => {
     expect(sceneStateFrom(reading(withItems('book')), 0).readBook).toBe(1);
-    expect(sceneStateFrom(reading(withItems('book', 'book2')), 0).readBook).toBe(2);
   });
 
   it('가진 책이 없으면 읽어도 0 — 없는 칸을 비울 수는 없다', () => {
@@ -164,7 +175,7 @@ describe('펼친 책 = 꺼내 온 한 권의 번호', () => {
   // 책장은 **왼쪽부터** 채워진다 — 어느 책을 샀든 첫 칸이 먼저 찬다.
   // 그래서 헌책 한 권만 있으면 그 책이 1번 칸에 꽂히고, 읽는 동안 1번이 빈다.
   it('헌책만 가지고 읽으면 비는 건 첫 번째 칸이다', () => {
-    const s = reading(withItems('book2'));
+    const s = reading(withItems('book'));
     expect(sceneStateFrom(s, 0).readBook).toBe(1);
     expect(hiddenLayers(s, false, D).has('bk-1')).toBe(false); // 산 책이라 켜져 있고
     expect(hiddenLayers(s, false, D).has('bk-2')).toBe(true); // 두 번째는 안 샀다
@@ -172,8 +183,8 @@ describe('펼친 책 = 꺼내 온 한 권의 번호', () => {
 
   // 세션이 끝나면(휴식) 꺼내 온 책이 제자리로 돌아간다
   it('세션이 끝나면 다시 채워진다', () => {
-    const s = withItems('book', 'book2');
-    expect(sceneStateFrom(reading(s), 0).readBook).toBe(2);
+    const s = withItems('book');
+    expect(sceneStateFrom(reading(s), 0).readBook).toBe(1);
     expect(sceneStateFrom({ ...s, phase: 'rest' } as GameState, 0).readBook).toBe(0);
   });
 });

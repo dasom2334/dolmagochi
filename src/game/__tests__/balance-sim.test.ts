@@ -303,7 +303,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
         doTalk: true,
         skipRest: false,
         buyOrder: ALL_ITEMS,
-        rebuyConsumables: ['apitoken'],
+        rebuyConsumables: ['caffeine'],
       },
       SEEDS,
     );
@@ -316,7 +316,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
         doTalk: true,
         skipRest: false,
         buyOrder: ALL_ITEMS,
-        rebuyConsumables: ['apitoken'],
+        rebuyConsumables: ['caffeine'],
       },
       SEEDS,
     );
@@ -329,7 +329,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
         doTalk: true,
         skipRest: false,
         buyOrder: ALL_ITEMS,
-        rebuyConsumables: ['apitoken'],
+        rebuyConsumables: ['caffeine'],
       },
       SEEDS,
     );
@@ -342,7 +342,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
         doTalk: false,
         skipRest: false,
         buyOrder: ALL_ITEMS,
-        rebuyConsumables: ['apitoken'],
+        rebuyConsumables: ['caffeine'],
       },
       SEEDS,
     );
@@ -355,7 +355,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
         doTalk: true,
         skipRest: true,
         buyOrder: ALL_ITEMS,
-        rebuyConsumables: ['apitoken'],
+        rebuyConsumables: ['caffeine'],
       },
       SEEDS,
     );
@@ -374,7 +374,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
         doTalk: true,
         skipRest: false,
         buyOrder: ALL_ITEMS,
-        rebuyConsumables: ['apitoken'],
+        rebuyConsumables: ['caffeine'],
       },
       {
         name: 'B. 러시',
@@ -384,7 +384,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
         doTalk: true,
         skipRest: false,
         buyOrder: ALL_ITEMS,
-        rebuyConsumables: ['apitoken'],
+        rebuyConsumables: ['caffeine'],
       },
       {
         name: 'D. 캐주얼',
@@ -394,7 +394,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
         doTalk: true,
         skipRest: false,
         buyOrder: ALL_ITEMS,
-        rebuyConsumables: ['apitoken'],
+        rebuyConsumables: ['caffeine'],
       },
     ];
     for (const policy of POLICIES) {
@@ -434,7 +434,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
       doTalk: true,
       skipRest: false,
       buyOrder: ALL_ITEMS,
-      rebuyConsumables: ['apitoken'],
+      rebuyConsumables: ['caffeine'],
     };
     const avg = (runs: RunResult[], get: (r: RunResult) => number | null) => {
       const vals = runs.map(get).filter((v): v is number => v !== null);
@@ -473,7 +473,7 @@ describe('밸런스 시뮬레이션 (개정 v4 패키지)', () => {
       doTalk: true,
       skipRest: false,
       buyOrder: ALL_ITEMS,
-      rebuyConsumables: ['apitoken'],
+      rebuyConsumables: ['caffeine'],
       ...over,
     });
     try {

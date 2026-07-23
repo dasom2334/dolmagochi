@@ -36,7 +36,7 @@
   { "token": "buy-soda", "variants": [{ "when": { "placedItems": ["soda"] }, "textId": "refl.buy-soda.base" }] },
   { "token": "buy-cup", "variants": [{ "when": { "placedItems": ["cup"] }, "textId": "refl.buy-cup.base" }] },
   { "token": "buy-moss", "variants": [{ "when": { "placedItems": ["moss"] }, "textId": "refl.buy-moss.base" }] },
-  { "token": "buy-book2", "variants": [{ "when": { "placedItems": ["book2"] }, "textId": "refl.buy-book2.base" }] },
+  { "token": "buy-book", "variants": [{ "when": { "placedItems": ["book"] }, "textId": "refl.buy-book2.base" }] },
   { "token": "buy-lamp", "variants": [{ "when": { "placedItems": ["lamp"] }, "textId": "refl.buy-lamp.base" }] },
   { "token": "choice", "variants": [{ "textId": "refl.choice.base" }] },
   {

@@ -103,9 +103,12 @@ function readBookOf(state: GameState): SceneState['readBook'] {
   return shelvedBooks(state) as SceneState['readBook'];
 }
 
-/** 1번째 칸 — 배치형 책(책·헌책). 소지 여부로 센다. */
+/** 1번째 칸 앞자리 — 배치형 책(헌책) 한 권. 소지 여부로 센다.
+ *  예전엔 '책'과 '헌책' 두 품목이었는데, 같은 값·같은 방·기능 차이도 없어 하나를 사면
+ *  다른 하나가 진열대에 남아 "같은 걸 또 판다"로 읽혔다. 헌책 하나로 합쳤다
+ *  (id 는 book 그대로 — 세이브·선행 조건이 이미 이 id 를 쓴다). */
 function shelvedBooks(state: GameState): number {
-  return ['book', 'book2'].filter((id) => state.items[id]?.placed).length;
+  return ['book'].filter((id) => state.items[id]?.placed).length;
 }
 
 /** 2번째 칸 — 일회용 책(오늘의 책)을 **여태 몇 권 샀는지**.
@@ -157,11 +160,13 @@ export function hiddenLayers(
     off.add('lamp-glow');
   }
 
-  // 책장 — 처음엔 두 칸 다 비어 있다.
-  //   1번째 칸(6권) 배치형 책(책·헌책)
-  //   2번째 칸(4권) 일회용 책(오늘의 책) — **살 때마다** 한 권씩 꽂힌다
-  for (let n = shelvedBooks(state) + 1; n <= 6; n++) off.add(`bk-${n}`);
-  for (let n = readbooksBought(state) + 1; n <= 4; n++) off.add(`bk2-${n}`);
+  // 책장 — 처음엔 두 칸 다 비어 있다. **1번째 칸(6권)을 다 채운 뒤** 2번째 칸(4권)으로
+  // 넘어간다. 배치형 책(헌책)이 앞자리를 잡고, 일회용 책(오늘의 책)이 그 뒤를 잇는다
+  // (**살 때마다** 한 권씩 꽂힌다). 예전엔 두 칸을 따로 세어, 1번째 칸 3~6번이 빈 채로
+  // 2번째 칸부터 차는 게 보였다.
+  const shelved = shelvedBooks(state) + readbooksBought(state);
+  for (let n = Math.min(shelved, 6) + 1; n <= 6; n++) off.add(`bk-${n}`);
+  for (let n = Math.max(shelved - 6, 0) + 1; n <= 4; n++) off.add(`bk2-${n}`);
 
   // 창턱 새는 상점 소품이 아니라 **이벤트** 연출이다 — 이벤트 훅이 붙기 전까진 끈다.
   off.add('p-bird');

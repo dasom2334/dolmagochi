@@ -116,7 +116,7 @@ export function SceneView({ state }: { state: GameState }) {
             : isFocus && sceneId === 'sun'
               ? '#ffd878'
               : '#c9a86a';
-  const showBook = (isFocus && sceneId === 'read') || show('book2');
+  const showBook = (isFocus && sceneId === 'read') || show('book');
 
   // 거실 씬 — design/livingroom 의 canvas 렌더러.
   // 휴식이든 집중이든 **그 장면의 방이 거실이면** 새 렌더러로 간다.
