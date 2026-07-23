@@ -17,6 +17,14 @@ import { registerSW } from 'virtual:pwa-register';
 /** 이 시간(ms) 안에 발견된 갱신 = "새로 연 것"으로 보고 자동 반영 */
 const FRESH_OPEN_MS = 10_000;
 
+/**
+ * 새 배포 주기 확인 간격(ms).
+ * 탭 복귀(visibilitychange)만으로는 부족하다 — PWA를 켜둔 채 한 번도 전환하지
+ * 않으면 확인 자체가 안 돌아 배너가 영영 안 뜬다(브라우저 자체 검사는 최대 24시간).
+ * 집중 세션(25~90분) 중에도 한 번은 걸리도록 15분으로 둔다.
+ */
+const UPDATE_POLL_MS = 15 * 60_000;
+
 /** 새 버전 대기를 UI에 알릴 때 넘기는 콜백. 인자는 "지금 적용"(새로고침 포함) 함수. */
 type UpdateListener = (applyUpdate: () => void) => void;
 
@@ -77,10 +85,19 @@ export function initPWA(): void {
     },
     onRegisteredSW(_swUrl, reg) {
       if (!reg) return;
+      // 오프라인 등 실패는 무시 — 다음 확인 때 다시 시도한다
+      const check = () => {
+        void reg.update().catch(() => {
+          /* 무시 */
+        });
+      };
       // 탭을 다시 볼 때마다 새 배포 확인 (오래 열어둔 경우 배너 경로로 이어짐)
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') void reg.update();
+        if (document.visibilityState === 'visible') check();
       });
+      // 켜둔 채 한 번도 전환하지 않아도 잡히도록 주기 확인.
+      // 숨김 중에는 브라우저가 인터벌을 늦추지만, 복귀 시 위 리스너가 즉시 확인한다.
+      setInterval(check, UPDATE_POLL_MS);
     },
   });
 }
