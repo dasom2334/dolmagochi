@@ -11,7 +11,7 @@ const STOCK_PROPS: Record<string, { left: string; body: string; accent: string }
   readbook: { left: '52%', body: '#4a6a8a', accent: '#f2ead8' }, // 쌓아둔 책
   cleaner: { left: '56%', body: '#a8c8e8', accent: '#e8f0f8' }, // 세제
   ingredients: { left: '60%', body: '#b48a6a', accent: '#7fa066' }, // 장바구니
-  apitoken: { left: '64%', body: '#6a8ae8', accent: '#b0c8ff' }, // 토큰 칩
+  caffeine: { left: '64%', body: '#a8563c', accent: '#e8d0a0' }, // 잠 깨는 것(캔·컵)
 };
 
 export const STOCK_PROP_IDS = Object.keys(STOCK_PROPS);

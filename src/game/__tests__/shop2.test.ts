@@ -127,14 +127,14 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
     expect(s.session.journal.some((j) => j.text.includes('우유'))).toBe(false);
   });
 
-  it('API 토큰: 개인작업이 발동하지 않은 세션엔 재고로 되돌아가고 거짓 서술이 없다', () => {
+  it('잠 깨는 것: 개인작업이 발동하지 않은 세션엔 재고로 되돌아가고 거짓 서술이 없다', () => {
     let s = restRich();
     // 욕구 미충족(생리 0) → 개인작업 판정 자체가 없다
     s = {
       ...s,
       selectedAction: 'free',
-      supplies: { apitoken: 1 },
-      supplyVariants: { apitoken: 'claude' },
+      supplies: { caffeine: 1 },
+      supplyVariants: { caffeine: 'energy' },
     };
     s = run(s, [
       { type: 'START_FOCUS', nowMs: T0 },
@@ -142,9 +142,10 @@ describe('상점 2.0 — 체인·소모품·보너스', () => {
       { type: 'END_FOCUS', nowMs: T0 + 1_500_000 },
     ]);
     expect(s.session.freeWorked).toBe(false);
-    expect(s.supplies['apitoken']).toBe(1); // 반환
+    expect(s.supplies['caffeine']).toBe(1); // 반환
     expect(s.stats.selfActualization).toBe(0); // bonusSelfAct 미적용
-    expect(s.session.journal.some((j) => j.text.includes('토큰'))).toBe(false);
+    // 사용 대사 3종이 공유하는 도입부 — 하나라도 남았다면 거짓 서술이다
+    expect(s.session.journal.some((j) => j.text.includes('오늘 집은 건'))).toBe(false);
   });
 
   it('소모품 없이 세션 진행: 보너스 없음, 행동은 정상', () => {

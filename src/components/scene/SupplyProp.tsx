@@ -28,10 +28,10 @@ const SUPPLY_COLORS: Record<string, { body: string; accent: string }> = {
   'ingredients.veggie': { body: '#7fa066', accent: '#5a7a4a' },
   'ingredients.mushroom': { body: '#b48a6a', accent: '#e8e2d8' },
   'ingredients.grain': { body: '#d8c078', accent: '#b8a058' },
-  // API 토큰 — 모델별 칩 색
-  'apitoken.claude': { body: '#d97757', accent: '#f2b8a0' },
-  'apitoken.gpt': { body: '#4aa88a', accent: '#a0e8d0' },
-  'apitoken.gemini': { body: '#6a8ae8', accent: '#b0c8ff' },
+  // 잠 깨는 것 — 종류별 색
+  'caffeine.energy': { body: '#c8443c', accent: '#f0a89a' }, // 에너지 드링크 캔
+  'caffeine.triple': { body: '#4a3428', accent: '#8a6a52' }, // 진한 커피
+  'caffeine.iced': { body: '#7a5a44', accent: '#cde8f2' }, // 아이스 — 얼음빛 하이라이트
 };
 
 export function SupplyProp({

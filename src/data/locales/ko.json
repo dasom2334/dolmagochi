@@ -434,19 +434,19 @@
       "곡물"
     ]
   ],
-  "shop.apitoken.var.claude": [
+  "shop.caffeine.var.energy": [
     [
-      "claude"
+      "붉은 황소"
     ]
   ],
-  "shop.apitoken.var.gpt": [
+  "shop.caffeine.var.triple": [
     [
-      "gpt"
+      "3샷 커피"
     ]
   ],
-  "shop.apitoken.var.gemini": [
+  "shop.caffeine.var.iced": [
     [
-      "gemini"
+      "아이스 아메리카노"
     ]
   ],
   "shop.pillow.name": [
@@ -684,29 +684,29 @@
       "돌 크기의 작은 랩탑. 필기도구와 나란히 두어도 좋다."
     ]
   ],
-  "shop.apitoken.name": [
+  "shop.caffeine.name": [
     [
-      "API 토큰"
+      "잠 깨는 것"
     ]
   ],
-  "shop.apitoken.desc": [
+  "shop.caffeine.desc": [
     [
-      "돌의 작업을 도울 일회용 토큰."
+      "돌의 작업을 도울 한 번짜리. 무엇이 잡힐지는 그때 가서 안다."
     ]
   ],
-  "shop.apitoken.use.claude": [
+  "shop.caffeine.use.energy": [
     [
-      "오늘의 토큰은 claude였다. 돌의 작업이 유난히 순조로워 보였다."
+      "오늘 집은 건 붉은 황소였다. 날개가 돋는다더니, 돌의 작업이 유난히 순조로워 보였다."
     ]
   ],
-  "shop.apitoken.use.gpt": [
+  "shop.caffeine.use.triple": [
     [
-      "오늘의 토큰은 gpt였다. 돌은 몇 번 갸웃하더니 다시 집중했다."
+      "오늘 집은 건 3샷 커피였다. 돌은 몇 번 갸웃하더니 다시 집중했다."
     ]
   ],
-  "shop.apitoken.use.gemini": [
+  "shop.caffeine.use.iced": [
     [
-      "오늘의 토큰은 gemini였다. 돌의 화면에 별처럼 반짝이는 게 스쳤다. 아마."
+      "오늘 집은 건 아이스 아메리카노였다. 얼음이 녹는 동안 돌은 창밖을 보고 있었다. 아마."
     ]
   ],
   "shop.cushion.name": [
