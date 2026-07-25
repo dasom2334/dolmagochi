@@ -10,10 +10,13 @@ import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
 import { BD_ART, BD_GLASS } from './geom-art.js';
 import * as PREV from './geom-art-prev.js';   // 이전 버전(오늘 4건 수정 전) 정적 아트 — A/B 비교용
 import { BD3_ART } from './geom-art-v3.js';   // v3 손작화 판 — 무테·두꺼운 색면
-import { ORB_SPOTS, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug } from './geom.js';
+import { ORB_SPOTS, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug,
+  bedroomScenery, BD_SUN, BD_MOON, BD_STARS } from './geom.js';
+import { BD3_DRINKS } from './geom-art-v3.js';
 
 const GX = 128, GY = 72;
-const groups = generateGroups({});           // 절차 창밖(하늘·산·해달별·구름·날씨)
+const groups = generateGroups({});           // 거실 절차 그룹(바닥·구름·날씨 재사용)
+const SCN = bedroomScenery();                // 침실 전용 창밖(하늘+나무 캐노피)
 
 // 상점 소품 — 안 산 상태로 시작(거실 SHOP_PROPS 대응)
 export const SHOP_PROPS = ['bd-desk', 'bd-chair', 'bd-laptop', 'bd-deskplant',
@@ -26,8 +29,6 @@ const Z_FURNITURE = ['bd-frames', 'bd-shelf', 'bd-bed', 'bd-fan', 'bd-nightstand
 // 이전 버전 z-순서 — 추출 러그(bd-rug)를 가구로 포함(절차 러그를 안 쓰던 때)
 const Z_FURNITURE_PREV = ['bd-frames', 'bd-shelf', 'bd-bed', 'bd-fan', 'bd-nightstand',
   'bd-rug', 'bd-desk', 'bd-laptop', 'bd-deskplant', 'bd-chair'];
-// 창밖 개별 레이어(거실 '창밖' 토글 대응)
-const SCENERY = ['base-scenery', 'halo-moon', 'halo-sun', 'sun', 'moon', 'stars', 'clouds'];
 
 const slot = (pal, v) => (v[0] === '#' ? v : (pal[v] || '#f0f'));
 function paint(ctx, rects, pal) {
@@ -103,9 +104,16 @@ export function render(cv, state, off = new Set(), t = 0) {
   ctx.fillStyle = pal['--page-bg'] || '#1a1330';
   ctx.fillRect(0, 0, GX, GY);
 
-  // [1] 창밖 풍경 — **캔버스 전체**. 벽[2]이 덮어 개구부로만 보인다.
-  //     벽(bd-wall)을 끄면 풍경이 통째로 드러난다(검수용).
-  for (const id of SCENERY) if (groups[id] && !off.has(id)) paint(ctx, groups[id], pal);
+  // [1] 창밖 풍경 — **침실 전용**(하늘+나무 캐노피, 캔버스 전체). 벽[2]이 덮어
+  //     개구부로만 보인다. 해/달은 창 안(x49,y13) — 시간이 가른다. 별은 밤에만.
+  const sunUp = state.time !== 'night';
+  if (!off.has('base-scenery')) paint(ctx, SCN, pal);
+  if (sunUp) { if (!off.has('sun')) paint(ctx, BD_SUN, pal); }
+  else {
+    if (!off.has('stars')) paint(ctx, BD_STARS, pal);
+    if (!off.has('moon')) paint(ctx, BD_MOON, pal);
+  }
+  if (groups.clouds && !off.has('clouds')) paint(ctx, groups.clouds, pal);
 
   // [2] 벽·창틀(유리 구멍) → 바닥
   //     바닥은 **거실 절차 바닥(g-floor)** 을 그대로 쓴다. 추출 바닥(BD_ART['bd-floor'])은
@@ -133,6 +141,11 @@ export function render(cv, state, off = new Set(), t = 0) {
   for (const id of (prev ? Z_FURNITURE_PREV : Z_FURNITURE)) {
     if (off.has(id) || !ART[id]) continue;
     if (state.paintLayer === id && state.paintCells) { drawPaintCells(ctx, state.paintCells); continue; }
+    // 카페인 음료 — v3 는 **한 번에 하나만**(state.drink 가 고른다)
+    if (id === 'bd-deskplant' && state.variant === 'v3') {
+      paint(ctx, BD3_DRINKS[state.drink] || BD3_DRINKS.coffee, pal);
+      continue;
+    }
     const o = state.offset?.[id];
     if (o && (o[0] || o[1])) { ctx.save(); ctx.translate(o[0] | 0, o[1] | 0); paint(ctx, ART[id], pal); ctx.restore(); }
     else paint(ctx, ART[id], pal);

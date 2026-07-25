@@ -145,7 +145,7 @@
       bedroom: {
         name: '침실', render: renderBedroom,
         state: () => ({ time:'day', season:'summer', weather:'clear', orb:'chair', lamp:'off',
-                        variant:'current' }),
+                        variant:'current', drink:'coffee' }),
         off: () => new Set(),                   // 아트 검수용 — 가득 찬 방으로 시작
         axes: [
           ['버전','variant',[['current','현재'],['v3','v3 손작화'],['prev','이전']]],
@@ -155,6 +155,7 @@
                             ['rain','비'],['downpour','폭우'],['snow','눈'],['petals','꽃잎·낙엽']]],
           ['돌','orb',[['none','없음'],['chair','의자(작업)'],['bed','침대'],['rug','러그']]],
           ['스탠드','lamp',[['off','끔'],['on','켬']]],
+          ['카페인','drink',[['coffee','커피'],['iced','아아'],['redbull','레드불'],['cola','콜라']]],
         ],
         toggles: [
           ['색감',[['light-day','낮'],['light-sunset','노을'],['light-night','밤'],
