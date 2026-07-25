@@ -1,7 +1,7 @@
 // 침실 씬 — 절차/동적 요소만. 정적 아트(벽·바닥·창틀·가구)는 레퍼런스 추출본
 // geom-art.js(tools/extract.py 산출)가 담당한다. 여기엔 게임 상태로 바뀌는 것만:
-//  · 돌(거실 생성 돌 ball/rim) 3자리
-//  · 책상 스탠드(추출 낮 레퍼런스엔 꺼져 있어 별도로 얹는 밤 작업 조명) + 발광
+//  · 돌(거실 생성 돌 ball/rim) 3자리 · 절차 러그 · 창광 poolTrap(+가구 차폐)
+//  · 접지 그림자 · 책상 스탠드(아트+발광) · 모니터 발광
 
 const R = (x, y, w, h, c, a) => (a == null ? [x, y, w, h, c] : [x, y, w, h, c, a]);
 
@@ -11,8 +11,6 @@ import { ball, rim, stoneRows, STONE_ASPECT, h2, emitRows } from '../livingroom/
 // ── 러그 — 거실 절차 러그와 **같은 방식**(무광원 팔레트 슬롯 + 무늬)으로 생성한다.
 // 추출 러그(레퍼런스)는 창햇빛이 대각선으로 **구워져** 있어 디라이팅으로도 안 지워졌다.
 // SCENE-RULES: 명암은 광원 레이어가 만든다 — 러그는 질감(무늬·테두리)만 갖는다.
-// 거실 rugCells 와 동일 구조: 외곽 어두운 단 → 밝은 테두리 줄 → 무늬 필드.
-// 침실 자리(가구 사이 앞쪽 중앙)에 맞춘 사다리꼴. 색은 거실 러그 슬롯(--rg0..4) 공유.
 const RUG_Y0 = 53, RUG_Y1 = 68, RUG_CX = 66, RUG_HW_BACK = 22, RUG_HW_FRONT = 32;
 // opts 로 위치·크기 조절 (v4 편집 Phase 2). 기본값이면 원본과 동일.
 export function bedroomRug(opts = {}) {
@@ -46,14 +44,17 @@ export function bedroomRug(opts = {}) {
   }
   return emitRows(out);
 }
+
 const orbAt = (cx, baseY, w) => {
   const rows = stoneRows(cx, baseY, w, Math.round(w / STONE_ASPECT));
   return { base: ball(rows), rim: rim(rows) };
 };
-// 3자리 — 작업=의자 / 누워있기+침대=침대 / 침대없음=러그. 추출 가구에 맞춘 좌표.
+// 3자리 — 작업=의자 / 누워있기+침대=침대 / 침대없음=러그.
+// 원근: 뒷벽 깊이(의자·침대)는 w11 로 같고, 앞쪽 러그만 w14 로 크다.
+// v3 손작화는 의자 시트가 두 줄 낮아(y43) 돌 밑변도 함께 내린다.
 export const ORB_SPOTS = {
-  chair: () => orbAt(34, 41, 11),
-  bed:   () => orbAt(93, 34, 12),
+  chair: (st) => orbAt(34, st && st.variant === 'v3' ? 43 : 41, 11),
+  bed:   () => orbAt(93, 34, 11),
   rug:   () => orbAt(66, 62, 14),
 };
 
@@ -64,18 +65,24 @@ export const ORB_SPOTS = {
 const WIN_CX = 38, WIN_L = 22, WIN_R = 54, WIN_MULL = 37, WIN_SILL = 32;
 const WIN_SPREAD = 0.04, WIN_SKEW = 0.7;
 // 창턱 상단(y33-34)과 바닥(y49+)에만 — 창 밑 벽(y35-48)은 빛 없음(그림자).
-// **앞으로 갈수록 감쇠**(거실 WIN_ZONES 방식) — 창턱 근처가 가장 밝고 전방으로 사그라든다.
-// 균일 1.0 으로 바닥 끝까지 깔면 창빛이 방 전체를 덮어 물리적으로 어색했다(#3).
+// **앞으로 갈수록 감쇠**(거실 WIN_ZONES 방식).
 const POOL_ZONES = [[33, 34, 0.8], [49, 54, 1.0], [55, 61, 0.72], [62, 71, 0.46]];
 const POOL_ZONES_PREV = [[33, 34, 0.85], [49, 71, 1]];   // 이전 버전(균일) — A/B 비교용
 // 창빛 차폐(거실 OCCLUDERS 대응) — 바닥 풀에서 **가구 발치 그림자 구간을 뺀다**.
-// 빼지 않으면 screen 창빛이 접지그림자를 씻어내 가구가 빛 위에 떠 보인다.
-// [x0, x1, len]: len = 바닥에서 몇 줄까지 그늘이 늘어지나(높은 가구일수록 길게).
-// 그림자도 빛의 skew 를 따라 앞으로 갈수록 오른쪽으로 민다.
+// [x0, x1, len]: len = 바닥에서 몇 줄까지. v3 는 가구 발이 y50~52 라 길게 잡는다.
 const POOL_OCC = {
-  'bd-desk': [15, 52, 4], 'bd-chair': [28, 43, 2], 'bd-nightstand': [67, 79, 3],
-  'bd-bed': [80, 114, 4], 'bd-fan': [117, 126, 2],
+  'bd-desk': [15, 52, 6], 'bd-chair': [28, 43, 5], 'bd-nightstand': [66, 79, 5],
+  'bd-bed': [80, 114, 6], 'bd-fan': [116, 127, 5],
 };
+// **창 앞(유리 면)에 선 물건들** — 창광을 길게 가로질러 그림자를 드리운다.
+// 거실의 창턱 화분·돌·책 그림자 대응. 멀어지면(y>TALL_Y1) 풀린다.
+const POOL_OCC_TALL = {
+  'bd-laptop': [31, 43],      // 노트북
+  'bd-deskplant': [22, 25],   // 화분(유리와 겹치는 부분만)
+  'bd-lamp': [48, 52],        // 스탠드
+  'bd-desk': [27, 28],        // 캔(책상 그룹 소품)
+};
+const TALL_Y1 = 62;
 export function windowPool(slot, alphaSlot, prev = false, off = null) {
   const out = [];
   for (const [zy0, zy1, op] of (prev ? POOL_ZONES_PREV : POOL_ZONES)) {
@@ -85,14 +92,16 @@ export function windowPool(slot, alphaSlot, prev = false, off = null) {
       const a = WIN_CX + (WIN_L - WIN_CX) * s + sh;
       const b = WIN_CX + (WIN_R - WIN_CX) * s + sh;
       const m0 = WIN_CX + (WIN_MULL - WIN_CX) * s + sh;
-      // 이 행에 걸리는 가구 그림자 구간(바닥 풀에만, prev 는 비교용이라 제외)
+      // 이 행에 걸리는 그림자 구간(바닥 풀에만, prev 는 비교용이라 제외)
       const cuts = [];
-      if (!prev && off && y >= 49)
+      if (!prev && off && y >= 49) {
+        const d = Math.round(WIN_SKEW * (y - 48));
         for (const [id, [ox0, ox1, len]] of Object.entries(POOL_OCC))
-          if (!off.has(id) && y - 48 <= len) {
-            const d = Math.round(WIN_SKEW * (y - 48));
-            cuts.push([ox0 + d, ox1 + d]);
-          }
+          if (!off.has(id) && y - 48 <= len) cuts.push([ox0 + d, ox1 + d]);
+        if (y <= TALL_Y1)
+          for (const [id, [ox0, ox1]] of Object.entries(POOL_OCC_TALL))
+            if (!off.has(id)) cuts.push([ox0 + d, ox1 + d]);
+      }
       for (const [p0, q0] of [[a, m0 - 1], [m0 + 1, b - 1]]) {
         let segs = [[Math.max(1, Math.round(p0)), Math.min(126, Math.round(q0))]];
         for (const [c0, c1] of cuts) {
@@ -112,33 +121,34 @@ export function windowPool(slot, alphaSlot, prev = false, off = null) {
 }
 
 // ── 접지 그림자 — 소품 밑변에서 창광 반대쪽(오른쪽)으로 늘어진다 (multiply) ──
-// SCENE-RULES §3.4: 바닥에 놓인 물건은 창빛을 통과 못 시킨다. 소품 끄면 함께 꺼진다.
+// SCENE-RULES §3.4. 소품 끄면 함께 꺼진다. 명암을 진하게(거실 수준).
 const FLOOR_Y = 49;
 function contact(x0, w, yBase, len, skew = 0.5) {
   const o = [];
   for (let k = 0; k <= len; k++) {
     const f = k / Math.max(1, len);
-    const g = f < 0.35 ? 0.42 : f < 0.7 ? 0.26 : 0.12;   // 본영→반영
+    const g = f < 0.35 ? 0.5 : f < 0.7 ? 0.32 : 0.16;    // 본영→반영 (강화)
     const sh = Math.round(skew * k);                       // 오른쪽으로
     const gw = Math.round(w * (1 + 0.06 * k));
     o.push([x0 + sh, yBase + 1 + k, gw, 1, '#0b0710', g]);
   }
   return o;
 }
-export function groundShadows(off) {
+// v3 손작화는 가구 발이 바닥 안쪽(y50~52)까지 내려와 그늘 기준선도 낮다.
+export function groundShadows(off, v3 = false) {
   const s = [];
   const add = (id, x, w, y, len) => { if (!off.has(id)) s.push(...contact(x, w, y, len)); };
-  add('bd-desk', 12, 38, FLOOR_Y - 1, 3);        // 키 큰 가구는 그늘이 길다
-  add('bd-chair', 30, 12, FLOOR_Y - 1, 2);
-  add('bd-nightstand', 66, 14, FLOOR_Y - 1, 2);
-  add('bd-bed', 80, 38, FLOOR_Y - 1, 3);
-  add('bd-fan', 118, 9, FLOOR_Y - 1, 2);
+  const B = v3 ? { desk: 50, chair: 49, night: 49, bed: 49, fan: 51 }
+               : { desk: FLOOR_Y - 1, chair: FLOOR_Y - 1, night: FLOOR_Y - 1, bed: FLOOR_Y - 1, fan: FLOOR_Y - 1 };
+  add('bd-desk', 12, 38, B.desk, 3);
+  add('bd-chair', 30, 12, B.chair, 2);
+  add('bd-nightstand', 66, 14, B.night, 2);
+  add('bd-bed', 80, 38, B.bed, 3);
+  add('bd-fan', 118, 9, B.fan, 2);
   return s;
 }
 
-// ── 책상 스탠드 — 밤 작업 조명. 낮 추출본엔 꺼져 있어 별도로 얹는다.
-// 위치: 책상 **오른끝**(x47~52) — 노트북·창 격자와 겹치면 "모니터 위 떠 있는 선"으로
-// 읽혀서 오른쪽으로 옮겼다. 받침은 상판 윗면(y35~36)에 닿는다.
+// ── 책상 스탠드 — 밤 작업 조명. 책상 오른끝(x47~52), 받침이 상판(y35~36)에 닿는다 ──
 export function lampArt() {
   return [
     R(48, 27, 5, 1, '#8a6a3a'), R(47, 28, 6, 2, '#6e5230'), R(47, 30, 6, 1, '#4e3a22'),
@@ -152,9 +162,21 @@ export function lampGlowArt() {
     R(47, 29, 7, 5, '#ffd98a', 0.5),
     R(44, 27, 13, 9, '#ffcf80', 0.24),
     R(41, 25, 19, 13, '#ffc266', 0.1),
-    // 상판에 떨어지는 빛 웅덩이 — 거실 점광(rings)처럼 표면에 닿아야 켜진 걸로 읽힌다
+    // 상판에 떨어지는 빛 웅덩이 — 표면에 닿아야 켜진 걸로 읽힌다(거실 점광 대응)
     R(45, 35, 9, 1, '#ffd98a', 0.22),
     R(44, 36, 11, 1, '#ffcf80', 0.14),
     R(43, 37, 12, 1, '#ffc266', 0.08),
+    // 바닥으로 새는 웜 스필(레퍼런스 night-lamp)
+    R(48, 49, 12, 1, '#ffcf80', 0.1), R(50, 50, 12, 1, '#ffc266', 0.07),
+  ];
+}
+
+// ── 모니터 발광 — 레퍼런스(night-lamp): 청백 화면 + 텍스트 줄 + 주변 번짐 ──
+export function screenGlowArt() {
+  return [
+    R(32, 28, 10, 4, '#89b4e2', 0.85),                    // 화면 코어
+    R(33, 28, 6, 1, '#cfe2f4'), R(34, 30, 7, 1, '#b6d2ec'),   // 텍스트 줄
+    R(30, 26, 14, 9, '#5f88b8', 0.2),                     // 주변 번짐
+    R(29, 34, 16, 2, '#6f9ac8', 0.14),                    // 데크에 비침
   ];
 }

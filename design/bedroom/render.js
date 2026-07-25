@@ -10,7 +10,7 @@ import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
 import { BD_ART, BD_GLASS } from './geom-art.js';
 import * as PREV from './geom-art-prev.js';   // 이전 버전(오늘 4건 수정 전) 정적 아트 — A/B 비교용
 import { BD3_ART } from './geom-art-v3.js';   // v3 손작화 판 — 무테·두꺼운 색면
-import { ORB_SPOTS, lampArt, lampGlowArt, windowPool, groundShadows, bedroomRug } from './geom.js';
+import { ORB_SPOTS, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug } from './geom.js';
 
 const GX = 128, GY = 72;
 const groups = generateGroups({});           // 절차 창밖(하늘·산·해달별·구름·날씨)
@@ -80,9 +80,9 @@ function overlay(ctx, oid, pal) {
   }
 }
 
-// 돌 자리 판정 — state.orb('none'/'chair'/'bed'/'rug')
+// 돌 자리 판정 — state.orb('none'/'chair'/'bed'/'rug'). v3 는 의자 시트가 낮아 state 를 넘긴다.
 function orbSprite(state) {
-  return (state.orb && state.orb !== 'none' && ORB_SPOTS[state.orb]) ? ORB_SPOTS[state.orb]() : null;
+  return (state.orb && state.orb !== 'none' && ORB_SPOTS[state.orb]) ? ORB_SPOTS[state.orb](state) : null;
 }
 
 export function render(cv, state, off = new Set(), t = 0) {
@@ -121,10 +121,11 @@ export function render(cv, state, off = new Set(), t = 0) {
   if (!prev && !off.has('bd-rug')) paint(ctx, bedroomRug(state.rug), pal);
 
   // [2.5] 접지 그림자 (multiply) — 소품 밑, SCENE-RULES §3.4. state.shadowK = 세기 배율.
+  //       v3 는 가구 발이 바닥 안(y50~52)이라 그늘 기준선도 낮다.
   if (!off.has('shadow')) {
     const shK = state.shadowK ?? 1;
     ctx.globalCompositeOperation = 'multiply';
-    for (const r of groundShadows(off)) { ctx.globalAlpha = r[5] * shK; ctx.fillStyle = r[4]; ctx.fillRect(r[0], r[1], r[2], r[3]); }
+    for (const r of groundShadows(off, state.variant === 'v3')) { ctx.globalAlpha = r[5] * shK; ctx.fillStyle = r[4]; ctx.fillRect(r[0], r[1], r[2], r[3]); }
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   }
 
@@ -170,10 +171,11 @@ export function render(cv, state, off = new Set(), t = 0) {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // [6] 스탠드 발광(emission) — 켰을 때. 밤에도 안 어두워진다.
+  // [6] 발광(emission) — 작업등을 켜면 스탠드 + 모니터 화면(레퍼런스 night-lamp)이 켜진다.
   if (state.lamp === 'on' && !off.has('bd-lamp') && !off.has('lamp-glow')) {
     ctx.globalCompositeOperation = 'lighter';
     paint(ctx, lampGlowArt(), pal);
+    if (!off.has('bd-laptop')) paint(ctx, screenGlowArt(), pal);
     ctx.globalCompositeOperation = 'source-over';
   }
 
