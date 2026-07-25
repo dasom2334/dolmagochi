@@ -68,7 +68,7 @@
     // 레이어 선택 시 BD_ART[id] 를 셀맵(state.paintCells)으로 펼쳐 편집, render 가 이걸 그린다.
     const PAINT_LAYERS = [['bd-wall', '벽'], ['bd-frames', '액자'], ['bd-shelf', '선반'],
       ['bd-bed', '침대'], ['bd-fan', '선풍기'], ['bd-nightstand', '협탁'], ['bd-desk', '책상'],
-      ['bd-laptop', '노트북'], ['bd-deskplant', '화분'], ['bd-chair', '의자']];
+      ['bd-laptop', '노트북'], ['bd-deskplant', '카페인'], ['bd-chair', '의자']];
     let drawTool = 'pencil', drawColor = '#c8a060', drawColorInput = null;
 
     function enterPaint(id) {
@@ -164,7 +164,7 @@
                   ['rim','역광'],['shadow','그림자·비네트']]],
           ['배경',[['g-wall','벽/창틀'],['g-floor','바닥']]],
           ['창밖',[['base-scenery','풍경'],['sun','해'],['moon','달'],['stars','별'],['clouds','구름']]],
-          ['소품',[['bd-desk','책상'],['bd-chair','의자'],['bd-laptop','노트북'],['bd-deskplant','화분'],
+          ['소품',[['bd-desk','책상'],['bd-chair','의자'],['bd-laptop','노트북'],['bd-deskplant','카페인'],
                   ['bd-lamp','스탠드'],['bd-nightstand','협탁'],['bd-bed','침대'],['bd-fan','선풍기'],
                   ['bd-rug','러그'],['bd-shelf','선반'],['bd-frames','액자'],['orb','돌']]],
         ],
@@ -282,7 +282,7 @@
     // Phase 2 위치·크기 대상 (가구 = offset dx/dy, 러그 = cx/dy/폭)
     const POS_FURN = [['bd-bed', '침대'], ['bd-desk', '책상'], ['bd-chair', '의자'],
       ['bd-nightstand', '협탁'], ['bd-fan', '선풍기'], ['bd-frames', '액자'],
-      ['bd-shelf', '선반'], ['bd-laptop', '노트북'], ['bd-deskplant', '화분']];
+      ['bd-shelf', '선반'], ['bd-laptop', '노트북'], ['bd-deskplant', '카페인']];
 
     function buildEdit() {
       editBox.innerHTML = ''; editInputs = [];
