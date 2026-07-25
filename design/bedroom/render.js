@@ -12,7 +12,7 @@ import * as PREV from './geom-art-prev.js';   // 이전 버전(오늘 4건 수�
 import { BD3_ART } from './geom-art-v3.js';   // v3 손작화 판 — 무테·두꺼운 색면
 import { ORB_SPOTS, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug,
   bedroomScenery, BD_SUN, BD_MOON, BD_STARS } from './geom.js';
-import { BD3_DRINKS, BD3_CHAIR_BACK, BD3_SASH_OPEN, steamArt, fanSpinArt } from './geom-art-v3.js';
+import { BD3_DRINKS, BD3_SASH_OPEN, steamArt, fanSpinArt } from './geom-art-v3.js';
 
 const GX = 128, GY = 72;
 const groups = generateGroups({});           // 거실 절차 그룹(바닥·구름·날씨 재사용)
@@ -171,10 +171,9 @@ export function render(cv, state, off = new Set(), t = 0) {
     if (!off.has('bd-fan')) paint(ctx, fanSpinArt(animOn ? Math.floor(t / 120) % 3 : 0), pal);
   }
 
-  // [3.5] 돌 base → 그 **앞**에 의자 등받이(뒤에서 본 의자 — 등받이가 시청자 쪽)
+  // [3.5] 돌 base (의자 등받이는 오독이 반복돼 제거 — 스툴)
   const orb = orbSprite(state);
   if (orb && !off.has('orb')) paint(ctx, orb.base, pal);
-  if (!prev && state.variant === 'v3' && !off.has('bd-chair')) paint(ctx, BD3_CHAIR_BACK, pal);
 
   // [4] 색감 오버레이 — 시간 → 날씨
   const oids = [`light-${state.time}`];
@@ -204,16 +203,17 @@ export function render(cv, state, off = new Set(), t = 0) {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // [6] 발광(emission) — 작업등을 켜면 스탠드 + 모니터 화면(레퍼런스 night-lamp)이 켜진다.
-  if (state.lamp === 'on' && !off.has('bd-lamp') && !off.has('lamp-glow')) {
+  // [6] 발광(emission) — 작업등을 켜면 스탠드·모니터가 켜진다. **각자 토글**(지적):
+  //     스탠드=lamp-glow, 모니터=screen-glow.
+  if (state.lamp === 'on') {
     ctx.globalCompositeOperation = 'lighter';
-    paint(ctx, lampGlowArt(), pal);
-    if (!off.has('bd-laptop')) paint(ctx, screenGlowArt(), pal);
+    if (!off.has('bd-lamp') && !off.has('lamp-glow')) paint(ctx, lampGlowArt(), pal);
+    if (!off.has('bd-laptop') && !off.has('screen-glow')) paint(ctx, screenGlowArt(), pal);
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // [7] 비네트 — 거실 것 재사용. state.vigK = 세기 배율.
-  if (!off.has('shadow')) {
+  // [7] 비네트 — 거실 것 재사용. **접지그림자(shadow)와 분리 토글**(vignette).
+  if (!off.has('vignette')) {
     const vigK = state.vigK ?? 1;
     ctx.globalCompositeOperation = 'multiply';
     for (const v of VIGNETTE) { ctx.globalAlpha = v.alpha * vigK; ctx.fillStyle = v.fill; ctx.fillRect(...v.r); }
