@@ -9,6 +9,7 @@ import { ROOM_DATA } from '../livingroom/scene/room-data.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
 import { BD_ART, BD_GLASS } from './geom-art.js';
 import * as PREV from './geom-art-prev.js';   // 이전 버전(오늘 4건 수정 전) 정적 아트 — A/B 비교용
+import { BD3_ART } from './geom-art-v3.js';   // v3 손작화 판 — 무테·두꺼운 색면
 import { ORB_SPOTS, lampArt, lampGlowArt, windowPool, groundShadows, bedroomRug } from './geom.js';
 
 const GX = 128, GY = 72;
@@ -90,11 +91,12 @@ export function render(cv, state, off = new Set(), t = 0) {
   // state.override: v4 편집 패널의 컬러피커·강도 슬라이더가 특정 슬롯을 덮어쓴다(검수용).
   //   색 슬롯(--rg2 등) 또는 알파 슬롯(--wl-a 창광 세기)을 임시로 바꾼다. 기본은 원본.
   const pal = { ...resolve(state, ROOM_DATA.palette), ...(state.override || {}) };
-  // 이전 버전 토글 — state.variant==='prev' 이면 오늘 4건 수정 전 상태로 그린다.
-  //   현재: 절차 바닥·절차 러그·전방감쇠 창광·스펙클제거 가구
-  //   이전: 추출 바닥·추출(구운) 러그·균일 창광·비스펙클 가구
+  // 버전 토글 — state.variant:
+  //   'current'(기본): 추출 가구 + 절차 바닥·러그 + 전방감쇠 창광
+  //   'v3': 손작화 가구(geom-art-v3) + 절차 바닥·러그 + 전방감쇠 창광
+  //   'prev': 오늘 4건 수정 전 — 추출 바닥·추출(구운) 러그·균일 창광
   const prev = state.variant === 'prev';
-  const ART = prev ? PREV.BD_ART : BD_ART;
+  const ART = prev ? PREV.BD_ART : state.variant === 'v3' ? BD3_ART : BD_ART;
   ctx.imageSmoothingEnabled = false;
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
