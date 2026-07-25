@@ -53,7 +53,7 @@ const orbAt = (cx, baseY, w) => {
 // 원근: 뒷벽 깊이(의자·침대)는 w11 로 같고, 앞쪽 러그만 w14 로 크다.
 // v3 손작화는 의자 시트가 두 줄 낮아(y43) 돌 밑변도 함께 내린다.
 export const ORB_SPOTS = {
-  chair: (st) => orbAt(36, st && st.variant === 'v3' ? 45 : 41, 11),   // v3 의자는 책상 앞(시트 y45)
+  chair: (st) => orbAt(34, st && st.variant === 'v3' ? 45 : 41, 11),   // v3: 책상 중심(x34)·시트 y45
   bed:   (st) => orbAt(93, st && st.variant === 'v3' ? 33 : 34, 11),   // v3 이불 윗면 y33
   rug:   () => orbAt(66, 62, 14),
 };
@@ -82,7 +82,7 @@ const POOL_OCC_TALL = {
   'bd-lamp': [50, 54],        // 스탠드
 };
 const TALL_Y1 = 62;
-export function windowPool(slot, alphaSlot, prev = false, off = null) {
+export function windowPool(slot, alphaSlot, prev = false, off = null, open = false) {
   const out = [];
   for (const [zy0, zy1, op] of (prev ? POOL_ZONES_PREV : POOL_ZONES)) {
     for (let y = zy0; y <= zy1; y++) {
@@ -90,7 +90,8 @@ export function windowPool(slot, alphaSlot, prev = false, off = null) {
       const s = 1 + WIN_SPREAD * t, sh = WIN_SKEW * t;
       const a = WIN_CX + (WIN_L - WIN_CX) * s + sh;
       const b = WIN_CX + (WIN_R - WIN_CX) * s + sh;
-      const m0 = WIN_CX + (WIN_MULL - WIN_CX) * s + sh;
+      // 열린 창엔 멀리언이 없다 — 그림자 분할 제거
+      const m0 = open ? a - 2 : WIN_CX + (WIN_MULL - WIN_CX) * s + sh;
       // 이 행에 걸리는 그림자 구간(바닥 풀에만, prev 는 비교용이라 제외)
       const cuts = [];
       if (!prev && off && y >= 49) {
@@ -140,7 +141,7 @@ export function groundShadows(off, v3 = false) {
   const B = v3 ? { desk: 50, chair: 52, night: 49, bed: 49, fan: 51 }
                : { desk: FLOOR_Y - 1, chair: FLOOR_Y - 1, night: FLOOR_Y - 1, bed: FLOOR_Y - 1, fan: FLOOR_Y - 1 };
   add('bd-desk', 12, 42, B.desk, 3);
-  add('bd-chair', 30, 13, B.chair, 2);
+  add('bd-chair', 28, 15, B.chair, 2);
   add('bd-nightstand', 66, 14, B.night, 2);
   add('bd-bed', 80, 38, B.bed, 3);
   add('bd-fan', 118, 9, B.fan, 2);
@@ -159,23 +160,25 @@ export function groundShadows(off, v3 = false) {
 
 // ── 책상 스탠드 — 밤 작업 조명. 갓 x48~53·y24~27, 기둥 x51 — 랩탑 오른쪽과
 // 확실히 분리(기둥이 랩탑에 붙은 세로선처럼 보이던 것). 받침은 상판(y35~36).
+// 지적 반영: 목을 늘리는 게 아니라 **몸통 전체를 위로** — 받침을 상판 뒷행(y33~34)에
+// 올려 램프 전체가 두 칸 상승. 갓 y21~24, 기둥 y26~32.
 export function lampArt() {
   return [
-    R(50, 22, 5, 1, '#8a6a3a'), R(49, 23, 6, 2, '#6e5230'), R(49, 25, 6, 1, '#4e3a22'),
-    R(51, 25, 3, 1, '#c9a86a'), R(52, 26, 1, 9, '#4a4150'),
-    R(50, 35, 4, 1, '#3a3242'), R(50, 36, 4, 1, '#241f2e'),
+    R(50, 21, 5, 1, '#8a6a3a'), R(49, 22, 6, 2, '#6e5230'), R(49, 24, 6, 1, '#4e3a22'),
+    R(51, 25, 3, 1, '#c9a86a'), R(52, 26, 1, 7, '#4a4150'),
+    R(50, 33, 4, 1, '#3a3242'), R(50, 34, 4, 1, '#241f2e'),
   ];
 }
 export function lampGlowArt() {
   return [
-    R(51, 25, 3, 2, '#fff1c0'),
-    R(49, 24, 7, 5, '#ffd98a', 0.5),
-    R(46, 22, 13, 9, '#ffcf80', 0.24),
-    R(43, 20, 19, 13, '#ffc266', 0.1),
-    // 상판에 떨어지는 빛 웅덩이 — 표면에 닿아야 켜진 걸로 읽힌다(거실 점광 대응)
-    R(47, 35, 9, 1, '#ffd98a', 0.22),
-    R(46, 36, 11, 1, '#ffcf80', 0.14),
-    R(45, 37, 12, 1, '#ffc266', 0.08),
+    R(51, 24, 3, 2, '#fff1c0'),
+    R(49, 23, 7, 5, '#ffd98a', 0.5),
+    R(46, 21, 13, 9, '#ffcf80', 0.24),
+    R(43, 19, 19, 13, '#ffc266', 0.1),
+    // 상판에 떨어지는 빛 웅덩이 — 받침(y33~34) 둘레
+    R(47, 33, 9, 1, '#ffd98a', 0.22),
+    R(46, 34, 11, 1, '#ffcf80', 0.14),
+    R(45, 35, 12, 1, '#ffc266', 0.08),
     // 바닥으로 새는 웜 스필(레퍼런스 night-lamp)
     R(50, 49, 12, 1, '#ffcf80', 0.1), R(52, 50, 12, 1, '#ffc266', 0.07),
   ];

@@ -51,19 +51,26 @@ function scaleAlpha(css, k) {
   return `rgba(${p[0]},${p[1]},${p[2]},${a * k})`;
 }
 
-// 유리 구멍(4판) 클립 / 방 영역(유리 제외) 클립
-function glassPath(ctx) {
+// 유리 구멍(4판) 클립 / 방 영역(유리 제외) 클립.
+// exc = 유리 **앞을 가리는 물건**(랩탑)의 유리 겹침 영역 — 유리 블렌더에서 빼고
+// 룸 블렌더에 넣는다. 안 빼면 멀리언 열(x37)만 룸 존이라 화면 정중앙에 세로선이 갈린다.
+// open = 창 열림: 유리 존은 4판이 아니라 **개구부 전체 한 장**(격자 무늬 심 제거)
+function glassPath(ctx, exc, open) {
   ctx.beginPath();
-  for (const [x0, y0, x1, y1] of BD_GLASS) ctx.rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+  if (open) ctx.rect(22, 7, 33, 25);
+  else for (const [x0, y0, x1, y1] of BD_GLASS) ctx.rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+  if (exc) for (const r of exc) ctx.rect(r[0], r[1], r[2], r[3]);
 }
-function roomPath(ctx) {
+function roomPath(ctx, exc, open) {
   ctx.beginPath();
   ctx.rect(0, 0, GX, GY);
-  for (const [x0, y0, x1, y1] of BD_GLASS) ctx.rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+  if (open) ctx.rect(22, 7, 33, 25);
+  else for (const [x0, y0, x1, y1] of BD_GLASS) ctx.rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+  if (exc) for (const r of exc) ctx.rect(r[0], r[1], r[2], r[3]);
 }
 
 // 색감 오버레이 — 거실 OVERLAYS 를 zone 태그째 재활용(§3.5)
-function overlay(ctx, oid, pal) {
+function overlay(ctx, oid, pal, exc, open) {
   const list = OVERLAYS[oid]; if (!list) return;
   const seen = new Set();
   for (const { fill, blend, tune, zone } of list) {
@@ -74,8 +81,8 @@ function overlay(ctx, oid, pal) {
     ctx.save();
     ctx.globalCompositeOperation = blend;
     ctx.fillStyle = s >= 1 ? fill : scaleAlpha(fill, s);
-    if (zone === 'glass') { glassPath(ctx); ctx.clip(); }
-    else { roomPath(ctx); ctx.clip('evenodd'); }
+    if (zone === 'glass') { glassPath(ctx, exc, open); ctx.clip('evenodd'); }
+    else { roomPath(ctx, exc, open); ctx.clip('evenodd'); }
     ctx.fillRect(0, 0, GX, GY);
     ctx.restore();
   }
@@ -176,17 +183,23 @@ export function render(cv, state, off = new Set(), t = 0) {
   if (orb && !off.has('orb')) paint(ctx, orb.base, pal);
 
   // [4] 색감 오버레이 — 시간 → 날씨
+  // 랩탑이 유리 앞을 가리면 그 겹침 영역은 유리 블렌더에서 제외(룸 블렌더로 통일).
+  // 닫힘 = 좌우 판 교집합 두 조각 / 열림 = 개구부 한 장이라 랩탑 전폭 한 조각.
+  const winOpen = state.window === 'open';
+  const exc = !off.has('bd-laptop')
+    ? (winOpen ? [[32, 26, 12, 6]] : [[32, 26, 5, 6], [38, 26, 6, 6]])
+    : null;
   const oids = [`light-${state.time}`];
   if (state.weather !== 'clear') oids.push(`light-${state.weather}`);
-  for (const oid of oids) if (!off.has(oid)) overlay(ctx, oid, pal);
+  for (const oid of oids) if (!off.has(oid)) overlay(ctx, oid, pal, exc, winOpen);
 
   // [5] 창광 = poolTrap. 낮·노을=햇빛(--wl), 밤=달빛(--ml). screen. 흐림·비·눈은 죽는다.
   const sunOn = state.time !== 'night';
   const poolId = sunOn ? 'lp-sun' : 'lp-moon';
   const wet = ['fog', 'rain', 'downpour', 'snow'].includes(state.weather);
   if (!off.has(poolId) && !wet) {
-    // off 를 넘겨 **가구 차폐**(POOL_OCC) 활성화 — 있는 가구 발치에선 창빛이 죽는다
-    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a', prev, off);
+    // off 를 넘겨 **가구 차폐**(POOL_OCC) 활성화. 열린 창은 멀리언 그림자 없음.
+    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a', prev, off, winOpen);
     const a = parseFloat(pal[alphaSlot] ?? 0);
     if (a > 0) {
       ctx.globalCompositeOperation = 'screen';
