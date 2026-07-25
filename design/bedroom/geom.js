@@ -68,7 +68,15 @@ const WIN_SPREAD = 0.04, WIN_SKEW = 0.7;
 // 균일 1.0 으로 바닥 끝까지 깔면 창빛이 방 전체를 덮어 물리적으로 어색했다(#3).
 const POOL_ZONES = [[33, 34, 0.8], [49, 54, 1.0], [55, 61, 0.72], [62, 71, 0.46]];
 const POOL_ZONES_PREV = [[33, 34, 0.85], [49, 71, 1]];   // 이전 버전(균일) — A/B 비교용
-export function windowPool(slot, alphaSlot, prev = false) {
+// 창빛 차폐(거실 OCCLUDERS 대응) — 바닥 풀에서 **가구 발치 그림자 구간을 뺀다**.
+// 빼지 않으면 screen 창빛이 접지그림자를 씻어내 가구가 빛 위에 떠 보인다.
+// [x0, x1, len]: len = 바닥에서 몇 줄까지 그늘이 늘어지나(높은 가구일수록 길게).
+// 그림자도 빛의 skew 를 따라 앞으로 갈수록 오른쪽으로 민다.
+const POOL_OCC = {
+  'bd-desk': [15, 52, 4], 'bd-chair': [28, 43, 2], 'bd-nightstand': [67, 79, 3],
+  'bd-bed': [80, 114, 4], 'bd-fan': [117, 126, 2],
+};
+export function windowPool(slot, alphaSlot, prev = false, off = null) {
   const out = [];
   for (const [zy0, zy1, op] of (prev ? POOL_ZONES_PREV : POOL_ZONES)) {
     for (let y = zy0; y <= zy1; y++) {
@@ -77,9 +85,26 @@ export function windowPool(slot, alphaSlot, prev = false) {
       const a = WIN_CX + (WIN_L - WIN_CX) * s + sh;
       const b = WIN_CX + (WIN_R - WIN_CX) * s + sh;
       const m0 = WIN_CX + (WIN_MULL - WIN_CX) * s + sh;
+      // 이 행에 걸리는 가구 그림자 구간(바닥 풀에만, prev 는 비교용이라 제외)
+      const cuts = [];
+      if (!prev && off && y >= 49)
+        for (const [id, [ox0, ox1, len]] of Object.entries(POOL_OCC))
+          if (!off.has(id) && y - 48 <= len) {
+            const d = Math.round(WIN_SKEW * (y - 48));
+            cuts.push([ox0 + d, ox1 + d]);
+          }
       for (const [p0, q0] of [[a, m0 - 1], [m0 + 1, b - 1]]) {
-        const p = Math.max(1, Math.round(p0)), q = Math.min(126, Math.round(q0));
-        if (q >= p) out.push([p, y, q - p + 1, 1, slot, op]);
+        let segs = [[Math.max(1, Math.round(p0)), Math.min(126, Math.round(q0))]];
+        for (const [c0, c1] of cuts) {
+          const next = [];
+          for (const [sa, sb] of segs) {
+            if (c1 < sa || c0 > sb) { next.push([sa, sb]); continue; }
+            if (c0 > sa) next.push([sa, c0 - 1]);
+            if (c1 < sb) next.push([c1 + 1, sb]);
+          }
+          segs = next;
+        }
+        for (const [sa, sb] of segs) if (sb >= sa) out.push([sa, y, sb - sa + 1, 1, slot, op]);
       }
     }
   }
@@ -103,10 +128,10 @@ function contact(x0, w, yBase, len, skew = 0.5) {
 export function groundShadows(off) {
   const s = [];
   const add = (id, x, w, y, len) => { if (!off.has(id)) s.push(...contact(x, w, y, len)); };
-  add('bd-desk', 12, 38, FLOOR_Y - 1, 2);
+  add('bd-desk', 12, 38, FLOOR_Y - 1, 3);        // 키 큰 가구는 그늘이 길다
   add('bd-chair', 30, 12, FLOOR_Y - 1, 2);
   add('bd-nightstand', 66, 14, FLOOR_Y - 1, 2);
-  add('bd-bed', 80, 38, FLOOR_Y - 1, 2);
+  add('bd-bed', 80, 38, FLOOR_Y - 1, 3);
   add('bd-fan', 118, 9, FLOOR_Y - 1, 2);
   return s;
 }
@@ -127,5 +152,9 @@ export function lampGlowArt() {
     R(47, 29, 7, 5, '#ffd98a', 0.5),
     R(44, 27, 13, 9, '#ffcf80', 0.24),
     R(41, 25, 19, 13, '#ffc266', 0.1),
+    // 상판에 떨어지는 빛 웅덩이 — 거실 점광(rings)처럼 표면에 닿아야 켜진 걸로 읽힌다
+    R(45, 35, 9, 1, '#ffd98a', 0.22),
+    R(44, 36, 11, 1, '#ffcf80', 0.14),
+    R(43, 37, 12, 1, '#ffc266', 0.08),
   ];
 }

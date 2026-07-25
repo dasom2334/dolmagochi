@@ -152,7 +152,8 @@ export function render(cv, state, off = new Set(), t = 0) {
   const poolId = sunOn ? 'lp-sun' : 'lp-moon';
   const wet = ['fog', 'rain', 'downpour', 'snow'].includes(state.weather);
   if (!off.has(poolId) && !wet) {
-    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a', prev);
+    // off 를 넘겨 **가구 차폐**(POOL_OCC) 활성화 — 있는 가구 발치에선 창빛이 죽는다
+    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a', prev, off);
     const a = parseFloat(pal[alphaSlot] ?? 0);
     if (a > 0) {
       ctx.globalCompositeOperation = 'screen';
