@@ -12,7 +12,7 @@ import * as PREV from './geom-art-prev.js';   // 이전 버전(오늘 4건 수�
 import { BD3_ART } from './geom-art-v3.js';   // v3 손작화 판 — 무테·두꺼운 색면
 import { ORB_SPOTS, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug,
   bedroomScenery, BD_SUN, BD_MOON, BD_STARS } from './geom.js';
-import { BD3_DRINKS } from './geom-art-v3.js';
+import { BD3_DRINKS, BD3_CHAIR_BACK, BD3_SASH_OPEN, steamArt, fanSpinArt } from './geom-art-v3.js';
 
 const GX = 128, GY = 72;
 const groups = generateGroups({});           // 거실 절차 그룹(바닥·구름·날씨 재사용)
@@ -122,6 +122,18 @@ export function render(cv, state, off = new Set(), t = 0) {
   if (!off.has('g-wall')) {
     if (state.paintLayer === 'bd-wall' && state.paintCells) drawPaintCells(ctx, state.paintCells);
     else paint(ctx, ART['bd-wall'], pal);
+    // 열린 창 — 유리+격자 영역을 풍경으로 다시 덮고(활짝 열림) 접힌 창짝 두 짝
+    if (state.window === 'open') {
+      ctx.save(); ctx.beginPath(); ctx.rect(22, 7, 33, 25); ctx.clip();
+      paint(ctx, SCN, pal);
+      if (sunUp) { if (!off.has('sun')) paint(ctx, BD_SUN, pal); }
+      else {
+        if (!off.has('stars')) paint(ctx, BD_STARS, pal);
+        if (!off.has('moon')) paint(ctx, BD_MOON, pal);
+      }
+      ctx.restore();
+      paint(ctx, BD3_SASH_OPEN, pal);
+    }
   }
   if (!off.has('g-floor')) paint(ctx, prev ? ART['bd-floor'] : groups['g-floor'], pal);
   // 러그 — 현재는 절차 생성(무광원). state.rug = 위치·크기 조절(Phase 2).
@@ -152,9 +164,17 @@ export function render(cv, state, off = new Set(), t = 0) {
   }
   if (!off.has('bd-lamp')) paint(ctx, lampArt(), pal);
 
-  // [3.5] 돌 base
+  // [3.2] 애니메이션 소품(v3) — 김(나이트드링크)·선풍기 날개. 애니 끄면 0프레임 고정
+  if (!prev && state.variant === 'v3') {
+    const animOn = !off.has('anim');
+    if (!off.has('bd-nightstand')) paint(ctx, steamArt(animOn ? Math.floor(t / 450) % 3 : 0), pal);
+    if (!off.has('bd-fan')) paint(ctx, fanSpinArt(animOn ? Math.floor(t / 120) % 3 : 0), pal);
+  }
+
+  // [3.5] 돌 base → 그 **앞**에 의자 등받이(뒤에서 본 의자 — 등받이가 시청자 쪽)
   const orb = orbSprite(state);
   if (orb && !off.has('orb')) paint(ctx, orb.base, pal);
+  if (!prev && state.variant === 'v3' && !off.has('bd-chair')) paint(ctx, BD3_CHAIR_BACK, pal);
 
   // [4] 색감 오버레이 — 시간 → 날씨
   const oids = [`light-${state.time}`];

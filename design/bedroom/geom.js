@@ -53,7 +53,7 @@ const orbAt = (cx, baseY, w) => {
 // 원근: 뒷벽 깊이(의자·침대)는 w11 로 같고, 앞쪽 러그만 w14 로 크다.
 // v3 손작화는 의자 시트가 두 줄 낮아(y43) 돌 밑변도 함께 내린다.
 export const ORB_SPOTS = {
-  chair: (st) => orbAt(34, st && st.variant === 'v3' ? 43 : 41, 11),
+  chair: (st) => orbAt(34, st && st.variant === 'v3' ? 46 : 41, 11),   // v3 의자는 책상 앞(시트 y46)
   bed:   (st) => orbAt(93, st && st.variant === 'v3' ? 33 : 34, 11),   // v3 이불 윗면 y33
   rug:   () => orbAt(66, 62, 14),
 };
@@ -137,7 +137,7 @@ function contact(x0, w, yBase, len, skew = 0.5) {
 export function groundShadows(off, v3 = false) {
   const s = [];
   const add = (id, x, w, y, len) => { if (!off.has(id)) s.push(...contact(x, w, y, len)); };
-  const B = v3 ? { desk: 50, chair: 49, night: 49, bed: 49, fan: 51 }
+  const B = v3 ? { desk: 50, chair: 52, night: 49, bed: 49, fan: 51 }
                : { desk: FLOOR_Y - 1, chair: FLOOR_Y - 1, night: FLOOR_Y - 1, bed: FLOOR_Y - 1, fan: FLOOR_Y - 1 };
   add('bd-desk', 12, 38, B.desk, 3);
   add('bd-chair', 30, 12, B.chair, 2);
@@ -147,27 +147,27 @@ export function groundShadows(off, v3 = false) {
   return s;
 }
 
-// ── 책상 스탠드 — 밤 작업 조명. 지적 반영: 위로 2 · 오른쪽으로 2 (x47~52, 갓 y25~28).
-// 받침은 상판(y35~36)에 그대로 닿고 기둥이 두 칸 길어진다.
+// ── 책상 스탠드 — 밤 작업 조명. 갓 x48~53·y24~27, 기둥 x51 — 랩탑 오른쪽과
+// 확실히 분리(기둥이 랩탑에 붙은 세로선처럼 보이던 것). 받침은 상판(y35~36).
 export function lampArt() {
   return [
-    R(48, 25, 5, 1, '#8a6a3a'), R(47, 26, 6, 2, '#6e5230'), R(47, 28, 6, 1, '#4e3a22'),
-    R(49, 28, 3, 1, '#c9a86a'), R(50, 29, 1, 6, '#4a4150'),
-    R(48, 35, 4, 1, '#3a3242'), R(48, 36, 4, 1, '#241f2e'),
+    R(49, 24, 5, 1, '#8a6a3a'), R(48, 25, 6, 2, '#6e5230'), R(48, 27, 6, 1, '#4e3a22'),
+    R(50, 27, 3, 1, '#c9a86a'), R(51, 28, 1, 7, '#4a4150'),
+    R(49, 35, 4, 1, '#3a3242'), R(49, 36, 4, 1, '#241f2e'),
   ];
 }
 export function lampGlowArt() {
   return [
-    R(49, 28, 3, 2, '#fff1c0'),
-    R(47, 27, 7, 5, '#ffd98a', 0.5),
-    R(44, 25, 13, 9, '#ffcf80', 0.24),
-    R(41, 23, 19, 13, '#ffc266', 0.1),
+    R(50, 27, 3, 2, '#fff1c0'),
+    R(48, 26, 7, 5, '#ffd98a', 0.5),
+    R(45, 24, 13, 9, '#ffcf80', 0.24),
+    R(42, 22, 19, 13, '#ffc266', 0.1),
     // 상판에 떨어지는 빛 웅덩이 — 표면에 닿아야 켜진 걸로 읽힌다(거실 점광 대응)
-    R(45, 35, 9, 1, '#ffd98a', 0.22),
-    R(44, 36, 11, 1, '#ffcf80', 0.14),
-    R(43, 37, 12, 1, '#ffc266', 0.08),
+    R(46, 35, 9, 1, '#ffd98a', 0.22),
+    R(45, 36, 11, 1, '#ffcf80', 0.14),
+    R(44, 37, 12, 1, '#ffc266', 0.08),
     // 바닥으로 새는 웜 스필(레퍼런스 night-lamp)
-    R(48, 49, 12, 1, '#ffcf80', 0.1), R(50, 50, 12, 1, '#ffc266', 0.07),
+    R(49, 49, 12, 1, '#ffcf80', 0.1), R(51, 50, 12, 1, '#ffc266', 0.07),
   ];
 }
 
@@ -186,31 +186,47 @@ export function screenGlowArt() {
 // 하늘은 거실 슬롯(--k0..9), 나무는 거실 나무 슬롯(--t0..2) — 시간·계절 팔레트를 따라간다.
 export function bedroomScenery() {
   const cells = [];
-  const top = (x) => 21 + (h2(Math.floor(x / 5), 0, 300) % 5);   // 캐노피 능선 y21~25
+  // 나무 캐노피 — 레퍼런스처럼 **둥근 뭉게 수풀**(로브 원 합집합).
+  // 능선(하늘과 맞닿는 줄)은 --t2 하이라이트, 몸통 --t1, 아래로 갈수록 --t0 그늘.
+  // (밋밋한 노이즈 띠 1판은 예쁘지 않았다 — 지적 반영)
+  const lobes = [];
+  for (let i = 0; i < 17; i++) {
+    lobes.push([i * 8 + (h2(i, 0, 310) % 5) - 2,
+                23 + (h2(i, 1, 311) % 4),
+                5 + (h2(i, 2, 312) % 3)]);
+  }
+  const solid = (x, y) => {
+    if (y >= 29) return true;
+    for (const [cx, cy, r] of lobes) {
+      const dx = x - cx, dy = (y - cy) * 1.25;
+      if (dx * dx + dy * dy <= r * r) return true;
+    }
+    return false;
+  };
   for (let y = 0; y < 49; y++)
     for (let x = 0; x < 128; x++) {
-      const t = top(x);
-      if (y < t) {
+      if (!solid(x, y)) {
         const s = Math.max(0, Math.min(9, Math.round((y - 3) / 2.2)));
         cells.push([y, x, `--k${s}`]);
-      } else if (y === t) cells.push([y, x, '--t2']);
+      } else if (!solid(x, y - 1)) cells.push([y, x, '--t2']);
       else {
         const r = h2(x, y, 301);
-        cells.push([y, x, r < 10 ? '--t0' : r > 88 ? '--t2' : '--t1']);
+        cells.push([y, x, y > 31 ? (r < 55 ? '--t0' : '--t1')
+                                 : (r < 10 ? '--t0' : r > 88 ? '--t2' : '--t1')]);
       }
     }
   return emitRows(cells);
 }
-// 해·달 — **창 안**(오른쪽 위 유리판, 중심 x49 y13). 렌더가 시간으로 가른다.
+// 해·달 — **왼쪽 위 유리판**(중심 x29 y13, 유리 22..36×7..17). 렌더가 시간으로 가른다.
 export const BD_SUN = [
-  R(45, 10, 9, 7, '#ffdf8a', 0.12), R(47, 11, 5, 5, '#ffe9a8', 0.2),
-  R(48, 11, 3, 1, '#ffd76a'), R(47, 12, 5, 3, '#ffd76a'), R(48, 15, 3, 1, '#ffd76a'),
-  R(48, 12, 3, 2, '#ffedb0'),
+  R(25, 10, 9, 7, '#ffdf8a', 0.12), R(27, 11, 5, 5, '#ffe9a8', 0.2),
+  R(28, 11, 3, 1, '#ffd76a'), R(27, 12, 5, 3, '#ffd76a'), R(28, 15, 3, 1, '#ffd76a'),
+  R(28, 12, 3, 2, '#ffedb0'),
 ];
 export const BD_MOON = [
-  R(45, 10, 9, 7, '#bcd0f0', 0.12), R(47, 11, 5, 5, '#dfe8f6', 0.18),
-  R(48, 11, 3, 1, '#e9eef5'), R(47, 12, 5, 3, '#e9eef5'), R(48, 15, 3, 1, '#e9eef5'),
-  R(48, 13, 1, 1, '#c9d3dd'), R(50, 12, 1, 1, '#c9d3dd'),
+  R(25, 10, 9, 7, '#bcd0f0', 0.12), R(27, 11, 5, 5, '#dfe8f6', 0.18),
+  R(28, 11, 3, 1, '#e9eef5'), R(27, 12, 5, 3, '#e9eef5'), R(28, 15, 3, 1, '#e9eef5'),
+  R(28, 13, 1, 1, '#c9d3dd'), R(30, 12, 1, 1, '#c9d3dd'),
 ];
 export const BD_STARS = (() => {
   const o = [];
