@@ -53,7 +53,7 @@ const orbAt = (cx, baseY, w) => {
 // 원근: 뒷벽 깊이(의자·침대)는 w11 로 같고, 앞쪽 러그만 w14 로 크다.
 // v3 손작화는 의자 시트가 두 줄 낮아(y43) 돌 밑변도 함께 내린다.
 export const ORB_SPOTS = {
-  chair: (st) => orbAt(34, st && st.variant === 'v3' ? 46 : 41, 11),   // v3 의자는 책상 앞(시트 y46)
+  chair: (st) => orbAt(36, st && st.variant === 'v3' ? 45 : 41, 11),   // v3 의자는 책상 앞(시트 y45)
   bed:   (st) => orbAt(93, st && st.variant === 'v3' ? 33 : 34, 11),   // v3 이불 윗면 y33
   rug:   () => orbAt(66, 62, 14),
 };
@@ -71,7 +71,7 @@ const POOL_ZONES_PREV = [[33, 34, 0.85], [49, 71, 1]];   // 이전 버전(균일
 // 창빛 차폐(거실 OCCLUDERS 대응) — 바닥 풀에서 **가구 발치 그림자 구간을 뺀다**.
 // [x0, x1, len]: len = 바닥에서 몇 줄까지. v3 는 가구 발이 y50~52 라 길게 잡는다.
 const POOL_OCC = {
-  'bd-desk': [15, 52, 6], 'bd-chair': [28, 43, 5], 'bd-nightstand': [66, 79, 5],
+  'bd-desk': [13, 54, 6], 'bd-chair': [29, 44, 5], 'bd-nightstand': [66, 79, 5],
   'bd-bed': [80, 114, 6], 'bd-fan': [116, 127, 5],
 };
 // **창 앞(유리 면)에 선 물건들** — 창광을 길게 가로질러 그림자를 드리운다.
@@ -139,8 +139,8 @@ export function groundShadows(off, v3 = false) {
   const add = (id, x, w, y, len) => { if (!off.has(id)) s.push(...contact(x, w, y, len)); };
   const B = v3 ? { desk: 50, chair: 52, night: 49, bed: 49, fan: 51 }
                : { desk: FLOOR_Y - 1, chair: FLOOR_Y - 1, night: FLOOR_Y - 1, bed: FLOOR_Y - 1, fan: FLOOR_Y - 1 };
-  add('bd-desk', 12, 38, B.desk, 3);
-  add('bd-chair', 30, 12, B.chair, 2);
+  add('bd-desk', 12, 42, B.desk, 3);
+  add('bd-chair', 30, 13, B.chair, 2);
   add('bd-nightstand', 66, 14, B.night, 2);
   add('bd-bed', 80, 38, B.bed, 3);
   add('bd-fan', 118, 9, B.fan, 2);
