@@ -10,7 +10,8 @@ import type { SceneTime, SceneSeason, SceneWeather } from '../livingroom/types';
 /** 돌이 앉은 자리 — 작업=의자(스툴), 누워있기=침대, 그 밖=러그. none=부재 */
 export type BedroomOrbSpot = 'none' | 'chair' | 'bed' | 'rug';
 
-/** 책상 위 카페인 — 아직 게임 축이 없어 커피로 고정. 품목이 생기면 fromGame 서 고른다 */
+/** 책상 위 카페인 — 소모품 '잠 깨는 것'(caffeine)의 종류가 정한다:
+ *  붉은 황소=redbull / 3샷 커피=coffee / 아이스 아메리카노=iced */
 export type BedroomDrink = 'coffee' | 'iced' | 'redbull';
 
 export interface BedroomSceneState {

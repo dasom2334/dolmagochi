@@ -15,7 +15,8 @@ import { resolve } from '../livingroom/palette.js';
 import { ROOM_DATA } from '../livingroom/room-data.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/lights.js';
 import { BD_GLASS } from './glass.js';
-import { BD3_ART, BD3_DRINKS, BD3_SASH_OPEN, steamArt, fanSpinArt } from './geom-art-v3.js';
+import { BD3_ART, BD3_DRINKS, BD3_SASH_OPEN, BD3_PILLOW_BED, BD3_PILLOW_FLOOR,
+  steamArt, fanSpinArt } from './geom-art-v3.js';
 import { ORB_SPOTS, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug,
   bedroomScenery, BD_SUN, BD_MOON, BD_STARS } from './geom.js';
 
@@ -26,7 +27,7 @@ const RUG = bedroomRug();                    // 절차 러그(무광원) — 상
 
 // 상점 소품 — 안 산 상태로 시작(거실 SHOP_PROPS 대응)
 export const SHOP_PROPS = ['bd-desk', 'bd-chair', 'bd-laptop', 'bd-deskplant',
-  'bd-nightstand', 'bd-bed', 'bd-fan', 'bd-lamp'];
+  'bd-nightstand', 'bd-bed', 'bd-pillow', 'bd-fan', 'bd-lamp'];
 
 // z-순서 (뒤→앞) — 창밖은 [1]에서 따로, 여기는 방 구조·가구.
 // bd-rug 는 추출본을 안 쓰고 절차 러그(bedroomRug)로 대체 → 목록에서 뺀다.
@@ -156,6 +157,10 @@ export function render(cv, state, off = new Set(), t = 0) {
     }
     paint(ctx, BD3_ART[id], pal);
   }
+  // 베개 — 침대가 있으면 헤드보드 앞, 없으면 러그 위. 베개를 침대보다 먼저 사기 때문에
+  // (shop: bed requires pillow) 침대 없이 베개만 있는 판이 실제로 있다.
+  if (!off.has('bd-pillow'))
+    paint(ctx, off.has('bd-bed') ? BD3_PILLOW_FLOOR : BD3_PILLOW_BED, pal);
   if (!off.has('bd-lamp')) paint(ctx, lampArt(), pal);
 
   // [3.2] 애니메이션 소품 — 김(나이트드링크)·선풍기 날개. 애니 끄면 0프레임 고정

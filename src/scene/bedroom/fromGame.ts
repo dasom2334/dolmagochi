@@ -3,15 +3,14 @@
  * 씬이 표현할 수 있는 건 전부 표현되게 두고, 게임에 아직 축이 없으면 기본값으로
  * 켜 둔 채 여기 한 줄로 남긴다 — UI 가 생기면 이 파일만 고치면 된다.
  *
- * 씬에 그림이 없는 침실 품목: pillow(베개는 침대에 구워져 있다 — 분리 컷이 생기면
- * 게이팅), stationery·apitoken(책상 위 그림 미정). 씬에 있는데 품목이 없는 것:
- * 스툴(bd-chair, 돌의 작업 자리라 항상 있다), 카페인(bd-deskplant, 연출 소품).
+ * 씬에 그림이 없는 침실 품목: stationery·apitoken(책상 위 그림 미정).
+ * 씬에 있는데 품목이 없는 것: 없음 — 스툴은 책상에 딸려 온다(책상 앞 의자).
  */
 import type { GameState } from '../../game/types';
 import { isRockPresent } from '../../game/stateMachine';
 import { resolveTimeOfDay, resolveSeason } from '../../game/timeOfDay';
 import { WEATHER } from '../livingroom/fromGame';
-import type { BedroomSceneState, BedroomOrbSpot } from './types';
+import type { BedroomSceneState, BedroomOrbSpot, BedroomDrink } from './types';
 import type { SceneSeason } from '../livingroom/types';
 
 export function bedroomSceneFrom(
@@ -28,11 +27,36 @@ export function bedroomSceneFrom(
     weather: WEATHER[state.weather] ?? 'clear',
     orb: orbSpotOf(state),
     lamp: lampOn ? 'on' : 'off',
-    // 카페인 3종(커피/아아/레드불)은 아직 게임 축이 없다 — 커피 고정.
-    // 소모품이 생기면 여기서 고른다.
-    drink: 'coffee',
+    drink: drinkOf(state),
     window: windowOpen ? 'open' : 'closed',
   };
+}
+
+/** 책상 위 카페인 — 소모품 '잠 깨는 것'(caffeine)의 **이번 종류**가 그림을 정한다.
+ *  붉은 황소=레드불 캔 / 3샷 커피=테이크아웃 컵 / 아이스 아메리카노=아이스 컵.
+ *  어느 것이 잡힐지는 상점 진열이 추첨하므로(rest.offers) 여기선 고르기만 한다. */
+const DRINK_OF_VARIANT: Record<string, BedroomDrink> = {
+  energy: 'redbull',
+  triple: 'coffee',
+  iced: 'iced',
+};
+function drinkOf(state: GameState): BedroomDrink {
+  // 세션에 쓰는 중이면 그 종류, 아니면 재고의 종류
+  const inUse =
+    state.session.supply?.itemId === 'caffeine'
+      ? state.session.supply.variant
+      : null;
+  const key = inUse ?? state.supplyVariants['caffeine'];
+  return (key && DRINK_OF_VARIANT[key]) || 'coffee';
+}
+
+/** 책상 위에 카페인이 놓여 있나 — **재고가 있거나 지금 마시는 중**일 때만.
+ *  거실 찻잔과 같은 규칙이다(잔만 놓고 김 나는 차가 담겨 있으면 차를 사는 의미가 없다). */
+function caffeinePresent(state: GameState): boolean {
+  return (
+    (state.supplies['caffeine'] ?? 0) > 0 ||
+    state.session.supply?.itemId === 'caffeine'
+  );
 }
 
 /** 돌이 방에 있나 — 심고 나면 돌은 없다(창밖 나무가 됐다). 거실 orbPresent 와 동일 */
@@ -40,14 +64,16 @@ function orbPresent(state: GameState): boolean {
   return isRockPresent(state) && !state.planted;
 }
 
-/** 돌의 자리 — 작업(personalWork)=의자(스툴), 누워있기(lie)=침대(없으면 러그),
- *  그 밖(휴식 페이저로 구경 온 때)=러그. 스툴은 품목이 아니라 항상 있다. */
+/** 돌의 자리 — 작업(personalWork)=의자(스툴), 누워있기(lie)=침대,
+ *  그 밖(휴식 페이저로 구경 온 때)=러그.
+ *  **가구가 없으면 러그**다 — 없는 의자·침대 위에 돌만 떠 있으면 안 된다.
+ *  (스툴은 책상에 딸려 오므로 책상 소지를 본다) */
 function orbSpotOf(state: GameState): BedroomOrbSpot {
   if (!orbPresent(state)) return 'none';
+  const placed = (id: string) => !!state.items[id]?.placed;
   if (state.phase === 'focus') {
-    if (state.selectedAction === 'personalWork') return 'chair';
-    if (state.selectedAction === 'lie')
-      return state.items['bed']?.placed ? 'bed' : 'rug';
+    if (state.selectedAction === 'personalWork' && placed('desk')) return 'chair';
+    if (state.selectedAction === 'lie' && placed('bed')) return 'bed';
   }
   return 'rug';
 }
@@ -62,11 +88,16 @@ export function hiddenBedroomLayers(state: GameState, animOff: boolean): Set<str
   const placed = (id: string) => !!state.items[id]?.placed;
 
   if (!placed('bed')) off.add('bd-bed');
+  // 베개는 침대와 **별개 품목**이고 더 싸다(bed requires pillow) — 침대가 없으면
+  // 렌더러가 러그 위 자리로 그린다. 여기선 소지 여부만 본다.
+  if (!placed('pillow')) off.add('bd-pillow');
+  // 스툴은 책상 앞 의자다 — 책상을 사면 딸려 온다(따로 파는 품목이 아니다)
   if (!placed('desk')) {
     off.add('bd-desk');
-    // 책상 위 물건은 책상이 있어야 놓인다 — 책상 없이 켜면 허공에 뜬다
-    off.add('bd-deskplant');
+    off.add('bd-chair');
   }
+  // 카페인은 소모품 — 재고가 있거나 지금 마시는 중일 때만 책상에 놓인다
+  if (!placed('desk') || !caffeinePresent(state)) off.add('bd-deskplant');
   if (!placed('laptop') || !placed('desk')) {
     off.add('bd-laptop');
     off.add('screen-glow');
@@ -78,9 +109,7 @@ export function hiddenBedroomLayers(state: GameState, animOff: boolean): Set<str
   }
   // 나이트드링크 = 협탁 위 김 나는 잔. 협탁과 잔이 한 레이어라 품목 하나로 같이 온다
   if (!placed('nightdrink')) off.add('bd-nightstand');
-  // 선풍기 — 상점의 fan 은 room: living 인데 거실 캔버스엔 선풍기 그림이 없다.
-  // 침실 그림에 자리를 주되, 소속이 갈리는 건 거실 스탠드(lamp→floorlamp 개명)처럼
-  // 데이터 정리가 필요하다 — PR 리뷰에서 정할 것.
+  // 선풍기 — shop.json 에서 침실 소속으로 옮겼다(거실 캔버스엔 선풍기 그림이 없다)
   if (!placed('fan')) off.add('bd-fan');
 
   if (animOff) off.add('anim');

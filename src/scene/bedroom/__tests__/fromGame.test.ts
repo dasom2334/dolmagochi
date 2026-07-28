@@ -13,7 +13,8 @@ const base = {
   apart: { visiting: false },
   items: {},
   supplies: {},
-  session: { wetness: null },
+  supplyVariants: {},
+  session: { wetness: null, supply: null },
   weather: 'clear',
   settings: { timeOfDay: 'day', season: 'summer' },
   relationTier: 0,
@@ -34,9 +35,12 @@ describe('돌의 자리 — 작업=의자, 누워있기=침대(없으면 러그)
     expect(bedroomSceneFrom(base, 0).orb).toBe('rug');
   });
 
-  it('personalWork 집중에는 의자(스툴은 품목이 아니라 늘 있다)', () => {
-    const st = { ...base, phase: 'focus', selectedAction: 'personalWork' } as GameState;
-    expect(bedroomSceneFrom(st, 0).orb).toBe('chair');
+  it('personalWork 집중: 책상을 샀으면 의자, 아니면 러그 — 없는 의자에 앉을 순 없다', () => {
+    const work = { phase: 'focus', selectedAction: 'personalWork' };
+    expect(
+      bedroomSceneFrom({ ...withItems('desk'), ...work } as GameState, 0).orb,
+    ).toBe('chair');
+    expect(bedroomSceneFrom({ ...base, ...work } as GameState, 0).orb).toBe('rug');
   });
 
   it('lie 집중: 침대를 샀으면 침대, 아니면 러그', () => {
@@ -79,8 +83,16 @@ describe('안 산 물건은 방에 없다', () => {
     expect(off.has('screen-glow')).toBe(true);
   });
 
-  it('스툴은 품목이 아니라 늘 켜져 있다 — 돌의 작업 자리', () => {
-    expect(hiddenBedroomLayers(base, false).has('bd-chair')).toBe(false);
+  it('스툴은 책상에 딸려 온다 — 책상을 사면 같이 나오고, 없으면 같이 없다', () => {
+    expect(hiddenBedroomLayers(base, false).has('bd-chair')).toBe(true);
+    expect(hiddenBedroomLayers(withItems('desk'), false).has('bd-chair')).toBe(false);
+  });
+
+  it('베개는 침대와 별개 품목 — 베개만 사도 나온다(러그 위 자리)', () => {
+    expect(hiddenBedroomLayers(base, false).has('bd-pillow')).toBe(true);
+    const off = hiddenBedroomLayers(withItems('pillow'), false);
+    expect(off.has('bd-pillow')).toBe(false);
+    expect(off.has('bd-bed')).toBe(true); // 침대는 아직 없다 → 렌더러가 러그 자리로 그린다
   });
 
   it('책상 위 물건은 책상이 있어야 놓인다 — 랩탑만 사면 허공에 뜨므로 끈 채다', () => {
@@ -90,13 +102,55 @@ describe('안 산 물건은 방에 없다', () => {
     expect(off.has('bd-desk')).toBe(false);
     expect(off.has('bd-laptop')).toBe(false);
     expect(off.has('bd-lamp')).toBe(false);
-    expect(off.has('bd-deskplant')).toBe(false); // 카페인 연출은 책상에 딸려 온다
   });
 
   it('나이트드링크 하나로 협탁+잔이 같이 온다 (한 레이어)', () => {
     expect(
       hiddenBedroomLayers(withItems('nightdrink'), false).has('bd-nightstand'),
     ).toBe(false);
+  });
+});
+
+describe('책상 위 카페인 — 소모품 재고·종류를 따라간다', () => {
+  const withDesk = (extra: Partial<GameState>) =>
+    ({ ...withItems('desk'), ...extra }) as GameState;
+
+  it('재고가 없으면 책상 위에 없다 — 잔만 놓여 있으면 사는 의미가 없다', () => {
+    expect(hiddenBedroomLayers(withItems('desk'), false).has('bd-deskplant')).toBe(true);
+  });
+
+  it('재고가 있으면 놓인다', () => {
+    const st = withDesk({ supplies: { caffeine: 1 } } as Partial<GameState>);
+    expect(hiddenBedroomLayers(st, false).has('bd-deskplant')).toBe(false);
+  });
+
+  it('세션에 쓰는 중이면 재고가 0이어도 놓인다', () => {
+    const st = withDesk({
+      session: { wetness: null, supply: { itemId: 'caffeine', variant: 'energy' } },
+    } as unknown as Partial<GameState>);
+    expect(hiddenBedroomLayers(st, false).has('bd-deskplant')).toBe(false);
+  });
+
+  it('종류 3종이 각각 다른 그림으로 간다 (붉은황소/3샷/아아)', () => {
+    const of = (variant: string) =>
+      bedroomSceneFrom(
+        withDesk({
+          supplies: { caffeine: 1 },
+          supplyVariants: { caffeine: variant },
+        } as unknown as Partial<GameState>),
+        0,
+      ).drink;
+    expect(of('energy')).toBe('redbull');
+    expect(of('triple')).toBe('coffee');
+    expect(of('iced')).toBe('iced');
+  });
+
+  it('쓰는 중인 종류가 재고 종류보다 우선한다', () => {
+    const st = withDesk({
+      supplyVariants: { caffeine: 'triple' },
+      session: { wetness: null, supply: { itemId: 'caffeine', variant: 'energy' } },
+    } as unknown as Partial<GameState>);
+    expect(bedroomSceneFrom(st, 0).drink).toBe('redbull');
   });
 });
 
