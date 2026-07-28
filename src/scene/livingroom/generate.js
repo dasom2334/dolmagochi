@@ -1027,4 +1027,5 @@ export function generateGroups(measured = {}) {
   return out;
 }
 
-export { GX, GY, OX, AW, h2, emitRows };
+// ball/rim/stoneRows: 다른 방(침실 등)이 같은 돌을 자기 자리에 생성해 쓴다
+export { GX, GY, OX, AW, h2, emitRows, ball, rim, stoneRows, STONE_ASPECT };

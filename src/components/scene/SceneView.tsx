@@ -41,6 +41,8 @@ import { FanProp } from './props/FanProp';
 import { LampProp } from './props/LampProp';
 import { LivingRoomScene, type HotspotId } from './LivingRoomScene';
 import { sceneStateFrom, hiddenLayers } from '../../scene/livingroom/fromGame';
+import { BedroomScene, type BedroomHotspotId } from './BedroomScene';
+import { bedroomSceneFrom, hiddenBedroomLayers } from '../../scene/bedroom/fromGame';
 import { BookProp } from './props/BookProp';
 
 /** 행동별 풍경 색 (디자인 원본 값 그대로 — cook/chore 씬은 디자인 미정, 방 색으로 폴백) */
@@ -63,6 +65,9 @@ export function SceneView({ state }: { state: GameState }) {
   const [windowOpen, setWindowOpen] = useState(false);
   const [fireOn, setFireOn] = useState(true);
   const [lampOn, setLampOn] = useState(true);
+  // 침실 몫 — 방마다 창·등이 따로다(거실 창을 열었다고 침실 창이 열리면 이상하다)
+  const [bedWindowOpen, setBedWindowOpen] = useState(false);
+  const [bedLampOn, setBedLampOn] = useState(true);
   const isFocus = state.phase === 'focus';
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
   const sceneId = isFocus ? (action?.sceneId ?? 'free') : 'room';
@@ -118,13 +123,14 @@ export function SceneView({ state }: { state: GameState }) {
               : '#c9a86a';
   const showBook = (isFocus && sceneId === 'read') || show('book');
 
-  // 거실 씬 — design/livingroom 의 canvas 렌더러.
-  // 휴식이든 집중이든 **그 장면의 방이 거실이면** 새 렌더러로 간다.
+  // 거실·침실 씬 — design 의 canvas 렌더러.
+  // 휴식이든 집중이든 **그 장면의 방이 거실/침실이면** 새 렌더러로 간다.
   // sceneRoom 은 집중 중엔 행동의 방(focusRoomOf), 휴식 중엔 지금 보고 있는 방이다.
   //   거실 = sun(볕쬐기) · read(책읽기) + 계열 밖 행동(free · nurse)
   //   침실 = lie(누워있기) · personalWork,  주방 = cook · chore,  walk 는 야외(null)
-  // 주방·침실은 아직 이식 전이라 기존 레이어 렌더로 간다.
+  // 주방은 아직 이식 전이라 기존 레이어 렌더로 간다.
   const livingScene = sceneRoom === 'living';
+  const bedroomScene = sceneRoom === 'bedroom';
   const sceneState = sceneStateFrom(state, now(), windowOpen);
   const sceneOff = hiddenLayers(state, false, gameData.dialogues);
   // 광원 끄기 — 소품(벽난로 몸체·스탠드 기둥)은 남기고 불과 그 빛만 끈다.
@@ -141,6 +147,12 @@ export function SceneView({ state }: { state: GameState }) {
   const hotspots = new Set<HotspotId>(['window']);
   if (!sceneOff.has('g-fireplace')) hotspots.add('fireplace');
   if (!sceneOff.has('lamp')) hotspots.add('lamp');
+
+  // 침실 몫 — 창은 늘 누를 수 있고, 스탠드는 사서 놓여 있어야 누를 수 있다
+  const bedState = bedroomSceneFrom(state, now(), bedWindowOpen, bedLampOn);
+  const bedOff = hiddenBedroomLayers(state, false);
+  const bedHotspots = new Set<BedroomHotspotId>(['window']);
+  if (!bedOff.has('bd-lamp')) bedHotspots.add('lamp');
 
   const caption = isFocus
     ? tNight(action?.captionId ?? '', tod)
@@ -165,8 +177,8 @@ export function SceneView({ state }: { state: GameState }) {
         boxSizing: 'border-box',
       }}
     >
-      {/* 거실 휴식 씬만 새 렌더러로 — 벽·바닥·창·소품·돌을 canvas 한 장이 다 그린다.
-          집중 씬과 나머지 방은 아직 기존 레이어 컴포넌트를 쓴다. */}
+      {/* 거실·침실 씬은 새 렌더러로 — 벽·바닥·창·소품·돌을 canvas 한 장이 다 그린다.
+          집중 씬과 주방은 아직 기존 레이어 컴포넌트를 쓴다. */}
       {livingScene ? (
         <LivingRoomScene
           scene={sceneState}
@@ -179,15 +191,26 @@ export function SceneView({ state }: { state: GameState }) {
           }}
         />
       ) : null}
+      {bedroomScene ? (
+        <BedroomScene
+          scene={bedState}
+          off={bedOff}
+          hotspots={bedHotspots}
+          onHotspot={(id) => {
+            if (id === 'window') setBedWindowOpen((v) => !v);
+            else if (id === 'lamp') setBedLampOn((v) => !v);
+          }}
+        />
+      ) : null}
       {/* 세션 중 쓰는 소모품은 캔버스에 없는 그림이라 위에 겹친다.
           집중 씬까지 캔버스로 넘기면서 이것까지 사라지면 "뭘 쓰고 있는지" 가 안 보인다. */}
-      {livingScene && isFocus && state.session.supply && (
+      {(livingScene || bedroomScene) && isFocus && state.session.supply && (
         <SupplyProp
           itemId={state.session.supply.itemId}
           variant={state.session.supply.variant}
         />
       )}
-      {!livingScene && (
+      {!livingScene && !bedroomScene && (
         <>
         {showWindow && <WindowSprite glassColor={glassColor} />}
         {outdoor && <DaySun variant={tod === 'night' ? 'moon' : 'sun'} />}

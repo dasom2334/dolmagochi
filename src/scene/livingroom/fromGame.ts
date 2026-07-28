@@ -15,8 +15,9 @@ import type { SceneState, SceneSeason, SceneWeather } from './types';
 
 /** 게임 날씨 9종 → 씬 날씨.
  *  꽃잎·풀잎·낙엽은 씬에서 **한 종류**로 합쳤다(색은 계절 팔레트가 정한다) — 그래서 둘 다 petals.
- *  cloud/fog 는 M22에서 게임 축이 생겨 그대로 이어진다. */
-const WEATHER: Record<GameState['weather'], SceneWeather> = {
+ *  cloud/fog 는 M22에서 게임 축이 생겨 그대로 이어진다.
+ *  침실 fromGame 도 이 표를 그대로 쓴다 — 두 방의 하늘이 갈리면 안 된다. */
+export const WEATHER: Record<GameState['weather'], SceneWeather> = {
   clear: 'clear',
   cloud: 'cloud',
   fog: 'fog',
