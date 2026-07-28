@@ -19,8 +19,12 @@ export interface BedroomSceneState {
   season: SceneSeason;
   weather: SceneWeather;
   orb: BedroomOrbSpot;
-  /** 작업등 — 켜면 스탠드 발광 + 모니터 발광 (각자 lamp-glow/screen-glow 로 끌 수 있다) */
+  /** 책상 스탠드 불 — 스탠드를 눌러 켜고 끈다 */
   lamp: 'on' | 'off';
+  /** 랩탑 화면 불 — 랩탑을 눌러 켜고 끈다. 스탠드와 **따로** 논다 */
+  screen: 'on' | 'off';
+  /** 벽에 걸린 액자 수(0~7) — 호감도가 오를수록 추억이 한 장씩 늘어난다 */
+  frames: number;
   drink: BedroomDrink;
   window: 'closed' | 'open';
 }

@@ -16,7 +16,7 @@ import { ROOM_DATA } from '../livingroom/room-data.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/lights.js';
 import { BD_GLASS } from './glass.js';
 import { BD3_ART, BD3_DRINKS, BD3_SASH_OPEN, BD3_PILLOW_BED, BD3_PILLOW_FLOOR,
-  steamArt, fanSpinArt } from './geom-art-v3.js';
+  BD3_FRAME_SHOTS, steamArt, fanSpinArt } from './geom-art-v3.js';
 import { ORB_SPOTS, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug,
   bedroomScenery, BD_SUN, BD_MOON, BD_STARS } from './geom.js';
 
@@ -150,6 +150,12 @@ export function render(cv, state, off = new Set(), t = 0) {
   // [3] 가구 (무광원 알베도 base). 게이팅 — 안 산 소품은 off 로 꺼져 들어온다.
   for (const id of Z_FURNITURE) {
     if (off.has(id) || !BD3_ART[id]) continue;
+    // 액자 — 호감도만큼 앞에서부터 n 장. 벽에 추억이 한 장씩 걸린다.
+    if (id === 'bd-frames') {
+      const n = state.frames == null ? BD3_FRAME_SHOTS.length : state.frames;
+      for (let k = 0; k < Math.min(n, BD3_FRAME_SHOTS.length); k++) paint(ctx, BD3_FRAME_SHOTS[k], pal);
+      continue;
+    }
     // 카페인 음료 — **한 번에 하나만**(state.drink 가 고른다)
     if (id === 'bd-deskplant') {
       paint(ctx, BD3_DRINKS[state.drink] || BD3_DRINKS.coffee, pal);
@@ -166,7 +172,8 @@ export function render(cv, state, off = new Set(), t = 0) {
   // [3.2] 애니메이션 소품 — 김(나이트드링크)·선풍기 날개. 애니 끄면 0프레임 고정
   const animOn = !off.has('anim');
   if (!off.has('bd-nightstand')) paint(ctx, steamArt(animOn ? Math.floor(t / 450) % 3 : 0), pal);
-  if (!off.has('bd-fan')) paint(ctx, fanSpinArt(animOn ? Math.floor(t / 120) % 3 : 0), pal);
+  // 선풍기는 눌러서 따로 멈춘다 — 전역 anim 과 별개 게이트
+  if (!off.has('bd-fan')) paint(ctx, fanSpinArt(animOn && !off.has('anim-fan') ? Math.floor(t / 120) % 3 : 0), pal);
 
   // [3.5] 돌 base (의자 등받이는 오독이 반복돼 제거 — 스툴)
   const orb = orbSprite(state);
@@ -212,10 +219,12 @@ export function render(cv, state, off = new Set(), t = 0) {
   //     스탠드=lamp-glow, 모니터=screen-glow.
   //     창광 그림자는 남는다(창빛이 막히는 건 그대로) — 대신 스탠드의 바닥 스필이
   //     그 자리를 웜톤으로 되메운다(lampGlowArt 스필 4행).
-  if (state.lamp === 'on') {
+  // 스탠드와 모니터는 **각자** 켜고 끈다 — 하나로 묶여 있어 램프를 끄면 화면도 꺼졌다
+  const screenOn = state.screen === 'on';
+  if (state.lamp === 'on' || screenOn) {
     ctx.globalCompositeOperation = 'lighter';
-    if (!off.has('bd-lamp') && !off.has('lamp-glow')) paint(ctx, lampGlowArt(), pal);
-    if (!off.has('bd-laptop') && !off.has('screen-glow')) paint(ctx, screenGlowArt(), pal);
+    if (state.lamp === 'on' && !off.has('bd-lamp') && !off.has('lamp-glow')) paint(ctx, lampGlowArt(), pal);
+    if (screenOn && !off.has('bd-laptop') && !off.has('screen-glow')) paint(ctx, screenGlowArt(), pal);
     ctx.globalCompositeOperation = 'source-over';
   }
 

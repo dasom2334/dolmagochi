@@ -6,7 +6,7 @@
 const R = (x, y, w, h, c, a) => (a == null ? [x, y, w, h, c] : [x, y, w, h, c, a]);
 
 // ── 돌 — 거실에서 생성한 돌 그대로(ball/rim, 팔레트 슬롯 --o0..o4/--wl) ──
-import { ball, rim, stoneRows, STONE_ASPECT, h2, emitRows } from '../livingroom/generate.js';
+import { ball, rim, rimSide, stoneRows, STONE_ASPECT, h2, emitRows } from '../livingroom/generate.js';
 
 // ── 러그 — 거실 절차 러그와 **같은 방식**(무광원 팔레트 슬롯 + 무늬)으로 생성한다.
 // 추출 러그(레퍼런스)는 창햇빛이 대각선으로 **구워져** 있어 디라이팅으로도 안 지워졌다.
@@ -45,9 +45,11 @@ export function bedroomRug(opts = {}) {
   return emitRows(out);
 }
 
+// 침실 창은 **왼쪽**(유리 x22~54, 중심 38)이라, 창보다 오른쪽에 앉은 돌(러그·침대)은
+// 왼쪽 모서리가 빛난다. 의자(x34)는 창 안쪽이라 오른쪽 빛 그대로다 — rimSide 가 가른다.
 const orbAt = (cx, baseY, w) => {
   const rows = stoneRows(cx, baseY, w, Math.round(w / STONE_ASPECT));
-  return { base: ball(rows), rim: rim(rows) };
+  return { base: ball(rows), rim: rim(rows, rimSide(WIN_CX, cx)) };
 };
 // 3자리 — 작업=의자 / 누워있기+침대=침대 / 침대없음=러그.
 // 원근: 뒷벽 깊이(의자·침대)는 w11 로 같고, 앞쪽 러그만 w14 로 크다.
