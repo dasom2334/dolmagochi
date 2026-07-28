@@ -349,6 +349,17 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
         ...Object.fromEntries(livingItems.map((id) => [id, { placed }])),
       },
     }));
+  // 침실 소품도 같은 방식 — 침실 캔버스 게이팅(침대·책상·랩탑·스탠드·나이트드링크) 확인용
+  const bedroomItems = gameData.shop
+    .filter((i) => roomOfItem(i, gameData.rooms) === 'bedroom')
+    .map((i) => i.id);
+  const setBedroomItems = (placed: boolean) =>
+    patch((s) => ({
+      items: {
+        ...s.items,
+        ...Object.fromEntries(bedroomItems.map((id) => [id, { placed }])),
+      },
+    }));
   // 책장 2번째 칸은 일회용 책의 **누적 구매 수**를 따라간다 (supplies 로는 못 센다)
   const setReadbooks = (n: number) =>
     patch((s) => ({
@@ -435,6 +446,16 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
           전부 배치
         </button>
         <button className="hv" style={btnSmall} onClick={() => setLivingItems(false)}>
+          전부 해제
+        </button>
+        <span style={dim}>
+          침실 소품 {bedroomItems.filter((id) => state.items[id]?.placed).length}/
+          {bedroomItems.length}
+        </span>
+        <button className="hv" style={btnSmall} onClick={() => setBedroomItems(true)}>
+          전부 배치
+        </button>
+        <button className="hv" style={btnSmall} onClick={() => setBedroomItems(false)}>
           전부 해제
         </button>
         <span style={dim}>일회용 책 누적</span>
