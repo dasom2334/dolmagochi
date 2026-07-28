@@ -120,7 +120,10 @@ export function render(cv, state, off = new Set(), t = 0) {
     if (!off.has('stars')) paint(ctx, BD_STARS, pal);
     if (!off.has('moon')) paint(ctx, BD_MOON, pal);
   }
-  if (groups.clouds && !off.has('clouds')) paint(ctx, groups.clouds, pal);
+  // 구름은 **흐린 계열 날씨에만** — 맑음에 뜨던 버그 수정
+  const cloudy = ['cloud', 'rain', 'downpour', 'snow'].includes(state.weather)
+    && groups.clouds && !off.has('clouds');
+  if (cloudy) paint(ctx, groups.clouds, pal);
 
   // [2] 벽·창틀(유리 구멍) → 바닥
   //     바닥은 **거실 절차 바닥(g-floor)** 을 그대로 쓴다. 추출 바닥(BD_ART['bd-floor'])은
@@ -138,6 +141,7 @@ export function render(cv, state, off = new Set(), t = 0) {
         if (!off.has('stars')) paint(ctx, BD_STARS, pal);
         if (!off.has('moon')) paint(ctx, BD_MOON, pal);
       }
+      if (cloudy) paint(ctx, groups.clouds, pal);   // 열린 창에서도 구름 유지
       ctx.restore();
       paint(ctx, BD3_SASH_OPEN, pal);
     }
@@ -199,7 +203,8 @@ export function render(cv, state, off = new Set(), t = 0) {
   const wet = ['fog', 'rain', 'downpour', 'snow'].includes(state.weather);
   if (!off.has(poolId) && !wet) {
     // off 를 넘겨 **가구 차폐**(POOL_OCC) 활성화. 열린 창은 멀리언 그림자 없음.
-    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a', prev, off, winOpen);
+    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a', prev, off, winOpen,
+      state.variant === 'v3' ? state.orb : null);
     const a = parseFloat(pal[alphaSlot] ?? 0);
     if (a > 0) {
       ctx.globalCompositeOperation = 'screen';

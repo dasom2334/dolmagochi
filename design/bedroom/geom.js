@@ -75,14 +75,16 @@ const POOL_OCC = {
   'bd-bed': [80, 114, 6], 'bd-fan': [116, 127, 5],
 };
 // **창 앞(유리 면)에 선 물건들** — 창광을 길게 가로질러 그림자를 드리운다.
-// 거실의 창턱 화분·돌·책 그림자 대응. 멀어지면(y>TALL_Y1) 풀린다.
+// 거실의 창턱 화분·돌·책 그림자 대응. **띠 목록 [y0,y1,x0,x1]** — 물건의 실루엣을
+// 따라 그림자 폭이 바뀐다(램프 = 밑판 짧고 넓게 → 기둥 가늘게 → 갓 멀리서 넓게).
 const POOL_OCC_TALL = {
-  'bd-laptop': [32, 44],      // 노트북
-  'bd-deskplant': [22, 23],   // 카페인 음료(단일, 유리와 겹치는 부분만)
-  'bd-lamp': [50, 54],        // 스탠드
+  'bd-laptop': [[49, 52, 31, 45], [53, 60, 32, 43]],      // 노트북(받침 넓게→화면 좁게)
+  'bd-deskplant': [[49, 58, 22, 23]],                     // 카페인 음료(가는 기둥)
+  'bd-lamp': [[49, 51, 50, 53], [52, 57, 51, 52], [58, 62, 48, 54]], // 밑판·기둥·갓
 };
-const TALL_Y1 = 62;
-export function windowPool(slot, alphaSlot, prev = false, off = null, open = false) {
+// 의자에 앉은 돌 — 창광을 막는다(거실 창턱 돌 그림자 대응). orb==='chair'일 때만.
+const ORB_CHAIR_OCC = [[49, 55, 30, 40]];
+export function windowPool(slot, alphaSlot, prev = false, off = null, open = false, orb = null) {
   const out = [];
   for (const [zy0, zy1, op] of (prev ? POOL_ZONES_PREV : POOL_ZONES)) {
     for (let y = zy0; y <= zy1; y++) {
@@ -98,9 +100,13 @@ export function windowPool(slot, alphaSlot, prev = false, off = null, open = fal
         const d = Math.round(WIN_SKEW * (y - 48));
         for (const [id, [ox0, ox1, len]] of Object.entries(POOL_OCC))
           if (!off.has(id) && y - 48 <= len) cuts.push([ox0 + d, ox1 + d]);
-        if (y <= TALL_Y1)
-          for (const [id, [ox0, ox1]] of Object.entries(POOL_OCC_TALL))
-            if (!off.has(id)) cuts.push([ox0 + d, ox1 + d]);
+        for (const [id, bands] of Object.entries(POOL_OCC_TALL))
+          if (!off.has(id))
+            for (const [by0, by1, bx0, bx1] of bands)
+              if (y >= by0 && y <= by1) cuts.push([bx0 + d, bx1 + d]);
+        if (orb === 'chair')
+          for (const [by0, by1, bx0, bx1] of ORB_CHAIR_OCC)
+            if (y >= by0 && y <= by1) cuts.push([bx0 + d, bx1 + d]);
       }
       for (const [p0, q0] of [[a, m0 - 1], [m0 + 1, b - 1]]) {
         let segs = [[Math.max(1, Math.round(p0)), Math.min(126, Math.round(q0))]];
@@ -179,8 +185,10 @@ export function lampGlowArt() {
     R(47, 33, 9, 1, '#ffd98a', 0.22),
     R(46, 34, 11, 1, '#ffcf80', 0.14),
     R(45, 35, 12, 1, '#ffc266', 0.08),
-    // 바닥으로 새는 웜 스필(레퍼런스 night-lamp)
+    // 바닥으로 새는 웜 스필(레퍼런스 night-lamp) — 램프가 자기 창광 그림자를
+    // 되메우도록 4행: 램프를 켜면 창그림자 자리가 웜톤으로 밝아진다
     R(50, 49, 12, 1, '#ffcf80', 0.1), R(52, 50, 12, 1, '#ffc266', 0.07),
+    R(53, 51, 11, 1, '#ffc266', 0.05), R(54, 52, 10, 1, '#ffb85c', 0.04),
   ];
 }
 
