@@ -1,0 +1,116 @@
+# main 에 머지했는데 **배포가 시작조차 안 되는** 경우를 잡는다.
+#
+# 왜 필요한가 (2026-07-29에 실제로 겪은 일):
+#   PR #56 을 머지했는데 Vercel 이 프로덕션 빌드를 만들지 않았다. 실패도 취소도 아니고
+#   배포 레코드 자체가 없었다 — GitHub 은 push 이벤트를 냈고(이 저장소의 CI 가 그 이벤트로
+#   돌았다) Vercel 프로젝트 설정도 정상이었는데(paused 아님, production branch=main,
+#   ignored build step 없음, 계정 active) 그 사이 어딘가에서 이벤트가 사라졌다.
+#   **빌드가 실패한 게 아니라 시작을 안 한 것**이라 GitHub 에 체크가 안 붙고,
+#   그래서 아무도 모르는 채 5일치 작업이 배포 안 된 상태로 남았다.
+#
+# 어떻게 잡나:
+#   Vercel 이 배포를 끝내면 GitHub Deployments 에 Production 레코드가 남는다(훅으로
+#   만든 배포도 남는다 — 확인함). 그러니 이 커밋 sha 로 레코드가 생기는지 보면 된다.
+#
+#   레코드는 배포 **생성** 시점이 아니라 **READY 직후 1초**에 생긴다(4건 실측).
+#   그래서 이 감시는 "배포 완료"까지를 잰다. 실측 소요는 커밋→생성 3~6초(느린 예 85초)
+#   + 빌드 17~25초라 보통 30초, 최악 사례가 1분 43초였다. 여유를 3배 잡아 5분을 기다린다.
+#
+#   기다려도 없을 때 원인은 둘이다 — 이벤트 유실이거나 빌드 실패다. Vercel 은 빌드가
+#   끝나면 커밋에 `Vercel` commit status 를 남기므로, 그게 있으면 빌드 문제(재트리거해도
+#   같은 커밋이 또 실패한다), 아예 없으면 이벤트 유실로 갈라낸다.
+#
+# 유실이면 Deploy Hook 으로 **스스로 복구**한다. 배포가 밀린 채 방치되는 것이
+# 가장 나쁜 결과라, 사람을 기다리지 않고 먼저 살린 뒤 경고를 남긴다.
+name: 배포 감시
+
+on:
+  push:
+    branches: [main]
+  # 손으로 한 번 돌려 동작을 확인할 수 있게 열어 둔다 (그 시점 HEAD 를 검사한다)
+  workflow_dispatch:
+
+# 배포 레코드를 읽는 데만 쓴다. 쓰기 권한은 필요 없다.
+permissions:
+  contents: read
+  deployments: read
+
+# 연달아 머지하면 앞의 감시는 의미가 없다 — 마지막 것만 본다
+concurrency:
+  group: deploy-watch
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 프로덕션 배포 생성 확인 (없으면 훅으로 복구)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          # 없으면 복구는 건너뛰고 실패로 알린다 (탐지는 그대로 된다)
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          set -uo pipefail
+
+          count() {
+            gh api "repos/$REPO/deployments?sha=$SHA&environment=Production" --jq 'length' 2>/dev/null || echo 0
+          }
+          # 초 단위로 기다리며 확인. 생기면 0 을 돌려준다.
+          wait_for() {
+            local tries=$1
+            for _ in $(seq 1 "$tries"); do
+              if [ "$(count)" -gt 0 ]; then return 0; fi
+              sleep 15
+            done
+            return 1
+          }
+
+          # 이 커밋에 Vercel 이 남긴 commit status (빌드가 끝나야 생긴다)
+          vercel_status() {
+            gh api "repos/$REPO/commits/$SHA/status" \
+              --jq '[.statuses[] | select(.context | test("[Vv]ercel"))] | .[0].state // ""' 2>/dev/null || echo ""
+          }
+
+          echo "커밋 $SHA 의 프로덕션 배포를 기다린다 (평소 30초 내)"
+          if wait_for 20; then                     # 5분
+            echo "배포 확인됨"
+            exit 0
+          fi
+
+          # 빌드가 실패한 것과 이벤트가 유실된 것은 대처가 다르다.
+          # 실패라면 같은 커밋을 다시 밀어봐야 똑같이 실패한다 — 훅을 쏘지 않는다.
+          ST="$(vercel_status)"
+          if [ -n "$ST" ] && [ "$ST" != "success" ]; then
+            echo "::error::Vercel 빌드가 실패했습니다 (commit status: $ST). 배포 로그를 확인하세요"
+            exit 1
+          fi
+
+          echo "5분이 지나도 배포가 없고 Vercel 체크도 안 붙었다 — 이벤트 유실로 판단"
+          if [ -z "$HOOK" ]; then
+            echo "::error::프로덕션 배포가 생성되지 않았습니다. VERCEL_DEPLOY_HOOK 시크릿이 없어 자동 복구도 못 합니다 — Vercel 대시보드에서 수동 배포하세요"
+            exit 1
+          fi
+
+          echo "Deploy Hook 으로 재트리거"
+          curl -fsS -X POST "$HOOK" -o /dev/null || {
+            echo "::error::Deploy Hook 호출 실패 — Vercel 대시보드에서 수동 배포하세요"
+            exit 1
+          }
+
+          if wait_for 20; then                     # 다시 5분
+            # 복구는 됐지만 유실이 일어났다는 사실은 남긴다. 반복되면 Vercel 에 문의할 근거가 된다.
+            echo "::warning::Vercel 이 push 이벤트를 놓쳐 Deploy Hook 으로 복구했습니다 (커밋 $SHA)"
+            {
+              echo "### ⚠️ 배포 이벤트 유실 → 자동 복구됨"
+              echo ""
+              echo "- 커밋: \`$SHA\`"
+              echo "- Vercel 이 main push 로 배포를 만들지 않아 Deploy Hook 으로 재트리거했습니다."
+              echo "- 자주 반복되면 이 커밋 sha 와 프로젝트 ID 로 Vercel 지원에 문의하세요."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "::error::Deploy Hook 을 호출했는데도 배포가 생성되지 않았습니다 — Vercel 상태를 확인하세요"
+          exit 1
