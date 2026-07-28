@@ -12,7 +12,7 @@ import * as PREV from './geom-art-prev.js';   // 이전 버전(오늘 4건 수�
 import { BD3_ART } from './geom-art-v3.js';   // v3 손작화 판 — 무테·두꺼운 색면
 import { ORB_SPOTS, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug,
   bedroomScenery, BD_SUN, BD_MOON, BD_STARS } from './geom.js';
-import { BD3_DRINKS, BD3_SASH_OPEN, steamArt, fanSpinArt } from './geom-art-v3.js';
+import { BD3_DRINKS, BD3_SASH_OPEN, BD3_PILLOW_BED, BD3_PILLOW_FLOOR, steamArt, fanSpinArt } from './geom-art-v3.js';
 
 const GX = 128, GY = 72;
 const groups = generateGroups({});           // 거실 절차 그룹(바닥·구름·날씨 재사용)
@@ -173,6 +173,9 @@ export function render(cv, state, off = new Set(), t = 0) {
     if (o && (o[0] || o[1])) { ctx.save(); ctx.translate(o[0] | 0, o[1] | 0); paint(ctx, ART[id], pal); ctx.restore(); }
     else paint(ctx, ART[id], pal);
   }
+  // 베개 — 침대가 있으면 헤드보드 앞, 없으면 러그 위(베개를 침대보다 먼저 산다)
+  if (!prev && state.variant === 'v3' && !off.has('bd-pillow'))
+    paint(ctx, off.has('bd-bed') ? BD3_PILLOW_FLOOR : BD3_PILLOW_BED, pal);
   if (!off.has('bd-lamp')) paint(ctx, lampArt(), pal);
 
   // [3.2] 애니메이션 소품(v3) — 김(나이트드링크)·선풍기 날개. 애니 끄면 0프레임 고정
