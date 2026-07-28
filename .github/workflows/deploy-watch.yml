@@ -27,6 +27,8 @@ name: 배포 감시
 on:
   push:
     branches: [main]
+  # 손으로 한 번 돌려 동작을 확인할 수 있게 열어 둔다 (그 시점 HEAD 를 검사한다)
+  workflow_dispatch:
 
 # 배포 레코드를 읽는 데만 쓴다. 쓰기 권한은 필요 없다.
 permissions:
