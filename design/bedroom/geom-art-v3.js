@@ -281,40 +281,54 @@ function shelf() {
 }
 
 // ── 액자 벽 (83..117 × 7..24) — **돌과의 추억** 7장 + 밑 그림자 ──
-function frames() {
-  const o = [];
+// 액자 7장 — **한 장씩 따로**. 호감도가 오를수록 하나씩 늘어나므로(추억이 쌓인다)
+// 한 덩어리로 두면 게이팅을 못 한다. 걸리는 순서는 아래 배열 순서다.
+function frameShots() {
+  const shots = [];
+  let o = null;
+  const shot = () => { o = []; shots.push(o); };
   const box = (x, y, w, h, bd) => {
     o.push(R(x, y, w, 1, bd), R(x, y + h - 1, w, 1, bd), R(x, y, 1, h, bd), R(x + w - 1, y, 1, h, bd));
     o.push(R(x + 1, y + h, w - 2, 1, AO));
   };
   const ST = '#8b8e7e', SD = '#64655f';   // 돌 색(거실 돌 팔레트 근사)
+  shot();
   // 풀밭에서 볕 쬐는 돌 — 하늘·해·언덕
   box(83, 7, 9, 7, '#7a4a30');
   o.push(R(84, 8, 7, 3, '#5a7d9a'), R(89, 8, 1, 1, '#ffd76a'), R(84, 11, 7, 2, '#4a6b4a'),
          R(86, 10, 2, 2, ST), R(86, 11, 2, 1, SD));
+  shot();
   // 하트와 돌(미니)
   box(111, 7, 4, 5, '#5c3a26');
   o.push(R(112, 8, 2, 3, '#6a5a7a'), R(112, 8, 1, 1, '#d87a8a'), R(112, 10, 2, 1, ST));
+  shot();
   // 러그 위의 돌
   box(94, 9, 8, 7, '#5c3a26');
   o.push(R(95, 10, 6, 3, '#4a4058'), R(95, 13, 6, 2, '#87383a'),
          R(97, 11, 2, 2, ST), R(97, 12, 2, 1, SD));
+  shot();
   // 돌과 묘목(세로)
   box(103, 12, 7, 9, '#6e4a2e');
   o.push(R(104, 13, 5, 5, '#587a9a'), R(106, 13, 1, 3, '#4f8355'), R(105, 14, 3, 1, '#4f8355'),
          R(104, 18, 5, 2, '#4a6b4a'), R(104, 17, 2, 2, ST));
+  shot();
   // 달밤의 돌
   box(112, 14, 6, 6, '#7a4a30');
   o.push(R(113, 15, 4, 3, '#2c3554'), R(115, 15, 1, 1, '#e9eef5'),
          R(113, 17, 4, 1, '#3a3348'), R(113, 16, 2, 2, ST));
+  shot();
   // 두 돌(함께)
   box(86, 16, 6, 7, '#6e4a2e');
   o.push(R(87, 17, 4, 4, '#6a5a7a'), R(87, 19, 2, 2, ST), R(89, 20, 1, 1, ST));
+  shot();
   // 창가의 돌
   box(94, 18, 6, 5, '#5c3a26');
   o.push(R(95, 19, 4, 2, '#5a7d9a'), R(95, 21, 4, 1, '#57496b'), R(96, 19, 2, 2, ST));
-  return o;
+  return shots;
 }
+// 걸린 순서대로 한 장씩. 렌더러가 앞에서부터 n 장만 그린다.
+export const BD3_FRAME_SHOTS = frameShots();
+function frames() { return BD3_FRAME_SHOTS.flat(); }
 
 // 베개는 자리가 둘이라 BD3_ART 밖에 둔다 — 렌더러가 침대 유무로 고른다
 export const BD3_PILLOW_BED = pillowOnBed();

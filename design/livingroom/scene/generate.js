@@ -382,15 +382,21 @@ function ball(rows) {
   return out;
 }
 
-/** 역광 림라이트 — base에 굽지 않고 광원 레이어에 얹어 시간대 색을 따라가게 한다 */
-function rim(rows) {
+/** 역광 림라이트 — base에 굽지 않고 광원 레이어에 얹어 시간대 색을 따라가게 한다.
+ *
+ *  side = 빛이 오는 쪽. 위쪽 띠는 공통이고 **모서리 1px 만 좌우가 갈린다**.
+ *  방마다 창 위치가 달라(거실은 중앙~오른쪽, 침실은 왼쪽) 한 방향으로 고정하면
+ *  한쪽 방에서는 창 반대편이 빛나는 그림이 된다 — 호출자가 창과 돌의 위치로 정한다. */
+function rim(rows, side = 'right') {
   const out = [];
   for (const [y, x0, x1, t] of rows) {
     if (t < 0.55) out.push([x0, y, x1 - x0 + 1, 1, '--wl', pyFixed2(0.85 - t)]);
-    if (t < 0.80) out.push([x1, y, 1, 1, '--wl', pyFixed2(0.7 - t * 0.5)]);
+    if (t < 0.80) out.push([side === 'left' ? x0 : x1, y, 1, 1, '--wl', pyFixed2(0.7 - t * 0.5)]);
   }
   return out;
 }
+/** 창 중심과 돌 중심을 견줘 빛이 오는 쪽을 고른다 (돌보다 창이 왼쪽이면 왼쪽 빛) */
+function rimSide(winCx, orbCx) { return winCx < orbCx ? 'left' : 'right'; }
 
 const SILL_ROWS = stoneRows(58, 35, 10, pyRound(10 / STONE_ASPECT));
 const RUG_ROWS  = stoneRows(47, 61, 14, pyRound(14 / STONE_ASPECT));
@@ -982,8 +988,9 @@ export function generateGroups(measured = {}) {
     rug: emitRows(rugCells()),
     orb: ball(SILL_ROWS),
     'orb-rug': ball(RUG_ROWS),
-    'rim-orb': rim(SILL_ROWS),
-    'rim-orb-rug': rim(RUG_ROWS),
+    // 거실 창은 중앙~오른쪽(유리 x43~83, 중심 63)이라 두 자리 모두 오른쪽 빛이다
+    'rim-orb': rim(SILL_ROWS, rimSide(63, 62)),
+    'rim-orb-rug': rim(RUG_ROWS, rimSide(63, 53)),
     // 겨울엔 잎만 감추고 줄기는 남긴다 → 따로 내보낸다
     // v1 잎은 겹쳐 그리는 게 의도(본체 위에 명부·스펙클) → run-merge 하지 않는다
     'tree-v1-trunk': v1.trunk,
@@ -1028,4 +1035,4 @@ export function generateGroups(measured = {}) {
 }
 
 // ball/rim/stoneRows: 다른 방(침실 등)이 같은 돌을 자기 자리에 생성해 쓴다
-export { GX, GY, OX, AW, h2, emitRows, ball, rim, stoneRows, STONE_ASPECT };
+export { GX, GY, OX, AW, h2, emitRows, ball, rim, rimSide, stoneRows, STONE_ASPECT };

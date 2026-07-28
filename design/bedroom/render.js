@@ -12,7 +12,8 @@ import * as PREV from './geom-art-prev.js';   // 이전 버전(오늘 4건 수�
 import { BD3_ART } from './geom-art-v3.js';   // v3 손작화 판 — 무테·두꺼운 색면
 import { ORB_SPOTS, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug,
   bedroomScenery, BD_SUN, BD_MOON, BD_STARS } from './geom.js';
-import { BD3_DRINKS, BD3_SASH_OPEN, BD3_PILLOW_BED, BD3_PILLOW_FLOOR, steamArt, fanSpinArt } from './geom-art-v3.js';
+import { BD3_DRINKS, BD3_SASH_OPEN, BD3_PILLOW_BED, BD3_PILLOW_FLOOR, BD3_FRAME_SHOTS,
+  steamArt, fanSpinArt } from './geom-art-v3.js';
 
 const GX = 128, GY = 72;
 const groups = generateGroups({});           // 거실 절차 그룹(바닥·구름·날씨 재사용)
@@ -163,6 +164,12 @@ export function render(cv, state, off = new Set(), t = 0) {
   // [3] 가구 (무광원 알베도 base). 게이팅. state.offset[id]=[dx,dy] 로 위치 조절(Phase 2).
   for (const id of (prev ? Z_FURNITURE_PREV : Z_FURNITURE)) {
     if (off.has(id) || !ART[id]) continue;
+    // 액자 — 호감도만큼 앞에서부터 n 장(state.frames, 기본 전부). 추억이 쌓이는 벽이다.
+    if (id === 'bd-frames' && !prev && state.variant === 'v3') {
+      const n = state.frames == null ? BD3_FRAME_SHOTS.length : state.frames;
+      for (let k = 0; k < Math.min(n, BD3_FRAME_SHOTS.length); k++) paint(ctx, BD3_FRAME_SHOTS[k], pal);
+      continue;
+    }
     if (state.paintLayer === id && state.paintCells) { drawPaintCells(ctx, state.paintCells); continue; }
     // 카페인 음료 — v3 는 **한 번에 하나만**(state.drink 가 고른다)
     if (id === 'bd-deskplant' && state.variant === 'v3') {
@@ -182,7 +189,7 @@ export function render(cv, state, off = new Set(), t = 0) {
   if (!prev && state.variant === 'v3') {
     const animOn = !off.has('anim');
     if (!off.has('bd-nightstand')) paint(ctx, steamArt(animOn ? Math.floor(t / 450) % 3 : 0), pal);
-    if (!off.has('bd-fan')) paint(ctx, fanSpinArt(animOn ? Math.floor(t / 120) % 3 : 0), pal);
+    if (!off.has('bd-fan')) paint(ctx, fanSpinArt(animOn && !off.has('anim-fan') ? Math.floor(t / 120) % 3 : 0), pal);
   }
 
   // [3.5] 돌 base (의자 등받이는 오독이 반복돼 제거 — 스툴)
@@ -226,10 +233,13 @@ export function render(cv, state, off = new Set(), t = 0) {
 
   // [6] 발광(emission) — 작업등을 켜면 스탠드·모니터가 켜진다. **각자 토글**(지적):
   //     스탠드=lamp-glow, 모니터=screen-glow.
-  if (state.lamp === 'on') {
+  // 스탠드와 모니터는 **따로** 켜고 끈다 — 하나로 묶여 있어 램프를 끄면 화면도 꺼졌다.
+  // state.screen 이 없으면 예전처럼 lamp 를 따라간다(뷰어 하위호환).
+  const screenOn = state.screen == null ? state.lamp === 'on' : state.screen === 'on';
+  if (state.lamp === 'on' || screenOn) {
     ctx.globalCompositeOperation = 'lighter';
-    if (!off.has('bd-lamp') && !off.has('lamp-glow')) paint(ctx, lampGlowArt(), pal);
-    if (!off.has('bd-laptop') && !off.has('screen-glow')) paint(ctx, screenGlowArt(), pal);
+    if (state.lamp === 'on' && !off.has('bd-lamp') && !off.has('lamp-glow')) paint(ctx, lampGlowArt(), pal);
+    if (screenOn && !off.has('bd-laptop') && !off.has('screen-glow')) paint(ctx, screenGlowArt(), pal);
     ctx.globalCompositeOperation = 'source-over';
   }
 
