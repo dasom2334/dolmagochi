@@ -88,32 +88,40 @@ describe('날씨 (M12) — 자연 변화·직접 변경·게이지 무영향', (
     expect(seasonAt(new Date(2026, 6, 10).getTime())).toBe('summer');
     expect(seasonAt(new Date(2026, 9, 10).getTime())).toBe('autumn');
     expect(seasonAt(T0)).toBe('winter');
-    // 계절을 바꿔도 **날씨는 그대로 간다** — 계절만 보려던 사람의 눈이 맑음으로
+    // 계절을 바꿔도 **날씨는 이어진다** — 계절만 보려던 사람의 날씨가 맑음으로
     // 지워지면 안 된다. 예전엔 새 계절에 없는 날씨를 재추첨해서 대개 맑음이 됐다.
+    // 계절 전용 날씨(꽃잎·풀잎·낙엽·눈)는 넷이 한 자리라 그 계절의 짝으로 바뀐다.
     const base = createInitialState(T0, 'lie');
     let s: GameState = { ...base, weather: 'snow' };
     s = run(s, [{ type: 'SET_SEASON', mode: 'spring', nowMs: T0 }], seq([0.9]));
     expect(s.settings.season).toBe('spring');
-    expect(s.weather).toBe('snow');
+    expect(s.weather).toBe('petals'); // 눈 → 봄이면 꽃잎비
     // 봄 고정 상태에서는 꽃잎비를 고를 수 있다
     const rich: GameState = { ...s, care: { points: 2, carryMinutes: 0 }, weather: 'clear' };
     expect(run(rich, [{ type: 'SET_WEATHER', weather: 'petals', nowMs: T0 }]).weather).toBe('petals');
-    // 잎 날씨만은 계절 이름을 따라간다 — 같은 현상이라 이름만 갈아 끼운다
-    const leafy: GameState = { ...rich, weather: 'petals' };
-    expect(
-      run(leafy, [{ type: 'SET_SEASON', mode: 'autumn', nowMs: T0 }], seq([0.1])).weather,
-    ).toBe('leaves');
-    expect(
-      run(leafy, [{ type: 'SET_SEASON', mode: 'summer', nowMs: T0 }], seq([0.1])).weather,
-    ).toBe('grass');
-    // 겨울엔 대응하는 잎 날씨가 없어 그대로 둔다
-    expect(
-      run(leafy, [{ type: 'SET_SEASON', mode: 'winter', nowMs: T0 }], seq([0.1])).weather,
-    ).toBe('petals');
-    // 비는 겨울 표에 없지만 그대로 이어간다
-    expect(
-      run({ ...rich, weather: 'rain' }, [{ type: 'SET_SEASON', mode: 'winter', nowMs: T0 }], seq([0.1])).weather,
-    ).toBe('rain');
+    // 네 계절이 한 바퀴 — 흩날리는 것은 계속 흩날린다
+    const seasonal: [string, GameState['weather']][] = [
+      ['spring', 'petals'],
+      ['summer', 'grass'],
+      ['autumn', 'leaves'],
+      ['winter', 'snow'],
+    ];
+    for (const [from, w] of seasonal) {
+      for (const [to, expected] of seasonal) {
+        const moved = run(
+          { ...rich, weather: w, settings: { ...rich.settings, season: from } } as GameState,
+          [{ type: 'SET_SEASON', mode: to as never, nowMs: T0 }],
+          seq([0.1]),
+        );
+        expect(moved.weather, `${from}:${w} → ${to}`).toBe(expected);
+      }
+    }
+    // 계절을 안 타는 날씨는 그대로 이어간다 — 비는 겨울 표에 없어도 남는다
+    for (const w of ['clear', 'rain', 'downpour'] as const) {
+      expect(
+        run({ ...rich, weather: w }, [{ type: 'SET_SEASON', mode: 'winter', nowMs: T0 }], seq([0.1])).weather,
+      ).toBe(w);
+    }
   });
 
   it('꽃잎비·낙엽비는 마른 날씨 — 우산 플로우·젖음 없음', () => {

@@ -215,21 +215,27 @@ export function weathersOfSeason(season: string): GameState['weather'][] {
   );
 }
 
-/** 잎이 날리는 날씨는 계절마다 이름만 다르다 — 봄 꽃잎 / 여름 풀잎 / 가을 낙엽.
- *  같은 현상이라 계절이 바뀌면 그 계절의 이름으로 갈아 끼운다(겨울엔 대응이 없어 그대로). */
-const LEAF_WEATHER = ['petals', 'grass', 'leaves'] as const;
-const LEAF_OF_SEASON: Record<string, GameState['weather']> = {
+/** 계절 전용 날씨 — 계절마다 딱 하나씩 짝이 있다.
+ *  봄 꽃잎비 / 여름 풀잎비 / 가을 낙엽비 / 겨울 눈.
+ *  넷은 "하늘에서 뭔가 흩날린다"는 같은 자리의 다른 이름이라, 계절이 바뀌면
+ *  그 계절의 것으로 갈아 끼운다 — 봄에 눈이 계속 내리거나 겨울에 꽃잎이
+ *  날리는 대신, 계절에 맞는 것이 이어서 내린다. */
+const SEASONAL_WEATHER = ['petals', 'grass', 'leaves', 'snow'] as const;
+const SEASONAL_OF_SEASON: Record<string, GameState['weather']> = {
   spring: 'petals',
   summer: 'grass',
   autumn: 'leaves',
+  winter: 'snow',
 };
-/** 계절이 바뀌어도 이어갈 날씨 — 잎 날씨만 계절 이름을 맞추고 나머지는 그대로 둔다 */
+/** 계절이 바뀌어도 이어갈 날씨.
+ *  계절 전용 날씨는 그 계절의 짝으로 갈아 끼우고, 그 밖(맑음·비·장대비·흐림)은
+ *  계절을 안 타므로 그대로 둔다. */
 export function carryWeather(
   weather: GameState['weather'],
   season: string,
 ): GameState['weather'] {
-  if (!(LEAF_WEATHER as readonly string[]).includes(weather)) return weather;
-  return LEAF_OF_SEASON[season] ?? weather;
+  if (!(SEASONAL_WEATHER as readonly string[]).includes(weather)) return weather;
+  return SEASONAL_OF_SEASON[season] ?? weather;
 }
 
 /** 자연 날씨 추첨 (M12) — 달력일당 1회, 계절별 가중 확률표 */
