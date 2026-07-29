@@ -14,6 +14,7 @@ import { generateGroups } from '../livingroom/generate.js';
 import { resolve } from '../livingroom/palette.js';
 import { ROOM_DATA } from '../livingroom/room-data.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/lights.js';
+import { ANIM, GROUP_ANIM, TILE_H } from '../livingroom/anim.js';
 import { BD_GLASS } from './glass.js';
 import { BD3_ART, BD3_DRINKS, BD3_SASH_OPEN, BD3_PILLOW_BED, BD3_PILLOW_FLOOR,
   BD3_FRAME_SHOTS, steamArt, fanSpinArt } from './geom-art-v3.js';
@@ -87,6 +88,22 @@ function overlay(ctx, oid, pal, exc, open) {
   }
 }
 
+// ── 창밖 강수 — 비·폭우·눈·꽃잎. 거실이 절차 생성한 입자를 그대로 쓴다.
+// 입자는 캔버스 전폭(x0~127, y0~29)이라 침실 창(x22~54) 자리에도 이미 깔려 있고,
+// 벽[2]이 유리 구멍만 남기고 덮으므로 따로 자를 필요가 없다.
+// 이게 빠져 있어서 날씨를 비로 바꿔도 창밖이 흐려지기만 하고 아무것도 안 떨어졌다.
+const WEATHER_GROUP = { rain: 'rain', downpour: 'downpour', snow: 'snow', petals: 'pt-petals' };
+function paintWeather(ctx, pal, state, off, t, animOn) {
+  const id = WEATHER_GROUP[state.weather];
+  if (!id || !groups[id] || off.has(id)) return;
+  const tf = animOn && ANIM[GROUP_ANIM[id]] ? ANIM[GROUP_ANIM[id]](t) : {};
+  ctx.save();
+  if (tf.dy) ctx.translate(0, tf.dy);
+  paint(ctx, groups[id], pal);
+  if (tf.tile) { ctx.translate(0, -TILE_H); paint(ctx, groups[id], pal); }   // 무한 낙하
+  ctx.restore();
+}
+
 // 돌 자리 판정 — state.orb('none'/'chair'/'bed'/'rug').
 // ORB_SPOTS 는 뷰어의 변형 토글 때문에 state 를 받는다 — 앱은 항상 v3 좌표.
 function orbSprite(state) {
@@ -117,6 +134,7 @@ export function render(cv, state, off = new Set(), t = 0) {
   const cloudy = ['cloud', 'rain', 'downpour', 'snow'].includes(state.weather)
     && groups.clouds && !off.has('clouds');
   if (cloudy) paint(ctx, groups.clouds, pal);
+  paintWeather(ctx, pal, state, off, t, !off.has('anim'));
 
   // [2] 벽·창틀(유리 구멍) → 바닥
   //     바닥은 **거실 절차 바닥(g-floor)** 을 그대로 쓴다 — 무광원 알베도(팔레트 슬롯).
@@ -132,6 +150,7 @@ export function render(cv, state, off = new Set(), t = 0) {
         if (!off.has('moon')) paint(ctx, BD_MOON, pal);
       }
       if (cloudy) paint(ctx, groups.clouds, pal);   // 열린 창에서도 구름 유지
+      paintWeather(ctx, pal, state, off, t, !off.has('anim'));
       ctx.restore();
       paint(ctx, BD3_SASH_OPEN, pal);
     }
