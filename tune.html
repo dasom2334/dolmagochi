@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>소리 튜닝 — 돌마고치</title>
+    <!--
+      개발 전용 페이지. vite build의 입력은 index.html 하나뿐이라 dist에 들어가지
+      않는다 — PWA 프리캐시도 번들도 오염시키지 않는다.
+      dev 서버에서 http://localhost:5173/tune.html 로 연다.
+    -->
+    <script>
+      (function () {
+        try {
+          var light = matchMedia('(prefers-color-scheme: light)').matches;
+          document.documentElement.dataset.theme = light ? 'light' : 'dark';
+        } catch (e) {
+          /* 미지원 — CSS 기본값(다크) */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/tune/main.tsx"></script>
+  </body>
+</html>
