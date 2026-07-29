@@ -7,7 +7,6 @@ const R = (x, y, w, h, c, a) => (a == null ? [x, y, w, h, c] : [x, y, w, h, c, a
 
 // ── 돌 — 거실에서 생성한 돌 그대로(ball/rim, 팔레트 슬롯 --o0..o4/--wl) ──
 import { ball, rim, rimSide, stoneRows, STONE_ASPECT, h2, emitRows } from '../livingroom/generate.js';
-import { BD_SCENERY } from './scenery-art.js';
 
 // ── 러그 — 거실 절차 러그와 **같은 방식**(무광원 팔레트 슬롯 + 무늬)으로 생성한다.
 // 추출 러그(레퍼런스)는 창햇빛이 대각선으로 **구워져** 있어 디라이팅으로도 안 지워졌다.
@@ -209,12 +208,75 @@ export function screenGlowArt() {
 // 거실 풍경(산 능선·해 x58)은 침실 창(유리 x22~54)과 안 맞아 따로 만든다.
 // 하늘은 거실 슬롯(--k0..9), 나무는 거실 나무 슬롯(--t0..2) — 시간·계절 팔레트를 따라간다.
 export function bedroomScenery() {
-  // 레퍼런스(reference/backgrounds/02-workroom-window-moon-hd.png)를 **그대로 추출**한
-  // 결과다 — 능선·구름·나무를 절차로 흉내 내니 레퍼런스만큼 안 예뻤다.
-  // 모양은 레퍼런스, 색은 팔레트 슬롯(--k 하늘 / --h 능선 / --t 나무)이라
-  // 사계절·시간대가 그대로 따라온다. 갱신은 tools/scenery.py 재실행.
-  return BD_SCENERY;
+  // 창밖 — 침실 레퍼런스(reference/bedroom/times/day.png)의 창처럼 **단순하게**.
+  //   밝은 하늘 / 통통한 흰 구름 / 아래쪽 둥근 수풀. 그게 전부다.
+  //   창은 33x25 뿐이라 원경을 겹겹이 넣으면 전부 뭉갠다 — 요소를 줄이고 크게 그린다.
+  //
+  // 자리는 **손으로 잡았다**(노이즈 아님) — 창(x22~54, y7~31) 안에 구름 둘과
+  // 수풀 능선이 보기 좋게 걸리도록. 색은 팔레트 슬롯이라 사계절·시간대가 따라온다.
+  const W = 128, H = 49;
+  const cell = new Map();
+  const put = (x, y, c) => { if (x >= 0 && x < W && y >= 0 && y < H) cell.set(y * 1000 + x, c); };
+  const disc = (cx, cy, r, f) => {
+    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++)
+      for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) {
+        const dx = x - cx, dy = (y - cy) * 1.35;      // 가로로 납작한 원 = 뭉게구름·수풀
+        if (dx * dx + dy * dy <= r * r) f(x, y);
+      }
+  };
+
+  // ── 하늘 — 위가 짙고 아래로 옅어진다
+  for (let y = 0; y < H; y++) {
+    const s = Math.max(0, Math.min(9, Math.round((y - 1) / 2.6)));
+    for (let x = 0; x < W; x++) put(x, y, `--k${s}`);
+  }
+
+  // ── 구름 — 덩이마다 원 셋을 겹쳐 통통하게. 밑면은 한 단계 어둡게 둬 부피를 준다.
+  //    창 안(x22~54)에 큰 것 하나 + 작은 것 하나가 걸리도록 자리를 잡았다.
+  const CLOUDS = [
+    [[27, 12, 4], [31, 11, 3], [24, 13, 3]],          // 창 왼쪽 — 주인공
+    [[46, 9, 3], [49, 9, 2]],                          // 창 오른쪽 — 작게
+    [[74, 14, 4], [78, 13, 3]], [[108, 10, 3], [111, 11, 2]], [[8, 16, 3], [11, 15, 2]],
+  ];
+  for (const lobes of CLOUDS) {
+    for (const [cx, cy, r] of lobes) disc(cx, cy, r, (x, y) => put(x, y, '--k9'));
+    for (const [cx, cy, r] of lobes) disc(cx, cy, r, (x, y) => {
+      if (!cell.has((y + 1) * 1000 + x) || cell.get((y + 1) * 1000 + x) !== '--k9') return;
+    });
+    // 밑그늘 — 덩이의 가장 아랫줄만 한 단계 어둡게
+    for (const [cx, cy, r] of lobes) {
+      const yb = Math.round(cy + r / 1.35);
+      for (let x = Math.round(cx - r); x <= Math.round(cx + r); x++)
+        if (cell.get(yb * 1000 + x) === '--k9') put(x, yb, '--k7');
+    }
+  }
+
+  // ── 먼 언덕 — 수풀 뒤로 한 겹. 부드러운 호(弧)라 능선이 두 층으로 읽힌다.
+  for (let x = 0; x < W; x++) {
+    const t = 25 - Math.round(3 * Math.sin((x + 18) / 26)) - Math.round(1.5 * Math.sin(x / 7));
+    for (let y = t; y < H; y++) put(x, y, y === t ? '--h3' : '--h2');
+  }
+
+  // ── 수풀 — 둥근 덩이를 겹쳐 만든 나무 띠. 능선 한 줄은 밝게(빛 받는 면).
+  const BUSH = [];
+  for (let i = 0; i < 22; i++) {
+    const cx = i * 6 - 2 + ((i * 37) % 5) - 2;
+    BUSH.push([cx, 30 + ((i * 53) % 4), 4 + ((i * 29) % 3)]);
+  }
+  const isBush = (x, y) => BUSH.some(([cx, cy, r]) => {
+    const dx = x - cx, dy = (y - cy) * 1.15;
+    return dx * dx + dy * dy <= r * r;
+  }) || y >= 34;
+  for (let y = 22; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      if (!isBush(x, y)) continue;
+      put(x, y, !isBush(x, y - 1) ? '--t2' : (y > 36 ? '--t0' : '--t1'));
+    }
+
+  const cells = [...cell].map(([k, c]) => [Math.floor(k / 1000), k % 1000, c]);
+  return emitRows(cells);
 }
+
 
 
 // 해·달 — **왼쪽 위 유리판**(중심 x29 y13, 유리 22..36×7..17). 렌더가 시간으로 가른다.
