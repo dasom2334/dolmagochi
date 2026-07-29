@@ -267,12 +267,14 @@ export function bedroomScenery() {
     const dx = x - cx, dy = (y - cy) * 1.15;
     return dx * dx + dy * dy <= r * r;
   });
-  // 제일 앞의 **땅**은 나무색(--t)이 아니라 배경 언덕색(--h)을 따라간다 —
-  // 나무 슬롯을 쓰면 봄엔 분홍, 가을엔 주황 땅이 돼 배경과 따로 논다.
-  // 언덕(--h3 먼 산 → --h2)에서 이어지는 --h1/--h0 이 앞으로 나올수록 어두워진다.
+  // 제일 앞의 **땅**은 하늘과 같은 배경 그라디언트(--k)를 쓴다 — 나무색(--t)도
+  // 언덕색(--h)도 아니다. 땅이 제 색을 가지면 작은 창에서 초록 덩어리가 하나 더
+  // 늘어 시선을 뺏는다. 배경으로 묻어 두고, 수풀만 실루엣으로 떠오르게 한다.
   const GROUND_Y = 34;
-  for (let y = GROUND_Y; y < H; y++)
-    for (let x = 0; x < W; x++) put(x, y, y === GROUND_Y ? '--h1' : '--h0');
+  for (let y = GROUND_Y; y < H; y++) {
+    const s = Math.max(0, Math.min(9, Math.round((y - 1) / 2.6)));
+    for (let x = 0; x < W; x++) put(x, y, `--k${s}`);
+  }
   // 수풀 덩이만 나무색 — 능선 한 줄은 밝게(빛 받는 면)
   for (let y = 22; y < H; y++)
     for (let x = 0; x < W; x++) {
