@@ -177,11 +177,11 @@ function visible(id, st) {
     case 'fx-drops': return weather === 'rain' || weather === 'downpour';
     case 'snow':  case 'fx-snowcap': return weather === 'snow';
     case 'fx-frost': return season === 'winter';
-    // 꽃잎·낙엽은 한 종류 — 색은 계절(--t2)이 정한다. 봄·가을엔 저절로 날리고,
-    // 날씨로 직접 지정할 수도 있다.
+    // 꽃잎·낙엽·풀잎은 한 종류 — 색은 계절(--t2)이 정한다.
+    // **날씨가 그것일 때만** 날린다. 예전엔 봄·가을이면 맑은 날에도 저절로
+    // 날렸는데, 날씨 표시는 '맑음'인데 화면엔 꽃잎이 내려 서로 어긋났다.
     case 'pt-petals':
-      return weather === 'petals'
-             || ((season === 'spring' || season === 'autumn') && clear);
+      return weather === 'petals';
     case 'pt-fireflies': return time === 'night' && season === 'summer' && clear;
     // 겨울엔 잎만 떨어지고 줄기는 남는다
     case 'tree-v1-trunk': return tree === 'v1';
