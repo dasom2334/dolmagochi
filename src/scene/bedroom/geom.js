@@ -251,29 +251,42 @@ export function bedroomScenery() {
     }
   }
 
-  // ── 언덕 — **거실과 같은 방식**. 거실은 창 아래쪽을 언덕(--h)이 채운다.
-  //    여기만 수풀 덩이(--t)로 채웠더니 창 밑이 통째로 나무색이었다.
-  //    뒤(밝은 --h3)에서 앞(어두운 --h0)으로 세 겹, 창 밑변까지 내려온다.
-  const HILLS = [
-    [24, 3.0, 26, 18, '--h3'],   // 먼 능선 — 가장 밝다
-    [27, 2.4, 17, 41, '--h2'],
-    [31, 1.8, 11, 63, '--h1'],   // 앞 능선 — 창 밑변(y31)에 걸린다
-  ];
-  for (const [base, amp, period, phase, slot] of HILLS)
-    for (let x = 0; x < W; x++) {
-      const t = Math.round(base - amp * Math.sin((x + phase) / period) - amp * 0.4 * Math.sin(x / 5.5));
-      for (let y = t; y < H; y++) put(x, y, slot);
+  // ── 산맥 — **거실과 같은 색 배치**(livingroom/scene/generate.js synth).
+  //    거실은 능선도, 능선 위 침엽수림도 전부 --h 계열이다. --t(나무 슬롯)는
+  //    창밖에 심은 나무에만 쓴다 — 그래서 창 밑이 계절 잎 색으로 물들지 않는다.
+  //    각 산맥 = 단색 실루엣 + 자기 능선 1px 밝은 림. 경계에 디더는 섞지 않는다
+  //    (얼룩으로 읽힌다). 뒤에서 앞으로 --h3 → --h2 → --h1 → --h0.
+  const ramp = (pts, x) => {
+    for (let i = 1; i < pts.length; i++)
+      if (x <= pts[i][0]) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+        return y0 + (y1 - y0) * ((x - x0) / (x1 - x0));
+      }
+    return pts[pts.length - 1][1];
+  };
+  const vn = (x, y, salt) => h2(x, y, salt) % 100;
+  const FAR  = [[-16,22],[10,20],[26,23],[40,21],[56,23],[72,21],[90,23],[110,21],[128,22]];
+  const MID  = [[-16,26],[14,24],[30,27],[46,25],[62,27],[78,25],[96,27],[112,25],[128,26]];
+  const NEAR = [[-16,30],[12,29],[28,31],[44,29],[60,31],[76,29],[94,31],[110,29],[128,30]];
+  for (let x = 0; x < W; x++) {
+    const rf = Math.round(ramp(FAR, x)), rm = Math.round(ramp(MID, x)), rn = Math.round(ramp(NEAR, x));
+    for (let y = rf; y < H; y++) {
+      let slot;
+      if (y >= rn) {
+        slot = y === rn ? '--h1' : (y > 36 ? '--h0' : (vn(x, y, 80) < 26 ? '--h1' : '--h0'));
+      } else if (y >= rm) {
+        if (y === rm) slot = '--h2';
+        else if (y === rn - 1 && vn(x, 0, 70) < 34) slot = '--h0';      // 능선 위 침엽수림
+        else if (y === rn - 2 && vn(x, 0, 71) < 13) slot = '--h0';
+        else slot = vn(x, y, 81) < 22 ? '--h2' : '--h1';
+      } else {
+        if (y <= rf + 1) slot = '--h3';
+        else if (y === rm - 1 && vn(x, 0, 72) < 30) slot = '--h1';
+        else if (y === rm - 2 && vn(x, 0, 73) < 11) slot = '--h1';
+        else slot = vn(x, y, 82) < 24 ? '--h3' : '--h2';
+      }
+      put(x, y, slot);
     }
-  // 창 밑변 아래는 가장 어두운 땅 — 창으로는 거의 안 보이지만 이어져 있어야 한다
-  for (let y = 33; y < H; y++) for (let x = 0; x < W; x++) put(x, y, '--h0');
-
-  // ── 나무 — 언덕 위에 **점점이** 선 실루엣. 덩어리로 깔지 않는다(창을 다 먹는다).
-  //    계절 잎 색(--t2/--t1)이라 봄엔 분홍, 가을엔 주황으로 물든다.
-  const TREES = [[26, 27, 2], [31, 26, 3], [45, 25, 2], [50, 27, 3],
-                 [8, 26, 3], [70, 28, 3], [88, 26, 2], [110, 27, 3]];
-  for (const [cx, cy, r] of TREES) {
-    disc(cx, cy, r, (x, y) => put(x, y, '--t1'));
-    disc(cx, cy - 0.6, r * 0.7, (x, y) => put(x, y, '--t2'));   // 빛 받는 윗면
   }
 
   const cells = [...cell].map(([k, c]) => [Math.floor(k / 1000), k % 1000, c]);
