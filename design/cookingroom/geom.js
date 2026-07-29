@@ -29,37 +29,47 @@ export const ORB_SPOTS = {
 
 // ── 창광 = 앞으로 퍼지는 사다리꼴 (SCENE-RULES §3.1) ──────────────────────
 // 셰이프 고정 — 색(--wl/--ml)·세기(--wl-a/--ml-a)만 시간이 정한다. screen 블렌드.
-// 바닥(y51+)에만 투영한다. 창 밑 벽(y28~50)은 빛이 아니라 그림자다.
+// **수평면에만** 투영한다(§3.1). 주방에는 수평면이 셋이다:
+//   싱크 상판(y34~37) · 작업대 상판(y38~43) · 바닥(y51~).
+//
+// [왜 바닥 웅덩이가 거의 없나]
+// 처음엔 거실·침실처럼 바닥에만 투영했는데 화면에 빛이 하나도 안 떴다. 계산해 보니
+// 당연했다 — 주방 창은 **높고 오른쪽**이라 빔이 가파르게 왼쪽 아래로 내려오는데,
+// 그 경로에 싱크대(x88~126)와 작업대(x45~87)가 벽을 따라 통째로 서 있다.
+// 바닥에 닿을 몫이 물리적으로 남지 않는다. 억지로 띄우면 가구를 통과한 빛이 된다.
+// 그래서 빛은 **상판 둘**에 얹고, 바닥엔 하드 셰이프 대신 아주 옅은 **반사광(bounce)**
+// 만 깐다 — 바닥이 죽지 않으면서 물리도 안 어긴다.
 const SPREAD = 0.045, SKEW = -0.75;                 // 음수 = 왼쪽으로 흐른다(창이 오른쪽)
-const POOL_ZONES = [[51, 56, 1.0], [57, 63, 0.72], [64, 71, 0.46]];
-// 창빛 차폐 — 바닥 풀에서 **가구 발치 구간을 뺀다**. [x0, x1, len] (len = 바닥 몇 줄까지)
-const POOL_OCC = {
-  'kt-sink': [88, 127, 6], 'kt-table': [45, 88, 6], 'kt-shelf': [24, 40, 5],
-  'kt-broom': [39, 45, 4], 'kt-door': [8, 25, 4],
-};
-// 바닥에 선 돌 — 창광을 막는다(자리마다 다른 띠 [y0,y1,x0,x1])
-const ORB_OCC = { floor: [[51, 60, 55, 71]], door: [[51, 58, 11, 23]] };
+// [y0, y1, 세기, x를 자를 범위(그 수평면이 실제로 있는 구간)]
+const SURFACES = [
+  [34, 37, 1.00, [88, 126]],                        // 싱크 상판 — 창 바로 밑, 제일 밝다
+  [38, 43, 0.80, [45, 87]],                         // 작업대 상판 — 오른쪽 끝만 걸린다
+];
+// 상판 앞으로 넘어간 빛이 바닥에 흩어지는 몫 — 셰이프 없이 옅게(모서리 안 보이게)
+const BOUNCE = [[52, 0.10], [53, 0.09], [54, 0.075], [55, 0.06], [56, 0.045], [57, 0.03]];
+const BOUNCE_X = [58, 124];
+// 상판 위에 놓인 물건은 빛을 막는다 — [소품, x0, x1]
+const SURF_OCC = { 'kt-pot': [53, 73], 'kt-sink': [98, 114] };  // 주전자 / 개수통(움푹)
+// 상판에 앉은 돌도 막는다
+const ORB_OCC = { table: [[38, 43, 57, 76]] };
 
 export function windowPool(slot, alphaSlot, off = null, orb = null) {
   const out = [];
-  for (const [zy0, zy1, op] of POOL_ZONES) {
-    for (let y = zy0; y <= zy1; y++) {
+  for (const [y0, y1, op, [sx0, sx1]] of SURFACES) {
+    for (let y = y0; y <= y1; y++) {
       const t = y - WIN.SILL;
       const s = 1 + SPREAD * t, sh = SKEW * t;
       const a = WIN.CX + (WIN.L - WIN.CX) * s + sh;
       const b = WIN.CX + (WIN.R - WIN.CX) * s + sh;
-      const m0 = WIN.CX + (WIN.MULL - WIN.CX) * s + sh;
+      const m0 = WIN.CX + (WIN.MULL - WIN.CX) * s + sh;   // 멀리언(창살) 그림자
       const cuts = [];
-      if (off) {
-        const d = Math.round(SKEW * (y - (FLOOR_Y - 1)));
-        for (const [id, [ox0, ox1, len]] of Object.entries(POOL_OCC))
-          if (!off.has(id) && y - (FLOOR_Y - 1) <= len) cuts.push([ox0 + d, ox1 + d]);
-        if (orb && ORB_OCC[orb])
-          for (const [by0, by1, bx0, bx1] of ORB_OCC[orb])
-            if (y >= by0 && y <= by1) cuts.push([bx0 + d, bx1 + d]);
-      }
+      if (off) for (const [id, [ox0, ox1]] of Object.entries(SURF_OCC))
+        if (!off.has(id)) cuts.push([ox0, ox1]);
+      if (orb && ORB_OCC[orb])
+        for (const [by0, by1, bx0, bx1] of ORB_OCC[orb])
+          if (y >= by0 && y <= by1) cuts.push([bx0, bx1]);
       for (const [p0, q0] of [[a, m0 - 1], [m0 + 1, b - 1]]) {
-        let segs = [[Math.max(1, Math.round(p0)), Math.min(126, Math.round(q0))]];
+        let segs = [[Math.max(sx0, Math.round(p0)), Math.min(sx1, Math.round(q0))]];
         for (const [c0, c1] of cuts) {
           const next = [];
           for (const [sa, sb] of segs) {
@@ -73,41 +83,113 @@ export function windowPool(slot, alphaSlot, off = null, orb = null) {
       }
     }
   }
+  // 바닥 반사광 — 가장자리가 안 보이게 좌우로 한 칸씩 줄여 나간다
+  BOUNCE.forEach(([y, op], i) => out.push([BOUNCE_X[0] + i, y, BOUNCE_X[1] - BOUNCE_X[0] - i * 2, 1, slot, op]));
   return { rects: out, alphaSlot };
 }
 
 // ── 접지 그림자 — 밑변에서 창 반대쪽(왼쪽)으로 늘어진다 (multiply, §3.4) ──
-function contact(x0, w, yBase, len, skew = -0.5) {
+//
+// [1차 시안의 실패] 가구마다 bbox 전폭으로 그림자를 깔았더니, 가구가 벽을 따라
+// 줄지어 서 있는 방이라 **바닥 전폭에 검은 띠 한 줄**이 생겼다. 그림자가 아니라
+// 굽도리로 읽힌다. → 실제로 바닥에 닿는 **발자국(다리·몸통 밑변)만** 그리고,
+// 사이를 비운다. 열린 선반 밑처럼 빛이 통하는 자리는 비어 있어야 한다.
+//
+// 빛이 오른쪽에서 오므로 그림자는 **왼쪽으로** 눕는다(skew 음수).
+function contact(x0, w, yBase, len, k = 1) {
   const o = [];
-  for (let k = 0; k <= len; k++) {
-    const f = k / Math.max(1, len);
-    const g = f < 0.35 ? 0.5 : f < 0.7 ? 0.32 : 0.16;   // 본영 → 반영
-    const sh = Math.round(skew * k);
-    o.push([x0 + sh, yBase + 1 + k, Math.round(w * (1 + 0.06 * k)), 1, '#0b0710', g]);
+  for (let j = 0; j <= len; j++) {
+    const f = j / Math.max(1, len);
+    const g = (f < 0.35 ? 0.46 : f < 0.7 ? 0.28 : 0.13) * k;   // 본영 → 반영
+    o.push([x0 - Math.round(0.6 * j), yBase + 1 + j,
+      Math.round(w * (1 + 0.05 * j)), 1, '#0b0710', g]);
   }
   return o;
 }
+// 발자국 — [소품, x0, 폭, 길이, 세기]. 여러 개면 다리마다 하나씩.
+const FEET = {
+  'kt-door':  [[8, 18, 2, 0.7]],                       // 문은 벽에 붙어 있어 얕게
+  'kt-shelf': [[24, 3, 3, 1], [37, 3, 3, 1], [27, 10, 2, 0.45]],  // 다리 둘 + 밑 그늘
+  'kt-broom': [[39, 6, 2, 0.8]],
+  'kt-table': [[46, 4, 3, 1], [53, 3, 3, 0.8], [78, 3, 3, 0.8], [83, 4, 3, 1],
+    [49, 30, 2, 0.4]],                                  // 다리 넷 + 상판 밑 넓은 그늘
+  'kt-sink':  [[89, 36, 3, 1]],                        // 붙박이 몸통 — 전폭이 맞다
+};
+// 벽에 지는 그림자 — 빛이 오른쪽에서 오니 가구 **왼쪽** 벽이 어둡다.
+// 알베도에 굽지 않고 여기서 낸다(§2: 방향 명암은 광원 레이어 몫).
+const WALL_AO = {
+  'kt-sink':  [[86, 34, 3, 17, 0.16]],
+  'kt-table': [[43, 38, 2, 13, 0.14]],
+  'kt-shelf': [[22, 37, 2, 13, 0.12]],
+  'kt-rack':  [[45, 12, 2, 4, 0.12]],
+};
 export function groundShadows(off) {
   const s = [];
-  const add = (id, x, w, y, len) => { if (!off.has(id)) s.push(...contact(x, w, y, len)); };
-  add('kt-door', 8, 18, FLOOR_Y - 1, 3);
-  add('kt-shelf', 24, 17, FLOOR_Y - 1, 3);
-  add('kt-broom', 39, 6, FLOOR_Y - 1, 2);
-  add('kt-table', 45, 42, FLOOR_Y - 1, 3);
-  add('kt-sink', 88, 38, FLOOR_Y - 1, 3);
+  for (const [id, feet] of Object.entries(FEET))
+    if (!off.has(id)) for (const [x, w, len, k] of feet) s.push(...contact(x, w, FLOOR_Y - 1, len, k));
+  for (const [id, bands] of Object.entries(WALL_AO))
+    if (!off.has(id)) for (const [x, y, w, h, a] of bands) s.push([x, y, w, h, '#0b0710', a]);
   return s;
 }
 
-// ── 화구(주전자) 발광 — 끓는 동안 주전자 밑이 달아오른다. lighter 블렌드 ──
-// 벽난로와 같은 점광원(§3.2) 축소판. 주전자를 끄면 함께 꺼진다.
-export function stoveGlowArt() {
-  return [
-    R(59, 39, 9, 1, '#ffb45c', 0.55),
-    R(57, 38, 13, 3, '#ff9840', 0.22),
-    R(54, 36, 19, 6, '#ff8c38', 0.1),
-    R(51, 41, 25, 3, '#ff8c38', 0.06),                  // 상판에 번짐
-  ];
+// ── 화구(주전자) 발광 — 점광원 3단 감쇠 (§3.2) ─────────────────────────
+// 벽난로와 같은 방식: 중심에서 밝고 밖으로 역제곱 감쇠, 상판·벽 양쪽에 링.
+// 불이라 flicker(숨쉼)를 준다 — 전기등과 달리 세기가 미세하게 흔들린다.
+// 사각 색면을 겹치면 네모난 빛이 된다 → **거리장을 4단 양자화**해 둥글게 뽑는다.
+// 1차 시안은 alpha .42 코어에 반경 15×7 이라 상판이 통째로 하얗게 떴다 — 전구로 읽힌다.
+// 화구는 **주전자 밑이 달아오르는 것**이라 좁고 낮게. 낮엔 거의 안 보이는 게 맞다.
+const STOVE = { CX: 63.5, CY: 39.2, RX: 12, RY: 4.6 };
+const STOVE_RINGS = (() => {
+  const { CX, CY, RX, RY } = STOVE;
+  const CUTS = [0.30, 0.55, 0.78, 1.0];
+  const ALPHA = [0.20, 0.11, 0.055, 0.022];
+  const rows = [];
+  for (let y = Math.floor(CY - RY); y <= Math.ceil(CY + RY); y++)
+    for (let x = Math.floor(CX - RX); x <= Math.ceil(CX + RX); x++) {
+      if (x < 0 || x > 127 || y < 0 || y > 71) continue;
+      // 지터 없이 자르면 등고선이 매끈한 타원으로 보인다 — 해시로 흔든다(§4)
+      const d = Math.hypot((x - CX) / RX, (y - CY) / RY) + (h2(x, y, 91) % 100 / 100 - 0.5) * 0.07;
+      let lv = -1;
+      for (let i = 0; i < CUTS.length; i++) if (d <= CUTS[i]) { lv = i; break; }
+      if (lv >= 0) rows.push([y, x, lv]);
+    }
+  // 레벨별로 한 벌씩 — emitRows 가 가로 런을 묶는다
+  return ALPHA.map((a, i) => emitRows(rows.filter((r) => r[2] === i)
+    .map(([y, x]) => [y, x, i === 0 ? '#ffcf8c' : i === 1 ? '#ffb45c' : '#ff9440']))
+    .map((r) => [r[0], r[1], r[2], r[3], r[4], a]));
+})();
+/** k = 세기 배율(뷰어 슬라이더), t = ms (flicker). 애니 끄면 t 를 안 넘긴다. */
+export function stoveGlowArt(k = 1, t = null) {
+  const f = t == null ? 1
+    : 1 + 0.07 * Math.sin(t / 210) + 0.04 * Math.sin(t / 97 + 1.3);   // 숨쉼
+  const g = k * f;
+  return STOVE_RINGS.flat().map((r) => [r[0], r[1], r[2], r[3], r[4], r[5] * g]);
 }
+
+// ── 비네트 — **주방 전용**(§4) ───────────────────────────────────────────
+// 거실 VIGNETTE 는 중심이 (60,40)이다. 거실 창이 가운데라 그 자리가 맞았지만
+// 주방 창은 오른쪽(x106)이라 그대로 쓰면 **빛이 오는 쪽이 더 어두워진다**.
+// 중심을 창 쪽으로 옮기고(§4 "중심을 광원 쪽으로"), 거리장 4단 + 각도 워프로 뽑는다.
+const VIG = { CX: 88, CY: 38 };
+export const VIGNETTE_KT = (() => {
+  const CUTS = [0.58, 0.75, 0.90, 1.02];
+  const ALPHA = [0.07, 0.14, 0.24, 0.36];
+  const rows = [];
+  for (let y = 0; y < 72; y++)
+    for (let x = 0; x < 128; x++) {
+      const dx = (x - VIG.CX) / (128 * 0.56), dy = (y - VIG.CY) / (72 * 0.56);
+      const a = Math.atan2(dy, dx);
+      const warp = 1 + 0.085 * Math.sin(a * 3 + 0.7) + 0.05 * Math.sin(a * 5 - 1.9)
+        + 0.035 * Math.sin(a * 2 + 2.6);
+      const d = Math.hypot(dx, dy) / warp + (h2(x, y, 7) % 100 / 100 - 0.5) * 0.05;
+      let lv = 0;
+      for (const c of CUTS) if (d > c) lv++;
+      if (lv) rows.push([y, x, lv - 1]);
+    }
+  return ALPHA.map((al, i) => emitRows(rows.filter((r) => r[2] === i)
+    .map(([y, x]) => [y, x, '#0b0710']))
+    .map((r) => [r[0], r[1], r[2], r[3], r[4], al])).flat();
+})();
 
 // ── 김 — 주전자 주둥이에서 3프레임 (애니 끄면 0프레임 고정) ──
 export function steamArt(f) {

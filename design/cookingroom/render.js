@@ -8,12 +8,12 @@
 import { generateGroups } from '../livingroom/scene/generate.js';
 import { resolve } from '../livingroom/scene/palette.js';
 import { ROOM_DATA } from '../livingroom/scene/room-data.js';
-import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
+import { OVERLAYS, AMBIENT } from '../livingroom/scene/lights.js';
 import { ANIM, GROUP_ANIM, TILE_H } from '../livingroom/scene/anim.js';
 import { KT_ART, KT_GLASS } from './geom-art.js';
 import { KT_HAND } from './geom-art-hand.js';
 import { KT_TOUCH } from './geom-art-touch.js';
-import { ORB_SPOTS, windowPool, groundShadows, kitchenScenery, stoveGlowArt, steamArt,
+import { ORB_SPOTS, windowPool, groundShadows, kitchenScenery, stoveGlowArt, steamArt, VIGNETTE_KT,
   FLOOR_Y, KT_SUN, KT_MOON, KT_STARS } from './geom.js';
 
 const GX = 128, GY = 72;
@@ -169,18 +169,23 @@ export function render(cv, state, off = new Set(), t = 0) {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // [6] 발광(emission) — 화구. 주전자를 끄면 함께 꺼진다.
+  // [6] 발광(emission) — 화구. 주전자를 끄면 함께 꺼진다. 불이라 flicker 를 준다.
+  //     **시간대로 세기가 갈린다** — 대낮에 창빛과 같이 세면 전구로 읽힌다.
+  //     밤엔 방 안에 이것 말고 광원이 없으니 주역이 된다.
+  const STOVE_K = { day: 0.45, sunset: 0.8, night: 1.25 };
   if (state.stove !== 'off' && !off.has('kt-pot') && !off.has('stove-glow')) {
     ctx.globalCompositeOperation = 'lighter';
-    paint(ctx, stoveGlowArt(), pal);
+    paint(ctx, stoveGlowArt((state.stoveK ?? 1) * (STOVE_K[state.time] ?? 1),
+      off.has('anim') ? null : t), pal);
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // [7] 비네트 — 거실 것 재사용
+  // [7] 비네트 — **주방 전용**. 거실 것은 중심이 (60,40)이라 창이 오른쪽인 주방에
+  //     쓰면 빛이 오는 쪽이 되레 어두워진다(§4: 중심을 광원 쪽으로).
   if (!off.has('vignette')) {
     const vigK = state.vigK ?? 1;
     ctx.globalCompositeOperation = 'multiply';
-    for (const v of VIGNETTE) { ctx.globalAlpha = v.alpha * vigK; ctx.fillStyle = v.fill; ctx.fillRect(...v.r); }
+    for (const r of VIGNETTE_KT) { ctx.globalAlpha = r[5] * vigK; ctx.fillStyle = r[4]; ctx.fillRect(r[0], r[1], r[2], r[3]); }
   }
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
