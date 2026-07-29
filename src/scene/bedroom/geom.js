@@ -263,14 +263,21 @@ export function bedroomScenery() {
     const cx = i * 6 - 2 + ((i * 37) % 5) - 2;
     BUSH.push([cx, 30 + ((i * 53) % 4), 4 + ((i * 29) % 3)]);
   }
-  const isBush = (x, y) => BUSH.some(([cx, cy, r]) => {
+  const inLobe = (x, y) => BUSH.some(([cx, cy, r]) => {
     const dx = x - cx, dy = (y - cy) * 1.15;
     return dx * dx + dy * dy <= r * r;
-  }) || y >= 34;
+  });
+  // 제일 앞의 **땅**은 나무색(--t)이 아니라 배경 언덕색(--h)을 따라간다 —
+  // 나무 슬롯을 쓰면 봄엔 분홍, 가을엔 주황 땅이 돼 배경과 따로 논다.
+  // 언덕(--h3 먼 산 → --h2)에서 이어지는 --h1/--h0 이 앞으로 나올수록 어두워진다.
+  const GROUND_Y = 34;
+  for (let y = GROUND_Y; y < H; y++)
+    for (let x = 0; x < W; x++) put(x, y, y === GROUND_Y ? '--h1' : '--h0');
+  // 수풀 덩이만 나무색 — 능선 한 줄은 밝게(빛 받는 면)
   for (let y = 22; y < H; y++)
     for (let x = 0; x < W; x++) {
-      if (!isBush(x, y)) continue;
-      put(x, y, !isBush(x, y - 1) ? '--t2' : (y > 36 ? '--t0' : '--t1'));
+      if (!inLobe(x, y)) continue;
+      put(x, y, !inLobe(x, y - 1) ? '--t2' : '--t1');
     }
 
   const cells = [...cell].map(([k, c]) => [Math.floor(k / 1000), k % 1000, c]);
