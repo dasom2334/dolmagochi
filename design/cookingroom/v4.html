@@ -1,0 +1,123 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>주방 씬 — 시안 3종 비교</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#15121c; color:#d8d3e4; font:13px/1.5 ui-sans-serif,system-ui,sans-serif; }
+  header { padding:12px 16px 4px; }
+  h1 { font-size:15px; margin:0 0 8px; font-weight:600; }
+  .axes { display:flex; flex-wrap:wrap; gap:4px 14px; }
+  .axis { display:flex; align-items:center; gap:4px; }
+  .axis > span { color:#8d86a3; font-size:11px; min-width:34px; }
+  button { background:#241f31; color:#c9c3da; border:1px solid #322b42; border-radius:5px;
+           padding:2px 8px; font:inherit; font-size:11px; cursor:pointer; }
+  button:hover { background:#2e2740; }
+  button[aria-pressed="true"] { background:#5b4b8a; border-color:#7a67b0; color:#fff; }
+  main { display:flex; flex-wrap:wrap; gap:14px; padding:12px 16px; align-items:flex-start; }
+  figure { margin:0; }
+  figcaption { font-size:11px; color:#9c95b4; padding:4px 2px 0; display:flex; justify-content:space-between; }
+  figcaption b { color:#e4dff2; font-weight:600; }
+  canvas { image-rendering:pixelated; display:block; background:#000; border-radius:3px; }
+  section.toggles { padding:4px 16px 24px; display:flex; flex-wrap:wrap; gap:4px 18px; }
+  .grp { display:flex; align-items:center; gap:4px; }
+  .grp > span { color:#8d86a3; font-size:11px; }
+  .note { padding:0 16px 16px; color:#7e7794; font-size:11px; max-width:70ch; }
+</style>
+
+<header>
+  <h1>주방 씬 — 시안 3종 비교</h1>
+  <div class="axes" id="axes"></div>
+</header>
+<main id="shots"></main>
+<section class="toggles" id="toggles"></section>
+<p class="note" id="note"></p>
+
+<script type="module">
+  import { render, SHOP_PROPS, GX, GY } from './render.js';
+  import { KT_TOUCHED_IDS } from './geom-art-touch.js';
+
+  const VARIANTS = [
+    ['a', '시안 A', '레퍼런스 추출'],
+    ['b', '시안 B', '손작화'],
+    ['c', '시안 C', '추출 + 손보정'],
+  ];
+  const AXES = [
+    ['시간', 'time', [['day', '낮'], ['sunset', '노을'], ['night', '밤']]],
+    ['계절', 'season', [['spring', '봄'], ['summer', '여름'], ['autumn', '가을'], ['winter', '겨울']]],
+    ['날씨', 'weather', [['clear', '맑음'], ['cloud', '구름흐림'], ['fog', '안개흐림'],
+      ['rain', '비'], ['downpour', '폭우'], ['snow', '눈'], ['petals', '꽃잎·낙엽']]],
+    ['돌', 'orb', [['none', '없음'], ['floor', '바닥'], ['table', '작업대'], ['door', '문 앞']]],
+    ['화구', 'stove', [['on', '켬'], ['off', '끔']]],
+    ['배율', 'zoom', [[3, '×3'], [4, '×4'], [6, '×6']]],
+  ];
+  const TOGGLES = [
+    ['소품', SHOP_PROPS.map((id) => [id, id.slice(3)])],
+    ['광원', [['lp-sun', '창 햇빛'], ['lp-moon', '창 달빛'], ['stove-glow', '화구'],
+      ['rim', '역광'], ['shadow', '접지그림자'], ['vignette', '비네트']]],
+    ['배경', [['g-wall', '벽'], ['g-floor', '바닥'], ['base-scenery', '창밖'],
+      ['sun', '해'], ['moon', '달'], ['stars', '별'], ['clouds', '구름']]],
+    ['효과', [['anim', '애니메이션'], ['orb', '돌']]],
+  ];
+
+  const S = { time: 'day', season: 'summer', weather: 'clear', orb: 'floor', stove: 'on', zoom: 4 };
+  const off = new Set();          // 아트 검수용 — 가득 찬 방으로 시작
+
+  // ── 컨트롤 ──
+  const axesEl = document.getElementById('axes');
+  for (const [label, key, opts] of AXES) {
+    const d = document.createElement('div'); d.className = 'axis';
+    d.innerHTML = `<span>${label}</span>`;
+    for (const [v, t] of opts) {
+      const b = document.createElement('button');
+      b.textContent = t;
+      b.onclick = () => { S[key] = v; draw(); };
+      b.dataset.key = key; b.dataset.val = String(v);
+      d.appendChild(b);
+    }
+    axesEl.appendChild(d);
+  }
+  const togEl = document.getElementById('toggles');
+  for (const [label, opts] of TOGGLES) {
+    const d = document.createElement('div'); d.className = 'grp';
+    d.innerHTML = `<span>${label}</span>`;
+    for (const [id, t] of opts) {
+      const b = document.createElement('button');
+      b.textContent = t;
+      b.dataset.off = id;
+      b.onclick = () => { off.has(id) ? off.delete(id) : off.add(id); draw(); };
+      d.appendChild(b);
+    }
+    togEl.appendChild(d);
+  }
+
+  // ── 캔버스 3장 ──
+  const shots = document.getElementById('shots');
+  const canvases = VARIANTS.map(([v, name, desc]) => {
+    const fig = document.createElement('figure');
+    const cv = document.createElement('canvas');
+    cv.width = GX; cv.height = GY;
+    const cap = document.createElement('figcaption');
+    cap.innerHTML = `<b>${name}</b><span>${desc}</span>`;
+    fig.append(cv, cap); shots.appendChild(fig);
+    return { v, cv };
+  });
+
+  document.getElementById('note').textContent =
+    '시안 C 가 손으로 다시 그린 것: ' + KT_TOUCHED_IDS.join(', ')
+    + ' — 나머지는 시안 A(추출) 그대로다. 큰 면은 추출이, 작은 물건은 손이 낫다는 한 기준으로만 나눴다.';
+
+  let t0 = performance.now();
+  function draw(t = performance.now() - t0) {
+    for (const { v, cv } of canvases) {
+      cv.style.width = GX * S.zoom + 'px';
+      cv.style.height = GY * S.zoom + 'px';
+      render(cv, { ...S, variant: v }, off, t);
+    }
+    for (const b of axesEl.querySelectorAll('button'))
+      b.setAttribute('aria-pressed', String(S[b.dataset.key]) === b.dataset.val);
+    for (const b of togEl.querySelectorAll('button'))
+      b.setAttribute('aria-pressed', !off.has(b.dataset.off));
+  }
+  function loop() { draw(); requestAnimationFrame(loop); }
+  loop();
+</script>

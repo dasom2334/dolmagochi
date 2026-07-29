@@ -1,0 +1,237 @@
+// 주방 시안 B — **손작화 판**(레퍼런스 추출이 아니라 코드로 직접 그림).
+// 스타일: 무테·두꺼운 색면·또렷한 실루엣 (visual-style-target). 침실 v3 와 같은 손.
+// SCENE-RULES: 무광원 알베도 + AO 만 — 방향광 명암은 렌더 광원 레이어가 얹는다.
+//
+// [투사법] 눈높이 y≈22.4 · 소실점 x≈66.5 (거실·침실과 동일).
+//   · 수평면(상판·선반) = 뒤 행일수록 VP 쪽으로 좁아지는 평행사변형
+//   · 창이 **오른쪽**이라 물건의 왼쪽 면이 그늘(AO)이다 — 방향광이 아니라 형태 AO
+import { emitRows, h2 } from '../livingroom/scene/generate.js';
+import { KT_GLASS } from './geom-art.js';
+import { FLOOR_Y } from './geom.js';
+
+const R = (x, y, w, h, c, a) => (a == null ? [x, y, w, h, c] : [x, y, w, h, c, a]);
+
+// 목재 — 침실 v3 와 같은 계열(가구 세트감). 주방은 한 톤 더 따뜻하게.
+const WH = '#a4784c';   // 윗면 하이라이트
+const WT = '#875f3c';   // 윗면
+const WM = '#65442a';   // 몸통
+const WD = '#452e1c';   // 어두운 면
+const WX = '#2c1d11';   // 가장 깊은 그늘
+const AO = '#2e2530';   // 돌출부 아래 차폐 그늘
+// 금속·도기
+const MT = '#8d9099';   // 금속 밝은 면
+const MM = '#666a74';   // 금속 몸통
+const MD = '#41444d';   // 금속 그늘
+const CR = '#c8bba8';   // 도기(크림)
+const CD = '#9a8b78';
+
+// ── 벽 ─────────────────────────────────────────────────────────────────
+// 한 장 + 유리 구멍 2판. 창틀은 웜 우드. 벽/바닥 경계는 y50 굽도리.
+function wall() {
+  const W = 128, H = FLOOR_Y;
+  const glass = new Set();
+  for (const [x0, y0, x1, y1] of KT_GLASS)
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) glass.add(y * 1000 + x);
+  const cell = new Map();
+  const put = (x, y, c) => {
+    if (y < 0 || y >= H || x < 0 || x >= W || glass.has(y * 1000 + x)) return;
+    cell.set(y * 1000 + x, c);
+  };
+  // 회벽 — 자잘한 결. 위가 어둡고(천장 그늘) 아래가 밝다.
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const r = h2(x, y, 210);
+      const base = y < 6 ? ['#332b33', '#3a3139', '#2d262e']
+        : y < 30 ? ['#453a44', '#4c414b', '#3e343e']
+          : ['#4a3e46', '#51454d', '#42373f'];
+      put(x, y, r < 10 ? base[2] : r > 90 ? base[1] : base[0]);
+    }
+  // 굽도리 — 벽과 바닥이 만나는 자리
+  for (let x = 0; x < W; x++) { put(x, H - 3, '#3a2f36'); put(x, H - 2, WD); put(x, H - 1, WX); }
+
+  // 창틀 — 개구부 x92~120, y8~28. 두꺼운 나무틀 + 창턱(밑에서 한 칸 튀어나옴).
+  for (let x = 92; x <= 120; x++) { put(x, 8, WH); put(x, 9, WT); }
+  for (let y = 10; y <= 25; y++) {
+    put(92, y, WT); put(93, y, WM); put(94, y, WD);          // 왼쪽 문설주
+    put(106, y, WM); put(107, y, WD);                          // 멀리언
+    put(118, y, WD); put(119, y, WM); put(120, y, WT);        // 오른쪽 문설주
+  }
+  for (let x = 92; x <= 120; x++) { put(x, 26, WM); put(x, 27, WD); }
+  for (let x = 90; x <= 122; x++) { put(x, 28, WH); put(x, 29, WM); put(x, 30, WX); }  // 창턱
+  return emitRows([...cell].map(([k, c]) => [Math.floor(k / 1000), k % 1000, c]));
+}
+
+// ── 바닥 — 돌 슬래브 ────────────────────────────────────────────────────
+// 세로 줄눈은 **소실점(x66.5)으로 모여야** 한다. 격자를 그대로 깔면 바닥이 아니라
+// 정면 벽돌담으로 읽힌다(1차 시안이 그랬다). 눈높이 y22.4 를 기준으로
+//   x(y) = VP + (x_front - VP) · (y - eye)/(y_front - eye)
+// 로 투영하고, 가로 줄(깊이 선)도 앞으로 갈수록 간격이 벌어지게 잡는다.
+// 색은 벽보다 어둡게 — 밝으면 바닥이 앞으로 튀어나와 방이 얕아 보인다.
+const VP = 66.5, EYE = 22.4;
+function floor() {
+  const W = 128, H = 72;
+  const cell = new Map();
+  const put = (x, y, c) => { if (y >= FLOOR_Y && y < H && x >= 0 && x < W) cell.set(y * 1000 + x, c); };
+  const TONE = ['#4b3e37', '#423630', '#554639', '#3a302b'];
+  const SEAM = '#2a221e';
+  const k = (y) => (y + 0.5 - EYE) / (H - 1 - EYE);            // 원근 배율(뒤 작고 앞 큼)
+  // 깊이 선 — 앞으로 갈수록 간격이 벌어진다
+  const ROWS = [51, 53, 56, 60, 65, 72];
+  // 앞 행 기준 줄눈 간격 18px → 뒤로 갈수록 자동으로 좁아진다
+  const PITCH = 18;
+  for (let ri = 0; ri < ROWS.length - 1; ri++) {
+    const y0 = ROWS[ri], y1 = ROWS[ri + 1] - 1;
+    const stagger = (ri % 2) * (PITCH / 2);                     // 줄마다 어긋나게(막힌줄눈 방지)
+    for (let y = y0; y <= y1; y++) {
+      const s = k(y);
+      for (let x = 0; x < W; x++) {
+        // 이 픽셀이 앞 행에서 어느 칸인지 — 소실점 기준으로 되돌린다
+        const xf = VP + (x - VP) / s;
+        const ix = Math.floor((xf + stagger) / PITCH);
+        const t = TONE[(h2(ix, ri, 220) + ri) % 4];
+        put(x, y, h2(x, y, 221) < 10 ? TONE[3] : t);
+      }
+      // 세로 줄눈 — 소실점으로 모인다
+      for (let n = -12; n <= 12; n++) {
+        const x = Math.round(VP + (n * PITCH - stagger - VP % PITCH) * s);
+        put(x, y, SEAM);
+      }
+    }
+    for (let x = 0; x < W; x++) put(x, y1, SEAM);               // 깊이 선
+  }
+  return emitRows([...cell].map(([k2, c]) => [Math.floor(k2 / 1000), k2 % 1000, c]));
+}
+
+// ── 문 — 널 4장 + 가로 띠 2줄 + 손잡이. x8~25, y12~50 ──────────────────
+function door() {
+  const o = [];
+  o.push(R(7, 11, 20, 1, WX));                                   // 상인방 그늘
+  o.push(R(8, 12, 18, 1, WH), R(8, 13, 18, 37, WM));             // 문짝 몸통
+  for (const x of [11, 15, 19, 23]) o.push(R(x, 13, 1, 37, WD)); // 널 이음매
+  o.push(R(8, 22, 18, 2, WT), R(8, 38, 18, 2, WT));              // 가로 띠
+  o.push(R(8, 24, 18, 1, WD), R(8, 40, 18, 1, WD));
+  o.push(R(8, 13, 1, 37, WD), R(25, 13, 1, 37, WH));             // 좌(그늘)·우(창 쪽)
+  o.push(R(23, 31, 2, 2, '#c9a45e'), R(23, 33, 1, 1, WX));       // 손잡이
+  o.push(R(8, 50, 18, 1, WX));                                    // 문지방
+  return o;
+}
+
+// ── 곁선반 — 2단. 위에 항아리·나무통, 아래에 붉은 소쿠리 둘. x24~40 ───────
+function shelf() {
+  const o = [];
+  const top = (y, x0, w) => [R(x0, y, w, 1, WH), R(x0, y + 1, w, 1, WT), R(x0, y + 2, w, 1, WD)];
+  o.push(...top(37, 24, 17));                                     // 상판
+  o.push(...top(44, 25, 15));                                     // 중간 선반
+  o.push(R(25, 40, 14, 4, AO));                                   // 선반 안 그늘
+  o.push(R(24, 40, 1, 10, WD), R(39, 40, 1, 10, WM));             // 다리(좌 그늘·우 밝음)
+  o.push(R(25, 47, 14, 3, AO));                                   // 아래칸 그늘
+  o.push(R(24, 50, 16, 1, WX));                                    // 접지
+  // 위 — 크림 항아리 + 나무통
+  o.push(R(27, 31, 4, 6, CR), R(27, 31, 4, 1, '#e0d5c2'), R(27, 32, 1, 5, CD));
+  o.push(R(28, 30, 2, 1, CD));                                     // 뚜껑
+  o.push(R(33, 33, 6, 4, WT), R(33, 33, 6, 1, WH), R(33, 34, 1, 3, WD));
+  // 아래 — 붉은 소쿠리 둘
+  o.push(R(26, 41, 5, 3, '#8f4038'), R(26, 41, 5, 1, '#a8544a'));
+  o.push(R(33, 41, 5, 3, '#8f4038'), R(33, 41, 5, 1, '#a8544a'));
+  return o;
+}
+
+// ── 빗자루 — 벽에 기대 세움. x39~45, y27~50 ───────────────────────────
+function broom() {
+  const o = [];
+  for (let k = 0; k <= 22; k++) o.push(R(42 - Math.floor(k / 8), 27 + k, 2, 1, k < 2 ? WH : WM));
+  o.push(R(40, 27, 1, 2, WD));
+  o.push(R(39, 44, 6, 6, '#8a6a3c'), R(39, 44, 6, 1, '#a68450'));  // 솔
+  for (const x of [40, 42, 44]) o.push(R(x, 46, 1, 4, '#6a4f2c'));
+  o.push(R(39, 50, 6, 1, WX));
+  return o;
+}
+
+// ── 걸이 선반 — 널판 + 매단 조리도구 셋. x47~79, y11~26 ─────────────────
+function rack() {
+  const o = [];
+  o.push(R(47, 12, 32, 1, WH), R(47, 13, 32, 2, WT), R(47, 15, 32, 1, WD)); // 널판
+  o.push(R(47, 16, 32, 1, AO, 0.5));                                        // 밑 그늘
+  // 액자형 나무판(왼쪽)
+  o.push(R(51, 16, 8, 9, WD), R(52, 17, 6, 7, '#a8834e'), R(53, 19, 4, 3, '#6d4f2c'));
+  // 국자(가운데) — 자루 + 주걱
+  o.push(R(64, 16, 1, 5, MM), R(62, 21, 5, 3, MT), R(62, 23, 5, 1, MD));
+  // 냄비(오른쪽)
+  o.push(R(71, 16, 1, 3, MD));
+  o.push(R(69, 19, 7, 5, MM), R(69, 19, 7, 1, MT), R(69, 23, 7, 1, MD));
+  return o;
+}
+
+// ── 작업대 — 두꺼운 상판 + 앞치마 + 다리 넷 + 아래 선반. x45~87 ───────────
+function table() {
+  const o = [];
+  // 상판(평행사변형: 뒷행이 소실점 쪽으로 좁다)
+  o.push(R(48, 38, 36, 1, WH));
+  o.push(R(47, 39, 38, 1, WH));
+  o.push(R(46, 40, 40, 2, WT));
+  o.push(R(45, 42, 42, 1, WM));
+  o.push(R(45, 43, 42, 1, WD));                                   // 상판 두께 밑선
+  o.push(R(46, 44, 40, 2, WM));                                   // 앞치마
+  o.push(R(46, 46, 40, 1, WD));
+  o.push(R(48, 47, 36, 3, AO));                                   // 하부 그늘
+  // 다리 — 앞 둘은 바닥 안(y51)까지, 뒤 둘은 벽·바닥 접점(y50)까지
+  o.push(R(46, 44, 3, 7, WM), R(46, 44, 1, 7, WD));
+  o.push(R(83, 44, 3, 7, WT), R(85, 44, 1, 7, WM));
+  o.push(R(53, 44, 2, 6, WD), R(78, 44, 2, 6, WD));
+  // 아래 선반 + 올려둔 나무통
+  o.push(R(50, 47, 32, 1, WT), R(50, 48, 32, 1, WD));
+  o.push(R(56, 44, 6, 3, WM), R(56, 44, 6, 1, WT));
+  o.push(R(45, 51, 42, 1, WX));                                    // 접지
+  return o;
+}
+
+// ── 붉은 법랑 주전자 — 씬의 유일한 색 앵커(§7). 몸통 2톤 + 뚜껑 + 주둥이 ──
+function pot() {
+  const o = [];
+  const RB = '#b8413c';   // 몸통
+  const RL = '#d15a4a';   // 위쪽(형태 밝음 — 방향 하이라이트 아님)
+  const RD = '#7e2a2a';   // 아래 AO
+  o.push(R(57, 30, 13, 2, RL));
+  o.push(R(56, 32, 15, 4, RB));
+  o.push(R(56, 36, 15, 2, RD));
+  o.push(R(58, 38, 11, 1, WX));                                    // 바닥 접지
+  o.push(R(60, 28, 6, 2, RL), R(61, 27, 4, 1, '#e0705c'));         // 뚜껑
+  o.push(R(62, 26, 2, 1, MD));                                      // 꼭지
+  o.push(R(70, 31, 3, 1, RB), R(71, 32, 2, 3, RB), R(72, 32, 1, 3, RD)); // 주둥이(오른쪽)
+  o.push(R(53, 31, 3, 1, MM), R(53, 32, 1, 4, MM), R(53, 36, 3, 1, MD)); // 손잡이(왼쪽)
+  return o;
+}
+
+// ── 싱크대 — 조리대 + 개수통 + 수도꼭지. x88~126 ───────────────────────
+function sink() {
+  const o = [];
+  o.push(R(90, 34, 35, 1, WH));                                    // 상판
+  o.push(R(89, 35, 37, 2, WT));
+  o.push(R(88, 37, 38, 1, WM));
+  o.push(R(88, 38, 38, 1, WD));
+  o.push(R(89, 39, 36, 10, WM));                                   // 몸통
+  for (const x of [97, 106, 115]) o.push(R(x, 39, 1, 10, WD));     // 문 이음매
+  o.push(R(89, 39, 1, 10, WD), R(124, 39, 1, 10, WT));
+  o.push(R(90, 49, 34, 2, AO));                                     // 발치 그늘
+  o.push(R(88, 51, 38, 1, WX));
+  // 개수통 — 상판에 파인 자리
+  o.push(R(99, 34, 14, 1, MD), R(100, 35, 12, 2, '#4b4e57'));
+  o.push(R(100, 35, 12, 1, MD));
+  // 수도꼭지 — 세로 기둥 + 굽은 목
+  o.push(R(105, 29, 2, 5, MM), R(105, 29, 1, 5, MT));
+  o.push(R(103, 28, 5, 1, MT), R(102, 29, 1, 2, MM), R(102, 31, 1, 1, MD));
+  o.push(R(109, 34, 3, 1, MD));                                     // 손잡이
+  return o;
+}
+
+export const KT_HAND = {
+  'kt-wall': wall(),
+  'kt-floor': floor(),
+  'kt-door': door(),
+  'kt-shelf': shelf(),
+  'kt-broom': broom(),
+  'kt-rack': rack(),
+  'kt-table': table(),
+  'kt-pot': pot(),
+  'kt-sink': sink(),
+};
