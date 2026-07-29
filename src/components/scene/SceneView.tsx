@@ -65,9 +65,12 @@ export function SceneView({ state }: { state: GameState }) {
   const [windowOpen, setWindowOpen] = useState(false);
   const [fireOn, setFireOn] = useState(true);
   const [lampOn, setLampOn] = useState(true);
-  // 침실 몫 — 방마다 창·등이 따로다(거실 창을 열었다고 침실 창이 열리면 이상하다)
+  // 침실 몫 — 방마다 창·등이 따로다(거실 창을 열었다고 침실 창이 열리면 이상하다).
+  // 스탠드와 랩탑 화면은 **따로** 켜고 끈다 — 각자 눌러야 각자 꺼진다.
   const [bedWindowOpen, setBedWindowOpen] = useState(false);
   const [bedLampOn, setBedLampOn] = useState(true);
+  const [bedScreenOn, setBedScreenOn] = useState(true);
+  const [bedFanOn, setBedFanOn] = useState(true);
   const isFocus = state.phase === 'focus';
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
   const sceneId = isFocus ? (action?.sceneId ?? 'free') : 'room';
@@ -149,10 +152,15 @@ export function SceneView({ state }: { state: GameState }) {
   if (!sceneOff.has('lamp')) hotspots.add('lamp');
 
   // 침실 몫 — 창은 늘 누를 수 있고, 스탠드는 사서 놓여 있어야 누를 수 있다
-  const bedState = bedroomSceneFrom(state, now(), bedWindowOpen, bedLampOn);
+  const bedState = bedroomSceneFrom(state, now(), bedWindowOpen, bedLampOn, bedScreenOn);
   const bedOff = hiddenBedroomLayers(state, false);
+  // 선풍기를 눌러 멈추면 날개만 선다(방 전체 애니메이션과 별개)
+  if (!bedFanOn) bedOff.add('anim-fan');
+  // 없는 소품은 누를 수도 없어야 한다
   const bedHotspots = new Set<BedroomHotspotId>(['window']);
   if (!bedOff.has('bd-lamp')) bedHotspots.add('lamp');
+  if (!bedOff.has('bd-laptop')) bedHotspots.add('laptop');
+  if (!bedOff.has('bd-fan')) bedHotspots.add('fan');
 
   const caption = isFocus
     ? tNight(action?.captionId ?? '', tod)
@@ -199,6 +207,8 @@ export function SceneView({ state }: { state: GameState }) {
           onHotspot={(id) => {
             if (id === 'window') setBedWindowOpen((v) => !v);
             else if (id === 'lamp') setBedLampOn((v) => !v);
+            else if (id === 'laptop') setBedScreenOn((v) => !v);
+            else if (id === 'fan') setBedFanOn((v) => !v);
           }}
         />
       ) : null}

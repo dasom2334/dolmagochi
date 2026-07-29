@@ -14,6 +14,7 @@ const base = {
   items: {},
   supplies: {},
   supplyVariants: {},
+  stats: { affection: 0 },
   session: { wetness: null, supply: null },
   weather: 'clear',
   settings: { timeOfDay: 'day', season: 'summer' },
@@ -162,16 +163,45 @@ describe('하늘은 거실과 같은 표를 쓴다', () => {
   });
 });
 
-describe('씬 조작(창·작업등)은 인자로 들어온다', () => {
-  it('기본은 닫힌 창 + 켠 등', () => {
+describe('벽의 액자 — 호감도 7등분', () => {
+  const framesAt = (affection: number) =>
+    bedroomSceneFrom({ ...base, stats: { affection } } as unknown as GameState, 0).frames;
+
+  it('호감도 0이면 한 장도 없다 — 아직 쌓인 추억이 없다', () => {
+    expect(framesAt(0)).toBe(0);
+  });
+
+  it('한 칸(100/7≈14.3%)마다 한 장씩 늘어난다', () => {
+    expect(framesAt(14)).toBe(0);
+    expect(framesAt(15)).toBe(1);
+    expect(framesAt(50)).toBe(3);
+    expect(framesAt(99)).toBe(6);
+  });
+
+  it('가득 차면 7장에서 멈춘다 (그림이 7장뿐)', () => {
+    expect(framesAt(100)).toBe(7);
+    expect(framesAt(200)).toBe(7);
+  });
+});
+
+describe('씬 조작(창·스탠드·화면)은 인자로 들어온다', () => {
+  it('기본은 닫힌 창 + 켠 스탠드 + 켠 화면', () => {
     const s = bedroomSceneFrom(base, 0);
     expect(s.window).toBe('closed');
     expect(s.lamp).toBe('on');
+    expect(s.screen).toBe('on');
   });
 
-  it('열림·끔이 그대로 실린다', () => {
-    const s = bedroomSceneFrom(base, 0, true, false);
-    expect(s.window).toBe('open');
-    expect(s.lamp).toBe('off');
+  it('스탠드와 화면은 따로 꺼진다 — 하나를 꺼도 다른 하나는 남는다', () => {
+    const lampOff = bedroomSceneFrom(base, 0, false, false, true);
+    expect(lampOff.lamp).toBe('off');
+    expect(lampOff.screen).toBe('on');
+    const screenOff = bedroomSceneFrom(base, 0, false, true, false);
+    expect(screenOff.lamp).toBe('on');
+    expect(screenOff.screen).toBe('off');
+  });
+
+  it('열림이 그대로 실린다', () => {
+    expect(bedroomSceneFrom(base, 0, true).window).toBe('open');
   });
 });

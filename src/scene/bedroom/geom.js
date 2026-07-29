@@ -6,7 +6,7 @@
 const R = (x, y, w, h, c, a) => (a == null ? [x, y, w, h, c] : [x, y, w, h, c, a]);
 
 // ── 돌 — 거실에서 생성한 돌 그대로(ball/rim, 팔레트 슬롯 --o0..o4/--wl) ──
-import { ball, rim, stoneRows, STONE_ASPECT, h2, emitRows } from '../livingroom/generate.js';
+import { ball, rim, rimSide, stoneRows, STONE_ASPECT, h2, emitRows } from '../livingroom/generate.js';
 
 // ── 러그 — 거실 절차 러그와 **같은 방식**(무광원 팔레트 슬롯 + 무늬)으로 생성한다.
 // 추출 러그(레퍼런스)는 창햇빛이 대각선으로 **구워져** 있어 디라이팅으로도 안 지워졌다.
@@ -45,9 +45,11 @@ export function bedroomRug(opts = {}) {
   return emitRows(out);
 }
 
+// 침실 창은 **왼쪽**(유리 x22~54, 중심 38)이라, 창보다 오른쪽에 앉은 돌(러그·침대)은
+// 왼쪽 모서리가 빛난다. 의자(x34)는 창 안쪽이라 오른쪽 빛 그대로다 — rimSide 가 가른다.
 const orbAt = (cx, baseY, w) => {
   const rows = stoneRows(cx, baseY, w, Math.round(w / STONE_ASPECT));
-  return { base: ball(rows), rim: rim(rows) };
+  return { base: ball(rows), rim: rim(rows, rimSide(WIN_CX, cx)) };
 };
 // 3자리 — 작업=의자 / 누워있기+침대=침대 / 침대없음=러그.
 // 원근: 뒷벽 깊이(의자·침대)는 w11 로 같고, 앞쪽 러그만 w14 로 크다.
@@ -206,38 +208,93 @@ export function screenGlowArt() {
 // 거실 풍경(산 능선·해 x58)은 침실 창(유리 x22~54)과 안 맞아 따로 만든다.
 // 하늘은 거실 슬롯(--k0..9), 나무는 거실 나무 슬롯(--t0..2) — 시간·계절 팔레트를 따라간다.
 export function bedroomScenery() {
-  const cells = [];
-  // 나무 캐노피 — 레퍼런스처럼 **둥근 뭉게 수풀**(로브 원 합집합).
-  // 능선(하늘과 맞닿는 줄)은 --t2 하이라이트, 몸통 --t1, 아래로 갈수록 --t0 그늘.
-  // (밋밋한 노이즈 띠 1판은 예쁘지 않았다 — 지적 반영)
-  const lobes = [];
-  for (let i = 0; i < 17; i++) {
-    lobes.push([i * 8 + (h2(i, 0, 310) % 5) - 2,
-                23 + (h2(i, 1, 311) % 4),
-                5 + (h2(i, 2, 312) % 3)]);
-  }
-  const solid = (x, y) => {
-    if (y >= 29) return true;
-    for (const [cx, cy, r] of lobes) {
-      const dx = x - cx, dy = (y - cy) * 1.25;
-      if (dx * dx + dy * dy <= r * r) return true;
-    }
-    return false;
-  };
-  for (let y = 0; y < 49; y++)
-    for (let x = 0; x < 128; x++) {
-      if (!solid(x, y)) {
-        const s = Math.max(0, Math.min(9, Math.round((y - 3) / 2.2)));
-        cells.push([y, x, `--k${s}`]);
-      } else if (!solid(x, y - 1)) cells.push([y, x, '--t2']);
-      else {
-        const r = h2(x, y, 301);
-        cells.push([y, x, y > 31 ? (r < 55 ? '--t0' : '--t1')
-                                 : (r < 10 ? '--t0' : r > 88 ? '--t2' : '--t1')]);
+  // 창밖 — 침실 레퍼런스(reference/bedroom/times/day.png)의 창처럼 **단순하게**.
+  //   밝은 하늘 / 통통한 흰 구름 / 아래쪽 둥근 수풀. 그게 전부다.
+  //   창은 33x25 뿐이라 원경을 겹겹이 넣으면 전부 뭉갠다 — 요소를 줄이고 크게 그린다.
+  //
+  // 자리는 **손으로 잡았다**(노이즈 아님) — 창(x22~54, y7~31) 안에 구름 둘과
+  // 수풀 능선이 보기 좋게 걸리도록. 색은 팔레트 슬롯이라 사계절·시간대가 따라온다.
+  const W = 128, H = 49;
+  const cell = new Map();
+  const put = (x, y, c) => { if (x >= 0 && x < W && y >= 0 && y < H) cell.set(y * 1000 + x, c); };
+  const disc = (cx, cy, r, f) => {
+    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++)
+      for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) {
+        const dx = x - cx, dy = (y - cy) * 1.35;      // 가로로 납작한 원 = 뭉게구름·수풀
+        if (dx * dx + dy * dy <= r * r) f(x, y);
       }
+  };
+
+  // ── 하늘 — 위가 짙고 아래로 옅어진다
+  for (let y = 0; y < H; y++) {
+    const s = Math.max(0, Math.min(9, Math.round((y - 1) / 2.6)));
+    for (let x = 0; x < W; x++) put(x, y, `--k${s}`);
+  }
+
+  // ── 구름 — 덩이마다 원 셋을 겹쳐 통통하게. 밑면은 한 단계 어둡게 둬 부피를 준다.
+  //    창 안(x22~54)에 큰 것 하나 + 작은 것 하나가 걸리도록 자리를 잡았다.
+  const CLOUDS = [
+    [[27, 12, 4], [31, 11, 3], [24, 13, 3]],          // 창 왼쪽 — 주인공
+    [[46, 9, 3], [49, 9, 2]],                          // 창 오른쪽 — 작게
+    [[74, 14, 4], [78, 13, 3]], [[108, 10, 3], [111, 11, 2]], [[8, 16, 3], [11, 15, 2]],
+  ];
+  for (const lobes of CLOUDS) {
+    for (const [cx, cy, r] of lobes) disc(cx, cy, r, (x, y) => put(x, y, '--k9'));
+    for (const [cx, cy, r] of lobes) disc(cx, cy, r, (x, y) => {
+      if (!cell.has((y + 1) * 1000 + x) || cell.get((y + 1) * 1000 + x) !== '--k9') return;
+    });
+    // 밑그늘 — 덩이의 가장 아랫줄만 한 단계 어둡게
+    for (const [cx, cy, r] of lobes) {
+      const yb = Math.round(cy + r / 1.35);
+      for (let x = Math.round(cx - r); x <= Math.round(cx + r); x++)
+        if (cell.get(yb * 1000 + x) === '--k9') put(x, yb, '--k7');
     }
+  }
+
+  // ── 산맥 — **거실과 같은 색 배치**(livingroom/scene/generate.js synth).
+  //    거실은 능선도, 능선 위 침엽수림도 전부 --h 계열이다. --t(나무 슬롯)는
+  //    창밖에 심은 나무에만 쓴다 — 그래서 창 밑이 계절 잎 색으로 물들지 않는다.
+  //    각 산맥 = 단색 실루엣 + 자기 능선 1px 밝은 림. 경계에 디더는 섞지 않는다
+  //    (얼룩으로 읽힌다). 뒤에서 앞으로 --h3 → --h2 → --h1 → --h0.
+  const ramp = (pts, x) => {
+    for (let i = 1; i < pts.length; i++)
+      if (x <= pts[i][0]) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+        return y0 + (y1 - y0) * ((x - x0) / (x1 - x0));
+      }
+    return pts[pts.length - 1][1];
+  };
+  const vn = (x, y, salt) => h2(x, y, salt) % 100;
+  const FAR  = [[-16,22],[10,20],[26,23],[40,21],[56,23],[72,21],[90,23],[110,21],[128,22]];
+  const MID  = [[-16,26],[14,24],[30,27],[46,25],[62,27],[78,25],[96,27],[112,25],[128,26]];
+  const NEAR = [[-16,30],[12,29],[28,31],[44,29],[60,31],[76,29],[94,31],[110,29],[128,30]];
+  for (let x = 0; x < W; x++) {
+    const rf = Math.round(ramp(FAR, x)), rm = Math.round(ramp(MID, x)), rn = Math.round(ramp(NEAR, x));
+    for (let y = rf; y < H; y++) {
+      let slot;
+      if (y >= rn) {
+        slot = y === rn ? '--h1' : (y > 36 ? '--h0' : (vn(x, y, 80) < 26 ? '--h1' : '--h0'));
+      } else if (y >= rm) {
+        if (y === rm) slot = '--h2';
+        else if (y === rn - 1 && vn(x, 0, 70) < 34) slot = '--h0';      // 능선 위 침엽수림
+        else if (y === rn - 2 && vn(x, 0, 71) < 13) slot = '--h0';
+        else slot = vn(x, y, 81) < 22 ? '--h2' : '--h1';
+      } else {
+        if (y <= rf + 1) slot = '--h3';
+        else if (y === rm - 1 && vn(x, 0, 72) < 30) slot = '--h1';
+        else if (y === rm - 2 && vn(x, 0, 73) < 11) slot = '--h1';
+        else slot = vn(x, y, 82) < 24 ? '--h3' : '--h2';
+      }
+      put(x, y, slot);
+    }
+  }
+
+  const cells = [...cell].map(([k, c]) => [Math.floor(k / 1000), k % 1000, c]);
   return emitRows(cells);
 }
+
+
+
 // 해·달 — **왼쪽 위 유리판**(중심 x29 y13, 유리 22..36×7..17). 렌더가 시간으로 가른다.
 export const BD_SUN = [
   R(25, 10, 9, 7, '#ffdf8a', 0.12), R(27, 11, 5, 5, '#ffe9a8', 0.2),

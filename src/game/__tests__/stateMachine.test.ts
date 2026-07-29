@@ -775,7 +775,12 @@ describe('상점 — 구매 ≠ 배치', () => {
   });
 
   it('배치 결정 전에는 다음 구매가 막힌다 (pendingPlacement 덮어쓰기 방지)', () => {
-    let s = run(richRest(), [{ type: 'BUY', itemId: 'plant', nowMs: T0 }]);
+    // 탄산음료는 책상이 있어야 살 수 있다(선행 조건) — 여기서 보려는 건 그게 아니라
+    // pendingPlacement 라, 책상은 미리 갖춘 상태에서 본다
+    const base = richRest();
+    let s = run({ ...base, items: { ...base.items, desk: { placed: true } } }, [
+      { type: 'BUY', itemId: 'plant', nowMs: T0 },
+    ]);
     expect(s.pendingPlacement).toBe('plant');
     // 배치 결정 전 두 번째 구매 시도 → 무시 (plant 결정이 유지됨)
     const blocked = run(s, [{ type: 'BUY', itemId: 'soda', nowMs: T0 }]);
@@ -788,6 +793,18 @@ describe('상점 — 구매 ≠ 배치', () => {
     ]);
     expect(s.pendingPlacement).toBe('soda');
     expect(s.items['plant']).toEqual({ placed: true });
+  });
+
+  it('탄산음료는 책상이 있어야 산다 — 책상 위에 놓이는 물건이라', () => {
+    const base = richRest();
+    // 책상이 없으면 구매가 무시된다
+    const blocked = run(base, [{ type: 'BUY', itemId: 'soda', nowMs: T0 }]);
+    expect('soda' in blocked.items).toBe(false);
+    // 책상이 있으면 살 수 있다
+    const ok = run({ ...base, items: { ...base.items, desk: { placed: true } } }, [
+      { type: 'BUY', itemId: 'soda', nowMs: T0 },
+    ]);
+    expect(ok.pendingPlacement).toBe('soda');
   });
 
   it('중복·잔액 부족·미해금은 무시', () => {

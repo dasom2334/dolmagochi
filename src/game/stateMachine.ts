@@ -215,6 +215,29 @@ export function weathersOfSeason(season: string): GameState['weather'][] {
   );
 }
 
+/** 계절 전용 날씨 — 계절마다 딱 하나씩 짝이 있다.
+ *  봄 꽃잎비 / 여름 풀잎비 / 가을 낙엽비 / 겨울 눈.
+ *  넷은 "하늘에서 뭔가 흩날린다"는 같은 자리의 다른 이름이라, 계절이 바뀌면
+ *  그 계절의 것으로 갈아 끼운다 — 봄에 눈이 계속 내리거나 겨울에 꽃잎이
+ *  날리는 대신, 계절에 맞는 것이 이어서 내린다. */
+const SEASONAL_WEATHER = ['petals', 'grass', 'leaves', 'snow'] as const;
+const SEASONAL_OF_SEASON: Record<string, GameState['weather']> = {
+  spring: 'petals',
+  summer: 'grass',
+  autumn: 'leaves',
+  winter: 'snow',
+};
+/** 계절이 바뀌어도 이어갈 날씨.
+ *  계절 전용 날씨는 그 계절의 짝으로 갈아 끼우고, 그 밖(맑음·비·장대비·흐림)은
+ *  계절을 안 타므로 그대로 둔다. */
+export function carryWeather(
+  weather: GameState['weather'],
+  season: string,
+): GameState['weather'] {
+  if (!(SEASONAL_WEATHER as readonly string[]).includes(weather)) return weather;
+  return SEASONAL_OF_SEASON[season] ?? weather;
+}
+
 /** 자연 날씨 추첨 (M12) — 달력일당 1회, 계절별 가중 확률표 */
 function rollWeather(season: string, rng: Rng): GameState['weather'] {
   const table = BALANCE.WEATHER_BY_SEASON[season] ?? [['clear', 1]];
@@ -2491,16 +2514,17 @@ function reduce(
     }
 
     case 'SET_SEASON': {
-      // 계절 고정/자동 (M12) — 바뀐 계절에 현재 날씨가 무효면 그 계절 날씨로 재추첨.
-      // 집중 중 금지 (M22): 이 재추첨이 날씨를 갈아끼우므로, 마른 날 시작한 산책이
-      // 도중에 눈·비로 바뀌어 우산도 못 쓴 채 젖는 모순이 생긴다. SET_WEATHER와
-      // 같은 게이트를 쓴다 — 바깥 조건은 세션이 시작될 때 정해진다.
+      // 계절 고정/자동 (M12) — **날씨는 그대로 이어간다**.
+      // 예전엔 새 계절에 없는 날씨면 재추첨했는데, 확률표가 맑음에 가중돼 있어
+      // 계절만 바꿔 보려던 사람의 비·눈이 맑음으로 지워졌다. 계절을 바꾼 것이지
+      // 날씨를 바꾼 게 아니다.
+      // 집중 중 금지 (M22): 마른 날 시작한 산책이 도중에 눈·비로 바뀌어 우산도
+      // 못 쓴 채 젖는 모순을 막는다. SET_WEATHER와 같은 게이트 — 바깥 조건은
+      // 세션이 시작될 때 정해진다.
       if (state.phase !== 'rest' && state.phase !== 'actionSelect') return state;
       const settings = { ...state.settings, season: event.mode };
       const season = resolveSeason(settings, event.nowMs);
-      const weather = weathersOfSeason(season).includes(state.weather)
-        ? state.weather
-        : rollWeather(season, rng);
+      const weather = carryWeather(state.weather, season);
       // 날씨와 같이 전환을 나레이션한다 (M22) — 분위기 축은 전부 말이 붙는다
       return {
         ...state,

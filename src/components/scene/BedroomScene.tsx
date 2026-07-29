@@ -14,10 +14,12 @@ const GY = 72;
 
 /** 눌러서 반응하는 자리. 좌표는 씬 그룹의 bbox 를 잰 값이다.
  *  씬 지오메트리가 바뀌면 여기도 어긋나므로, 그룹을 옮기면 같이 고쳐야 한다. */
-export type BedroomHotspotId = 'window' | 'lamp';
+export type BedroomHotspotId = 'window' | 'lamp' | 'laptop' | 'fan';
 const HOTSPOTS: Record<BedroomHotspotId, { x: number; y: number; w: number; h: number }> = {
-  window: { x: 22, y: 7, w: 33, h: 25 },  // 유리 개구부 (glass.js BD_GLASS 의 외곽)
-  lamp: { x: 49, y: 21, w: 7, h: 14 },    // 책상 스탠드 (geom.js lampArt: 갓~받침)
+  window: { x: 22, y: 7, w: 33, h: 25 },   // 유리 개구부 (glass.js BD_GLASS 의 외곽)
+  lamp: { x: 49, y: 21, w: 7, h: 14 },     // 책상 스탠드 (geom.js lampArt: 갓~받침)
+  laptop: { x: 29, y: 26, w: 19, h: 10 },  // 랩탑 (geom-art-v3 laptop: 패널~데크)
+  fan: { x: 116, y: 29, w: 12, h: 23 },    // 선풍기 (그릴~받침)
 };
 
 /** 클릭 좌표 → 눌린 자리. 캔버스는 CSS 로 확대돼 있으니 화면 크기로 나눈다 */

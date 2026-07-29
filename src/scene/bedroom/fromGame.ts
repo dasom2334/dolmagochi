@@ -19,6 +19,7 @@ export function bedroomSceneFrom(
   /** 창문 열림·작업등 — 게임 축이 아니라 씬 조작(클릭 토글). SceneView 가 들고 있다 */
   windowOpen = false,
   lampOn = true,
+  screenOn = true,
 ): BedroomSceneState {
   const tod = resolveTimeOfDay(state.settings, nowMs);
   return {
@@ -27,9 +28,21 @@ export function bedroomSceneFrom(
     weather: WEATHER[state.weather] ?? 'clear',
     orb: orbSpotOf(state),
     lamp: lampOn ? 'on' : 'off',
+    screen: screenOn ? 'on' : 'off',
+    frames: framesOf(state),
     drink: drinkOf(state),
     window: windowOpen ? 'open' : 'closed',
   };
+}
+
+/** 벽에 걸린 액자 수 — **호감도 100% 를 7등분**해 한 칸 오를 때마다 한 장 걸린다.
+ *  액자 그림은 돌과의 추억이라(볕 쬐는 돌, 두 돌, 창가의 돌 …) 사이가 깊어질수록
+ *  벽이 채워지는 게 맞다. 게임에도 AFFECTION_TIERS 7단계가 있지만 간격이 고르지
+ *  않아(0/6/23/43/61/78/95) 그대로 쓰면 초반에 몰린다 — 균등 7등분으로 간다. */
+const FRAME_COUNT = 7;
+function framesOf(state: GameState): number {
+  const a = Math.max(0, Math.min(100, state.stats?.affection ?? 0));
+  return Math.min(FRAME_COUNT, Math.floor((a / 100) * FRAME_COUNT));
 }
 
 /** 책상 위 카페인 — 소모품 '잠 깨는 것'(caffeine)의 **이번 종류**가 그림을 정한다.
