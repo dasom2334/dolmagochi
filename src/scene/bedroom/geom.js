@@ -251,36 +251,30 @@ export function bedroomScenery() {
     }
   }
 
-  // ── 먼 언덕 — 수풀 뒤로 한 겹. 부드러운 호(弧)라 능선이 두 층으로 읽힌다.
-  for (let x = 0; x < W; x++) {
-    const t = 25 - Math.round(3 * Math.sin((x + 18) / 26)) - Math.round(1.5 * Math.sin(x / 7));
-    for (let y = t; y < H; y++) put(x, y, y === t ? '--h3' : '--h2');
-  }
-
-  // ── 수풀 — 둥근 덩이를 겹쳐 만든 나무 띠. 능선 한 줄은 밝게(빛 받는 면).
-  const BUSH = [];
-  for (let i = 0; i < 22; i++) {
-    const cx = i * 6 - 2 + ((i * 37) % 5) - 2;
-    BUSH.push([cx, 30 + ((i * 53) % 4), 4 + ((i * 29) % 3)]);
-  }
-  const inLobe = (x, y) => BUSH.some(([cx, cy, r]) => {
-    const dx = x - cx, dy = (y - cy) * 1.15;
-    return dx * dx + dy * dy <= r * r;
-  });
-  // 제일 앞의 **땅**은 하늘과 같은 배경 그라디언트(--k)를 쓴다 — 나무색(--t)도
-  // 언덕색(--h)도 아니다. 땅이 제 색을 가지면 작은 창에서 초록 덩어리가 하나 더
-  // 늘어 시선을 뺏는다. 배경으로 묻어 두고, 수풀만 실루엣으로 떠오르게 한다.
-  const GROUND_Y = 34;
-  for (let y = GROUND_Y; y < H; y++) {
-    const s = Math.max(0, Math.min(9, Math.round((y - 1) / 2.6)));
-    for (let x = 0; x < W; x++) put(x, y, `--k${s}`);
-  }
-  // 수풀 덩이만 나무색 — 능선 한 줄은 밝게(빛 받는 면)
-  for (let y = 22; y < H; y++)
+  // ── 언덕 — **거실과 같은 방식**. 거실은 창 아래쪽을 언덕(--h)이 채운다.
+  //    여기만 수풀 덩이(--t)로 채웠더니 창 밑이 통째로 나무색이었다.
+  //    뒤(밝은 --h3)에서 앞(어두운 --h0)으로 세 겹, 창 밑변까지 내려온다.
+  const HILLS = [
+    [24, 3.0, 26, 18, '--h3'],   // 먼 능선 — 가장 밝다
+    [27, 2.4, 17, 41, '--h2'],
+    [31, 1.8, 11, 63, '--h1'],   // 앞 능선 — 창 밑변(y31)에 걸린다
+  ];
+  for (const [base, amp, period, phase, slot] of HILLS)
     for (let x = 0; x < W; x++) {
-      if (!inLobe(x, y)) continue;
-      put(x, y, !inLobe(x, y - 1) ? '--t2' : '--t1');
+      const t = Math.round(base - amp * Math.sin((x + phase) / period) - amp * 0.4 * Math.sin(x / 5.5));
+      for (let y = t; y < H; y++) put(x, y, slot);
     }
+  // 창 밑변 아래는 가장 어두운 땅 — 창으로는 거의 안 보이지만 이어져 있어야 한다
+  for (let y = 33; y < H; y++) for (let x = 0; x < W; x++) put(x, y, '--h0');
+
+  // ── 나무 — 언덕 위에 **점점이** 선 실루엣. 덩어리로 깔지 않는다(창을 다 먹는다).
+  //    계절 잎 색(--t2/--t1)이라 봄엔 분홍, 가을엔 주황으로 물든다.
+  const TREES = [[26, 27, 2], [31, 26, 3], [45, 25, 2], [50, 27, 3],
+                 [8, 26, 3], [70, 28, 3], [88, 26, 2], [110, 27, 3]];
+  for (const [cx, cy, r] of TREES) {
+    disc(cx, cy, r, (x, y) => put(x, y, '--t1'));
+    disc(cx, cy - 0.6, r * 0.7, (x, y) => put(x, y, '--t2'));   // 빛 받는 윗면
+  }
 
   const cells = [...cell].map(([k, c]) => [Math.floor(k / 1000), k % 1000, c]);
   return emitRows(cells);
