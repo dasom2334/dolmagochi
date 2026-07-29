@@ -208,38 +208,61 @@ export function screenGlowArt() {
 // 거실 풍경(산 능선·해 x58)은 침실 창(유리 x22~54)과 안 맞아 따로 만든다.
 // 하늘은 거실 슬롯(--k0..9), 나무는 거실 나무 슬롯(--t0..2) — 시간·계절 팔레트를 따라간다.
 export function bedroomScenery() {
-  const cells = [];
-  // 나무 캐노피 — 레퍼런스처럼 **둥근 뭉게 수풀**(로브 원 합집합).
-  // 능선(하늘과 맞닿는 줄)은 --t2 하이라이트, 몸통 --t1, 아래로 갈수록 --t0 그늘.
-  // (밋밋한 노이즈 띠 1판은 예쁘지 않았다 — 지적 반영)
-  const lobes = [];
-  for (let i = 0; i < 17; i++) {
-    lobes.push([i * 8 + (h2(i, 0, 310) % 5) - 2,
-                23 + (h2(i, 1, 311) % 4),
-                5 + (h2(i, 2, 312) % 3)]);
+  // 레퍼런스: reference/backgrounds/02-workroom-window-moon-hd.png
+  //   달 뜬 밤하늘 → 겹겹이 물러나는 능선 → 어두운 숲 → 침엽수 한 그루.
+  //   창(x22~54, y7~31)으로만 보이므로 좋은 부분이 그 안에 들어오게 배치한다.
+  //
+  // 색은 전부 팔레트 슬롯이라 **사계절·시간대가 저절로 따라온다**:
+  //   --k0..k9 하늘 / --h3(먼 산, 가장 밝음) → --h0(가까운 산, 가장 어두움)
+  //   --t0..t2 나무. 봄 분홍·여름 초록·가을 주황·겨울 설산이 팔레트에 이미 있다.
+  const W = 128, H = 49;
+  const cell = new Map();
+  const put = (x, y, c) => { if (x >= 0 && x < W && y >= 0 && y < H) cell.set(y * 1000 + x, c); };
+
+  // ── 하늘 — 위가 짙고 아래로 옅어진다
+  for (let y = 0; y < H; y++) {
+    const s = Math.max(0, Math.min(9, Math.round((y - 2) / 2.4)));
+    for (let x = 0; x < W; x++) put(x, y, `--k${s}`);
   }
-  const solid = (x, y) => {
-    if (y >= 29) return true;
-    for (const [cx, cy, r] of lobes) {
-      const dx = x - cx, dy = (y - cy) * 1.25;
-      if (dx * dx + dy * dy <= r * r) return true;
+
+  // ── 능선 — 먼 것부터 겹쳐 그린다. 뒤일수록 높고 밝다(대기 원근).
+  //    두 주기를 겹쳐 봉우리가 규칙적으로 안 보이게 한다.
+  const RIDGES = [
+    [23, 5.5, 23, 0.41, '--h3', '--k9', 401],   // 먼 산 — 가장 밝고, 능선에 옅은 안개
+    [27, 4.5, 17, 0.37, '--h2', '--h3', 402],   // 중간
+    [31, 3.5, 11, 0.33, '--h1', '--h2', 403],   // 앞
+  ];
+  for (const [base, amp, period, sub, body, crest, salt] of RIDGES) {
+    for (let x = 0; x < W; x++) {
+      const a = Math.sin((x / period) * Math.PI * 2 + (h2(salt, 0, 7) % 12) / 4);
+      const b = Math.sin((x / (period * sub)) * Math.PI * 2 + 1.1);
+      const yTop = Math.round(base - amp * (0.68 * a + 0.32 * b));
+      for (let y = yTop; y < H; y++) put(x, y, body);
+      put(x, yTop, crest);              // 능선 한 줄만 밝게 — 빛 받는 등성이
     }
-    return false;
-  };
-  for (let y = 0; y < 49; y++)
-    for (let x = 0; x < 128; x++) {
-      if (!solid(x, y)) {
-        const s = Math.max(0, Math.min(9, Math.round((y - 3) / 2.2)));
-        cells.push([y, x, `--k${s}`]);
-      } else if (!solid(x, y - 1)) cells.push([y, x, '--t2']);
-      else {
-        const r = h2(x, y, 301);
-        cells.push([y, x, y > 31 ? (r < 55 ? '--t0' : '--t1')
-                                 : (r < 10 ? '--t0' : r > 88 ? '--t2' : '--t1')]);
-      }
-    }
+  }
+
+  // ── 숲 — 능선 앞의 어두운 띠. 톱니로 나무 끝을 만든다.
+  for (let x = 0; x < W; x++) {
+    const t = 34 + (h2(x, 0, 404) % 3) - (h2(x, 1, 405) % 2);
+    for (let y = t; y < H; y++) put(x, y, h2(x, y, 406) < 30 ? '--t1' : '--t0');
+  }
+
+  // ── 침엽수 한 그루 — 레퍼런스처럼 오른쪽에 우뚝. 창 오른쪽 판(x46~52)에 들어온다.
+  //    폭이 아래로 넓어지는 삼각형 + 가운데 줄기.
+  const TX = 48, TTOP = 17, TBOT = 36;
+  for (let y = TTOP; y <= TBOT; y++) {
+    const k = (y - TTOP) / (TBOT - TTOP);
+    let hw = Math.round(0.5 + k * 4.5);
+    if ((y - TTOP) % 4 === 3) hw = Math.max(0, hw - 1);   // 가지 사이 잘록한 단
+    for (let x = TX - hw; x <= TX + hw; x++) put(x, y, '--t0');
+  }
+  for (let y = TBOT + 1; y <= TBOT + 2; y++) { put(TX, y, '--t0'); put(TX + 1, y, '--t0'); }
+
+  const cells = [...cell].map(([k, c]) => [Math.floor(k / 1000), k % 1000, c]);
   return emitRows(cells);
 }
+
 // 해·달 — **왼쪽 위 유리판**(중심 x29 y13, 유리 22..36×7..17). 렌더가 시간으로 가른다.
 export const BD_SUN = [
   R(25, 10, 9, 7, '#ffdf8a', 0.12), R(27, 11, 5, 5, '#ffe9a8', 0.2),
