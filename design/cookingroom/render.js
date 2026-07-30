@@ -174,7 +174,7 @@ export function render(cv, state, off = new Set(), t = 0) {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // [6] 발광(emission) — 화구. 주전자를 끄면 함께 꺼진다. 불이라 flicker 를 준다.
+  // [6] 발광(emission) — 화구. 냄비를 끄면 함께 꺼진다. 불이라 flicker 를 준다.
   //     **시간대로 세기가 갈린다** — 대낮에 창빛과 같이 세면 전구로 읽힌다.
   //     밤엔 방 안에 이것 말고 광원이 없으니 주역이 된다.
   const STOVE_K = { day: 0.45, sunset: 0.8, night: 1.25 };
@@ -183,7 +183,7 @@ export function render(cv, state, off = new Set(), t = 0) {
     const ft = off.has('anim') ? null : t;
     ctx.globalCompositeOperation = 'lighter';
     paint(ctx, stoveGlowArt(gk, ft), pal);
-    paint(ctx, potUnderglow(gk, ft), pal);   // 주전자 아랫배 — 없으면 밤에 평평하다
+    paint(ctx, potUnderglow(gk, ft), pal);   // 냄비 아랫배 — 없으면 밤에 평평하다
     ctx.globalCompositeOperation = 'source-over';
   }
 
