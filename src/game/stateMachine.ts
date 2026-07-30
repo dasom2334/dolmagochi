@@ -561,14 +561,22 @@ function absentReflectionLine(
 /**
  * 1차 토큰 게이트 (개정 v4-9/10): 함께 겪었어야 할 것들 — 행동 전종(병간호 제외,
  * 위기 아크는 7티어 게이트가 보장) + 첫 선택 + 첫 구매 + 개인작업 목격.
- * 전부 분기 내 상시 획득 가능한 것만 — 퇴화 플레이 차단용, 페이싱 영향 0.
+ * 전부 **분기 내 상시 획득 가능한 것만** — 퇴화 플레이 차단용, 페이싱 영향 0.
+ *
+ * 'free'(자유행동)는 제외한다. 위임(피드백2) 이후 자유행동은 실행되는 세션이
+ * 아니라 디스패처가 됐다 — 돌이 고른 행동이나 작업행동으로 치환되므로 육성기에
+ * 'free' 토큰이 기록되는 경로는 **돌이 부재중일 때뿐**이다. 요구했다가는 엔딩이
+ * 잠수 아크를 기다리는 꼴이 되어 "페이싱 영향 0" 원칙이 깨진다.
+ * 대신 그 자리를 personalWork 가 채운다 — 전종 개수는 그대로 7종이다.
  */
 export function hasEndingTokens(
   memory: GameState['memory'],
   data: GameData,
 ): boolean {
   return (
-    data.actions.every((a) => a.id === 'nurse' || a.id in memory) &&
+    data.actions.every(
+      (a) => a.id === 'nurse' || a.id === 'free' || a.id in memory,
+    ) &&
     'choice' in memory &&
     'personalWork' in memory &&
     Object.keys(memory).some((k) => k.startsWith('buy-'))
