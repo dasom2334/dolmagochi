@@ -43,7 +43,7 @@
 <section class="toggles" id="toggles"></section>
 
 <script type="module">
-  import { render, SHOP_PROPS, GX, GY } from './render.js';
+  import { render, SHOP_PROPS, ROOM_PROPS, GX, GY } from './render.js';
 
   const AXES = [
     ['시안', 'variant', [['b', 'B 손작화'], ['a', 'A 추출'], ['c', 'C 손보정']]],
@@ -64,7 +64,8 @@
     ['달빛 --ml-a', '@--ml-a', 0, 0.6, null],
   ];
   const TOGGLES = [
-    ['소품', SHOP_PROPS.map((id) => [id, id.slice(3)])],
+    ['상품', SHOP_PROPS.map((id) => [id, id.slice(3)])],
+    ['방구조', ROOM_PROPS.map((id) => [id, id.slice(3)])],
     ['광원', [['lp-sun', '창 햇빛'], ['lp-moon', '창 달빛'], ['stove-glow', '화구'],
       ['rim', '역광'], ['shadow', '접지그림자'], ['vignette', '비네트']]],
     ['배경', [['g-wall', '벽'], ['g-floor', '바닥'], ['base-scenery', '창밖'],

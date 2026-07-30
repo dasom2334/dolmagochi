@@ -13,6 +13,7 @@ import { ANIM, GROUP_ANIM, TILE_H } from '../livingroom/scene/anim.js';
 import { KT_ART, KT_GLASS } from './geom-art.js';
 import { KT_HAND } from './geom-art-hand.js';
 import { KT_TOUCH } from './geom-art-touch.js';
+import { KT_ITEMS, KT_ITEMS_Z } from './geom-items.js';
 import { ORB_SPOTS, windowPool, groundShadows, kitchenScenery, stoveGlowArt, steamArt, VIGNETTE_KT,
   FLOOR_Y, KT_SUN, KT_MOON, KT_STARS } from './geom.js';
 
@@ -20,12 +21,14 @@ const GX = 128, GY = 72;
 const groups = generateGroups({});           // 거실 절차 그룹(바닥·구름·날씨 재사용)
 const SCN = kitchenScenery();
 
-// 상점 소품 — 게이팅 대상. 벽·바닥은 방 구조라 제외.
-export const SHOP_PROPS = ['kt-door', 'kt-shelf', 'kt-broom', 'kt-rack', 'kt-pot',
-  'kt-table', 'kt-sink'];
-// z-순서 (뒤→앞)
+// **방 구조** — 상품이 아니라 늘 있는 것(확정). 문·곁선반·걸이선반·작업대·싱크대.
+// 거실 벽난로·침실 책상은 상품이지만 주방은 대응 상품이 없다 → 공짜로 둔다.
+export const ROOM_PROPS = ['kt-door', 'kt-shelf', 'kt-rack', 'kt-table', 'kt-sink'];
+// **상점 소품** — 게이팅 대상. 냄비·빗자루는 방 그림 쪽 레이어를 쓴다(나머지는 KT_ITEMS).
+export const SHOP_PROPS = ['kt-pot', 'kt-broom', ...KT_ITEMS_Z];
+// z-순서 (뒤→앞) — 받침을 먼저, 그 위 물건을 나중에
 const Z_FURNITURE = ['kt-door', 'kt-sink', 'kt-rack', 'kt-shelf', 'kt-broom',
-  'kt-table', 'kt-pot'];
+  'kt-table', 'kt-pot', ...KT_ITEMS_Z];
 
 const ART_OF = { a: KT_ART, b: KT_HAND, c: KT_TOUCH };
 
@@ -131,8 +134,10 @@ export function render(cv, state, off = new Set(), t = 0) {
 
   // [3] 가구 (무광원 알베도 base). 게이팅.
   for (const id of Z_FURNITURE) {
-    if (off.has(id) || !ART[id]) continue;
-    paint(ctx, ART[id], pal);
+    // 방 그림(시안별) 우선, 없으면 상품 그림(시안 공통)
+    const g = ART[id] || KT_ITEMS[id];
+    if (off.has(id) || !g) continue;
+    paint(ctx, g, pal);
   }
   // 김 — 시안 A 는 레퍼런스에 김이 **구워져 있다**(kt-pot 박스 안). 겹쳐 그리면 두 겹이 된다.
   if (variant !== 'a' && !off.has('kt-pot'))

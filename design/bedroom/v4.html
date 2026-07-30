@@ -55,6 +55,8 @@
   <script type="module">
     import { render as renderLiving, SHOP_PROPS as LIVING_SHOP } from '../livingroom/scene/render.js';
     import { render as renderBedroom, SHOP_PROPS as BD_SHOP } from './render.js';
+    import { render as renderKitchen, SHOP_PROPS as KT_SHOP,
+             ROOM_PROPS as KT_ROOM } from '../cookingroom/render.js';
     import { reduceMotion } from '../livingroom/scene/anim.js';
     import { AMBIENT } from '../livingroom/scene/lights.js';
     import { resolve } from '../livingroom/scene/palette.js';
@@ -107,8 +109,46 @@
     cv.addEventListener('pointerup', () => { painting = false; });
     cv.addEventListener('pointerleave', () => { painting = false; });
 
+    // 주방 레이어 한글 이름 — 상품 11종(게임 shop.json)과 방 구조 5종.
+    // 방 구조는 **상품이 아니다**(확정) — 거실 벽난로·침실 책상과 달리 대응 상품이 없다.
+    const KT_NAME = {
+      'kt-pot':'냄비', 'kt-broom':'빗자루', 'kt-shoes':'신발', 'kt-umbrella':'우산',
+      'kt-lunchbox':'도시락', 'kt-teaset':'찻상', 'kt-board':'도마', 'kt-ladle':'국자',
+      'kt-ingredients':'요리재료', 'kt-brush':'솔', 'kt-cleaner':'세척도구',
+      'kt-door':'문', 'kt-shelf':'곁선반', 'kt-rack':'걸이선반', 'kt-table':'작업대', 'kt-sink':'싱크대',
+    };
+    const ktList = (ids) => ids.map((id) => [id, KT_NAME[id] || id.slice(3)]);
+
     // ── 방별 설정 (거실 축·토글은 v3.html 에서 그대로 가져옴) ──
+    // 순서는 게임 rooms.json 과 같다: 주방 → 거실 → 침실.
     const ROOMS = {
+      kitchen: {
+        name: '주방', render: renderKitchen,
+        state: () => ({ time:'day', season:'summer', weather:'clear', orb:'floor',
+                        stove:'on', variant:'b' }),
+        off: () => new Set(),                   // 아트 검수용 — 가득 찬 방으로 시작
+        axes: [
+          ['시안','variant',[['b','B 손작화'],['a','A 추출'],['c','C 손보정']]],
+          ['시간','time',[['day','낮'],['sunset','노을'],['night','밤']]],
+          ['계절','season',[['spring','봄'],['summer','여름'],['autumn','가을'],['winter','겨울']]],
+          ['날씨','weather',[['clear','맑음'],['cloud','구름흐림'],['fog','안개흐림'],
+                            ['rain','비'],['downpour','폭우'],['snow','눈'],['petals','꽃잎·낙엽']]],
+          ['돌','orb',[['none','없음'],['floor','바닥'],['table','작업대'],['door','문 앞']]],
+          ['화구','stove',[['on','켬'],['off','끔']]],
+        ],
+        toggles: [
+          ['색감',[['light-day','낮'],['light-sunset','노을'],['light-night','밤'],
+                  ['light-cloud','구름흐림'],['light-fog','안개흐림'],['light-rain','비'],
+                  ['light-downpour','폭우'],['light-snow','눈'],['light-petals','꽃잎·낙엽']]],
+          ['광원',[['lp-sun','창문 햇빛'],['lp-moon','창문 달빛'],['stove-glow','화구'],
+                  ['rim','역광'],['shadow','접지그림자'],['vignette','비네트']]],
+          ['배경',[['g-wall','벽/창틀'],['g-floor','바닥']]],
+          ['창밖',[['base-scenery','풍경'],['sun','해'],['moon','달'],['stars','별'],['clouds','구름']]],
+          ['상품', ktList(KT_SHOP).concat([['orb','돌']])],
+          ['방구조', ktList(KT_ROOM)],
+          ['효과',[['anim','애니메이션']]],
+        ],
+      },
       living: {
         name: '거실', render: renderLiving,
         state: () => ({ time:'sunset', season:'summer', weather:'clear', orb:'sill', tree:'v1',

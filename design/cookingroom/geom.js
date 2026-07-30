@@ -49,7 +49,11 @@ const SURFACES = [
 const BOUNCE = [[52, 0.10], [53, 0.09], [54, 0.075], [55, 0.06], [56, 0.045], [57, 0.03]];
 const BOUNCE_X = [58, 124];
 // 상판 위에 놓인 물건은 빛을 막는다 — [소품, x0, x1]
-const SURF_OCC = { 'kt-pot': [53, 73], 'kt-sink': [98, 114] };  // 주전자 / 개수통(움푹)
+const SURF_OCC = {
+  'kt-pot': [53, 73], 'kt-sink': [98, 114],          // 주전자 / 개수통(움푹)
+  'kt-board': [46, 53], 'kt-ingredients': [75, 86],  // 작업대 위 상품
+  'kt-cleaner': [89, 96], 'kt-brush': [117, 123],    // 싱크 상판 위 상품
+};
 // 상판에 앉은 돌도 막는다
 const ORB_OCC = { table: [[38, 43, 57, 76]] };
 
@@ -106,7 +110,8 @@ function contact(x0, w, yBase, len, k = 1) {
   }
   return o;
 }
-// 발자국 — [소품, x0, 폭, 길이, 세기]. 여러 개면 다리마다 하나씩.
+// 발자국 — [x0, 폭, 길이, 세기, (밑변 y — 없으면 벽·바닥 접점)]. 여러 개면 다리마다 하나씩.
+// 앞으로 나와 놓인 물건(신발·찻상)은 제 밑변에서 그림자가 시작해야 한다.
 const FEET = {
   'kt-door':  [[8, 18, 2, 0.7]],                       // 문은 벽에 붙어 있어 얕게
   'kt-shelf': [[24, 3, 3, 1], [37, 3, 3, 1], [27, 10, 2, 0.45]],  // 다리 둘 + 밑 그늘
@@ -114,6 +119,10 @@ const FEET = {
   'kt-table': [[46, 4, 3, 1], [53, 3, 3, 0.8], [78, 3, 3, 0.8], [83, 4, 3, 1],
     [49, 30, 2, 0.4]],                                  // 다리 넷 + 상판 밑 넓은 그늘
   'kt-sink':  [[89, 36, 3, 1]],                        // 붙박이 몸통 — 전폭이 맞다
+  // 바닥에 놓이는 상품 — 제 밑변에서 시작한다
+  'kt-shoes': [[12, 6, 2, 0.8, 57], [19, 6, 2, 0.8, 57]],
+  'kt-umbrella': [[5, 5, 2, 0.7, 52]],
+  'kt-teaset': [[89, 4, 3, 1, 64], [103, 4, 3, 1, 64], [88, 20, 2, 0.35, 64]],
 };
 // 벽에 지는 그림자 — 빛이 오른쪽에서 오니 가구 **왼쪽** 벽이 어둡다.
 // 알베도에 굽지 않고 여기서 낸다(§2: 방향 명암은 광원 레이어 몫).
@@ -126,7 +135,8 @@ const WALL_AO = {
 export function groundShadows(off) {
   const s = [];
   for (const [id, feet] of Object.entries(FEET))
-    if (!off.has(id)) for (const [x, w, len, k] of feet) s.push(...contact(x, w, FLOOR_Y - 1, len, k));
+    if (!off.has(id))
+      for (const [x, w, len, k, base] of feet) s.push(...contact(x, w, base ?? FLOOR_Y - 1, len, k));
   for (const [id, bands] of Object.entries(WALL_AO))
     if (!off.has(id)) for (const [x, y, w, h, a] of bands) s.push([x, y, w, h, '#0b0710', a]);
   return s;
