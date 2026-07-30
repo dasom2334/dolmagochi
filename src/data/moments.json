@@ -19,7 +19,7 @@
   {"id": "mo-chore-window", "when": {"action": "chore"}, "summaryId": "rem.mo-chore-window.summary", "revealId": "rem.mo-chore-window.reveal"},
   {"id": "mo-chore-turn", "when": {"action": "chore"}, "summaryId": "rem.mo-chore-turn.summary", "revealId": "rem.mo-chore-turn.reveal"},
   {"id": "mo-free-window", "when": {"action": "personalWork"}, "summaryId": "rem.mo-free-window.summary", "revealId": "rem.mo-free-window.reveal"},
-  {"id": "mo-free-moved", "when": {"action": "personalWork"}, "summaryId": "rem.mo-free-moved.summary", "revealId": "rem.mo-free-moved.reveal"},
+  {"id": "mo-free-moved", "when": {"action": "sun"}, "summaryId": "rem.mo-free-moved.summary", "revealId": "rem.mo-free-moved.reveal"},
   {"id": "mo-fan-breeze", "when": {"placedItems": ["fan"]}, "summaryId": "rem.mo-fan-breeze.summary", "revealId": "rem.mo-fan-breeze.reveal"},
   {"id": "mo-rest-water", "restAct": "water", "summaryId": "rem.mo-rest-water.summary", "revealId": "rem.mo-rest-water.reveal"},
   {"id": "mo-rest-glance", "restAct": "glance", "summaryId": "rem.mo-rest-glance.summary", "revealId": "rem.mo-rest-glance.reveal"},
