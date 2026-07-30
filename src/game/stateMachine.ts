@@ -1978,12 +1978,17 @@ function reduce(
         foreUsed: foreExpires ? next.foreUsed.slice(0, -1) : next.foreUsed,
         phase: 'rest',
         restStep: 'journal',
-        // 병간호 중이면 '병간호하기'로 강제, 회복하면 유효한 기본 행동으로 리셋
+        // 병간호 중이면 '병간호하기'로 강제, 회복하면 유효한 기본 행동으로 리셋.
+        // 위임 전용 행동(돌의 작업)은 세션이 끝나면 '자유행동'으로 되돌린다 —
+        // 그대로 두면 화자가 고른 적 없는 행동이 선택 상태로 남아, 다음 세션이
+        // 돌의 뜻을 묻지 않고 열린다 (카드에도 없어 무엇이 선택됐는지 안 보인다).
         selectedAction: presence.sick
           ? 'nurse'
           : state.presence.sick
             ? 'lie'
-            : next.selectedAction,
+            : action.byDelegate
+              ? 'free'
+              : next.selectedAction,
         care,
         stats,
         presence,

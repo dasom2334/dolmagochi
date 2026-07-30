@@ -86,7 +86,12 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
     expect(get().phase).toBe('actionSelect');
 
     // ── 세션 2: 포섀도 이벤트 → 추억 기록, 자아실현 완성 ──
+    // 작업행동은 세션마다 돌에게 다시 물어야 열린다 — 지난 세션의 선택이
+    // 남아 저절로 또 열리지 않는다(END_FOCUS에서 '자유행동'으로 되돌린다)
+    expect(get().selectedAction).toBe('free');
+    dispatch({ type: 'FREE_DELEGATE' });
     dispatch({ type: 'START_FOCUS', nowMs: now });
+    expect(get().selectedAction).toBe('personalWork');
     focusFor(300);
     expect(get().session.choiceState?.source).toBe('foreshadow');
     dispatch({ type: 'CHOICE_PICKED', optionIndex: 0, nowMs: now });
