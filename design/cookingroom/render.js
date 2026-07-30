@@ -14,8 +14,9 @@ import { KT_ART, KT_GLASS } from './geom-art.js';
 import { KT_HAND } from './geom-art-hand.js';
 import { KT_TOUCH } from './geom-art-touch.js';
 import { KT_ITEMS, KT_ITEMS_Z } from './geom-items.js';
-import { ORB_SPOTS, windowPool, groundShadows, kitchenScenery, stoveGlowArt, potUnderglow,
-  steamArt, VIGNETTE_KT, FLOOR_Y, KT_SUN, KT_MOON, KT_STARS } from './geom.js';
+import { ORB_SPOTS, windowPool, propLight, groundShadows, surfaceShadows, kitchenScenery,
+  stoveGlowArt, potUnderglow, steamArt, VIGNETTE_KT, FLOOR_Y,
+  KT_SUN, KT_MOON, KT_STARS } from './geom.js';
 
 const GX = 128, GY = 72;
 const groups = generateGroups({});           // 거실 절차 그룹(바닥·구름·날씨 재사용)
@@ -139,6 +140,14 @@ export function render(cv, state, off = new Set(), t = 0) {
     if (off.has(id) || !g) continue;
     paint(ctx, g, pal);
   }
+  // [3.2] 상판 위 물건의 접지 그림자 — 받침을 그린 뒤에 얹어야 면에 앉는다.
+  //       바닥 그림자[2.5]와 달리 여기서 내는 이유: 상판은 가구보다 나중에 그려진다.
+  if (!off.has('shadow')) {
+    const shK = state.shadowK ?? 1;
+    ctx.globalCompositeOperation = 'multiply';
+    for (const r of surfaceShadows(off)) { ctx.globalAlpha = r[5] * shK; ctx.fillStyle = r[4]; ctx.fillRect(r[0], r[1], r[2], r[3]); }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
   // 김 — 시안 A 는 레퍼런스에 김이 **구워져 있다**(kt-pot 박스 안). 겹쳐 그리면 두 겹이 된다.
   if (variant !== 'a' && !off.has('kt-pot'))
     paint(ctx, steamArt(!off.has('anim') ? Math.floor(t / 450) % 3 : 0), pal);
@@ -160,8 +169,11 @@ export function render(cv, state, off = new Set(), t = 0) {
       sunUp ? '--wl-a' : '--ml-a', off, state.orb);
     const a = parseFloat(pal[alphaSlot] ?? 0);
     if (a > 0) {
+      // 빔에 선 물건의 창 쪽 면도 같이 밝힌다 — 안 하면 빛 한가운데 선 바구니가
+      // 되레 어두운 실루엣이 된다(차폐물로만 쓰던 시절의 버그).
+      const lit = propLight(sunUp ? '--wl' : '--ml', alphaSlot, off);
       ctx.globalCompositeOperation = 'screen';
-      for (const r of rects) { ctx.globalAlpha = r[5] * a; ctx.fillStyle = slot(pal, r[4]); ctx.fillRect(r[0], r[1], r[2], r[3]); }
+      for (const r of [...rects, ...lit.rects]) { ctx.globalAlpha = r[5] * a; ctx.fillStyle = slot(pal, r[4]); ctx.fillRect(r[0], r[1], r[2], r[3]); }
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     }
   }

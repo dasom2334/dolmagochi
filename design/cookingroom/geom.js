@@ -40,26 +40,36 @@ export const ORB_SPOTS = {
 // 그래서 빛은 **상판 둘**에 얹고, 바닥엔 하드 셰이프 대신 아주 옅은 **반사광(bounce)**
 // 만 깐다 — 바닥이 죽지 않으면서 물리도 안 어긴다.
 const SPREAD = 0.045, SKEW = -0.75;                 // 음수 = 왼쪽으로 흐른다(창이 오른쪽)
-// [y0, y1, 세기, x를 자를 범위(그 수평면이 실제로 있는 구간)]
+
+// [빛이 하나도 안 보이던 이유 — 계산해 보고 알았다]
+// 렌더된 창광 사각형을 뽑아 보니 **1픽셀짜리 14개**가 전부였다. 원인 둘:
+//  (a) **개수통을 차폐물로 넣어 뒀다.** 개수통은 파인 자리(오목)다 — 빛을 막는 게
+//      아니라 빛이 **들어가는** 곳이다. 싱크 상판에 남은 유일한 밝은 구간을 이게 먹었다.
+//  (b) 차폐 목록이 **면을 안 가렸다.** 싱크 위 세척도구가 창턱·작업대 빛까지 잘라냈다.
+//      물건은 제가 놓인 면만 가린다 → 차폐 목록을 면마다 따로 둔다.
+// 그리고 차폐 구간은 물건의 몸이 아니라 **몸 + 왼쪽으로 누운 그림자**다(빛이 오른쪽).
+const SILL_OCC = {};                                          // 창턱엔 아무것도 없다
+const SINK_OCC = {                                            // 싱크 상판 — 개수통은 없다
+  'kt-cleaner': [86, 99], 'kt-sink': [99, 107], 'kt-brush': [114, 123],  // 세척도구/수도꼭지/솔
+};
+const TABLE_OCC = {
+  'kt-pot': [50, 74], 'kt-board': [43, 53], 'kt-ingredients': [72, 86],
+};
+// 수평면 넷. **창턱을 빠뜨리고 있었다** — 창 바로 밑 선반이라 제일 먼저 밝아야 할 자리다.
 const SURFACES = [
-  [34, 37, 1.00, [88, 126]],                        // 싱크 상판 — 창 바로 밑, 제일 밝다
-  [38, 43, 0.80, [45, 87]],                         // 작업대 상판 — 오른쪽 끝만 걸린다
+  { y0: 28, y1: 29, op: 1.00, x: [90, 122], occ: SILL_OCC },   // 창턱
+  { y0: 34, y1: 36, op: 1.00, x: [86, 126], occ: SINK_OCC },   // 싱크 상판(y37 은 앞 모서리)
+  { y0: 38, y1: 41, op: 0.80, x: [45, 87], occ: TABLE_OCC },   // 작업대 상판(y42~ 는 앞 모서리)
 ];
 // 상판 앞으로 넘어간 빛이 바닥에 흩어지는 몫 — 셰이프 없이 옅게(모서리 안 보이게)
 const BOUNCE = [[52, 0.10], [53, 0.09], [54, 0.075], [55, 0.06], [56, 0.045], [57, 0.03]];
 const BOUNCE_X = [58, 124];
-// 상판 위에 놓인 물건은 빛을 막는다 — [소품, x0, x1]
-const SURF_OCC = {
-  'kt-pot': [53, 74], 'kt-sink': [98, 114],          // 냄비(귀까지) / 개수통(움푹)
-  'kt-board': [46, 53], 'kt-ingredients': [75, 86],  // 작업대 위 상품
-  'kt-cleaner': [89, 96], 'kt-brush': [117, 123],    // 싱크 상판 위 상품
-};
-// 상판에 앉은 돌도 막는다
+// 상판에 앉은 돌도 막는다 (작업대 면에만)
 const ORB_OCC = { table: [[38, 43, 57, 76]] };
 
 export function windowPool(slot, alphaSlot, off = null, orb = null) {
   const out = [];
-  for (const [y0, y1, op, [sx0, sx1]] of SURFACES) {
+  for (const { y0, y1, op, x: [sx0, sx1], occ } of SURFACES) {
     for (let y = y0; y <= y1; y++) {
       const t = y - WIN.SILL;
       const s = 1 + SPREAD * t, sh = SKEW * t;
@@ -67,9 +77,9 @@ export function windowPool(slot, alphaSlot, off = null, orb = null) {
       const b = WIN.CX + (WIN.R - WIN.CX) * s + sh;
       const m0 = WIN.CX + (WIN.MULL - WIN.CX) * s + sh;   // 멀리언(창살) 그림자
       const cuts = [];
-      if (off) for (const [id, [ox0, ox1]] of Object.entries(SURF_OCC))
+      if (off) for (const [id, [ox0, ox1]] of Object.entries(occ))
         if (!off.has(id)) cuts.push([ox0, ox1]);
-      if (orb && ORB_OCC[orb])
+      if (orb && ORB_OCC[orb] && occ === TABLE_OCC)
         for (const [by0, by1, bx0, bx1] of ORB_OCC[orb])
           if (y >= by0 && y <= by1) cuts.push([bx0, bx1]);
       for (const [p0, q0] of [[a, m0 - 1], [m0 + 1, b - 1]]) {
@@ -83,7 +93,16 @@ export function windowPool(slot, alphaSlot, off = null, orb = null) {
           }
           segs = next;
         }
-        for (const [sa, sb] of segs) if (sb >= sa) out.push([sa, y, sb - sa + 1, 1, slot, op]);
+        // 가장자리 한 칸은 반그늘(penumbra). 한 톤으로 딱 자르면 빛이 아니라
+        // **상판에 올려둔 밝은 판때기**로 읽힌다 — 빛에는 테두리가 없다.
+        for (const [sa, sb] of segs) {
+          if (sb < sa) continue;
+          if (sb - sa >= 2) {
+            out.push([sa, y, 1, 1, slot, op * 0.45]);
+            out.push([sa + 1, y, sb - sa - 1, 1, slot, op]);
+            out.push([sb, y, 1, 1, slot, op * 0.45]);
+          } else out.push([sa, y, sb - sa + 1, 1, slot, op * 0.6]);
+        }
       }
     }
   }
@@ -122,7 +141,7 @@ const FEET = {
   // 바닥에 놓이는 상품 — 제 밑변에서 시작한다
   'kt-shoes': [[12, 6, 2, 0.8, 57], [19, 6, 2, 0.8, 57]],
   'kt-umbrella': [[5, 5, 2, 0.7, 52]],
-  'kt-teaset': [[89, 4, 3, 1, 64], [103, 4, 3, 1, 64], [88, 20, 2, 0.35, 64]],
+  'kt-teaset': [[90, 3, 3, 1, 65], [104, 3, 3, 1, 65], [88, 21, 2, 0.35, 65]],
 };
 // 벽에 지는 그림자 — 빛이 오른쪽에서 오니 가구 **왼쪽** 벽이 어둡다.
 // 알베도에 굽지 않고 여기서 낸다(§2: 방향 명암은 광원 레이어 몫).
@@ -140,6 +159,47 @@ export function groundShadows(off) {
   for (const [id, bands] of Object.entries(WALL_AO))
     if (!off.has(id)) for (const [x, y, w, h, a] of bands) s.push([x, y, w, h, '#0b0710', a]);
   return s;
+}
+
+// ── 상판·소반 **위에 놓인** 물건의 접지 그림자 ──────────────────────────
+// 바닥에 닿는 것만 FEET 로 챙기고 있었다 — 상판 위 물건(냄비·도마·바구니·세척도구
+// ·솔·도시락·찻상 위 것들)은 그림자가 아예 없어서 **면에서 떠 보였다**.
+// 접지 그림자는 물건을 면에 앉히는 유일한 단서다. 바닥 그림자와 같은 함수를 쓰되
+// 길이를 짧게 잡는다 — 상판은 물건과 가깝고 광원이 넓어 본영이 짧다.
+// [소품, x0, 폭, 밑변 y, 길이, 세기]
+const SURF_FEET = {
+  'kt-pot':         [[54, 18, 38, 2, 0.75]],       // 작업대 위 — 냄비 밑동
+  'kt-board':       [[46, 7, 39, 2, 0.6]],
+  'kt-ingredients': [[76, 10, 39, 2, 0.7]],
+  'kt-lunchbox':    [[67, 11, 47, 1, 0.55]],       // 작업대 아래 선반
+  'kt-cleaner':     [[89, 6, 34, 2, 0.6], [96, 4, 34, 1, 0.5]],   // 싱크 상판 — 병·스펀지
+  'kt-brush':       [[117, 6, 34, 1, 0.5]],
+  // 찻상 위 물건은 여기 넣지 않는다 — 소반이 좁아 그림자가 옆 잔을 덮는다.
+  // 잔·주전자 밑 그늘은 소반 그림(geom-items)에 물건별 AO 로 직접 넣었다(§0).
+};
+export function surfaceShadows(off) {
+  const s = [];
+  for (const [id, feet] of Object.entries(SURF_FEET))
+    if (!off.has(id))
+      for (const [x, w, base, len, k] of feet) s.push(...contact(x, w, base, len, k));
+  return s;
+}
+
+// ── 창빛을 받는 **물건의 면** (screen, --wl/--ml) ──────────────────────
+// 창광을 바닥·상판에만 얹고 물건은 차폐물로만 썼다. 그래서 빔 한가운데 선 바구니가
+// 되레 어두운 실루엣이 됐다 — 빛 속에 있는 물건은 **밝아야** 한다(§3.1 보완).
+// 창 쪽(오른쪽) 면과 윗면만. 왼쪽 면에 넣으면 빛이 물건을 통과한 게 된다.
+const PROP_LIT = {
+  'kt-ingredients': [[80, 34, 6, 1], [85, 35, 1, 4], [81, 30, 2, 1], [83, 33, 3, 1]],
+  'kt-cleaner':     [[93, 29, 2, 1], [94, 30, 1, 4], [96, 31, 4, 1]],
+  'kt-sink':        [[103, 28, 5, 1], [106, 29, 1, 2], [109, 34, 3, 1]],   // 수도꼭지·손잡이
+  'kt-pot':         [[69, 28, 3, 1], [71, 32, 1, 4]],                       // 냄비 창 쪽 어깨
+};
+export function propLight(slot, alphaSlot, off) {
+  const out = [];
+  for (const [id, rects] of Object.entries(PROP_LIT))
+    if (!off.has(id)) for (const [x, y, w, h] of rects) out.push([x, y, w, h, slot, 0.75]);
+  return { rects: out, alphaSlot };
 }
 
 // ── 화구(냄비) 발광 — 점광원 3단 감쇠 (§3.2) ─────────────────────────
