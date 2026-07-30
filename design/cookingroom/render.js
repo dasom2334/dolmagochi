@@ -14,8 +14,8 @@ import { KT_ART, KT_GLASS } from './geom-art.js';
 import { KT_HAND } from './geom-art-hand.js';
 import { KT_TOUCH } from './geom-art-touch.js';
 import { KT_ITEMS, KT_ITEMS_Z } from './geom-items.js';
-import { ORB_SPOTS, windowPool, groundShadows, kitchenScenery, stoveGlowArt, steamArt, VIGNETTE_KT,
-  FLOOR_Y, KT_SUN, KT_MOON, KT_STARS } from './geom.js';
+import { ORB_SPOTS, windowPool, groundShadows, kitchenScenery, stoveGlowArt, potUnderglow,
+  steamArt, VIGNETTE_KT, FLOOR_Y, KT_SUN, KT_MOON, KT_STARS } from './geom.js';
 
 const GX = 128, GY = 72;
 const groups = generateGroups({});           // 거실 절차 그룹(바닥·구름·날씨 재사용)
@@ -179,9 +179,11 @@ export function render(cv, state, off = new Set(), t = 0) {
   //     밤엔 방 안에 이것 말고 광원이 없으니 주역이 된다.
   const STOVE_K = { day: 0.45, sunset: 0.8, night: 1.25 };
   if (state.stove !== 'off' && !off.has('kt-pot') && !off.has('stove-glow')) {
+    const gk = (state.stoveK ?? 1) * (STOVE_K[state.time] ?? 1);
+    const ft = off.has('anim') ? null : t;
     ctx.globalCompositeOperation = 'lighter';
-    paint(ctx, stoveGlowArt((state.stoveK ?? 1) * (STOVE_K[state.time] ?? 1),
-      off.has('anim') ? null : t), pal);
+    paint(ctx, stoveGlowArt(gk, ft), pal);
+    paint(ctx, potUnderglow(gk, ft), pal);   // 주전자 아랫배 — 없으면 밤에 평평하다
     ctx.globalCompositeOperation = 'source-over';
   }
 
