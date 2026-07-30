@@ -63,4 +63,10 @@ describe('집중 세션의 방 (focusRoomOf) — 행동이 일어나는 곳의 �
     expect(focusRoomOf('free', rooms)).toBe('living');
     expect(focusRoomOf('nurse', rooms)).toBe('living');
   });
+
+  it('작업행동은 작업방 — rooms.json 침실 boosts 가 그대로 답을 준다 (v5 §2)', () => {
+    // personalWork 가 행동이 되면서 별도 분기 없이 boosts 매핑으로 풀린다.
+    // 여기가 거실을 주면 작업 중인 돌이 책상 없는 방에 앉는다.
+    expect(focusRoomOf('personalWork', rooms)).toBe('bedroom');
+  });
 });

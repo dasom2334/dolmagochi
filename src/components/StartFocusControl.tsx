@@ -1,6 +1,6 @@
 import type { ActionId, GameState } from '../game/types';
 import { BALANCE } from '../game/balance';
-import { isRockPresent } from '../game/stateMachine';
+import { isRockPresent, PERSONAL_WORK_ACTION } from '../game/stateMachine';
 import { dispatch, now, t, tf } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { gameData } from '../store/gameStore';
@@ -53,7 +53,7 @@ function ForkButtons({
 /**
  * 자유행동 위임 (피드백2) — '오늘은 돌에게 맡긴다'를 누르면 돌이 원하는
  * 세션이 공개된다: 실제 행동(포크 선택으로 시작) / 미해금(구매 힌트+확인만) /
- * 개인작업(자유행동 세션으로 시작).
+ * 개인작업(작업 세션으로 시작 — 이것도 어엿한 행동이다).
  */
 function DelegateControl({
   state,
@@ -107,7 +107,9 @@ function DelegateControl({
       : wantsId && gameData.text[wantsId]
         ? t(wantsId)
         : tf(SYS.delegate.wants, { action: nameOf(d.action) });
-  const forkId: ActionId = d.kind === 'personal' ? 'free' : d.action;
+  // 개인작업도 제 행동으로 연다 — 버튼에 '자유행동'이 뜨던 자리다
+  const forkId: ActionId =
+    d.kind === 'personal' ? PERSONAL_WORK_ACTION : d.action;
   const forkName = nameOf(forkId);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

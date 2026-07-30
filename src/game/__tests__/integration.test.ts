@@ -50,10 +50,14 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
       }
     };
 
-    // ── 세션 1: 자유행동 25분 — 개인작업은 END_FOCUS 세션당 1회 판정 ──
+    // ── 세션 1: 자유행동 위임 25분 — 욕구가 다 차 있으니 돌은 제 작업을 고른다.
+    //    위임은 작업행동 세션을 연다(UI와 같은 경로). 판정은 END_FOCUS 세션당 1회 ──
     dispatch({ type: 'SELECT_ACTION', actionId: 'free' });
+    dispatch({ type: 'FREE_DELEGATE' });
+    expect(get().delegate).toEqual({ kind: 'personal' });
     dispatch({ type: 'START_FOCUS', nowMs: now });
-    expect(get().session.journal[0].text).toBe(T('act.free.start'));
+    expect(get().selectedAction).toBe('personalWork');
+    expect(get().session.journal[0].text).toBe(T('act.personalWork.start'));
     focusFor(1500);
 
     dispatch({ type: 'END_FOCUS', nowMs: now });

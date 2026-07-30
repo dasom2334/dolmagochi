@@ -287,11 +287,28 @@ export function isActionUnlocked(action: ActionData, state: GameState): boolean 
   );
 }
 
+/**
+ * 개인작업 = 돌의 작업 세션 (행동 id). 상점 물품의 `boosts` 대상 이름이기도 해서
+ * 책상 체인·API 토큰이 이 행동에 자동으로 붙고, rooms.json 침실 boosts 를 통해
+ * 씬도 자동으로 작업방이 된다 (개정 v5 §2 — 침실·작업방 = lie·personalWork).
+ */
+export const PERSONAL_WORK_ACTION = 'personalWork';
+
+/** 이 행동으로 세션을 열 수 있는가 — 위임이 고른 행동도 여기를 지난다 */
 export function isActionAvailable(action: ActionData, state: GameState): boolean {
   // 병간호 상태: '병간호하기'만 가능 (돌이 아파 다른 행동을 받지 못한다)
   if (state.presence.sick) return action.id === 'nurse';
   if (action.id === 'nurse') return false; // 병간호는 평소엔 숨김
   return isActionUnlocked(action, state);
+}
+
+/**
+ * 화자가 **고를 수 있는** 행동인가 — 행동 카드 목록과 SELECT_ACTION 의 기준.
+ * 위임 전용(byDelegate, 개인작업)은 열 수는 있어도 고를 수는 없다:
+ * 돌이 오늘 그걸 하겠다고 해야 열리는 세션이다.
+ */
+export function isActionSelectable(action: ActionData, state: GameState): boolean {
+  return !action.byDelegate && isActionAvailable(action, state);
 }
 
 export function isItemAvailable(item: ShopItemData, state: GameState): boolean {
@@ -686,7 +703,8 @@ function reduce(
     case 'SELECT_ACTION': {
       if (state.phase !== 'actionSelect' && state.phase !== 'rest') return state;
       const action = actionOf(data, event.actionId);
-      if (!action || !isActionAvailable(action, state)) return state;
+      // 위임 전용 행동(개인작업)은 화자가 고를 수 없다 — 돌이 골라야 열린다
+      if (!action || !isActionSelectable(action, state)) return state;
       return {
         ...state,
         selectedAction: event.actionId,
@@ -701,6 +719,9 @@ function reduce(
       // 각성 강제 이벤트(피드백6) — 응답 전까지 다음 세션도 막는다
       if (state.awakeningPending) return state;
       // 자유행동 위임(피드백2): 돌이 고른 행동으로 치환해 실제 세션을 연다.
+      // 개인작업도 예외가 아니다 — 'personalWork' 라는 제 행동으로 열린다.
+      // (예전엔 치환할 행동이 없어 'free' 로 남았고, 그래서 작업 중인 돌에게
+      //  자유행동 문구 "돌은 누워 있다" 가 붙었다)
       // locked(미해금)는 확인만 가능 — 세션이 시작되지 않는다
       if (state.selectedAction === 'free' && state.delegate) {
         if (state.delegate.kind === 'locked') return state;
@@ -708,9 +729,14 @@ function reduce(
         // (휴식 중 위임 → 보내주기 → 빈방에 산책 세션이 열리던 누출)
         state = !isRockPresent(state)
           ? { ...state, delegate: null }
-          : state.delegate.kind === 'action'
-            ? { ...state, selectedAction: state.delegate.action, delegate: null }
-            : { ...state, delegate: null };
+          : {
+              ...state,
+              selectedAction:
+                state.delegate.kind === 'action'
+                  ? state.delegate.action
+                  : PERSONAL_WORK_ACTION,
+              delegate: null,
+            };
       }
       const action = actionOf(data, state.selectedAction);
       if (!action) return state;
@@ -852,16 +878,16 @@ function reduce(
 
       const present = isRockPresent(next);
 
-      // 소모품 소모: 이 행동(자유행동이면 개인작업)을 강화하는 소모품 재고가 있으면
-      // 세션 시작 시 1개 소모하고 종류는 구매 시(진열) 고정분을 쓴다.
+      // 소모품 소모: 이 행동을 강화하는 소모품 재고가 있으면 세션 시작 시 1개
+      // 소모하고 종류는 구매 시(진열) 고정분을 쓴다. 개인작업도 이제 제 행동이라
+      // boosts 대상과 행동 id 가 그대로 맞아떨어진다(예전엔 free→personalWork 환승).
       // 돌이 곁에 있을 때만 — 부재 세션에서 재고가 증발하거나
       // 돌 반응 대사(사용 서술)가 새는 것을 막는다.
-      const boostTarget = action.id === 'free' ? 'personalWork' : action.id;
       const consumableItem = present
         ? data.shop.find(
             (i) =>
               i.consumable &&
-              i.boosts === boostTarget &&
+              i.boosts === action.id &&
               (next.supplies[i.id] ?? 0) > 0,
           )
         : undefined;
@@ -1102,12 +1128,15 @@ function reduce(
         } else if (action.id === 'free' && present) {
           // 돌의 자가 충족·심심풀이는 해금된 행동으로만 — 그 욕구를 채우는 행동이
           // 해금돼 있어야(아이템 구매 등) 돌이 스스로 그 기색을 낸다 (개정 v4-6)
+          // 개인작업(byDelegate)은 이 풀에 들어오지 않는다 — 그건 세션 자체가
+          // 따로 열리는 행동이지, 다른 세션 중에 곁들이는 심심풀이가 아니다
           const availableIds = (filter: (a: (typeof data.actions)[number]) => boolean) =>
             data.actions
               .filter(
                 (a) =>
                   a.id !== 'free' &&
                   a.id !== 'nurse' &&
+                  !a.byDelegate &&
                   filter(a) &&
                   isActionAvailable(a, next),
               )
@@ -1300,14 +1329,18 @@ function reduce(
           addBonus(scaleNeeds(it.bonusNeeds));
       }
       // 자유행동 정산: 자가충족(발동 시)은 시간 정산.
-      // 개인작업 판정은 여기서 세션당 1회 — 확률·획득 모두 시간 비례 (개정 v4-3):
-      //   p = (기본 + 욕구평균 비례 + 아이템 가산) × min(집중분,90)/90
-      // 짧은 세션은 기대값이 그만큼 작아 스팸이 무의미하고, 책상 체인 확률 노브가 살아난다.
       let freeWorked = false;
       if (action.id === 'free') {
         const freeCareNeed = state.session.freeCare;
         if (freeCareNeed)
           addBonus({ [freeCareNeed]: BALANCE.FREE_SELF_CARE_GAIN * gainUnits });
+      }
+      // 개인작업 판정 — 작업 세션당 1회, 확률·획득 모두 시간 비례 (개정 v4-3):
+      //   p = (기본 + 욕구평균 비례 + 아이템 가산) × min(집중분,90)/90
+      // 짧은 세션은 기대값이 그만큼 작아 스팸이 무의미하고, 책상 체인 확률 노브가 살아난다.
+      // 문턱은 상승 게이트(80)가 아니라 충족(60) — 개정 v4-5 히스테리시스.
+      // 세션 중 욕구가 내려앉아도 이미 열린 작업이 헛되지 않게 하는 여유 밴드다.
+      if (action.id === PERSONAL_WORK_ACTION) {
         if (
           sessionHadRock &&
           state.era === 'raising' && // 동거: 개인작업 정지
@@ -1341,7 +1374,7 @@ function reduce(
       let usedSupplyToken: string | null = null;
       if (supplyUse) {
         const it = data.shop.find((i) => i.id === supplyUse.itemId);
-        if (it?.boosts === 'personalWork' && !freeWorked) {
+        if (it?.boosts === PERSONAL_WORK_ACTION && !freeWorked) {
           // 개인작업 소모품(API 토큰): 개인작업이 발동하지 않은 세션엔 소모하지
           // 않는다 — 재고로 되돌리고, '작업이 순조로웠다'류 거짓 서술도 남기지 않는다
           next = {
@@ -1526,6 +1559,16 @@ function reduce(
 
       // 소모품 사용 대사 — 종류별 문구를 일지에 남긴다
       if (supplyLine) journal = addJournal(journal, elapsed, supplyLine);
+
+      // 개인작업이 발동한 세션의 결과 한 줄 — 발동을 화자가 알 수 있는 유일한 자리다.
+      // (여기가 없던 동안 freeWorked 는 기록만 되고 읽는 곳이 없었다 = 무성과 세션과
+      //  구분이 안 됐다. 무엇을 만들었는지는 끝내 말하지 않는다 — 돌의 몫이라)
+      if (freeWorked)
+        journal = addJournal(
+          journal,
+          elapsed,
+          joinPages(pickText(data.text, SYS.personalWorkDone, rng)),
+        );
 
       // 젖음/눈쌓임 (M12) — 게이지 무영향(개정 v4-13), 연출·관찰 문장만.
       // 다음 세션 시작(emptySession)에 자연히 사라진다 = 휴식이 끝나면 마른다.

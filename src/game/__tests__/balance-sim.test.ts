@@ -62,10 +62,10 @@ function needFillAction(s: GameState): ActionId | null {
   return cands[0] ?? null;
 }
 
-/** 토큰 게이트용: 아직 한 번도 안 해본 가용 행동 */
+/** 토큰 게이트용: 아직 한 번도 안 해본 가용 행동 (화자가 고를 수 있는 것만) */
 function missingTokenAction(s: GameState): ActionId | null {
   for (const a of gameData.actions) {
-    if (a.id === 'nurse' || a.id === 'free') continue;
+    if (a.id === 'nurse' || a.id === 'free' || a.byDelegate) continue;
     if (!(a.id in s.memory) && available(s, a.id)) return a.id;
   }
   return null;
@@ -134,6 +134,16 @@ function simulate(policy: Policy, seed: number, maxFocusHours = 160): RunResult 
     else act = needFillAction(s) ?? missingTokenAction(s) ?? 'free';
     if (!s.presence.sick && !available(s, act)) act = 'lie';
     s = dispatch(s, { type: 'SELECT_ACTION', actionId: act });
+    // 자유행동은 위임을 거쳐야 세션이 열린다 — UI와 같은 경로다(StartFocusControl).
+    // 돌이 고른 행동, 또는 채울 욕구가 없으면 개인작업('personalWork')으로 치환된다.
+    // 미해금(locked)이면 확인만 하고 다른 행동으로 — 세션이 안 열려 루프가 돈다.
+    if (act === 'free' && s.selectedAction === 'free') {
+      s = dispatch(s, { type: 'FREE_DELEGATE' });
+      if (s.delegate?.kind === 'locked') {
+        s = dispatch(s, { type: 'DELEGATE_CANCEL' });
+        s = dispatch(s, { type: 'SELECT_ACTION', actionId: 'lie' });
+      }
+    }
     const forkActive =
       s.era === 'raising' &&
       s.presence.state === 'present' &&

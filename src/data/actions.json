@@ -342,6 +342,62 @@
     ]
   },
   {
+    "id": "personalWork",
+    "nameId": "act.personalWork.name",
+    "byDelegate": true,
+    "intimacy": 1,
+    "sceneId": "personalWork",
+    "captionId": "act.personalWork.caption",
+    "startLineId": "act.personalWork.start",
+    "ambientId": "act.personalWork.ambient",
+    "outcome": {
+      "stats": {
+        "affection": 1
+      }
+    },
+    "choices": [
+      {
+        "promptId": "act.personalWork.c0.prompt",
+        "intimacy": 2,
+        "options": [
+          {
+            "labelId": "act.personalWork.c0.o0.label",
+            "intimacy": 3,
+            "outcomes": [
+              {
+                "resultId": "act.personalWork.c0.o0.r0",
+                "outcome": {
+                  "needs": {
+                    "esteem": 2
+                  },
+                  "stats": {
+                    "intimacyThreat": 8,
+                    "abandonment": -8
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "labelId": "act.personalWork.c0.o1.label",
+            "intimacy": 1,
+            "outcomes": [
+              {
+                "resultId": "act.personalWork.c0.o1.r0",
+                "outcome": {
+                  "stats": {
+                    "abandonment": 8,
+                    "intimacyThreat": -8
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     "id": "cook",
     "nameId": "act.cook.name",
     "unlock": {

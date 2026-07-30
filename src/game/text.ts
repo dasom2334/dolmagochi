@@ -134,6 +134,8 @@ export const SYS = {
     locked: 'sys.delegate.locked',
     personal: 'sys.delegate.personal',
   },
+  /** 개인작업이 실제로 발동한 세션의 결과 한 줄 — 일지에 남는 유일한 증거 */
+  personalWorkDone: 'sys.personalWork.done',
   absentAmbientCompanion: 'sys.absentAmbient.companion',
   focusEnd: 'sys.focusEnd',
   restSummary: 'sys.restSummary',

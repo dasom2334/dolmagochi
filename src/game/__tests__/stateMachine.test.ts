@@ -644,9 +644,10 @@ describe('자유행동 게이지 — END_FOCUS 시간 정산', () => {
   });
 
   it('개인작업: END_FOCUS 세션당 1회 판정, 90분 만액·시간 비례 확률 (개정 v4-3)', () => {
+    // 작업행동 세션 — 위임이 여는 행동이라 selectedAction 이 'personalWork' 다
     let s: GameState = {
       ...init(),
-      selectedAction: 'free',
+      selectedAction: 'personalWork',
       stats: {
         ...init().stats,
         needs: { physiological: 100, safety: 100, belonging: 100, esteem: 100 },
@@ -658,7 +659,7 @@ describe('자유행동 게이지 — END_FOCUS 시간 정산', () => {
         { type: 'START_FOCUS', nowMs: T0 },
         ...ticks(BALANCE.REFLECT_INTERVAL_FREE_SEC * 4),
       ],
-      seq([0.9]), // 틱에서는 개인작업 판정이 없다 — idle/반추만 흐른다
+      seq([0.9]), // 틱에서는 개인작업 판정이 없다 — 관찰(ambient)만 흐른다
     );
     expect(s.stats.selfActualization).toBe(0); // 집중 중엔 미정산
     // 성공 롤: p = (0.05+0.25)×20/90 ≈ 0.0667 — rng 0.0이면 발동.
