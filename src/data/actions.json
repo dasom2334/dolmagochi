@@ -394,6 +394,42 @@
             ]
           }
         ]
+      },
+      {
+        "promptId": "act.personalWork.c1.prompt",
+        "intimacy": 2,
+        "options": [
+          {
+            "labelId": "act.personalWork.c1.o0.label",
+            "intimacy": 3,
+            "outcomes": [
+              {
+                "resultId": "act.personalWork.c1.o0.r0",
+                "outcome": {
+                  "stats": {
+                    "intimacyThreat": 8,
+                    "abandonment": -8
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "labelId": "act.personalWork.c1.o1.label",
+            "intimacy": 1,
+            "outcomes": [
+              {
+                "resultId": "act.personalWork.c1.o1.r0",
+                "outcome": {
+                  "stats": {
+                    "abandonment": 8,
+                    "intimacyThreat": -8
+                  }
+                }
+              }
+            ]
+          }
+        ]
       }
     ]
   },
