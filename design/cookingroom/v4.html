@@ -52,6 +52,7 @@
     ['날씨', 'weather', [['clear', '맑음'], ['cloud', '구름흐림'], ['fog', '안개흐림'],
       ['rain', '비'], ['downpour', '폭우'], ['snow', '눈'], ['petals', '꽃잎·낙엽']]],
     ['돌', 'orb', [['none', '없음'], ['floor', '바닥'], ['sink', '싱크대'], ['door', '문 앞']]],
+    ['새싹', 'sprout', [['none', '없음'], ['bud', '싹'], ['thrive', '무성'], ['wither', '시듦']]],
     ['화구', 'stove', [['on', '켬'], ['off', '끔']]],
     ['배율', 'zoom', [[4, '×4'], [6, '×6'], [8, '×8']]],
   ];
@@ -74,7 +75,7 @@
   ];
 
   const S = { variant: 'b', time: 'day', season: 'summer', weather: 'clear',
-    orb: 'floor', stove: 'on', zoom: 6, shadowK: 1, vigK: 1, stoveK: 1, override: {} };
+    orb: 'floor', sprout: 'none', stove: 'on', zoom: 6, shadowK: 1, vigK: 1, stoveK: 1, override: {} };
   const off = new Set();
 
   const axesEl = document.getElementById('axes');

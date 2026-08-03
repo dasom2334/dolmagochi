@@ -14,7 +14,7 @@ import { KT_ART, KT_GLASS } from './geom-art.js';
 import { KT_HAND } from './geom-art-hand.js';
 import { KT_TOUCH } from './geom-art-touch.js';
 import { KT_ITEMS, KT_ITEMS_Z } from './geom-items.js';
-import { ORB_SPOTS, windowPool, propLight, groundShadows, surfaceShadows, kitchenScenery,
+import { ORB_SPOTS, sproutArt, windowPool, propLight, groundShadows, surfaceShadows, kitchenScenery,
   stoveGlowArt, potUnderglow, steamArt, VIGNETTE_KT, FLOOR_Y,
   KT_SUN, KT_MOON, KT_STARS } from './geom.js';
 
@@ -154,7 +154,11 @@ export function render(cv, state, off = new Set(), t = 0) {
 
   // [3.5] 돌 base
   const orb = orbSprite(state);
-  if (orb && !off.has('orb')) paint(ctx, orb.base, pal);
+  if (orb && !off.has('orb')) {
+    paint(ctx, orb.base, pal);
+    if (state.sprout && state.sprout !== 'none' && !off.has('sprout'))
+      paint(ctx, sproutArt(state.orb, state.sprout), pal);
+  }
 
   // [4] 색감 오버레이 — 시간 → 날씨
   const oids = [`light-${state.time}`];

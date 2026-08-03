@@ -27,11 +27,32 @@ const orbAt = (cx, baseY, w) => {
 //   (대신 여기 있던 세척도구를 개수통 오른쪽·안으로 옮겼다)
 // · 문 앞(cx17)은 **신발과 같은 자리**였다. 신발은 돌이 있을 때만 켜지므로
 //   둘은 항상 같이 나온다 → 신발을 문 왼쪽에 붙이고 돌은 그 오른쪽에 세운다.
-export const ORB_SPOTS = {
-  floor: () => orbAt(63, 63, 14),
-  sink:  () => orbAt(92, 36, 9),
-  door:  () => orbAt(28, 60, 12),
+const SPOTS = { floor: [63, 63, 14], sink: [92, 36, 9], door: [28, 60, 12] };
+export const ORB_SPOTS = Object.fromEntries(
+  Object.entries(SPOTS).map(([k, [cx, y, w]]) => [k, () => orbAt(cx, y, w)]));
+
+// ── 돌 위 새싹 ──────────────────────────────────────────────────────────
+// 그림은 거실 `props-room.js` 의 `orb-sprout-*` 와 **같은 것**이다 — 방이 달라도
+// 같은 돌 위에 같은 싹이 난다. 자리만 돌 자리를 따라간다(SPOTS 하나에서 뽑으므로
+// 돌을 옮겨도 싹이 따라온다). 색은 --sp* 슬롯이 이 방 팔레트에 없어 값을 그대로 쓴다.
+const SPROUT_ART = {
+  bud:    ['......', '......', '......', '..gG..', '..s...', '..s...'],
+  thrive: ['..GG..', '.GgGG.', 'gGGGGg', '.GgGg.', '..ss..', '..s...'],
+  wither: ['......', '.d...d', '.dd.dd', '..d.d.', '..ss..', '..s...'],
 };
+const SPROUT_C = { g: '#4a7a3a', G: '#6fa851', s: '#7a6a3a', d: '#6b5a2e' };
+export function sproutArt(spot, stage) {
+  const g = SPROUT_ART[stage], p = SPOTS[spot];
+  if (!g || !p) return [];
+  const [cx, baseY, w] = p;
+  const top = baseY - Math.round(w / STONE_ASPECT) + 1;    // 돌 윗변
+  const x0 = cx - 3, y0 = top - 5;                          // 6×6, 밑동이 윗변에 닿는다
+  const cells = [];
+  g.forEach((row, r) => [...row].forEach((c, i) => {
+    if (SPROUT_C[c]) cells.push([y0 + r, x0 + i, SPROUT_C[c]]);
+  }));
+  return emitRows(cells);
+}
 
 // ── 창광 = 앞으로 퍼지는 사다리꼴 (SCENE-RULES §3.1) ──────────────────────
 // 셰이프 고정 — 색(--wl/--ml)·세기(--wl-a/--ml-a)만 시간이 정한다. screen 블렌드.
