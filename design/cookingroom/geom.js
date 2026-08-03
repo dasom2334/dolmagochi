@@ -32,26 +32,65 @@ export const ORB_SPOTS = Object.fromEntries(
   Object.entries(SPOTS).map(([k, [cx, y, w]]) => [k, () => orbAt(cx, y, w)]));
 
 // ── 돌 위 새싹 ──────────────────────────────────────────────────────────
-// 그림은 거실 `props-room.js` 의 `orb-sprout-*` 와 **같은 것**이다 — 방이 달라도
-// 같은 돌 위에 같은 싹이 난다. 자리만 돌 자리를 따라간다(SPOTS 하나에서 뽑으므로
-// 돌을 옮겨도 싹이 따라온다). 색은 --sp* 슬롯이 이 방 팔레트에 없어 값을 그대로 쓴다.
+// 기획서 §179 가 기준이다: 성장 단계 **새싹 → 뿌리 내림 → 뒤덮임 → 보이지 않음**,
+// 시듦은 "잎의 **처짐·탈색**", 그리고 **뿌리 진행은 불가역**.
+// 코드(`src/game/sprout.ts` SproutStage)와 맞물린다:
+//   budding(티어6 전조) / thriving(빈자리) / rooting1(뿌리 내림) / rooting2(뒤덮임)
+//   / 숫자(동거 시듦 단계) — planted 이후엔 null(묘목이 땅으로 갔다 = 보이지 않음)
+//
+// [왜 단계×시듦을 다 안 그리는가]
+// 시듦은 **단계와 직교하는 축**(`witherLevel` 0~3)이지 별개 그림이 아니다. 20장을
+// 손으로 그리면 고칠 때 20장을 고쳐야 한다 → 잎마다 **떨어지는 순서**('1'이 먼저,
+// '3'이 끝까지)를 글자로 새기고, 시듦이 오르면 바깥 잎부터 지우고 색을 탈색시킨다.
+// 뿌리 단계엔 시듦이 안 붙는다 — 게임도 `witherLevel = 0` 으로 리셋한다
+// (stateMachine.ts: `if (!next.planted && sproutGrowth >= ROOTING_AT) witherLevel = 0`).
 const SPROUT_ART = {
-  bud:    ['......', '......', '......', '..gG..', '..s...', '..s...'],
-  thrive: ['..GG..', '.GgGG.', 'gGGGGg', '.GgGg.', '..ss..', '..s...'],
-  wither: ['......', '.d...d', '.dd.dd', '..d.d.', '..ss..', '..s...'],
+  budding:  ['......', '......', '......', '..21..', '..s...', '..s...'],
+  thriving: ['..11..', '.1221.', '123321', '.2332.', '..ss..', '..s...'],
 };
-const SPROUT_C = { g: '#4a7a3a', G: '#6fa851', s: '#7a6a3a', d: '#6b5a2e' };
-export function sproutArt(spot, stage) {
-  const g = SPROUT_ART[stage], p = SPOTS[spot];
-  if (!g || !p) return [];
+// 시듦 0~3 — 잎 [그늘, 밝음]. 초록 → 누렇게 → 갈색 (탈색)
+const LEAF = [['#4a7a3a', '#6fa851'], ['#5a7a3a', '#7a9a4a'],
+  ['#6b6a34', '#8a8548'], ['#6b5a2e', '#7d6b38']];
+const STEM = ['#7a6a3a', '#7a6a3a', '#6f6034', '#5e5029'];
+
+// 뿌리 — 정수리에서 갈라져 돌을 타고 내려온다. 돌 크기를 따라가므로 자리마다 맞는다.
+function roots(cx, top, w, h, level) {
+  const RT = '#7a6440', RD = '#4e3f28', o = [];
+  const strands = level === 1 ? [-0.30, 0.06, 0.34]
+    : [-0.46, -0.26, -0.06, 0.16, 0.36, 0.52];
+  const reach = level === 1 ? 0.55 : 0.95;
+  for (const f of strands) {
+    let x = Math.round(cx + f * w * 0.5);
+    const n = Math.max(2, Math.round(h * reach));
+    for (let i = 0; i < n; i++) {
+      o.push([x, top + i, 1, 1, i % 3 === 0 ? RT : RD]);
+      if (i % 3 === 2) x += f < 0 ? -1 : 1;              // 아래로 갈수록 벌어진다
+    }
+  }
+  if (level === 2) o.push([cx - Math.round(w * 0.22), top, Math.round(w * 0.44), 1, RD]);
+  return o;
+}
+
+/** stage: budding|thriving|rooting1|rooting2 (그 외/없음 = 빈 배열), wither: 0~3 */
+export function sproutArt(spot, stage, wither = 0) {
+  const p = SPOTS[spot];
+  if (!p || !stage || stage === 'none') return [];
   const [cx, baseY, w] = p;
-  const top = baseY - Math.round(w / STONE_ASPECT) + 1;    // 돌 윗변
-  const x0 = cx - 3, y0 = top - 5;                          // 6×6, 밑동이 윗변에 닿는다
+  const h = Math.round(w / STONE_ASPECT);
+  const top = baseY - h + 1;                               // 돌 윗변
+  const rooting = stage === 'rooting1' ? 1 : stage === 'rooting2' ? 2 : 0;
+  const g = SPROUT_ART[rooting ? 'thriving' : stage];
+  if (!g) return [];
+  const wl = rooting ? 0 : Math.max(0, Math.min(3, Math.round(wither)));
+  const [LD, LB] = LEAF[wl];
+  const x0 = cx - 3, y0 = top - 5;                         // 6×6, 밑동이 윗변에 닿는다
   const cells = [];
   g.forEach((row, r) => [...row].forEach((c, i) => {
-    if (SPROUT_C[c]) cells.push([y0 + r, x0 + i, SPROUT_C[c]]);
+    if (c === 's') cells.push([y0 + r, x0 + i, STEM[wl]]);
+    else if (c >= '1' && c <= '3' && +c > wl)              // 시듦보다 늦게 지는 잎만 남는다
+      cells.push([y0 + r, x0 + i, c === '3' ? LD : LB]);
   }));
-  return emitRows(cells);
+  return [...emitRows(cells), ...(rooting ? roots(cx, top, w, h, rooting) : [])];
 }
 
 // ── 창광 = 앞으로 퍼지는 사다리꼴 (SCENE-RULES §3.1) ──────────────────────
@@ -220,7 +259,7 @@ const PROP_LIT = {
   'kt-ingredients': [[81, 35, 5, 1], [84, 36, 1, 3], [83, 32, 3, 1], [80, 30, 1, 1]],
   'kt-cleaner':     [[118, 31, 1, 5], [114, 31, 5, 1], [101, 34, 4, 1]],
   'kt-sink':        [[103, 28, 5, 1], [106, 29, 1, 2], [109, 34, 3, 1]],   // 수도꼭지·손잡이
-  'kt-pot':         [[67, 29, 3, 1], [69, 33, 1, 3]],                       // 냄비 창 쪽 어깨
+  'kt-pot':         [[66, 30, 3, 1], [69, 33, 1, 3]],                       // 냄비 창 쪽 어깨
   'kt-brush':       [[124, 34, 1, 2], [120, 34, 5, 1]],
 };
 export function propLight(slot, alphaSlot, off) {
@@ -279,8 +318,8 @@ const POT_GLOW = [
   [61, 37, 6, '#ffb45c', 0.22], [59, 37, 2, '#ff9440', 0.12], [67, 37, 2, '#ff9440', 0.12],
   [61, 36, 6, '#ff9440', 0.12], [59, 36, 2, '#ff9440', 0.06], [67, 36, 2, '#ff9440', 0.06],
   [61, 35, 6, '#ff9440', 0.05],     // 여기서 끊긴다 — 몸통 위까지 올리면 등불이 된다
-  [55, 35, 3, '#ff9440', 0.10],     // 왼쪽 귀 밑
-  [70, 35, 3, '#ff9440', 0.08],     // 오른쪽 귀 밑
+  [55, 36, 3, '#ff9440', 0.10],     // 왼쪽 귀 밑
+  [70, 36, 3, '#ff9440', 0.08],     // 오른쪽 귀 밑
 ];
 export function potUnderglow(k = 1, t = null) {
   const g = k * flicker(t);
@@ -317,9 +356,9 @@ export const VIGNETTE_KT = (() => {
 // 뚜껑 왼쪽 어깨(x58~59)로 옮겼다 — 마늘 타래(~x56)와 국자 사이 빈 통로다.
 export function steamArt(f) {
   const P = [
-    [[58, 27], [58, 25], [59, 23], [59, 21]],
-    [[58, 26], [59, 24], [58, 22], [58, 20]],
-    [[59, 27], [58, 24], [59, 22], [59, 20]],
+    [[58, 30], [58, 28], [59, 26], [59, 24]],
+    [[58, 29], [59, 27], [58, 25], [58, 23]],
+    [[59, 30], [58, 27], [59, 25], [59, 23]],
   ][f % 3];
   return P.map(([x, y], i) => R(x, y, 1, 1, '#d8cfc4', 0.5 - i * 0.1));
 }

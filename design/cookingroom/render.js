@@ -157,7 +157,7 @@ export function render(cv, state, off = new Set(), t = 0) {
   if (orb && !off.has('orb')) {
     paint(ctx, orb.base, pal);
     if (state.sprout && state.sprout !== 'none' && !off.has('sprout'))
-      paint(ctx, sproutArt(state.orb, state.sprout), pal);
+      paint(ctx, sproutArt(state.orb, state.sprout, state.wither ?? 0), pal);
   }
 
   // [4] 색감 오버레이 — 시간 → 날씨
