@@ -44,30 +44,56 @@ export const ORB_SPOTS = Object.fromEntries(
 // '3'이 끝까지)를 글자로 새기고, 시듦이 오르면 바깥 잎부터 지우고 색을 탈색시킨다.
 // 뿌리 단계엔 시듦이 안 붙는다 — 게임도 `witherLevel = 0` 으로 리셋한다
 // (stateMachine.ts: `if (!next.planted && sproutGrowth >= ROOTING_AT) witherLevel = 0`).
+// **위도 같이 자란다.** 1차엔 뿌리 단계에서 잎 그림을 thriving 으로 돌려 써서
+// 뿌리만 굵어지고 싹은 그대로였다 — 그건 "자라는 중"이 아니라 "돌이 썩는 중"이다.
+// 기획서 §179 는 묘목이 자라 나무가 되는 이야기다 → 단계마다 판을 키운다.
 const SPROUT_ART = {
   budding:  ['......', '......', '......', '..21..', '..s...', '..s...'],
   thriving: ['..11..', '.1221.', '123321', '.2332.', '..ss..', '..s...'],
+  rooting1: ['...32...', '..3322..', '.333222.', '33.332.2', '.333222.',
+    '...ss...', '...s....', '...s....'],
+  rooting2: ['...3322...', '..333222..', '.33332222.', '3333322222', '.33332222.',
+    '..333222..', '....ss....', '....ss....', '....s.....', '....s.....'],
 };
 // 시듦 0~3 — 잎 [그늘, 밝음]. 초록 → 누렇게 → 갈색 (탈색)
 const LEAF = [['#4a7a3a', '#6fa851'], ['#5a7a3a', '#7a9a4a'],
   ['#6b6a34', '#8a8548'], ['#6b5a2e', '#7d6b38']];
 const STEM = ['#7a6a3a', '#7a6a3a', '#6f6034', '#5e5029'];
 
-// 뿌리 — 정수리에서 갈라져 돌을 타고 내려온다. 돌 크기를 따라가므로 자리마다 맞는다.
-function roots(cx, top, w, h, level) {
-  const RT = '#7a6440', RD = '#4e3f28', o = [];
-  const strands = level === 1 ? [-0.30, 0.06, 0.34]
-    : [-0.46, -0.26, -0.06, 0.16, 0.36, 0.52];
-  const reach = level === 1 ? 0.55 : 0.95;
-  for (const f of strands) {
-    let x = Math.round(cx + f * w * 0.5);
-    const n = Math.max(2, Math.round(h * reach));
-    for (let i = 0; i < n; i++) {
-      o.push([x, top + i, 1, 1, i % 3 === 0 ? RT : RD]);
-      if (i % 3 === 2) x += f < 0 ? -1 : 1;              // 아래로 갈수록 벌어진다
+// ── 뿌리 ────────────────────────────────────────────────────────────────
+// [1차가 못생겼던 이유] 정수리에서 **직선 1픽셀**을 아래로 내리 그었다. 그래서
+//  (a) 돌의 곡면을 무시하고 실루엣 밖으로 삐져나오고, (b) 굵기가 한결같아
+//  뿌리가 아니라 **빗금**으로 읽혔고, (c) 세로선만이라 얽힌 느낌이 없었다.
+// → 돌 몸통 줄(`stoneRows` 의 [y, x0, x1, t])을 받아 **그 줄의 폭 안에서** 자리를
+//   잡는다. 자동으로 곡면을 타고 휘고 밖으로 안 나간다. 굵기는 위가 굵고 아래로
+//   가늘어지며(뿌리는 뻗을수록 가늘다), 가로 이음뿌리를 넣어 그물로 만든다.
+const ROOT_C = ['#8a7150', '#6b573a', '#4a3b26', '#33291a'];
+function roots(rows, level) {
+  const o = [];
+  if (!level) return o;
+  const reach = level === 1 ? 0.62 : 1.0;
+  for (const [y, x0, x1, t] of rows) {
+    if (t > reach) continue;
+    const w = x1 - x0 + 1;
+    const sh = t < 0.25 ? 0 : t < 0.55 ? 1 : t < 0.8 ? 2 : 3;   // 돌과 같은 AO 를 따른다
+    if (level === 2) {
+      // [2차가 바구니로 보였던 이유] 세로 가닥 + 두 줄마다 가로 이음 = **규칙적인
+      // 격자**다. 격자 사이로 돌이 네모나게 비쳐 엮은 바구니가 됐다.
+      // → 순서를 뒤집는다: **먼저 덮고, 그다음 골을 판다.** 뒤덮임은 덮인 게 먼저다.
+      o.push([x0, y, w, 1, ROOT_C[sh]]);
+      if (y % 5 === 0) o.push([x0, y, w, 1, ROOT_C[Math.max(0, sh - 1)]]);  // 가로로 뻗은 굵은 뿌리
+      for (let k = 0; k < 3; k++) {                            // 뿌리 사이 골 — 줄마다 흔든다
+        const f = 0.2 + k * 0.3 + Math.sin(t * 7 + k * 2.3) * 0.1;
+        o.push([Math.round(x0 + (w - 1) * f), y, 1, 1, ROOT_C[3]]);
+      }
+    } else {
+      for (let k = 0; k < 3; k++) {                            // 굵은 가닥 셋이 타고 내려온다
+        const f = 0.18 + k * 0.31 + Math.sin(t * 6 + k * 1.9) * 0.06;
+        const x = Math.round(x0 + (w - 1) * f);
+        o.push([x, y, Math.min(w, t < 0.35 ? 3 : 2), 1, ROOT_C[(k + sh) % 4]]);
+      }
     }
   }
-  if (level === 2) o.push([cx - Math.round(w * 0.22), top, Math.round(w * 0.44), 1, RD]);
   return o;
 }
 
@@ -75,22 +101,24 @@ function roots(cx, top, w, h, level) {
 export function sproutArt(spot, stage, wither = 0) {
   const p = SPOTS[spot];
   if (!p || !stage || stage === 'none') return [];
-  const [cx, baseY, w] = p;
-  const h = Math.round(w / STONE_ASPECT);
-  const top = baseY - h + 1;                               // 돌 윗변
-  const rooting = stage === 'rooting1' ? 1 : stage === 'rooting2' ? 2 : 0;
-  const g = SPROUT_ART[rooting ? 'thriving' : stage];
+  const g = SPROUT_ART[stage];
   if (!g) return [];
+  const [cx, baseY, w] = p;
+  const rows = stoneRows(cx, baseY, w, Math.round(w / STONE_ASPECT));
+  const top = rows[0][0];                                  // 돌 윗변
+  const rooting = stage === 'rooting1' ? 1 : stage === 'rooting2' ? 2 : 0;
   const wl = rooting ? 0 : Math.max(0, Math.min(3, Math.round(wither)));
   const [LD, LB] = LEAF[wl];
-  const x0 = cx - 3, y0 = top - 5;                         // 6×6, 밑동이 윗변에 닿는다
+  // 판 크기는 단계마다 다르다(자라니까). 밑동 한 줄이 돌 윗변에 닿게 앉힌다.
+  const x0 = cx - (g[0].length >> 1), y0 = top - (g.length - 1);
   const cells = [];
   g.forEach((row, r) => [...row].forEach((c, i) => {
     if (c === 's') cells.push([y0 + r, x0 + i, STEM[wl]]);
     else if (c >= '1' && c <= '3' && +c > wl)              // 시듦보다 늦게 지는 잎만 남는다
       cells.push([y0 + r, x0 + i, c === '3' ? LD : LB]);
   }));
-  return [...emitRows(cells), ...(rooting ? roots(cx, top, w, h, rooting) : [])];
+  // 뿌리를 **잎보다 먼저** 깔면 안 된다 — 잎은 돌 위, 뿌리는 돌 위로 지나간다.
+  return [...roots(rooting ? rows : [], rooting), ...emitRows(cells)];
 }
 
 // ── 창광 = 앞으로 퍼지는 사다리꼴 (SCENE-RULES §3.1) ──────────────────────
