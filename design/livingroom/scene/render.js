@@ -77,6 +77,9 @@ const Z = [
   // [1] 창밖: 벽 뒤까지 그린 뒤 벽이 덮는다
   'base-scenery', 'halo-sun', 'halo-moon', 'sun', 'moon', 'stars', 'clouds',
   'tree-v1-trunk', 'tree-v1-leaves', 'tree-v2-trunk', 'tree-v2-leaves', 'tree-bare',
+  'tree-s0-trunk', 'tree-s0-leaves', 'tree-s1-trunk', 'tree-s1-leaves',
+  'tree-s2-trunk', 'tree-s2-leaves', 'tree-s3-trunk', 'tree-s3-leaves',
+  'tree-s4-trunk', 'tree-s4-leaves', 'tree-s5-trunk', 'tree-s5-leaves',
   'rain', 'downpour', 'snow', 'pt-petals', 'pt-fireflies', 'fx-drops', 'fx-frost',
   // 새는 **유리 바깥** 창턱에 앉아 있다 — 벽·창틀보다 먼저 그려야 창틀이 위를 덮는다
   'p-bird',
@@ -160,6 +163,12 @@ const CONTACT = Object.fromEntries(GROUNDED.map((id) => [id, null]));
 /** 상태별 표시 여부 — CSS 셀렉터 조합 대신 평범한 조건식으로 */
 function visible(id, st) {
   const { time, season, weather, orb, tree } = st;
+  // 심은 나무(3차) — st.ptree 0~5 면 그 단계만, v1/v2·bare 는 물러난다.
+  // 같은 자리(창밖 x35)라 함께 서면 나무 두 그루가 겹친다.
+  const planted = st.ptree != null && st.ptree !== 'none';
+  const mTree = /^tree-s(\d)-(trunk|leaves)$/.exec(id);
+  if (mTree) return planted && String(st.ptree) === mTree[1]
+    && (mTree[2] === 'trunk' || season !== 'winter');
   // 게임 날씨 6종 + 씬 고유 흐림 2종.
   //  cloud(구름낀 흐림) — 구름은 끼지만 그 사이로 해가 보인다
   //  fog(안개낀 흐림)   — 해가 완전히 가려진다
@@ -185,11 +194,11 @@ function visible(id, st) {
       return weather === 'petals';
     case 'pt-fireflies': return time === 'night' && season === 'summer' && clear;
     // 겨울엔 잎만 떨어지고 줄기는 남는다
-    case 'tree-v1-trunk': return tree === 'v1';
-    case 'tree-v2-trunk': return tree === 'v2';
-    case 'tree-v1-leaves': return tree === 'v1' && season !== 'winter';
-    case 'tree-v2-leaves': return tree === 'v2' && season !== 'winter';
-    case 'tree-bare': return season === 'winter';
+    case 'tree-v1-trunk': return tree === 'v1' && !planted;
+    case 'tree-v2-trunk': return tree === 'v2' && !planted;
+    case 'tree-v1-leaves': return tree === 'v1' && season !== 'winter' && !planted;
+    case 'tree-v2-leaves': return tree === 'v2' && season !== 'winter' && !planted;
+    case 'tree-bare': return season === 'winter' && !planted;
     // 펼친 책은 꺼내 온 한 권만. 그 권의 책장 칸은 비어야 한다 —
     // 같은 책이 책장과 바닥에 동시에 있으면 안 되므로.
     case 'p-openbook-1': case 'p-openbook-2': case 'p-openbook-3':
@@ -395,12 +404,32 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
     const ORB_XYW = { sill: [58, 35, 10], rug: [47, 61, 14] };
     const orbOn = st.orb === 'sill' ? on('orb') : on('orb-rug');
     if (st.sprout && st.sprout !== 'none' && !layerOff.has('sprout') && orbOn) {
-      for (const r of sproutArt(...ORB_XYW[st.orb], st.sprout, st.wither ?? 0)) {
+      const rects = sproutArt(...ORB_XYW[st.orb], st.sprout, st.wither ?? 0);
+      for (const r of rects) {
         ctx.globalAlpha = r[5] == null ? 1 : r[5];
         ctx.fillStyle = r[4];
         ctx.fillRect(r[0] + OX, r[1], r[2], r[3]);
       }
       ctx.globalAlpha = 1;
+      // 창턱 돌은 **유리 존**(창 개구부) 안이라 방 색감 스트립이 안 덮는다 —
+      // 그대로 두면 시간대를 안 타는 스티커다. 창 앞 물건은 **역광**이 맞다:
+      // 밝은 창을 등졌으니 몸은 어둡게 누르고, 창 쪽(오른) 모서리에 림을 준다.
+      if (st.orb === 'sill') {
+        ctx.globalAlpha = st.time === 'night' ? 0.30 : 0.18;
+        ctx.fillStyle = '#141026';
+        for (const r of rects) ctx.fillRect(r[0] + OX, r[1], r[2], r[3]);
+        const edge = new Map();                            // 줄마다 오른쪽 끝 한 칸
+        for (const r of rects) {
+          const e = r[0] + r[2] - 1;
+          if (!edge.has(r[1]) || e > edge.get(r[1])) edge.set(r[1], e);
+        }
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = pal[st.time === 'night' ? '--ml' : '--wl'] || '#fff0c8';
+        for (const [y, x] of edge) ctx.fillRect(x + OX, y, 1, 1);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+      }
     }
   }
 

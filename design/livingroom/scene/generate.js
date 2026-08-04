@@ -12,6 +12,8 @@
 import { buildRoomProps } from './props-room.js';
 
 const AW = 96, GY = 72;      // 원래 아트 폭
+import { stagedTree } from './tree-stages.js';
+
 const OX = 16;               // 좌우로 넓힌 여백
 const GX = AW + OX * 2;      // 캔버스 폭 128
 const AX0 = -OX, AX1 = AW + OX;   // 아트 공간 x 범위
@@ -998,6 +1000,16 @@ export function generateGroups(measured = {}) {
     'tree-v2-trunk': v2.trunk,
     'tree-v2-leaves': emitRows(v2.leaves),
   };
+  // 심은 나무 6단계 (tree-stages.js) — 5(성목)는 treeV1 그대로.
+  for (let sN = 0; sN < 5; sN++) {
+    const g = stagedTree(sN);
+    out[`tree-s${sN}-trunk`] = g.trunk;
+    out[`tree-s${sN}-leaves`] = g.leaves;
+  }
+  // **복사**해야 한다 — v1.trunk 를 별칭으로 넣으면 아래 +OX 루프가 같은 배열을
+  // 두 키에서 두 번 밀어 v1 나무째 +32 로 이사 간다 (실제로 그랬다).
+  out['tree-s5-trunk'] = v1.trunk.map((r) => [...r]);
+  out['tree-s5-leaves'] = v1.leaves.map((r) => [...r]);
   // 불꽃 프레임 — 그룹 하나당 한 장씩 내보내고 렌더러가 t로 골라 그린다
   // 불꽃·촛불도 벽난로와 함께 앞으로 나온다 — 실측 위치(불 x8~17/y40~47,
   // 심지 (5,28))를 그대로 fwd 로 옮겨 계산한다. 크기도 같은 배율로 커진다.
