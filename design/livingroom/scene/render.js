@@ -213,9 +213,9 @@ function visible(id, st) {
     // 어느 것을 켤지는 게임이 layerOff 로 고른다 — 여기선 자리만 지킨다.
     case 'orb-moss': case 'orb-wet': case 'orb-snow':
     case 'orb-sprout-bud': case 'orb-sprout-thrive': case 'orb-sprout-wither':
-      // 단계 축(st.sprout)이 켜져 있으면 **옛 3종 프롭은 물러난다** — 안 그러면
-      // 같은 정수리에 싹이 두 개 얹힌다. 셋뿐이던 그림을 단계·시듦 축이 대체했다.
-      return orb === 'rug' && !(st.sprout && st.sprout !== 'none');
+      // 은퇴 — 단계·시듦 축(sprout.js)이 대체했다. '없음'인데 옛 프롭이 그려져
+      // "없음에도 싹이 있다"가 됐고, 자리도 고정 좌표(x44)라 돌(x47)과 어긋났다.
+      return false;
     default: return true;
   }
 }
@@ -463,12 +463,15 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
 
   // 돌 위 새싹 — 그림·성장·시듦은 **세 방 공용**(./sprout.js). 돌 자리 좌표만 넘긴다.
   // 기존 orb-sprout-* 프롭 셋과 달리 단계(기획서 §179)와 시듦 축을 그대로 받는다.
+  // 좌표는 생성 공간(SILL_ROWS·RUG_ROWS 와 동일) — 거실 캔버스는 좌우 여백이
+  // 있어 그릴 때 **OX 를 더해야** 한다. 1차에 이걸 빼먹어 싹이 돌보다 16px
+  // 왼쪽에 떠 있었다("위치가 이상하다"의 정체).
   const ORB_XYW = { sill: [58, 35, 10], rug: [47, 61, 14] };
   if (st.sprout && st.sprout !== 'none' && !layerOff.has('sprout') && on(orbId)) {
     for (const r of sproutArt(...ORB_XYW[st.orb], st.sprout, st.wither ?? 0)) {
       ctx.globalAlpha = r[5] == null ? 1 : r[5];
       ctx.fillStyle = r[4];
-      ctx.fillRect(r[0], r[1], r[2], r[3]);
+      ctx.fillRect(r[0] + OX, r[1], r[2], r[3]);
     }
     ctx.globalAlpha = 1;
   }
