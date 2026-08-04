@@ -221,3 +221,31 @@ describe('작업행동(위임 전용) 세이브 방어 (PR #60)', () => {
     }
   });
 });
+
+describe('v28 → v29: 기억 토큰 personalWork → workWitnessed (#61)', () => {
+  const state = createInitialState(T0, 'read');
+
+  it('목격 기록이 키만 바뀌어 보존된다 — 뱃지·엔딩 게이트 진행 유지', () => {
+    const v28 = {
+      ...state,
+      schemaVersion: 28,
+      memory: { personalWork: { w: 3, count: 2, lastAt: T0 } },
+    };
+    const res = readSave(wrapSave(v28 as typeof state, T0));
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.state.memory['workWitnessed']).toEqual({ w: 3, count: 2, lastAt: T0 });
+      expect('personalWork' in res.state.memory).toBe(false);
+    }
+  });
+
+  it('목격 기록이 없던 세이브는 그대로 통과', () => {
+    const v28 = { ...state, schemaVersion: 28, memory: { lie: { w: 1, count: 1, lastAt: T0 } } };
+    const res = readSave(wrapSave(v28 as typeof state, T0));
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect('workWitnessed' in res.state.memory).toBe(false);
+      expect('lie' in res.state.memory).toBe(true);
+    }
+  });
+});

@@ -738,7 +738,7 @@
       "intimacy": 1,
       "when": {
         "hasTokens": [
-          "personalWork"
+          "workWitnessed"
         ]
       }
     },

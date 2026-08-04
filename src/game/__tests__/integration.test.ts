@@ -30,7 +30,7 @@ describe('통합: 풀사이클 → 엔딩 → 빈자리', () => {
       if (a.id !== 'nurse')
         initial.memory[a.id] = { w: 3, count: 1, lastAt: T0 };
     initial.memory['choice'] = { w: 2, count: 1, lastAt: T0 };
-    initial.memory['personalWork'] = { w: 3, count: 1, lastAt: T0 };
+    initial.memory['workWitnessed'] = { w: 3, count: 1, lastAt: T0 };
     initial.memory['buy-soda'] = { w: 3, count: 1, lastAt: T0 };
     // 개인작업은 END_FOCUS 세션당 1회 판정, 획득은 발동당 고정 16 (개정 v4-3)
     // — 세션 1에서는 미완(<100), 세션 2에서 완성되도록 80에서 시작

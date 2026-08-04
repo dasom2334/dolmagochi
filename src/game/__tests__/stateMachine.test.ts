@@ -670,14 +670,14 @@ describe('자유행동 게이지 — END_FOCUS 시간 정산', () => {
       BALANCE.SELF_ACT_GAIN_PER_WORK,
       5,
     );
-    expect('personalWork' in hit.memory).toBe(true); // 목격 토큰 (개정 v4-10)
+    expect('workWitnessed' in hit.memory).toBe(true); // 목격 토큰 (개정 v4-10, #61 리네임)
     // 실패 롤: rng 0.9 > p — 발동 없음
     const miss = run(s, [{ type: 'END_FOCUS', nowMs: T0 + 1_200_000 }], seq([0.9]));
     expect(miss.session.freeWorked).toBe(false);
     expect(miss.stats.selfActualization).toBe(0);
     // 목격 토큰은 발동한 세션에만 — 세션이 열리기만 해도 기록하면
     // 목격 없이 뱃지('목격자')와 엔딩 게이트가 열린다 (v4-10)
-    expect('personalWork' in miss.memory).toBe(false);
+    expect('workWitnessed' in miss.memory).toBe(false);
   });
 
   it('동거는 개인작업 정지(v3-8) — 위임 personal 이 자유행동 그대로 열린다', () => {
@@ -939,7 +939,7 @@ describe('엔딩 — 자아실현 완성 → 엔딩 전 대화 → 엔딩', () =
     for (const a of gameData.actions)
       if (a.id !== 'nurse') m = remember(m, a.id, 3, T0);
     m = remember(m, 'choice', 2, T0);
-    m = remember(m, 'personalWork', 3, T0);
+    m = remember(m, 'workWitnessed', 3, T0);
     m = remember(m, 'buy-plant', 3, T0);
     return m;
   }

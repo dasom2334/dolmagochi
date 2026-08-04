@@ -353,6 +353,18 @@ export function migrateState(state: GameState): GameState | null {
       memory: swap(s.memory, 'use-tea-coffee', 'use-tea-herb'),
     };
   }
+  // v28 → v29: 기억 토큰 'personalWork' → 'workWitnessed' (#61).
+  // 같은 문자열이 행동 id·boosts 대상·목격 토큰 세 역할을 겸하다 목격 토큰만
+  // 분리했다. v28까지의 memory.personalWork 는 전부 목격 기록이므로 키만 옮긴다.
+  // (v29부터 memory.personalWork 는 작업행동 세션의 행동 토큰 — 의미가 다르다)
+  if (s.schemaVersion === 28) {
+    const mem = { ...s.memory } as GameState['memory'];
+    if ('personalWork' in mem) {
+      mem['workWitnessed'] = mem['personalWork'];
+      delete mem['personalWork'];
+    }
+    s = { ...s, schemaVersion: 29, memory: mem };
+  }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
 }

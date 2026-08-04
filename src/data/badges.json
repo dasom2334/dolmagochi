@@ -8,7 +8,7 @@
   {"id": "act-free", "nameId": "badge.act-free.name", "lineId": "badge.act-free.line", "when": {"token": "free"}},
   {"id": "first-choice", "nameId": "badge.first-choice.name", "lineId": "badge.first-choice.line", "when": {"token": "choice"}},
   {"id": "first-buy", "nameId": "badge.first-buy.name", "lineId": "badge.first-buy.line", "when": {"tokenPrefix": "buy-"}},
-  {"id": "personal-work", "nameId": "badge.personal-work.name", "lineId": "badge.personal-work.line", "when": {"token": "personalWork"}},
+  {"id": "personal-work", "nameId": "badge.personal-work.name", "lineId": "badge.personal-work.line", "when": {"token": "workWitnessed"}},
   {"id": "crisis-retreat", "nameId": "badge.crisis-retreat.name", "lineId": "badge.crisis-retreat.line", "when": {"crisisArc": "retreat"}},
   {"id": "crisis-sick", "nameId": "badge.crisis-sick.name", "lineId": "badge.crisis-sick.line", "when": {"crisisArc": "sick"}},
   {"id": "ms-stage-up-2", "nameId": "badge.ms-stage-up-2.name", "lineId": "badge.ms-stage-up-2.line", "when": {"milestone": "stage-up-2"}},

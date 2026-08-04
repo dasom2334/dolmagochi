@@ -124,7 +124,7 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
     const need = [
       ...gameData.actions.filter((a) => a.id !== 'nurse').map((a) => a.id),
       'choice',
-      'personalWork',
+      'workWitnessed',
       'buy-cushion',
     ];
     const next = { ...memory };
