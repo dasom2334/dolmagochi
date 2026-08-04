@@ -11,7 +11,7 @@ import { ANIM, GROUP_ANIM, TILE_H } from '../livingroom/scene/anim.js';
 import { BD_ART, BD_GLASS } from './geom-art.js';
 import * as PREV from './geom-art-prev.js';   // 이전 버전(오늘 4건 수정 전) 정적 아트 — A/B 비교용
 import { BD3_ART } from './geom-art-v3.js';   // v3 손작화 판 — 무테·두꺼운 색면
-import { ORB_SPOTS, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug,
+import { ORB_SPOTS, sproutArt, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug,
   bedroomScenery, BD_SUN, BD_MOON, BD_STARS } from './geom.js';
 import { BD3_DRINKS, BD3_SASH_OPEN, BD3_PILLOW_BED, BD3_PILLOW_FLOOR, BD3_FRAME_SHOTS,
   steamArt, fanSpinArt } from './geom-art-v3.js';
@@ -214,7 +214,11 @@ export function render(cv, state, off = new Set(), t = 0) {
 
   // [3.5] 돌 base (의자 등받이는 오독이 반복돼 제거 — 스툴)
   const orb = orbSprite(state);
-  if (orb && !off.has('orb')) paint(ctx, orb.base, pal);
+  if (orb && !off.has('orb')) {
+    paint(ctx, orb.base, pal);
+    if (state.sprout && state.sprout !== 'none' && !off.has('sprout'))
+      paint(ctx, sproutArt(state.orb, state, state.sprout, state.wither ?? 0), pal);
+  }
 
   // [4] 색감 오버레이 — 시간 → 날씨
   // 랩탑이 유리 앞을 가리면 그 겹침 영역은 유리 블렌더에서 제외(룸 블렌더로 통일).

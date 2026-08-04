@@ -5,6 +5,7 @@
 // CSS keyframes 는 없으니 매 프레임 t(ms)를 받아 anim.js 가 변환값을 준다.
 
 import { generateGroups, GX, GY, OX, FLAME_N } from './generate.js';
+import { sproutArt } from './sprout.js';
 import { resolve } from './palette.js';
 import { PROPS } from './props.js';
 import { ROOM_PROPS, PROP_SLOTS } from './props-room.js';
@@ -212,7 +213,9 @@ function visible(id, st) {
     // 어느 것을 켤지는 게임이 layerOff 로 고른다 — 여기선 자리만 지킨다.
     case 'orb-moss': case 'orb-wet': case 'orb-snow':
     case 'orb-sprout-bud': case 'orb-sprout-thrive': case 'orb-sprout-wither':
-      return orb === 'rug';
+      // 단계 축(st.sprout)이 켜져 있으면 **옛 3종 프롭은 물러난다** — 안 그러면
+      // 같은 정수리에 싹이 두 개 얹힌다. 셋뿐이던 그림을 단계·시듦 축이 대체했다.
+      return orb === 'rug' && !(st.sprout && st.sprout !== 'none');
     default: return true;
   }
 }
@@ -457,6 +460,18 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
   // 담요가 돌을 **덮는 후드**가 아니라 밑동을 두르는 **목도리**로 바뀌면서
   // 돌의 윗면이 그대로 드러난다 → 역광이 걸리는 게 맞다. 게이트를 뺐다.
   const orbId = st.orb === 'sill' ? 'orb' : 'orb-rug';
+
+  // 돌 위 새싹 — 그림·성장·시듦은 **세 방 공용**(./sprout.js). 돌 자리 좌표만 넘긴다.
+  // 기존 orb-sprout-* 프롭 셋과 달리 단계(기획서 §179)와 시듦 축을 그대로 받는다.
+  const ORB_XYW = { sill: [58, 35, 10], rug: [47, 61, 14] };
+  if (st.sprout && st.sprout !== 'none' && !layerOff.has('sprout') && on(orbId)) {
+    for (const r of sproutArt(...ORB_XYW[st.orb], st.sprout, st.wither ?? 0)) {
+      ctx.globalAlpha = r[5] == null ? 1 : r[5];
+      ctx.fillStyle = r[4];
+      ctx.fillRect(r[0], r[1], r[2], r[3]);
+    }
+    ctx.globalAlpha = 1;
+  }
   if (!layerOff.has('rim') && on(orbId)) {
     const rimPal = { ...pal, '--wl': sunOn ? pal['--wl'] : pal['--ml'] };
     ctx.save();

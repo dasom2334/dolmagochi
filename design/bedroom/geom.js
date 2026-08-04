@@ -7,6 +7,7 @@ const R = (x, y, w, h, c, a) => (a == null ? [x, y, w, h, c] : [x, y, w, h, c, a
 
 // ── 돌 — 거실에서 생성한 돌 그대로(ball/rim, 팔레트 슬롯 --o0..o4/--wl) ──
 import { ball, rim, rimSide, stoneRows, STONE_ASPECT, h2, emitRows } from '../livingroom/scene/generate.js';
+import { sproutArt as sproutOf } from '../livingroom/scene/sprout.js';
 
 // ── 러그 — 거실 절차 러그와 **같은 방식**(무광원 팔레트 슬롯 + 무늬)으로 생성한다.
 // 추출 러그(레퍼런스)는 창햇빛이 대각선으로 **구워져** 있어 디라이팅으로도 안 지워졌다.
@@ -54,11 +55,18 @@ const orbAt = (cx, baseY, w) => {
 // 3자리 — 작업=의자 / 누워있기+침대=침대 / 침대없음=러그.
 // 원근: 뒷벽 깊이(의자·침대)는 w11 로 같고, 앞쪽 러그만 w14 로 크다.
 // v3 손작화는 의자 시트가 두 줄 낮아(y43) 돌 밑변도 함께 내린다.
-export const ORB_SPOTS = {
-  chair: (st) => orbAt(34, st && st.variant === 'v3' ? 45 : 41, 11),   // v3: 책상 중심(x34)·시트 y45
-  bed:   (st) => orbAt(93, st && st.variant === 'v3' ? 33 : 34, 11),   // v3 이불 윗면 y33
-  rug:   () => orbAt(66, 62, 14),
+// 좌표를 **한 벌만** 둔다 — 돌 그림과 새싹이 같은 자리를 봐야 하기 때문이다.
+const ORB_XYW = {
+  chair: (st) => [34, st && st.variant === 'v3' ? 45 : 41, 11],        // v3: 책상 중심(x34)·시트 y45
+  bed:   (st) => [93, st && st.variant === 'v3' ? 33 : 34, 11],        // v3 이불 윗면 y33
+  rug:   () => [66, 62, 14],
 };
+export const ORB_SPOTS = Object.fromEntries(
+  Object.entries(ORB_XYW).map(([k, f]) => [k, (st) => orbAt(...f(st))]));
+
+// 돌 위 새싹 — 그림·성장·시듦 규칙은 **세 방 공용**(`../livingroom/scene/sprout.js`).
+export const sproutArt = (spot, st, stage, wither = 0) =>
+  (ORB_XYW[spot] ? sproutOf(...ORB_XYW[spot](st), stage, wither) : []);
 
 // ── 창광 = 앞으로 퍼지는 사다리꼴 (거실 poolTrap 이식, SCENE-RULES §3.1) ──
 // 침실 창은 **왼쪽**(유리 x22~54, 중심 38). 빛이 왼쪽 위에서 와 아래로 갈수록
