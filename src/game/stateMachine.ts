@@ -294,6 +294,15 @@ export function isActionUnlocked(action: ActionData, state: GameState): boolean 
  */
 export const PERSONAL_WORK_ACTION = 'personalWork';
 
+/**
+ * 위임 personal("자기만의 작업을 하고 싶은 것 같다")이 여는 세션의 행동.
+ * 육성기에만 작업행동 — 동거는 개인작업 정지(v3-8)라, 하고 싶어해도 자유행동
+ * 그대로 열린다(돌은 결국 누워 있다 — 동거의 그늘 그 자체라 의도된 그림이다).
+ */
+export function delegatePersonalAction(era: GameState['era']): string {
+  return era === 'raising' ? PERSONAL_WORK_ACTION : 'free';
+}
+
 /** 이 행동으로 세션을 열 수 있는가 — 위임이 고른 행동도 여기를 지난다 */
 export function isActionAvailable(action: ActionData, state: GameState): boolean {
   // 병간호 상태: '병간호하기'만 가능 (돌이 아파 다른 행동을 받지 못한다)
@@ -742,7 +751,7 @@ function reduce(
               selectedAction:
                 state.delegate.kind === 'action'
                   ? state.delegate.action
-                  : PERSONAL_WORK_ACTION,
+                  : delegatePersonalAction(state.era),
               delegate: null,
             };
       }
@@ -1734,12 +1743,18 @@ function reduce(
         );
       }
 
-      let memory = remember(
-        next.memory,
-        action.id,
-        BALANCE.MEMORY_WEIGHT_ACTION,
-        event.nowMs,
-      );
+      // 행동 기억 토큰. 단 작업행동은 여기서 남기지 않는다 — 'personalWork' 토큰은
+      // "개인작업 목격"(v4-10, 아래 freeWorked 블록)이라, 세션이 열리기만 해도
+      // 기록하면 목격 없이 뱃지('목격자')와 엔딩 게이트가 열린다.
+      let memory =
+        action.id === PERSONAL_WORK_ACTION
+          ? next.memory
+          : remember(
+              next.memory,
+              action.id,
+              BALANCE.MEMORY_WEIGHT_ACTION,
+              event.nowMs,
+            );
       // 돌이 스스로 한 행동 — 그 행동의 기억을 약하게 강화 (개정 v4-6)
       const via = state.session.freeCareVia;
       if (via && via !== 'self') {

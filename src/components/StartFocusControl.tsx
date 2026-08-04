@@ -1,6 +1,6 @@
 import type { ActionId, GameState } from '../game/types';
 import { BALANCE } from '../game/balance';
-import { isRockPresent, PERSONAL_WORK_ACTION } from '../game/stateMachine';
+import { delegatePersonalAction, isRockPresent } from '../game/stateMachine';
 import { dispatch, now, t, tf } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { gameData } from '../store/gameStore';
@@ -107,9 +107,10 @@ function DelegateControl({
       : wantsId && gameData.text[wantsId]
         ? t(wantsId)
         : tf(SYS.delegate.wants, { action: nameOf(d.action) });
-  // 개인작업도 제 행동으로 연다 — 버튼에 '자유행동'이 뜨던 자리다
+  // 개인작업도 제 행동으로 연다 — 버튼에 '자유행동'이 뜨던 자리다.
+  // 어느 행동이 열릴지는 리듀서와 같은 함수가 정한다 (동거는 개인작업 정지)
   const forkId: ActionId =
-    d.kind === 'personal' ? PERSONAL_WORK_ACTION : d.action;
+    d.kind === 'personal' ? delegatePersonalAction(state.era) : d.action;
   const forkName = nameOf(forkId);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
