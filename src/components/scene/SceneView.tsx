@@ -75,14 +75,6 @@ export function SceneView({ state }: { state: GameState }) {
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
   const sceneId = isFocus ? (action?.sceneId ?? 'free') : 'room';
   const currentRoom = state.settings.lastRoom || DEFAULT_ROOM;
-  // 집중: 행동 풍경 고정 (cook/chore는 자기 방=주방 팔레트로 폴백, v5).
-  // 휴식: 현재 방 팔레트.
-  const colors = isFocus
-    ? (SCENE_COLORS[sceneId] ??
-      (sceneId === 'cook' || sceneId === 'chore'
-        ? roomById('kitchen').palette
-        : roomById(DEFAULT_ROOM).palette))
-    : roomById(currentRoom).palette;
   const present = isRockPresent(state);
 
   const placed = (id: string) => !!state.items[id]?.placed;
@@ -91,6 +83,11 @@ export function SceneView({ state }: { state: GameState }) {
   const sceneRoom = isFocus
     ? focusRoomOf(state.selectedAction, gameData.rooms)
     : currentRoom;
+  // 집중: 행동 풍경 고정 (디자인 미정인 cook/chore·personalWork는 그 장면의 방
+  // 팔레트로 폴백, v5). 휴식: 현재 방 팔레트.
+  const colors = isFocus
+    ? (SCENE_COLORS[sceneId] ?? roomById(sceneRoom ?? DEFAULT_ROOM).palette)
+    : roomById(currentRoom).palette;
   const show = (id: string) => {
     if (!placed(id) || sceneRoom === null) return false;
     const item = gameData.shop.find((i) => i.id === id);

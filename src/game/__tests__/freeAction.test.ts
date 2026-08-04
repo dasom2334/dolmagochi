@@ -229,11 +229,21 @@ describe('자유행동 위임 — 돌에게 맡기기 (피드백2)', () => {
     expect(s.delegate).toBeNull();
   });
 
-  it('개인작업 위임은 자유행동 세션으로 시작한다', () => {
+  // 개인작업도 제 행동으로 열린다 — 예전엔 치환할 행동이 없어 'free' 로 남았고,
+  // 그래서 작업 중인 돌에게 자유행동 문구("돌은 누워 있다")가 붙었다
+  it('개인작업 위임은 작업행동 세션으로 시작한다', () => {
     let s = run(filled(base()), [{ type: 'FREE_DELEGATE' }], seq([0.0]));
+    expect(s.delegate).toEqual({ kind: 'personal' });
     s = run(s, [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.9]));
     expect(s.phase).toBe('focus');
-    expect(s.selectedAction).toBe('free');
+    expect(s.selectedAction).toBe('personalWork');
+  });
+
+  it('작업행동은 화자가 고를 수 없다 — 돌이 골라야 열린다', () => {
+    const s = run(base(), [
+      { type: 'SELECT_ACTION', actionId: 'personalWork' },
+    ]);
+    expect(s.selectedAction).not.toBe('personalWork');
   });
 
   it('다른 행동을 고르면 위임이 해제된다', () => {

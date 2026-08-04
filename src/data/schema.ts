@@ -27,6 +27,13 @@ export interface ActionData {
   unlock?: Condition;
   /** 새 게임의 시작 행동 (정확히 하나) — 배열 순서에 의존하지 않도록 명시 */
   starter?: boolean;
+  /**
+   * 위임 전용 행동 — 화자가 고를 수 없고 **돌이 골라야만** 열린다 (피드백2 위임).
+   * 행동 카드에 뜨지 않고 SELECT_ACTION 으로도 선택되지 않는다.
+   * 병간호(nurse)와 다르다: 그건 상황이 오면 화자에게 뜨는 카드고,
+   * 이건 화자의 목록에 영영 없는 행동이다 (개인작업 = 돌의 몫).
+   */
+  byDelegate?: boolean;
   /** 친밀도 태그 1~5 */
   intimacy: number;
   /** M2 씬 컴포넌트 매핑 */

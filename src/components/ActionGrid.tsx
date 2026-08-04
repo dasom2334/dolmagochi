@@ -8,9 +8,11 @@ import { UI } from '../game/text';
 /**
  * 표시 순서: 병간호 상태면 '병간호하기'만, 아니면 자유행동을 맨 앞에 두고
  * 병간호는 숨긴다(평소엔 선택 불가).
+ * 위임 전용(byDelegate — 돌의 작업)은 화자의 목록에 아예 없다: 돌이 자유행동
+ * 위임에서 골라야만 열리는 세션이라, 카드로 두면 고를 수 있다는 거짓말이 된다.
  */
 function displayActions(state: GameState) {
-  const acts = gameData.actions;
+  const acts = gameData.actions.filter((a) => !a.byDelegate);
   if (state.presence.sick) return acts.filter((a) => a.id === 'nurse');
   const rest = acts.filter((a) => a.id !== 'free' && a.id !== 'nurse');
   const free = acts.filter((a) => a.id === 'free');

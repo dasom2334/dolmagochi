@@ -1,5 +1,5 @@
 import type { GameState, NotifySettings } from '../game/types';
-import { SCHEMA_VERSION } from '../game/stateMachine';
+import { PERSONAL_WORK_ACTION, SCHEMA_VERSION } from '../game/stateMachine';
 import { normalizeFlowtime } from '../game/timer';
 import { BALANCE } from '../game/balance';
 import { derivedSecurity } from '../game/security';
@@ -110,6 +110,13 @@ function normalizeState(state: GameState): GameState {
   );
   return {
     ...state,
+    // 위임 전용 행동(돌의 작업)은 세션 밖에서 선택 상태로 남지 않는다 —
+    // 편집·임포트된 세이브가 위임 없이 "집중 시작 — 돌의 작업"을 세우는 것 방어.
+    // 집중 중 세이브는 그대로 (이어하기가 작업 세션을 복원해야 하므로)
+    selectedAction:
+      state.phase !== 'focus' && state.selectedAction === PERSONAL_WORK_ACTION
+        ? 'free'
+        : state.selectedAction,
     stats: {
       ...state.stats,
       abandonment,

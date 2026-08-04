@@ -644,9 +644,10 @@ describe('자유행동 게이지 — END_FOCUS 시간 정산', () => {
   });
 
   it('개인작업: END_FOCUS 세션당 1회 판정, 90분 만액·시간 비례 확률 (개정 v4-3)', () => {
+    // 작업행동 세션 — 위임이 여는 행동이라 selectedAction 이 'personalWork' 다
     let s: GameState = {
       ...init(),
-      selectedAction: 'free',
+      selectedAction: 'personalWork',
       stats: {
         ...init().stats,
         needs: { physiological: 100, safety: 100, belonging: 100, esteem: 100 },
@@ -658,7 +659,7 @@ describe('자유행동 게이지 — END_FOCUS 시간 정산', () => {
         { type: 'START_FOCUS', nowMs: T0 },
         ...ticks(BALANCE.REFLECT_INTERVAL_FREE_SEC * 4),
       ],
-      seq([0.9]), // 틱에서는 개인작업 판정이 없다 — idle/반추만 흐른다
+      seq([0.9]), // 틱에서는 개인작업 판정이 없다 — 관찰(ambient)만 흐른다
     );
     expect(s.stats.selfActualization).toBe(0); // 집중 중엔 미정산
     // 성공 롤: p = (0.05+0.25)×20/90 ≈ 0.0667 — rng 0.0이면 발동.
@@ -674,6 +675,29 @@ describe('자유행동 게이지 — END_FOCUS 시간 정산', () => {
     const miss = run(s, [{ type: 'END_FOCUS', nowMs: T0 + 1_200_000 }], seq([0.9]));
     expect(miss.session.freeWorked).toBe(false);
     expect(miss.stats.selfActualization).toBe(0);
+    // 목격 토큰은 발동한 세션에만 — 세션이 열리기만 해도 기록하면
+    // 목격 없이 뱃지('목격자')와 엔딩 게이트가 열린다 (v4-10)
+    expect('personalWork' in miss.memory).toBe(false);
+  });
+
+  it('동거는 개인작업 정지(v3-8) — 위임 personal 이 자유행동 그대로 열린다', () => {
+    let s: GameState = {
+      ...init(),
+      era: 'cohabit',
+      stats: {
+        ...init().stats,
+        needs: { physiological: 100, safety: 100, belonging: 100, esteem: 100 },
+      },
+    };
+    s = run(
+      s,
+      [{ type: 'SELECT_ACTION', actionId: 'free' }, { type: 'FREE_DELEGATE' }],
+      seq([0.0]),
+    );
+    expect(s.delegate).toEqual({ kind: 'personal' });
+    s = run(s, [{ type: 'START_FOCUS', nowMs: T0 }], seq([0.0]));
+    // 작업행동이 아니라 자유행동 — 돌은 결국 눕는다 (동거의 그늘)
+    expect(s.selectedAction).toBe('free');
   });
 });
 
