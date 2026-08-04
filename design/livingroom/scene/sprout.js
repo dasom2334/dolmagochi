@@ -29,10 +29,11 @@ const SPROUT_ART = {
   rooting2: ['..112.....', '.1222111..', '1223222211', '.223332221',
     '..233322..', '...2332...', '....ss....', '....s.....', '...ss.....', '....s.....'],
 };
-// 시듦 0~3 — 잎 [그늘, 밝음]. 초록 → 누렇게 → 갈색 (탈색)
-const LEAF = [['#4a7a3a', '#6fa851'], ['#5a7a3a', '#7a9a4a'],
-  ['#6b6a34', '#8a8548'], ['#6b5a2e', '#7d6b38']];
-const STEM = ['#7a6a3a', '#7a6a3a', '#6f6034', '#5e5029'];
+// 시듦 0~3 — 잎 [그늘, 밝음]. 1차 팔레트는 단계 간 색이 너무 가까워
+// "시들었다"가 안 읽혔다 → 0→1 에서 **확 꺾이게** (초록 → 병든 누런색) 벌린다.
+const LEAF = [['#4a7a3a', '#6fa851'], ['#7c7c2e', '#a8a04a'],
+  ['#8a6528', '#a87f3a'], ['#5a4322', '#755a2c']];
+const STEM = ['#7a6a3a', '#746032', '#684f28', '#54401f'];
 
 // ── 뿌리 ────────────────────────────────────────────────────────────────
 // [1차가 못생겼던 이유] 정수리에서 **직선 1픽셀**을 아래로 내리 그었다. 그래서
@@ -87,14 +88,23 @@ export function sproutArt(cx, baseY, w, stage, wither = 0) {
   // **뒤덮임(rooting2)만 면역** — 더는 반응하지 않는 상태라 시듦도 없다.
   const wl = rooting === 2 ? 0 : Math.max(0, Math.min(3, Math.round(wither)));
   const [LD, LB] = LEAF[wl];
-  // 판 크기는 단계마다 다르다(자라니까). 밑동 한 줄이 돌 윗변에 닿게 앉힌다.
-  const x0 = cx - (g[0].length >> 1), y0 = top - (g.length - 1);
-  const cells = [];
+  // 판 크기는 단계마다 다르고(자라니까), **돌 크기도 탄다** — 원근으로 돌이
+  // 작아지면(주방 싱크 w9) 싹도 같이 작아져야 한다. 기준 돌은 거실 러그 w14.
+  const sc = w / 14;
+  const H = g.length, ax = g[0].length >> 1;
+  const put = new Map();                                   // 스케일 다운에서 겹친 셀은 하나로
   g.forEach((row, r) => [...row].forEach((c, i) => {
-    if (c === 's') cells.push([y0 + r, x0 + i, STEM[wl]]);
+    let color = null;
+    if (c === 's') color = STEM[wl];
     else if (c >= '1' && c <= '3' && +c > wl)              // 시듦보다 늦게 지는 잎만 남는다
-      cells.push([y0 + r, x0 + i, c === '3' ? LD : LB]);
+      color = c === '3' ? LD : LB;
+    if (!color) return;
+    const X = cx + Math.round((i - ax) * sc);
+    const Y = top + Math.round((r - (H - 1)) * sc);        // 밑동(마지막 줄)이 돌 윗변
+    if (c !== 's' || !put.has(Y * 1000 + X))               // 잎이 줄기를 이긴다
+      put.set(Y * 1000 + X, color);
   }));
+  const cells = [...put].map(([k, c]) => [Math.floor(k / 1000), k % 1000, c]);
   // 뿌리를 **잎보다 먼저** 깔면 안 된다 — 잎은 돌 위, 뿌리는 돌 위로 지나간다.
   return [...roots(rooting ? rows : [], rooting), ...emitRows(cells)];
 }

@@ -388,6 +388,22 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
   // [1~3.5] 베이스 아트
   for (const id of Z) if (on(id)) drawGroup(ctx, id, pal, t, animOn, st);
 
+  // 돌 위 새싹 — 세 방 공용(./sprout.js). **여기(base 패스, 오버레이 전)** 그려야
+  // 색감·창광·비네트가 나무에도 얹힌다. 1차엔 광원 패스 뒤에 그려서 나무만
+  // 시간대를 안 타는 스티커였다. 좌표는 생성 공간이라 OX 를 더해 그린다.
+  {
+    const ORB_XYW = { sill: [58, 35, 10], rug: [47, 61, 14] };
+    const orbOn = st.orb === 'sill' ? on('orb') : on('orb-rug');
+    if (st.sprout && st.sprout !== 'none' && !layerOff.has('sprout') && orbOn) {
+      for (const r of sproutArt(...ORB_XYW[st.orb], st.sprout, st.wither ?? 0)) {
+        ctx.globalAlpha = r[5] == null ? 1 : r[5];
+        ctx.fillStyle = r[4];
+        ctx.fillRect(r[0] + OX, r[1], r[2], r[3]);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // [4] 색감 오버레이 — 시간 → 날씨. 전환 중엔 나가는 쪽·들어오는 쪽을 가중 합성한다
   const ovs = tp >= 1
     ? [[`light-${st.time}`, 1], [`light-${st.weather}`, 1]]
@@ -460,21 +476,6 @@ export function render(canvas, st, layerOff = new Set(), t = 0) {
   // 담요가 돌을 **덮는 후드**가 아니라 밑동을 두르는 **목도리**로 바뀌면서
   // 돌의 윗면이 그대로 드러난다 → 역광이 걸리는 게 맞다. 게이트를 뺐다.
   const orbId = st.orb === 'sill' ? 'orb' : 'orb-rug';
-
-  // 돌 위 새싹 — 그림·성장·시듦은 **세 방 공용**(./sprout.js). 돌 자리 좌표만 넘긴다.
-  // 기존 orb-sprout-* 프롭 셋과 달리 단계(기획서 §179)와 시듦 축을 그대로 받는다.
-  // 좌표는 생성 공간(SILL_ROWS·RUG_ROWS 와 동일) — 거실 캔버스는 좌우 여백이
-  // 있어 그릴 때 **OX 를 더해야** 한다. 1차에 이걸 빼먹어 싹이 돌보다 16px
-  // 왼쪽에 떠 있었다("위치가 이상하다"의 정체).
-  const ORB_XYW = { sill: [58, 35, 10], rug: [47, 61, 14] };
-  if (st.sprout && st.sprout !== 'none' && !layerOff.has('sprout') && on(orbId)) {
-    for (const r of sproutArt(...ORB_XYW[st.orb], st.sprout, st.wither ?? 0)) {
-      ctx.globalAlpha = r[5] == null ? 1 : r[5];
-      ctx.fillStyle = r[4];
-      ctx.fillRect(r[0] + OX, r[1], r[2], r[3]);
-    }
-    ctx.globalAlpha = 1;
-  }
   if (!layerOff.has('rim') && on(orbId)) {
     const rimPal = { ...pal, '--wl': sunOn ? pal['--wl'] : pal['--ml'] };
     ctx.save();
