@@ -28,7 +28,7 @@ export interface Report {
 const NEED_KEYS = new Set<string>(NEED_ORDER);
 const ERAS = new Set(['raising', 'cohabit', 'apart']);
 const PRESENCES = new Set(['present', 'absent']);
-const SPECIAL_TOKENS = new Set(['choice', 'default', 'personalWork', 'absent']);
+const SPECIAL_TOKENS = new Set(['choice', 'default', 'workWitnessed', 'absent']);
 
 /** 대화 풀 최소 권장 수량 (기획서 v1 컷) */
 const DIALOGUE_MIN = 8;

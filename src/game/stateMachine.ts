@@ -76,7 +76,7 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 28;
+export const SCHEMA_VERSION = 29;
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -293,6 +293,13 @@ export function isActionUnlocked(action: ActionData, state: GameState): boolean 
  * 씬도 자동으로 작업방이 된다 (개정 v5 §2 — 침실·작업방 = lie·personalWork).
  */
 export const PERSONAL_WORK_ACTION = 'personalWork';
+
+/**
+ * "개인작업 목격" 기억 토큰 (개정 v4-10) — 행동 id(personalWork)와 이름을 분리했다
+ * (#61). 판정이 실제 발동한 세션에만 기록되며, 뱃지 '목격자'·엔딩 게이트·
+ * 반추(refl.personalWork)·동행자 대화가 이 토큰을 본다.
+ */
+export const WORK_WITNESSED_TOKEN = 'workWitnessed';
 
 /**
  * 위임 personal("자기만의 작업을 하고 싶은 것 같다")이 여는 세션의 행동.
@@ -584,10 +591,10 @@ export function hasEndingTokens(
 ): boolean {
   return (
     data.actions.every(
-      (a) => a.id === 'nurse' || a.id === 'free' || a.id in memory,
+      (a) => a.id === 'nurse' || a.id === 'free' || a.byDelegate || a.id in memory,
     ) &&
     'choice' in memory &&
-    'personalWork' in memory &&
+    WORK_WITNESSED_TOKEN in memory &&
     Object.keys(memory).some((k) => k.startsWith('buy-'))
   );
 }
@@ -1743,18 +1750,14 @@ function reduce(
         );
       }
 
-      // 행동 기억 토큰. 단 작업행동은 여기서 남기지 않는다 — 'personalWork' 토큰은
-      // "개인작업 목격"(v4-10, 아래 freeWorked 블록)이라, 세션이 열리기만 해도
-      // 기록하면 목격 없이 뱃지('목격자')와 엔딩 게이트가 열린다.
-      let memory =
-        action.id === PERSONAL_WORK_ACTION
-          ? next.memory
-          : remember(
-              next.memory,
-              action.id,
-              BALANCE.MEMORY_WEIGHT_ACTION,
-              event.nowMs,
-            );
+      // 행동 기억 토큰 — 목격 토큰이 workWitnessed 로 분리(#61)돼 작업행동도
+      // 다른 행동처럼 남긴다 (행동 id 토큰과 목격 토큰이 더는 충돌하지 않는다)
+      let memory = remember(
+        next.memory,
+        action.id,
+        BALANCE.MEMORY_WEIGHT_ACTION,
+        event.nowMs,
+      );
       // 돌이 스스로 한 행동 — 그 행동의 기억을 약하게 강화 (개정 v4-6)
       const via = state.session.freeCareVia;
       if (via && via !== 'self') {
@@ -1769,7 +1772,7 @@ function reduce(
       if (freeWorked) {
         memory = remember(
           memory,
-          'personalWork',
+          WORK_WITNESSED_TOKEN,
           BALANCE.MEMORY_WEIGHT_ACTION,
           event.nowMs,
         );

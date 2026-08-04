@@ -52,7 +52,7 @@ describe('엔딩 플로우 (ending)', () => {
     tokens = {
       ...tokens,
       choice: { w: 2, count: 1, lastAt: T0 },
-      personalWork: { w: 3, count: 1, lastAt: T0 },
+      workWitnessed: { w: 3, count: 1, lastAt: T0 },
       'buy-plant': { w: 3, count: 1, lastAt: T0 },
     };
     const base = run({ ...createInitialState(T0, 'read'), items: { book: { placed: false } } }, [

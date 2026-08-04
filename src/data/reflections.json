@@ -55,7 +55,7 @@
   { "token": "selfCareVia-cook", "variants": [{ "textId": "refl.selfCareVia-cook" }] },
   { "token": "selfCareVia-read", "variants": [{ "textId": "refl.selfCareVia-read" }] },
   { "token": "selfCareVia-chore", "variants": [{ "textId": "refl.selfCareVia-chore" }] },
-  { "token": "personalWork", "variants": [{ "textId": "refl.personalWork" }] },
+  { "token": "workWitnessed", "variants": [{ "textId": "refl.personalWork" }] },
   { "token": "default", "variants": [{ "textId": "refl.default" }] },
   { "token": "absent", "variants": [{ "textId": "refl.absent" }] }
 ]
