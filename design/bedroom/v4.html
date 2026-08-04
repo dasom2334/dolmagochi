@@ -57,6 +57,7 @@
     import { render as renderBedroom, SHOP_PROPS as BD_SHOP } from './render.js';
     import { render as renderKitchen, SHOP_PROPS as KT_SHOP,
              ROOM_PROPS as KT_ROOM } from '../cookingroom/render.js';
+    import { render as renderWalk } from '../walk/scene.js';
     import { reduceMotion } from '../livingroom/scene/anim.js';
     import { AMBIENT } from '../livingroom/scene/lights.js';
     import { resolve } from '../livingroom/scene/palette.js';
@@ -221,6 +222,31 @@
                   ['bd-lamp','스탠드'],['bd-nightstand','협탁'],['bd-bed','침대'],['bd-pillow','베개'],['bd-fan','선풍기'],
                   ['bd-rug','러그'],['bd-shelf','선반'],['bd-frames','액자'],['orb','돌']]],
           ['효과',[['anim','애니메이션']]],
+        ],
+      },
+      walk: {
+        name: '산책', render: renderWalk,
+        state: () => ({ scene:'ridge', time:'day', season:'summer', weather:'clear',
+                        orb:'path', sprout:'none', wither:0 }),
+        off: () => new Set(),
+        axes: [
+          ['장소','scene',[['ridge','언덕 오르막'],['riverside','개울 나무다리'],['homeward','노을 귀갓길']]],
+          ['시간','time',[['day','낮'],['sunset','노을'],['night','밤']]],
+          ['계절','season',[['spring','봄'],['summer','여름'],['autumn','가을'],['winter','겨울']]],
+          ['날씨','weather',[['clear','맑음'],['cloud','구름흐림'],['fog','안개흐림'],
+                            ['rain','비'],['downpour','폭우'],['snow','눈'],['petals','꽃잎·낙엽']]],
+          ['돌','orb',[['none','없음'],['path','길 위']]],
+          ['새싹','sprout',[['none','없음'],['budding','전조'],['thriving','무성'],
+            ['rooting1','뿌리내림'],['rooting2','뒤덮임']]],
+          ['시듦','wither',[[0,'0'],[1,'1'],[2,'2'],[3,'3']]],
+        ],
+        toggles: [
+          ['색감',[['light-day','낮'],['light-sunset','노을'],['light-night','밤'],
+                  ['light-cloud','구름흐림'],['light-fog','안개흐림'],['light-rain','비'],
+                  ['light-downpour','폭우'],['light-snow','눈'],['light-petals','꽃잎·낙엽']]],
+          ['광원',[['rim','역광'],['vignette','비네트'],['window-glow','창불'],['fireflies','반딧불']]],
+          ['배경',[['sun','해'],['moon','달'],['stars','별'],['clouds','구름']]],
+          ['효과',[['anim','애니메이션'],['orb','돌'],['sprout','새싹']]],
         ],
       },
     };
