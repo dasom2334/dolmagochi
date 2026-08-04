@@ -201,3 +201,23 @@ describe('saveSchema — 봉투·검증·마이그레이션', () => {
     }
   });
 });
+
+describe('작업행동(위임 전용) 세이브 방어 (PR #60)', () => {
+  const state = createInitialState(T0, 'read');
+
+  it('집중 중 저장된 작업 세션은 그대로 복원 — 이어하기', () => {
+    const midWork = { ...state, phase: 'focus' as const, selectedAction: 'personalWork' };
+    const res = readSave(wrapSave(midWork, T0));
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.state.selectedAction).toBe('personalWork');
+  });
+
+  it('세션 밖(actionSelect·rest)의 personalWork 선택은 free 로 보정 — 임포트 세이브 방어', () => {
+    for (const phase of ['actionSelect', 'rest'] as const) {
+      const forged = { ...state, phase, selectedAction: 'personalWork' };
+      const res = readSave(wrapSave(forged, T0));
+      expect(res.ok).toBe(true);
+      if (res.ok) expect(res.state.selectedAction).toBe('free');
+    }
+  });
+});
