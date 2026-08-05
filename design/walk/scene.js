@@ -10,7 +10,7 @@
 //
 // 흙길·나무다리·집 같은 인공물만 고정색 알베도 — 시간대 색감은 오버레이가 얹는다.
 // 돌은 원근에 따라 실내(w14)보다 작다(§178). 실내 소품은 없다(rooms.ts: walk = null).
-import { generateGroups, ball, rim, stoneRows, STONE_ASPECT, h2, emitRows, rainDrops, fall }
+import { generateGroups, ball, rim, stoneRows, STONE_ASPECT, h2, emitRows }
   from '../livingroom/scene/generate.js';
 import { resolve } from '../livingroom/scene/palette.js';
 import { ROOM_DATA } from '../livingroom/scene/room-data.js';
@@ -49,12 +49,20 @@ function path(o, yTop, cxOf, hwOf) {
     if (h2(y, 0, 311) < 40) o.push(R(x0 + 1 + (h2(y, 1, 312) % Math.max(1, x1 - x0 - 1)), y, 1, 1, D2));
   }
 }
-// 나무 — tree-stages 와 같은 로브 방식(비대칭 수관 + 줄기)
-function tree(o, cx, groundY, s = 1) {
-  const T3 = '--t3', lobes = [[cx, groundY - 14 * s, 6 * s, 4 * s],
+// 나무 — tree-stages 와 같은 로브 방식(비대칭 수관 + 줄기).
+// **잎과 줄기를 나눠 돌려준다** — 겨울엔 잎이 지고(거실 나무와 같은 규칙)
+// 맨가지 실루엣이 남아야 한다. 잎을 그림에 구우면 계절이 못 벗긴다.
+function tree(cx, groundY, s = 1) {
+  const trunk = [], leaves = [];
+  const topY = Math.round(groundY - 10 * s);
+  for (let y = topY; y <= groundY; y++)
+    trunk.push(R(cx, y, Math.max(1, Math.round(s)), 1, '--t3'));
+  // 맨가지 — 잎이 지면 이게 실루엣이다. 위로 벌어지는 잔가지 넷.
+  for (const [dir, off, len] of [[-1, 0, 3], [1, 1, 3], [-1, 3, 2], [1, 4, 2]])
+    for (let k = 1; k <= Math.round(len * s); k++)
+      trunk.push(R(cx + dir * k, topY + off - k, 1, 1, '--t3'));
+  const lobes = [[cx, groundY - 14 * s, 6 * s, 4 * s],
     [cx - 4 * s, groundY - 11 * s, 4 * s, 2.6 * s], [cx + 4.5 * s, groundY - 11.5 * s, 4 * s, 2.4 * s]];
-  for (let y = Math.round(groundY - 10 * s); y <= groundY; y++)
-    o.push(R(cx, y, Math.max(1, Math.round(s)), 1, T3));
   const cell = new Set();
   for (const [lx, ly, rx, ry] of lobes)
     for (let y = Math.floor(ly - ry); y <= Math.ceil(ly + ry); y++)
@@ -66,8 +74,9 @@ function tree(o, cx, groundY, s = 1) {
     let slot = '--t1';
     if (!cell.has((y - 1) * 1000 + x)) slot = '--t2';
     else if (!cell.has((y + 1) * 1000 + x) || h2(x, y, 9) < 8) slot = '--t0';
-    o.push(R(x, y, 1, 1, slot));
+    leaves.push(R(x, y, 1, 1, slot));
   }
+  return { trunk, leaves };
 }
 
 // ── 씬 3종 — {art(정적), sun[x,y], orb[cx,baseY,w], rimL} ──────────────
@@ -87,11 +96,10 @@ function buildRidge() {
   path(out, yTop,
     (y) => 88 + (62 - 88) * ((y - yTop) / (GY - yTop)) ** 0.8,   // 마루 x88 → 발치 x62
     (y) => 1 + 7 * ((y - yTop) / (GY - yTop)) ** 1.3);           // 폭 1 → 8
-  tree(out, 88, 30, 1.0);
   const F = '#3f3130';                                           // 울타리
   out.push(R(8, 40, 16, 1, F), R(8, 43, 16, 1, F));
   for (const x of [9, 15, 22]) out.push(R(x, 39, 1, 6, F));
-  return out;
+  return { art: out, tree: tree(88, 30, 1.0) };
 }
 
 function buildRiverside() {
@@ -129,7 +137,7 @@ function buildRiverside() {
     out.push(R(x, 55, 2, 2, '#1c3350', 0.5));               // 물속 그림자
   }
   for (const x of [6, 118]) out.push(R(x, 38, 2, 12, W1), R(x + 3, 41, 2, 9, W2)); // 물가 말뚝
-  return out;
+  return { art: out, tree: null };
 }
 
 function buildHomeward() {
@@ -148,9 +156,7 @@ function buildHomeward() {
     out.push(R(95 - r * 2, 20 + r, 3 + r * 4, 1, HR));
   out.push(R(103, 17, 2, 4, HR));                            // 굴뚝
   out.push(R(90, 29, 4, 4, '#0e0a0c'));                      // 창(불은 render)
-  // 왼쪽 큰 나무 실루엣
-  tree(out, 16, 38, 1.4);
-  return out;
+  return { art: out, tree: tree(16, 38, 1.4) };                  // 왼쪽 큰 나무
 }
 
 const SCENES = {
@@ -158,7 +164,10 @@ const SCENES = {
   riverside: { build: buildRiverside, sun: [100, 11], orb: [32, 66, 12], rimL: false },
   homeward:  { build: buildHomeward,  sun: [24, 26],  orb: [50, 65, 12], rimL: true },
 };
-for (const s of Object.values(SCENES)) s.art = s.build();
+for (const s of Object.values(SCENES)) {
+  const b = s.build();
+  s.art = b.art; s.tree = b.tree;
+}
 
 // 해·달 — 씬마다 자리가 다르다(귀갓길은 지평선에 낮게)
 const disc = (cx, cy) => [
@@ -210,13 +219,42 @@ function overlay(ctx, oid, pal) {
     ctx.globalCompositeOperation = 'source-over';
   }
 }
-// 야외 전용 강수 — 실내 입자는 **창 38px 로 보는 것** 기준으로 조율된 밀도다
-// (generate.js 주석: "창 폭 37에 방울 16개"). 들판 전폭에 그대로 깔면 가랑비다.
-// 야외는 하늘이 통째로 보이니 더 촘촘하고 길게 — 같은 생성기에 다른 조율값.
+// 야외 전용 강수 — 실내 것(세로 낱방울)은 창 38px 유리 너머 기준의 문법이라
+// 들판에선 정지한 점묘로 읽혔다. 정석 야외 픽셀아트 강수 문법을 벤치마킹:
+//   비  = **사선 줄기**(수직 아님) + **원근 2겹**(먼 겹은 짧고 흐리고, 가까운 겹은
+//         길고 진하다) + 바닥 튐(render 쪽).
+//   눈  = 잔눈(1px, 촘촘) + 굵은 송이(2px, 성김) 2겹 — 크기 차이가 곧 원근이다.
+// 셀은 [0,TILE_H) 주기로 만들고 3벌 복제해 72px 을 채운다(주기성이 깨지면
+// 낙하 래핑 순간 뚝 끊긴다).
+function streaks(spacing, len, passes, salt, slant, alpha) {
+  const o = [];
+  for (let pass = 0; pass < passes; pass++)
+    for (let x0 = -8; x0 < GX + 8; x0 += spacing) {
+      const x = x0 + (h2(x0, pass, salt) % spacing);
+      const y0 = h2(x, pass, salt + 1) % TILE_H;
+      for (let k = 0; k < len; k++)
+        for (let band = 0; band < 3; band++)
+          o.push(R(x - Math.round(k * slant), (y0 + k) % TILE_H + band * TILE_H,
+            1, 1, '--rain', alpha));
+    }
+  return o;
+}
+function flakes(dens, size, salt, alpha) {
+  const o = [];
+  for (let y = 0; y < TILE_H; y++)
+    for (let x = 0; x < GX; x++)
+      if (h2(x, y, salt) < dens)
+        for (let band = 0; band < 3; band++)
+          o.push(R(x, y + band * TILE_H, size, size, '--snow-p', alpha));
+  return o;
+}
 const WX = {
-  rain: rainDrops('--rain', 4, 4, 5, 140),
-  downpour: rainDrops('--rain', 3, 6, 7, 141),
-  snow: [...fall('--snow-p', 5, 1, 142), ...fall('--snow-p', 2, 2, 143)],  // 굵은 송이 섞임
+  rain: [...streaks(7, 3, 2, 150, 0.34, 0.45),        // 먼 겹 — 짧고 흐림
+    ...streaks(6, 5, 3, 152, 0.34, 0.9)],             // 가까운 겹 — 길고 진함
+  downpour: [...streaks(5, 4, 3, 154, 0.5, 0.5),
+    ...streaks(4, 8, 4, 156, 0.5, 1)],
+  snow: [...flakes(3, 1, 158, 0.6),                    // 잔눈
+    ...flakes(1, 2, 159, 0.95)],                       // 굵은 송이
   'pt-petals': groups['pt-petals'],
 };
 const WEATHER_GROUP = { rain: 'rain', downpour: 'downpour', snow: 'snow', petals: 'pt-petals' };
@@ -230,8 +268,12 @@ export function render(cv, state, off = new Set(), t = 0) {
   ctx.fillStyle = pal['--page-bg'] || '#1a1330';
   ctx.fillRect(0, 0, GX, GY);
 
-  // [1] 하늘·해·달·별 (씬 정적 아트가 땅으로 덮는다 — 아니, 하늘은 art 안에 있다)
+  // [1] 씬 정적 아트 + 나무(줄기/잎 분리 — 겨울엔 잎이 진다)
   paint(ctx, sc.art, pal);
+  if (sc.tree) {
+    paint(ctx, sc.tree.trunk, pal);
+    if (state.season !== 'winter') paint(ctx, sc.tree.leaves, pal);
+  }
   const sunUp = state.time !== 'night';
   // 비·폭우·눈·안개엔 해·달·별이 안 보인다 (거실 SUN_HIDDEN 과 같은 규칙)
   const skyHidden = ['fog', 'rain', 'downpour', 'snow'].includes(state.weather);
@@ -274,6 +316,23 @@ export function render(cv, state, off = new Set(), t = 0) {
     paint(ctx, WX[wid], pal);
     if (tf.tile) { ctx.translate(0, -TILE_H); paint(ctx, WX[wid], pal); }
     ctx.restore();
+  }
+
+  // [3.4] 바닥 튐 — 빗방울이 땅에 닿아 튀는 한 점. 이게 있어야 비가 **이 세계에
+  // 내리는** 것이 되고, 없으면 화면 앞 유리에 붙은 스티커다.
+  if ((state.weather === 'rain' || state.weather === 'downpour')
+      && !off.has('anim-weather') && !off.has('anim')) {
+    const n = state.weather === 'rain' ? 6 : 11;
+    for (let i = 0; i < n; i++) {
+      const ph = ((t / 420) + i * 0.41) % 1;
+      if (ph < 0.3) {
+        const x = 4 + (h2(i, 41, 170) * 120 / 99) | 0;
+        const y = 62 + (h2(i, 7, 171) % 9);
+        const a = 0.4 * (1 - ph / 0.3);
+        paint(ctx, [R(x, y, 1, 1, '--rain', a), R(x - 1, y - 1, 1, 1, '--rain', a * 0.6),
+          R(x + 1, y - 1, 1, 1, '--rain', a * 0.6)], pal);
+      }
+    }
   }
 
   // [3.5] 우산 — 비·눈 오는 산책의 우산 플로우(M12). 돌 곁에 꽂아 갓이 돌을 덮는다.
