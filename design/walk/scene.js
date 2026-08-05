@@ -314,6 +314,47 @@ export function render(cv, state, off = new Set(), t = 0) {
       paint(ctx, sproutArt(cx, baseY, w, state.sprout, state.wither ?? 0), pal);
   }
 
+  // [2.5] 우산 — 펼쳐진 채 **바짝 기울여**(60도) 돌에 기대 놓아 돌을 가린다.
+  // 파라솔로 읽히던 원인: 테가 매끈한 반원 = 파라솔이다. 우산은 **물결 테**
+  // (스캘럽)가 정체성이다 → 테를 삼각파로 깎고, 꼭지·긴 대·J 손잡이를 붙인다.
+  // 날씨 입자보다 **먼저** 그린다 — 비는 우산 위로 지나가는 애니메이션이다.
+  if (orb && state.umbrella === 'on' && !off.has('umbrella')) {
+    const [cx, baseY, w] = sc.orb;
+    const gy = baseY + 1;
+    const top = baseY - Math.round(w / STONE_ASPECT) + 1;
+    const C = [cx + 4, top - 2];                              // 돌 정수리 위 — 갓이 돌을 덮는다
+    const ax_ = 0.87, ay_ = -0.5, rad = 8;                    // 갓 축 — 60도로 눕는다
+    const tri = (v) => Math.abs(((v % 2) + 2) % 2 - 1);
+    const U0 = '#5b7b84', U1 = '#3f5a63', U2 = '#31474f', UD = '#26383f', MP = '#41444d';
+    const um = [];
+    for (let y = Math.floor(C[1] - rad - 2); y <= gy; y++)
+      for (let x = Math.floor(C[0] - rad - 2); x <= Math.ceil(C[0] + rad + 2); x++) {
+        const dx = x - C[0], dy = y - C[1];
+        const d = Math.hypot(dx, dy);
+        if (d > rad + 0.3) continue;
+        const ap = dx * ax_ + dy * ay_;                       // 축 방향(꼭지 +)
+        const sp = -dx * ay_ + dy * ax_;                      // 테를 따라
+        const cut = -0.4 + 1.7 * tri(sp / 2.6);               // 물결 테
+        if (ap < cut) continue;
+        const c = ap < cut + 1.1 ? UD                         // 테두리 선
+          : ap > rad * 0.62 ? U0                              // 꼭지 쪽 등 — 밝다
+            : d > rad * 0.82 ? U2 : U1;
+        um.push(R(x, y, 1, 1, c));
+      }
+    um.push(R(Math.round(C[0] + ax_ * (rad + 1)) , Math.round(C[1] + ay_ * (rad + 1)), 2, 1, '#8d9099')); // 꼭지
+    for (let k = 1; k <= 9; k++) {                            // 대 — 열린 면에서 왼쪽 아래로
+      const px = Math.round(C[0] - ax_ * k), py = Math.min(gy, Math.round(C[1] - ay_ * k));
+      um.push(R(px, py, 1, 1, MP));
+    }
+    const hx = Math.round(C[0] - ax_ * 10), hy = Math.min(gy, Math.round(C[1] - ay_ * 10));
+    um.push(R(hx - 1, hy, 2, 1, MP), R(hx - 2, hy - 1, 1, 1, MP));   // J 손잡이
+    paint(ctx, um, pal);
+    ctx.globalCompositeOperation = 'multiply';                // 접지 그림자
+    ctx.globalAlpha = 0.25; ctx.fillStyle = '#0b0710';
+    ctx.fillRect(C[0] - 4, gy + 1, 14, 1);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+
   // [3] 날씨 입자 — 캔버스 전폭(거실 절차 생성 재사용)
   const wid = WEATHER_GROUP[state.weather];
   if (wid && WX[wid] && !off.has('anim-weather')) {
@@ -347,39 +388,6 @@ export function render(cv, state, off = new Set(), t = 0) {
           R(x + 1, y - 1, 1, 1, '--rain', a * 0.6)], pal);
       }
     }
-  }
-
-  // [3.5] 우산 — 펼쳐진 채 45도로 기울여 바닥에 놓아 **돌을 가리듯** 세워 놨다.
-  // 비는 오른쪽 위에서 사선으로 오므로 갓 등이 오른쪽 위를 보고, 열린 면이
-  // 돌(왼쪽 아래)을 향한다. 돌·새싹보다 나중에 그려 갓이 돌 윗부분을 덮는다.
-  if (orb && state.umbrella === 'on' && !off.has('umbrella')) {
-    const [cx, baseY, w] = sc.orb;
-    const gy = baseY + 1;
-    const top = baseY - Math.round(w / STONE_ASPECT) + 1;
-    const C = [cx + 5, top];                                  // 갓 중심 — 돌 오른쪽 어깨 위
-    const rad = 7.5, nx = -0.7, ny = 0.7;                     // 열린 면이 왼쪽 아래(돌)를 본다
-    const um = [];
-    for (let y = Math.floor(C[1] - rad); y <= gy; y++)        // 땅 밑은 버린다(놓여 있다)
-      for (let x = Math.floor(C[0] - rad); x <= Math.ceil(C[0] + rad); x++) {
-        const dx = x - C[0], dy = y - C[1];
-        const d = Math.hypot(dx, dy), pl = dx * nx + dy * ny; // pl<0 = 갓 쪽
-        if (d > rad || pl > 0.6) continue;
-        const c = pl > -0.9 ? '#26383f'                       // 테(열린 면 모서리)
-          : -pl > rad * 0.55 ? '#5b7b84'                      // 꼭지 쪽 등 — 밝다
-            : d > rad * 0.8 ? '#31474f' : '#3f5a63';
-        um.push(R(x, y, 1, 1, c));
-      }
-    um.push(R(Math.round(C[0] - nx * (rad + 1)), Math.round(C[1] - ny * (rad + 1)), 1, 1, '#8d9099')); // 꼭지
-    for (let k = 2; k <= 8; k++) {                            // 대 — 돌 앞을 지나 땅으로
-      const px = Math.round(C[0] + nx * k), py = Math.min(gy, Math.round(C[1] + ny * k));
-      um.push(R(px, py, 1, 1, '#41444d'));
-    }
-    um.push(R(Math.round(C[0] + nx * 9) - 1, gy, 2, 1, '#41444d'));  // 굽은 손잡이 끝
-    paint(ctx, um, pal);
-    ctx.globalCompositeOperation = 'multiply';                // 접지 그림자
-    ctx.globalAlpha = 0.25; ctx.fillStyle = '#0b0710';
-    ctx.fillRect(C[0] - 3, gy + 1, 14, 1);
-    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   }
 
   // [4] 색감 오버레이 — 유리 존 세기로 전면
