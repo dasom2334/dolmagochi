@@ -257,10 +257,11 @@ function flakes(dens, size, salt, alpha) {
 const SNOW_FAR = flakes(3, 1, 158, 0.6);               // 잔눈 — 멀고 느리다
 const SNOW_NEAR = flakes(1, 2, 159, 0.95);             // 굵은 송이 — 가깝고 빠르다
 const WX = {
-  rain: [...streaks(7, 3, 2, 150, 0.34, 0.45),        // 먼 겹 — 짧고 흐림
-    ...streaks(6, 5, 3, 152, 0.34, 0.9)],             // 가까운 겹 — 길고 진함
-  downpour: [...streaks(5, 4, 3, 154, 0.5, 0.5),
-    ...streaks(4, 8, 4, 156, 0.5, 1)],
+  // 사선 판도 내려 봤지만 결국 직선 — 이 해상도에선 곧은 줄기가 제일 비답다.
+  rain: [...streaks(7, 3, 2, 150, 0, 0.45),           // 먼 겹 — 짧고 흐림
+    ...streaks(6, 5, 3, 152, 0, 0.9)],                // 가까운 겹 — 길고 진함
+  downpour: [...streaks(5, 4, 3, 154, 0, 0.5),
+    ...streaks(4, 8, 4, 156, 0, 1)],
   snow: [...SNOW_FAR, ...SNOW_NEAR],                   // 애니 끔일 때 한 장으로
   'pt-petals': groups['pt-petals'],
 };
@@ -321,13 +322,12 @@ export function render(cv, state, off = new Set(), t = 0) {
     const layers = wid === 'snow' && a
       ? [[SNOW_FAR, 0.55], [SNOW_NEAR, 1.25]]
       : [[WX[wid], 1]];
-    const sl = { rain: 0.34, downpour: 0.5 }[wid] ?? 0;   // 비는 사선으로 **떨어진다**
     for (const [rects, spd] of layers) {
       const tf = a ? a(t * spd) : {};
       ctx.save();
-      if (tf.dy) ctx.translate(-Math.round(tf.dy * sl), tf.dy);
+      if (tf.dy) ctx.translate(0, tf.dy);
       paint(ctx, rects, pal);
-      if (tf.tile) { ctx.translate(Math.round(TILE_H * sl), -TILE_H); paint(ctx, rects, pal); }
+      if (tf.tile) { ctx.translate(0, -TILE_H); paint(ctx, rects, pal); }
       ctx.restore();
     }
   }
