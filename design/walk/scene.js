@@ -256,6 +256,19 @@ function flakes(dens, size, salt, alpha) {
 // 원근이 산다. 크기만 다르고 같은 속도로 내리면 벽지 무늬가 흐르는 것이 된다.
 const SNOW_FAR = flakes(3, 1, 158, 0.6);               // 잔눈 — 멀고 느리다
 const SNOW_NEAR = flakes(1, 2, 159, 0.95);             // 굵은 송이 — 가깝고 빠르다
+// 꽃잎·낙엽 — 색은 계절 슬롯(--t2)이 정한다: 봄=꽃잎, 가을=낙엽 (거실과 같은 규칙).
+// 실내 것은 창 기준 밀도라 야외에선 두 겹으로 다시: 먼 잎(1px)·가까운 잎(2px).
+function petals(dens, size, salt, alpha) {
+  const o = [];
+  for (let y = 0; y < TILE_H; y++)
+    for (let x = 0; x < GX; x++)
+      if (h2(x, y, salt) < dens)
+        for (let band = 0; band < 3; band++)
+          o.push(R(x, y + band * TILE_H, size, 1, '--t2', alpha));   // 잎은 납작하다
+  return o;
+}
+const PET_FAR = petals(2, 1, 180, 0.75);
+const PET_NEAR = petals(1, 2, 181, 1);
 const WX = {
   // 사선 판도 내려 봤지만 결국 직선 — 이 해상도에선 곧은 줄기가 제일 비답다.
   rain: [...streaks(7, 3, 2, 150, 0, 0.45),           // 먼 겹 — 짧고 흐림
@@ -263,7 +276,12 @@ const WX = {
   downpour: [...streaks(5, 4, 3, 154, 0, 0.5),
     ...streaks(4, 8, 4, 156, 0, 1)],
   snow: [...SNOW_FAR, ...SNOW_NEAR],                   // 애니 끔일 때 한 장으로
-  'pt-petals': groups['pt-petals'],
+  'pt-petals': [...PET_FAR, ...PET_NEAR],
+};
+// 겹별 낙하 속도 — 가까운 겹이 빨라야 원근이 산다
+const LAYERED = {
+  snow: [[SNOW_FAR, 0.55], [SNOW_NEAR, 1.25]],
+  'pt-petals': [[PET_FAR, 0.7], [PET_NEAR, 1.15]],
 };
 const WEATHER_GROUP = { rain: 'rain', downpour: 'downpour', snow: 'snow', petals: 'pt-petals' };
 
@@ -360,9 +378,7 @@ export function render(cv, state, off = new Set(), t = 0) {
   if (wid && WX[wid] && !off.has('anim-weather')) {
     const a = !off.has('anim') ? ANIM[GROUP_ANIM[wid]] : null;
     // 눈은 겹마다 속도가 다르다 — t 배율로 같은 스텝 애니를 다른 속도로 돌린다
-    const layers = wid === 'snow' && a
-      ? [[SNOW_FAR, 0.55], [SNOW_NEAR, 1.25]]
-      : [[WX[wid], 1]];
+    const layers = a && LAYERED[wid] ? LAYERED[wid] : [[WX[wid], 1]];
     for (const [rects, spd] of layers) {
       const tf = a ? a(t * spd) : {};
       ctx.save();
