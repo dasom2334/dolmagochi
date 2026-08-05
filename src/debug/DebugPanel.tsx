@@ -353,6 +353,17 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
   const bedroomItems = gameData.shop
     .filter((i) => roomOfItem(i, gameData.rooms) === 'bedroom')
     .map((i) => i.id);
+  // 주방도 — 11종(냄비·도마·국자·재료·솔·세척·신발·우산·도시락·찻상·빗자루) 게이팅 확인용
+  const kitchenItems = gameData.shop
+    .filter((i) => roomOfItem(i, gameData.rooms) === 'kitchen')
+    .map((i) => i.id);
+  const setKitchenItems = (placed: boolean) =>
+    patch((s) => ({
+      items: {
+        ...s.items,
+        ...Object.fromEntries(kitchenItems.map((id) => [id, { placed }])),
+      },
+    }));
   const setBedroomItems = (placed: boolean) =>
     patch((s) => ({
       items: {
@@ -456,6 +467,16 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
           전부 배치
         </button>
         <button className="hv" style={btnSmall} onClick={() => setBedroomItems(false)}>
+          전부 해제
+        </button>
+        <span style={dim}>
+          주방 소품 {kitchenItems.filter((id) => state.items[id]?.placed).length}/
+          {kitchenItems.length}
+        </span>
+        <button className="hv" style={btnSmall} onClick={() => setKitchenItems(true)}>
+          전부 배치
+        </button>
+        <button className="hv" style={btnSmall} onClick={() => setKitchenItems(false)}>
           전부 해제
         </button>
         <span style={dim}>일회용 책 누적</span>

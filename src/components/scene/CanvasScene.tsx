@@ -137,7 +137,9 @@ function sceneOf(state: GameState): {
   }
 
   if (room === 'bedroom') {
-    const off = new Set<string>(BD_SHOP as string[]);
+    // bd-pillow 는 렌더러 SHOP_PROPS 에 없다(침대 유무로 자리만 갈리는 소품이라
+    // 목록 밖) — off 초기값에 직접 넣지 않으면 안 산 베개가 늘 러그에 놓인다.
+    const off = new Set<string>([...(BD_SHOP as string[]), 'bd-pillow']);
     for (const [gameId, layers] of Object.entries(BD_LAYER))
       if (show(gameId)) for (const l of layers) off.delete(l);
     return {
@@ -145,11 +147,13 @@ function sceneOf(state: GameState): {
       st: {
         ...base,
         variant: 'v3',
+        // 침실 돌의 자리 규칙: 작업=의자 / 누워있기=침대, **받침이 없으면 러그**.
+        // 안 산 침대 자리에 돌을 앉히면 벽에 떠 있게 된다(실제로 떴다).
         orb: !present
           ? 'none'
-          : sceneId === 'personalWork'
+          : sceneId === 'personalWork' && show('desk')
             ? 'chair'
-            : sceneId === 'lie'
+            : sceneId === 'lie' && show('bed')
               ? 'bed'
               : 'rug',
         lamp: time === 'night' ? 'on' : 'off',
@@ -165,8 +169,11 @@ function sceneOf(state: GameState): {
   for (const [gameId, layer] of Object.entries(LIVING_LAYER))
     if (show(gameId)) off.delete(layer);
   if (!placed('moss')) off.add('orb-moss');
-  off.add('orb-wet');
-  off.add('orb-snow');
+  // 비 산책에서 젖어 돌아온 돌 — 'wet' 은 물기, 'snowy' 는 눈 얹힘
+  if (state.session.wetness !== 'wet') off.add('orb-wet');
+  if (state.session.wetness !== 'snowy') off.add('orb-snow');
+  // [TODO: 소모품 연출] 세션 supply(도시락 변형 등)는 옛 SupplyProp 이 그리던 것 —
+  // 캔버스 씬에는 아직 자리가 없다. 산책 씬에 바구니 레이어를 붙일 때 함께.
   return {
     render: renderLiving as RenderFn,
     st: {
