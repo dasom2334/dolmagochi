@@ -226,16 +226,20 @@ function overlay(ctx, oid, pal) {
 //   눈  = 잔눈(1px, 촘촘) + 굵은 송이(2px, 성김) 2겹 — 크기 차이가 곧 원근이다.
 // 셀은 [0,TILE_H) 주기로 만들고 3벌 복제해 72px 을 채운다(주기성이 깨지면
 // 낙하 래핑 순간 뚝 끊긴다).
+// 빗줄기는 **기울기 방향으로 떨어져야** 한다 — 사선으로 그려 놓고 세로로 내리면
+// 들통난다(generate.js 가 실내에서 세로 낱방울을 고른 이유가 이 함정이었다).
+// 낙하 변환이 (dy, -dy·slant) 이므로, 이음새 없이 돌려면 패턴이 그 방향으로
+// 주기적이어야 한다 → 밴드 b 를 (y + b·T, x - b·T·slant) 로 **빗겨 복제**한다.
 function streaks(spacing, len, passes, salt, slant, alpha) {
   const o = [];
   for (let pass = 0; pass < passes; pass++)
-    for (let x0 = -8; x0 < GX + 8; x0 += spacing) {
-      const x = x0 + (h2(x0, pass, salt) % spacing);
-      const y0 = h2(x, pass, salt + 1) % TILE_H;
+    for (let x0 = -12; x0 < GX + 40; x0 += spacing) {
+      const x = x0 + (h2(x0 + 20, pass, salt) % spacing);
+      const y0 = h2(x + 20, pass, salt + 1) % TILE_H;
       for (let k = 0; k < len; k++)
         for (let band = 0; band < 3; band++)
-          o.push(R(x - Math.round(k * slant), (y0 + k) % TILE_H + band * TILE_H,
-            1, 1, '--rain', alpha));
+          o.push(R(x - Math.round((k + band * TILE_H) * slant),
+            (y0 + k) % TILE_H + band * TILE_H, 1, 1, '--rain', alpha));
     }
   return o;
 }
@@ -248,13 +252,16 @@ function flakes(dens, size, salt, alpha) {
           o.push(R(x, y + band * TILE_H, size, size, '--snow-p', alpha));
   return o;
 }
+// 눈은 두 겹을 **속도까지** 가른다 — 가까운 것(굵은 송이)이 빨리 떨어져야
+// 원근이 산다. 크기만 다르고 같은 속도로 내리면 벽지 무늬가 흐르는 것이 된다.
+const SNOW_FAR = flakes(3, 1, 158, 0.6);               // 잔눈 — 멀고 느리다
+const SNOW_NEAR = flakes(1, 2, 159, 0.95);             // 굵은 송이 — 가깝고 빠르다
 const WX = {
   rain: [...streaks(7, 3, 2, 150, 0.34, 0.45),        // 먼 겹 — 짧고 흐림
     ...streaks(6, 5, 3, 152, 0.34, 0.9)],             // 가까운 겹 — 길고 진함
   downpour: [...streaks(5, 4, 3, 154, 0.5, 0.5),
     ...streaks(4, 8, 4, 156, 0.5, 1)],
-  snow: [...flakes(3, 1, 158, 0.6),                    // 잔눈
-    ...flakes(1, 2, 159, 0.95)],                       // 굵은 송이
+  snow: [...SNOW_FAR, ...SNOW_NEAR],                   // 애니 끔일 때 한 장으로
   'pt-petals': groups['pt-petals'],
 };
 const WEATHER_GROUP = { rain: 'rain', downpour: 'downpour', snow: 'snow', petals: 'pt-petals' };
@@ -310,12 +317,19 @@ export function render(cv, state, off = new Set(), t = 0) {
   const wid = WEATHER_GROUP[state.weather];
   if (wid && WX[wid] && !off.has('anim-weather')) {
     const a = !off.has('anim') ? ANIM[GROUP_ANIM[wid]] : null;
-    const tf = a ? a(t) : {};
-    ctx.save();
-    if (tf.dy) ctx.translate(0, tf.dy);
-    paint(ctx, WX[wid], pal);
-    if (tf.tile) { ctx.translate(0, -TILE_H); paint(ctx, WX[wid], pal); }
-    ctx.restore();
+    // 눈은 겹마다 속도가 다르다 — t 배율로 같은 스텝 애니를 다른 속도로 돌린다
+    const layers = wid === 'snow' && a
+      ? [[SNOW_FAR, 0.55], [SNOW_NEAR, 1.25]]
+      : [[WX[wid], 1]];
+    const sl = { rain: 0.34, downpour: 0.5 }[wid] ?? 0;   // 비는 사선으로 **떨어진다**
+    for (const [rects, spd] of layers) {
+      const tf = a ? a(t * spd) : {};
+      ctx.save();
+      if (tf.dy) ctx.translate(-Math.round(tf.dy * sl), tf.dy);
+      paint(ctx, rects, pal);
+      if (tf.tile) { ctx.translate(Math.round(TILE_H * sl), -TILE_H); paint(ctx, rects, pal); }
+      ctx.restore();
+    }
   }
 
   // [3.4] 바닥 튐 — 빗방울이 땅에 닿아 튀는 한 점. 이게 있어야 비가 **이 세계에
@@ -335,23 +349,37 @@ export function render(cv, state, off = new Set(), t = 0) {
     }
   }
 
-  // [3.5] 우산 — 비·눈 오는 산책의 우산 플로우(M12). 돌 곁에 꽂아 갓이 돌을 덮는다.
-  // 날씨 입자 **뒤**에 그린다 — 빗방울이 갓에서 가려져 "막아 준다"로 읽힌다.
-  // 색은 주방 신발장의 그 우산(청록)과 같은 물건이다.
+  // [3.5] 우산 — 펼쳐진 채 45도로 기울여 바닥에 놓아 **돌을 가리듯** 세워 놨다.
+  // 비는 오른쪽 위에서 사선으로 오므로 갓 등이 오른쪽 위를 보고, 열린 면이
+  // 돌(왼쪽 아래)을 향한다. 돌·새싹보다 나중에 그려 갓이 돌 윗부분을 덮는다.
   if (orb && state.umbrella === 'on' && !off.has('umbrella')) {
     const [cx, baseY, w] = sc.orb;
+    const gy = baseY + 1;
     const top = baseY - Math.round(w / STONE_ASPECT) + 1;
-    const U0 = '#4a6870', U1 = '#3f5a63', U2 = '#31474f', UD = '#26383f';
-    const cy = top - 9, hw = Math.round(w / 2) + 2;
-    const um = [
-      R(cx - 1, cy, 3, 1, U0),
-      R(cx - Math.round(hw * 0.6), cy + 1, Math.round(hw * 1.2) + 1, 1, U1),
-      R(cx - hw, cy + 2, hw * 2 + 1, 1, U2),
-    ];
-    for (let i = -hw; i <= hw; i += 3) um.push(R(cx + i, cy + 3, 1, 1, UD));  // 갓 톱니
-    um.push(R(cx - 1, cy - 1, 1, 1, '#8d9099'));                              // 꼭지
-    for (let y = cy + 3; y < top; y++) um.push(R(cx, y, 1, 1, '#41444d'));    // 대 — 돌 뒤로
+    const C = [cx + 5, top];                                  // 갓 중심 — 돌 오른쪽 어깨 위
+    const rad = 7.5, nx = -0.7, ny = 0.7;                     // 열린 면이 왼쪽 아래(돌)를 본다
+    const um = [];
+    for (let y = Math.floor(C[1] - rad); y <= gy; y++)        // 땅 밑은 버린다(놓여 있다)
+      for (let x = Math.floor(C[0] - rad); x <= Math.ceil(C[0] + rad); x++) {
+        const dx = x - C[0], dy = y - C[1];
+        const d = Math.hypot(dx, dy), pl = dx * nx + dy * ny; // pl<0 = 갓 쪽
+        if (d > rad || pl > 0.6) continue;
+        const c = pl > -0.9 ? '#26383f'                       // 테(열린 면 모서리)
+          : -pl > rad * 0.55 ? '#5b7b84'                      // 꼭지 쪽 등 — 밝다
+            : d > rad * 0.8 ? '#31474f' : '#3f5a63';
+        um.push(R(x, y, 1, 1, c));
+      }
+    um.push(R(Math.round(C[0] - nx * (rad + 1)), Math.round(C[1] - ny * (rad + 1)), 1, 1, '#8d9099')); // 꼭지
+    for (let k = 2; k <= 8; k++) {                            // 대 — 돌 앞을 지나 땅으로
+      const px = Math.round(C[0] + nx * k), py = Math.min(gy, Math.round(C[1] + ny * k));
+      um.push(R(px, py, 1, 1, '#41444d'));
+    }
+    um.push(R(Math.round(C[0] + nx * 9) - 1, gy, 2, 1, '#41444d'));  // 굽은 손잡이 끝
     paint(ctx, um, pal);
+    ctx.globalCompositeOperation = 'multiply';                // 접지 그림자
+    ctx.globalAlpha = 0.25; ctx.fillStyle = '#0b0710';
+    ctx.fillRect(C[0] - 3, gy + 1, 14, 1);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   }
 
   // [4] 색감 오버레이 — 유리 존 세기로 전면
