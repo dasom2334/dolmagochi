@@ -111,10 +111,13 @@ export function render(cv, state, off = new Set(), t = 0) {
   // [1] 창밖 풍경 — 캔버스 전체. 벽[2]이 덮어 개구부로만 보인다(§1).
   const sunUp = state.time !== 'night';
   if (!off.has('base-scenery')) paint(ctx, SCN, pal);
-  if (sunUp) { if (!off.has('sun')) paint(ctx, KT_SUN, pal); }
-  else {
-    if (!off.has('stars')) paint(ctx, KT_STARS, pal);
-    if (!off.has('moon')) paint(ctx, KT_MOON, pal);
+  // 비·폭우·눈·안개엔 해·달·별이 안 보인다 (거실 SUN_HIDDEN 과 같은 규칙)
+  if (!['fog', 'rain', 'downpour', 'snow'].includes(state.weather)) {
+    if (sunUp) { if (!off.has('sun')) paint(ctx, KT_SUN, pal); }
+    else {
+      if (!off.has('stars')) paint(ctx, KT_STARS, pal);
+      if (!off.has('moon')) paint(ctx, KT_MOON, pal);
+    }
   }
   const cloudy = ['cloud', 'rain', 'downpour', 'snow'].includes(state.weather)
     && groups.clouds && !off.has('clouds');

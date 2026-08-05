@@ -10,7 +10,7 @@
 //
 // 흙길·나무다리·집 같은 인공물만 고정색 알베도 — 시간대 색감은 오버레이가 얹는다.
 // 돌은 원근에 따라 실내(w14)보다 작다(§178). 실내 소품은 없다(rooms.ts: walk = null).
-import { generateGroups, ball, rim, stoneRows, STONE_ASPECT, h2, emitRows }
+import { generateGroups, ball, rim, stoneRows, STONE_ASPECT, h2, emitRows, rainDrops, fall }
   from '../livingroom/scene/generate.js';
 import { resolve } from '../livingroom/scene/palette.js';
 import { ROOM_DATA } from '../livingroom/scene/room-data.js';
@@ -210,6 +210,15 @@ function overlay(ctx, oid, pal) {
     ctx.globalCompositeOperation = 'source-over';
   }
 }
+// 야외 전용 강수 — 실내 입자는 **창 38px 로 보는 것** 기준으로 조율된 밀도다
+// (generate.js 주석: "창 폭 37에 방울 16개"). 들판 전폭에 그대로 깔면 가랑비다.
+// 야외는 하늘이 통째로 보이니 더 촘촘하고 길게 — 같은 생성기에 다른 조율값.
+const WX = {
+  rain: rainDrops('--rain', 4, 4, 5, 140),
+  downpour: rainDrops('--rain', 3, 6, 7, 141),
+  snow: [...fall('--snow-p', 5, 1, 142), ...fall('--snow-p', 2, 2, 143)],  // 굵은 송이 섞임
+  'pt-petals': groups['pt-petals'],
+};
 const WEATHER_GROUP = { rain: 'rain', downpour: 'downpour', snow: 'snow', petals: 'pt-petals' };
 
 export function render(cv, state, off = new Set(), t = 0) {
@@ -224,10 +233,14 @@ export function render(cv, state, off = new Set(), t = 0) {
   // [1] 하늘·해·달·별 (씬 정적 아트가 땅으로 덮는다 — 아니, 하늘은 art 안에 있다)
   paint(ctx, sc.art, pal);
   const sunUp = state.time !== 'night';
-  if (sunUp) { if (!off.has('sun')) paint(ctx, disc(...sc.sun), pal); }
-  else {
-    if (!off.has('stars')) paint(ctx, STARS, pal);
-    if (!off.has('moon')) paint(ctx, moonAt(...sc.sun), pal);
+  // 비·폭우·눈·안개엔 해·달·별이 안 보인다 (거실 SUN_HIDDEN 과 같은 규칙)
+  const skyHidden = ['fog', 'rain', 'downpour', 'snow'].includes(state.weather);
+  if (!skyHidden) {
+    if (sunUp) { if (!off.has('sun')) paint(ctx, disc(...sc.sun), pal); }
+    else {
+      if (!off.has('stars')) paint(ctx, STARS, pal);
+      if (!off.has('moon')) paint(ctx, moonAt(...sc.sun), pal);
+    }
   }
   const cloudy = ['cloud', 'rain', 'downpour', 'snow'].includes(state.weather);
   if (cloudy && groups.clouds && !off.has('clouds')) paint(ctx, groups.clouds, pal);
@@ -253,14 +266,33 @@ export function render(cv, state, off = new Set(), t = 0) {
 
   // [3] 날씨 입자 — 캔버스 전폭(거실 절차 생성 재사용)
   const wid = WEATHER_GROUP[state.weather];
-  if (wid && groups[wid] && !off.has('anim-weather')) {
+  if (wid && WX[wid] && !off.has('anim-weather')) {
     const a = !off.has('anim') ? ANIM[GROUP_ANIM[wid]] : null;
     const tf = a ? a(t) : {};
     ctx.save();
     if (tf.dy) ctx.translate(0, tf.dy);
-    paint(ctx, groups[wid], pal);
-    if (tf.tile) { ctx.translate(0, -TILE_H); paint(ctx, groups[wid], pal); }
+    paint(ctx, WX[wid], pal);
+    if (tf.tile) { ctx.translate(0, -TILE_H); paint(ctx, WX[wid], pal); }
     ctx.restore();
+  }
+
+  // [3.5] 우산 — 비·눈 오는 산책의 우산 플로우(M12). 돌 곁에 꽂아 갓이 돌을 덮는다.
+  // 날씨 입자 **뒤**에 그린다 — 빗방울이 갓에서 가려져 "막아 준다"로 읽힌다.
+  // 색은 주방 신발장의 그 우산(청록)과 같은 물건이다.
+  if (orb && state.umbrella === 'on' && !off.has('umbrella')) {
+    const [cx, baseY, w] = sc.orb;
+    const top = baseY - Math.round(w / STONE_ASPECT) + 1;
+    const U0 = '#4a6870', U1 = '#3f5a63', U2 = '#31474f', UD = '#26383f';
+    const cy = top - 9, hw = Math.round(w / 2) + 2;
+    const um = [
+      R(cx - 1, cy, 3, 1, U0),
+      R(cx - Math.round(hw * 0.6), cy + 1, Math.round(hw * 1.2) + 1, 1, U1),
+      R(cx - hw, cy + 2, hw * 2 + 1, 1, U2),
+    ];
+    for (let i = -hw; i <= hw; i += 3) um.push(R(cx + i, cy + 3, 1, 1, UD));  // 갓 톱니
+    um.push(R(cx - 1, cy - 1, 1, 1, '#8d9099'));                              // 꼭지
+    for (let y = cy + 3; y < top; y++) um.push(R(cx, y, 1, 1, '#41444d'));    // 대 — 돌 뒤로
+    paint(ctx, um, pal);
   }
 
   // [4] 색감 오버레이 — 유리 존 세기로 전면
