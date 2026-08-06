@@ -79,6 +79,116 @@ export function stopAll(): void {
   handles.clear();
 }
 
+// ── 녹음 후보 재생 (sound-candidates/) ──────────────────────────
+// 합성 레이어와 같은 master를 타므로 레벨 미터·안개·마스터 볼륨이 함께 적용된다
+// — 합성과 겹쳐 들으며 상대 음량을 맞추는 게 목적이다.
+
+const decoded = new Map<string, Promise<AudioBuffer>>();
+
+function decode(c: AudioContext, url: string): Promise<AudioBuffer> {
+  let p = decoded.get(url);
+  if (!p) {
+    p = fetch(url)
+      .then((r) => r.arrayBuffer())
+      .then((b) => c.decodeAudioData(b));
+    decoded.set(url, p);
+  }
+  return p;
+}
+
+interface SamplePlaying {
+  gain: GainNode;
+  stop: () => void;
+}
+
+const samplesPlaying = new Map<string, SamplePlaying>();
+
+/** 루프 재생 (지속 앰비언스) 또는 랜덤 간격 라운드로빈 원샷 (책장 등) */
+export function playSample(
+  id: string,
+  urls: readonly string[],
+  opts: { loop: boolean; gain: number; everyMinMs?: number; everyMaxMs?: number },
+): void {
+  const c = ensure();
+  if (!c || !master) return;
+  stopSample(id);
+  const gain = c.createGain();
+  gain.gain.value = opts.gain;
+  gain.connect(master);
+
+  let stopped = false;
+  const sources: AudioBufferSourceNode[] = [];
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  if (opts.loop) {
+    for (const url of urls) {
+      void decode(c, url).then((buf) => {
+        if (stopped) return;
+        const src = c.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        src.connect(gain);
+        src.start();
+        sources.push(src);
+      });
+    }
+  } else {
+    const min = opts.everyMinMs ?? 9000;
+    const max = opts.everyMaxMs ?? 22000;
+    const fireOne = () => {
+      if (stopped) return;
+      const url = urls[Math.floor(Math.random() * urls.length)];
+      void decode(c, url).then((buf) => {
+        if (stopped) return;
+        const src = c.createBufferSource();
+        src.buffer = buf;
+        src.connect(gain);
+        src.start();
+      });
+      timer = setTimeout(fireOne, min + Math.random() * (max - min));
+    };
+    fireOne();
+  }
+
+  samplesPlaying.set(id, {
+    gain,
+    stop() {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      for (const s of sources) {
+        try {
+          s.stop();
+          s.disconnect();
+        } catch {
+          /* 무시 */
+        }
+      }
+      try {
+        gain.disconnect();
+      } catch {
+        /* 무시 */
+      }
+    },
+  });
+}
+
+export function setSampleGain(id: string, v: number): void {
+  const s = samplesPlaying.get(id);
+  if (s) s.gain.gain.value = v;
+}
+
+export function stopSample(id: string): void {
+  const s = samplesPlaying.get(id);
+  if (!s) return;
+  s.stop();
+  samplesPlaying.delete(id);
+}
+
+export function stopAllSamples(): void {
+  for (const [, s] of samplesPlaying) s.stop();
+  samplesPlaying.clear();
+}
+
 /**
  * 현재 출력 레벨(dBFS). 조용하면 -Infinity 대신 -90을 돌려준다.
  * RMS = √(평균 x²)로 재고, dB = 20·log₁₀(RMS) — x는 −1~1 사이의 샘플값.

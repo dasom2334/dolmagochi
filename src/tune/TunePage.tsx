@@ -37,6 +37,95 @@ const TRACK_NOTE: Record<Track, string> = {
 
 const SOAK_SEC = 25 * 60;
 
+/**
+ * 녹음 후보 (sound-candidates/, gitignore) — CC0, 출처는 폴더의 LICENSES.md.
+ * 루프 둘을 동시에 켜면(예: 비 27초+45초) 서로소 길이 겹치기의 반복 은폐를
+ * 그대로 들어볼 수 있다. 게인 기본값은 합성 기준선(roomBase ≈ −38dB) 근처로 낮게.
+ */
+interface SampleDef {
+  id: string;
+  name: string;
+  urls: readonly string[];
+  loop: boolean;
+  gain: number;
+  everyMinMs?: number;
+  everyMaxMs?: number;
+}
+
+const SAMPLES: readonly SampleDef[] = [
+  { id: 'recRain1', name: '비 1 (27초 루프)', urls: ['/sound-candidates/rain/1.ogg'], loop: true, gain: 0.12 },
+  { id: 'recRain2', name: '비 2 (26초 루프)', urls: ['/sound-candidates/rain/2.ogg'], loop: true, gain: 0.12 },
+  { id: 'recRain3', name: '비 3 (45초 루프)', urls: ['/sound-candidates/rain/3.ogg'], loop: true, gain: 0.12 },
+  { id: 'recRain4', name: '비 4 (37.5초 루프)', urls: ['/sound-candidates/rain/4.ogg'], loop: true, gain: 0.12 },
+  { id: 'recFire', name: '벽난로 (29초 루프)', urls: ['/sound-candidates/fire.wav'], loop: true, gain: 0.1 },
+  {
+    id: 'recBookflip',
+    name: '책장 넘김 (13종 라운드로빈, 9~22초)',
+    urls: Array.from({ length: 13 }, (_, i) => `/sound-candidates/bookflip/BookFlip${i + 1}.wav`),
+    loop: false,
+    gain: 0.15,
+    everyMinMs: 9000,
+    everyMaxMs: 22000,
+  },
+];
+
+/** 녹음 후보 한 줄 — 토글 + 게인. 게인 변경은 재시작 없이 즉시 반영 */
+function SampleRow({ s, stopTick }: { s: SampleDef; stopTick: number }) {
+  const [on, setOn] = useState(false);
+  const [gain, setGain] = useState(s.gain);
+  useEffect(() => () => rig.stopSample(s.id), [s.id]);
+  // 전부 정지 — 재생은 rig.stopAllSamples()가 이미 껐고, 여기선 UI만 동기화
+  useEffect(() => {
+    if (stopTick > 0) setOn(false);
+  }, [stopTick]);
+  return (
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <button
+        style={{ ...btn(on), width: 26, flex: 'none' }}
+        onClick={() => {
+          if (on) rig.stopSample(s.id);
+          else
+            rig.playSample(s.id, s.urls, {
+              loop: s.loop,
+              gain,
+              everyMinMs: s.everyMinMs,
+              everyMaxMs: s.everyMaxMs,
+            });
+          setOn(!on);
+        }}
+      >
+        {on ? '■' : '▶'}
+      </button>
+      <span
+        style={{
+          flex: 1,
+          fontSize: 11,
+          color: on ? 'var(--text-hi)' : 'var(--ink-soft)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {s.name}
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={0.6}
+        step={0.005}
+        value={gain}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          setGain(v);
+          rig.setSampleGain(s.id, v);
+        }}
+        style={{ width: 90, flex: 'none', accentColor: 'var(--accent)' }}
+        title={`게인 ${gain.toFixed(3)}`}
+      />
+    </div>
+  );
+}
+
 // ── 작은 조각들 ──────────────────────────────────────────────────
 
 const panel: CSSProperties = {
@@ -278,6 +367,7 @@ export function TunePage() {
   const [scaleRoot, setScaleRoot] = useState(261.63);
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [stopTick, setStopTick] = useState(0);
 
   // 재생 중인 레이어의 "현재 설정 서명" — 바뀐 것만 재시작한다
   const sigRef = useRef(new Map<string, string>());
@@ -447,8 +537,10 @@ export function TunePage() {
           style={btn(false)}
           onClick={() => {
             rig.stopAll();
+            rig.stopAllSamples();
             sigRef.current.clear();
             setPlaying([]);
+            setStopTick((n) => n + 1);
           }}
         >
           전부 정지
@@ -538,6 +630,35 @@ export function TunePage() {
               </div>
             );
           })}
+
+          {/* 녹음 후보 */}
+          <div style={panel}>
+            <p
+              style={{
+                margin: '0 0 2px',
+                fontSize: 12,
+                color: 'var(--text-hi)',
+              }}
+            >
+              녹음 후보 ({SAMPLES.length})
+            </p>
+            <p
+              style={{
+                margin: '0 0 8px',
+                fontSize: 10,
+                color: 'var(--hint)',
+                lineHeight: 1.4,
+              }}
+            >
+              sound-candidates/ · CC0 · 슬라이더는 게인. 비 27초+45초를 같이
+              켜면 서로소 겹치기를 들어볼 수 있다
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {SAMPLES.map((s) => (
+                <SampleRow key={s.id} s={s} stopTick={stopTick} />
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* 파라미터 */}
