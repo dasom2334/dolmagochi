@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
+import { deriveLayers } from '../audio/layers';
 import {
   LAYERS,
   MODEL_FIELDS,
   cloneModels,
+  findLayer,
   type Field,
   type Model,
   type Track,
@@ -38,35 +40,63 @@ const TRACK_NOTE: Record<Track, string> = {
 const SOAK_SEC = 25 * 60;
 
 /**
- * 상황 프리셋 — 조합표(집중: 베드1+질감≤2 / 휴식: +장식≤3)를 버튼 한 번으로.
- * 누르면 재생 목록을 그 조합으로 교체한다. 아이템 조건부(벽난로·담요 등)는
- * 프리셋을 켠 뒤 개별 토글로 얹어 본다.
+ * 게임 미러 — 지금 돌마고치가 실제로 내는 소리를 그대로 재현한다.
+ * 손으로 짠 조합이 아니라 게임의 deriveLayers 자체를 부르므로, 게임과
+ * 어긋날 수가 없다. 축은 게임과 동일: 휴식/행동 × 시간대 × 계절 × 날씨
+ * × 우산 × 보유 아이템.
  */
-const PRESETS: readonly { group: string; name: string; ids: readonly string[] }[] = [
-  { group: '집중', name: '누워있기·병간호', ids: ['roomBase'] },
-  { group: '집중', name: '책읽기', ids: ['roomBase', 'pageTurn'] },
-  { group: '집중', name: '책읽기+담요', ids: ['roomBase', 'pageTurn', 'blanket'] },
-  { group: '집중', name: '햇빛쬐기', ids: ['roomBase', 'wind'] },
-  { group: '집중', name: '산책', ids: ['wind', 'footsteps'] },
-  { group: '집중', name: '자유행동(책상)', ids: ['roomBase', 'pageWriting'] },
-  { group: '집중', name: '자유행동(랩탑)', ids: ['roomBase', 'typing'] },
-  { group: '집중', name: '요리', ids: ['roomBase', 'cooking'] },
-  { group: '집중', name: '집안일', ids: ['roomBase', 'sweeping'] },
-  { group: '집중', name: '비 오는 실내', ids: ['rainSoft'] },
-  { group: '집중', name: '빗속 산책', ids: ['rainHard', 'footsteps'] },
-  { group: '집중', name: '우산 산책', ids: ['umbrellaRain', 'footsteps'] },
-  { group: '집중', name: '눈+벽난로', ids: ['snowHush', 'fireplace'] },
-  { group: '집중', name: '여름 낮', ids: ['roomBase', 'cicadas'] },
-  { group: '집중', name: '겨울', ids: ['roomBase', 'winterDraft'] },
-  { group: '집중', name: '여름+선풍기', ids: ['roomBase', 'cicadas', 'fan'] },
-  { group: '휴식', name: '아침', ids: ['roomBase', 'dawnBirds'] },
-  { group: '휴식', name: '낮', ids: ['roomBase', 'birds', 'feederPecks'] },
-  { group: '휴식', name: '여름 낮', ids: ['roomBase', 'cicadas', 'birds'] },
-  { group: '휴식', name: '밤', ids: ['roomBase', 'crickets'] },
-  { group: '휴식', name: '밤·비 갠 뒤', ids: ['roomBase', 'frogs', 'eaveDrips'] },
-  { group: '휴식', name: '밤·램프', ids: ['roomBase', 'crickets', 'mothTaps'] },
-  { group: '휴식', name: '풍경과 차', ids: ['roomBase', 'windchime', 'teaClink', 'teaPour'] },
+const MIRROR_ACTIONS: readonly { id: string | null; name: string }[] = [
+  { id: null, name: '휴식' },
+  { id: 'lie', name: '누워있기' },
+  { id: 'nurse', name: '병간호' },
+  { id: 'read', name: '책읽기' },
+  { id: 'sun', name: '햇빛쬐기' },
+  { id: 'walk', name: '산책' },
+  { id: 'free', name: '자유행동' },
+  { id: 'cook', name: '요리' },
+  { id: 'chore', name: '집안일' },
 ];
+const MIRROR_TIMES = [
+  ['day', '한낮'],
+  ['twilight', '해질녘'],
+  ['night', '밤'],
+] as const;
+const MIRROR_SEASONS = [
+  ['spring', '봄'],
+  ['summer', '여름'],
+  ['autumn', '가을'],
+  ['winter', '겨울'],
+] as const;
+// 소리 모델이 실제로 구분하는 날씨만 — 나머지 종류는 소리에서 clear와 같다
+const MIRROR_WEATHERS = [
+  ['clear', '맑음'],
+  ['rain', '비'],
+  ['downpour', '장대비'],
+  ['snow', '눈'],
+] as const;
+const MIRROR_ITEMS = [
+  ['fireplace', '벽난로'],
+  ['blanket', '담요'],
+  ['desk', '책상'],
+] as const;
+
+/** 녹음 우선 — 파생된 합성 레이어를 확보된 녹음 후보로 대치 */
+const REC_SUB: Record<string, readonly string[]> = {
+  rainSoft: ['recRain1', 'recRain3'], // 서로소 겹치기 (27+45초)
+  rainHard: ['recRain2', 'recRain4'],
+  fireplace: ['recFire'],
+  pageTurn: ['recBookflip'],
+};
+
+interface MirrorState {
+  action: string | null;
+  time: 'day' | 'twilight' | 'night';
+  season: 'spring' | 'summer' | 'autumn' | 'winter';
+  weather: 'clear' | 'rain' | 'downpour' | 'snow';
+  umbrella: boolean;
+  owned: readonly string[];
+  recFirst: boolean;
+}
 
 /**
  * 녹음 후보 (sound-candidates/, gitignore) — CC0, 출처는 폴더의 LICENSES.md.
@@ -100,30 +130,22 @@ const SAMPLES: readonly SampleDef[] = [
   },
 ];
 
-/** 녹음 후보 한 줄 — 토글 + 게인. 게인 변경은 재시작 없이 즉시 반영 */
-function SampleRow({ s, stopTick }: { s: SampleDef; stopTick: number }) {
-  const [on, setOn] = useState(false);
+/** 녹음 후보 한 줄 — 토글 + 게인. 재생 상태는 부모가 소유(게임 미러가 제어) */
+function SampleRow({
+  s,
+  on,
+  onToggle,
+}: {
+  s: SampleDef;
+  on: boolean;
+  onToggle: () => void;
+}) {
   const [gain, setGain] = useState(s.gain);
-  useEffect(() => () => rig.stopSample(s.id), [s.id]);
-  // 전부 정지 — 재생은 rig.stopAllSamples()가 이미 껐고, 여기선 UI만 동기화
-  useEffect(() => {
-    if (stopTick > 0) setOn(false);
-  }, [stopTick]);
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
       <button
         style={{ ...btn(on), width: 26, flex: 'none' }}
-        onClick={() => {
-          if (on) rig.stopSample(s.id);
-          else
-            rig.playSample(s.id, s.urls, {
-              loop: s.loop,
-              gain,
-              everyMinMs: s.everyMinMs,
-              everyMaxMs: s.everyMaxMs,
-            });
-          setOn(!on);
-        }}
+        onClick={onToggle}
       >
         {on ? '■' : '▶'}
       </button>
@@ -398,7 +420,72 @@ export function TunePage() {
   const [scaleRoot, setScaleRoot] = useState(261.63);
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [stopTick, setStopTick] = useState(0);
+  const [samplePlaying, setSamplePlaying] = useState<readonly string[]>([]);
+  const [mirror, setMirror] = useState<MirrorState>({
+    action: null,
+    time: 'day',
+    season: 'summer',
+    weather: 'clear',
+    umbrella: false,
+    owned: ['fireplace', 'blanket', 'desk'],
+    recFirst: true,
+  });
+
+  // 녹음 후보 재생 diff — 목록에 맞춰 시작/정지
+  const sampleStarted = useRef(new Set<string>());
+  useEffect(() => {
+    for (const id of Array.from(sampleStarted.current)) {
+      if (!samplePlaying.includes(id)) {
+        rig.stopSample(id);
+        sampleStarted.current.delete(id);
+      }
+    }
+    for (const id of samplePlaying) {
+      if (sampleStarted.current.has(id)) continue;
+      const s = SAMPLES.find((x) => x.id === id);
+      if (!s) continue;
+      rig.playSample(id, s.urls, {
+        loop: s.loop,
+        gain: s.gain,
+        everyMinMs: s.everyMinMs,
+        everyMaxMs: s.everyMaxMs,
+      });
+      sampleStarted.current.add(id);
+    }
+  }, [samplePlaying]);
+
+  /**
+   * 게임 미러 적용 — deriveLayers 결과로 재생 목록을 교체 (녹음 우선 대치 포함).
+   * ref 경유 — 렌더 클로저의 mirror를 쓰면 연타 시 이전 클릭을 되돌린다.
+   */
+  const mirrorRef = useRef(mirror);
+  const applyMirror = (patch: Partial<MirrorState>) => {
+    const m = { ...mirrorRef.current, ...patch };
+    mirrorRef.current = m;
+    setMirror(m);
+    const ids: string[] = deriveLayers({
+      phase: m.action ? 'focus' : 'room',
+      actionId: m.action,
+      ownedItems: m.owned,
+      weather: m.weather,
+      umbrella: m.umbrella,
+      season: m.season,
+      timeOfDay: m.time,
+    });
+    const recs: string[] = [];
+    const synth = m.recFirst
+      ? ids.filter((id) => {
+          const sub = REC_SUB[id];
+          if (sub) {
+            recs.push(...sub);
+            return false;
+          }
+          return true;
+        })
+      : ids;
+    setPlaying(synth);
+    setSamplePlaying(recs);
+  };
 
   // 재생 중인 레이어의 "현재 설정 서명" — 바뀐 것만 재시작한다
   const sigRef = useRef(new Map<string, string>());
@@ -567,44 +654,95 @@ export function TunePage() {
         <button
           style={btn(false)}
           onClick={() => {
-            rig.stopAll();
-            rig.stopAllSamples();
-            sigRef.current.clear();
             setPlaying([]);
-            setStopTick((n) => n + 1);
+            setSamplePlaying([]);
           }}
         >
           전부 정지
         </button>
       </div>
 
-      {/* 상황 프리셋 — 조합표를 버튼으로 */}
+      {/* 게임 미러 — deriveLayers를 그대로 불러 지금 게임과 동일한 소리를 낸다 */}
       <div style={{ ...panel, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {['집중', '휴식'].map((grp) => (
-          <div
-            key={grp}
-            style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--hint)' }}>
+          * 게임 미러 — 아래 상황을 고르면 게임의 deriveLayers가 정한 조합이
+          그대로 재생된다. 녹음 우선이면 확보된 에셋(비·벽난로·책장)이 합성을
+          대신한다.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--hint)', width: 40, flex: 'none' }}>상황</span>
+          {MIRROR_ACTIONS.map((a) => (
+            <button
+              key={a.name}
+              style={btn(mirror.action === a.id)}
+              onClick={() => applyMirror({ action: a.id })}
+            >
+              {a.name}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--hint)', width: 40, flex: 'none' }}>시간</span>
+          {MIRROR_TIMES.map(([id, name]) => (
+            <button key={id} style={btn(mirror.time === id)} onClick={() => applyMirror({ time: id })}>
+              {name}
+            </button>
+          ))}
+          <span style={{ fontSize: 11, color: 'var(--hint)', width: 40, flex: 'none', marginLeft: 8 }}>계절</span>
+          {MIRROR_SEASONS.map(([id, name]) => (
+            <button key={id} style={btn(mirror.season === id)} onClick={() => applyMirror({ season: id })}>
+              {name}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--hint)', width: 40, flex: 'none' }}>날씨</span>
+          {MIRROR_WEATHERS.map(([id, name]) => (
+            <button key={id} style={btn(mirror.weather === id)} onClick={() => applyMirror({ weather: id })}>
+              {name}
+            </button>
+          ))}
+          <button
+            style={btn(mirror.umbrella)}
+            onClick={() => applyMirror({ umbrella: !mirror.umbrella })}
+            title="비 오는 산책에서만 소리가 달라진다"
           >
-            <span style={{ fontSize: 11, color: 'var(--hint)', width: 34, flex: 'none' }}>
-              {grp}
-            </span>
-            {PRESETS.filter((p) => p.group === grp).map((p) => {
-              const active =
-                playing.length === p.ids.length &&
-                p.ids.every((id) => playing.includes(id));
-              return (
-                <button
-                  key={p.name}
-                  style={btn(active)}
-                  title={p.ids.join(' + ')}
-                  onClick={() => setPlaying([...p.ids])}
-                >
-                  {p.name}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+            우산
+          </button>
+          <span style={{ fontSize: 11, color: 'var(--hint)', width: 40, flex: 'none', marginLeft: 8 }}>보유</span>
+          {MIRROR_ITEMS.map(([id, name]) => (
+            <button
+              key={id}
+              style={btn(mirror.owned.includes(id))}
+              onClick={() =>
+                applyMirror({
+                  owned: mirror.owned.includes(id)
+                    ? mirror.owned.filter((x) => x !== id)
+                    : [...mirror.owned, id],
+                })
+              }
+            >
+              {name}
+            </button>
+          ))}
+          <button
+            style={{ ...btn(mirror.recFirst), marginLeft: 8 }}
+            onClick={() => applyMirror({ recFirst: !mirror.recFirst })}
+          >
+            녹음 우선
+          </button>
+        </div>
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)' }}>
+          ▶{' '}
+          {playing.length + samplePlaying.length === 0
+            ? '(재생 없음 — 상황 버튼을 누르면 시작)'
+            : [
+                ...playing.map((id) => findLayer(id)?.name ?? id),
+                ...samplePlaying.map(
+                  (id) => `🎙 ${SAMPLES.find((s) => s.id === id)?.name ?? id}`,
+                ),
+              ].join(' · ')}
+        </p>
       </div>
 
       <div
@@ -715,7 +853,18 @@ export function TunePage() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {SAMPLES.map((s) => (
-                <SampleRow key={s.id} s={s} stopTick={stopTick} />
+                <SampleRow
+                  key={s.id}
+                  s={s}
+                  on={samplePlaying.includes(s.id)}
+                  onToggle={() =>
+                    setSamplePlaying((p) =>
+                      p.includes(s.id)
+                        ? p.filter((x) => x !== s.id)
+                        : [...p, s.id],
+                    )
+                  }
+                />
               ))}
             </div>
           </div>
