@@ -4,6 +4,9 @@
  * synths.ts에 흩어져 있던 whiteBuffer/brownBuffer를 여기로 모으고
  * 핑크노이즈와 LFSR(칩튠 노이즈 채널)을 추가한다. 버퍼는 컨텍스트당 1개씩
  * 캐시 — 노이즈라 같은 버퍼를 재사용해도 청감 차이가 없다.
+ *
+ * 길이 8초 — 2초 루프는 노이즈에도 숨은 리듬을 만든다(특히 브라운의 저역
+ * 흔들림이 0.5Hz 패턴으로 들린다). 8초 모노 float ≈ 1.5MB × 3, 감당 가능.
  */
 
 /** 노이즈 색. lfsr/lfsrShort는 칩튠 노이즈 채널 (주기가 짧을수록 금속성) */
@@ -52,7 +55,7 @@ function cached(
 // ── 노이즈 소스 ──────────────────────────────────────────────────
 
 function whiteBuffer(ctx: AudioContext): AudioBuffer {
-  const len = Math.floor(ctx.sampleRate * 2);
+  const len = Math.floor(ctx.sampleRate * 8);
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
   const d = buf.getChannelData(0);
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
@@ -65,7 +68,7 @@ function whiteBuffer(ctx: AudioContext): AudioBuffer {
  * 1/f 기울기를 근사한다. 화이트보다 귀에 균형 있게 들려 오래 들어도 덜 피로하다.
  */
 function pinkBuffer(ctx: AudioContext): AudioBuffer {
-  const len = Math.floor(ctx.sampleRate * 2);
+  const len = Math.floor(ctx.sampleRate * 8);
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
   const d = buf.getChannelData(0);
   let b0 = 0,
@@ -95,7 +98,7 @@ function pinkBuffer(ctx: AudioContext): AudioBuffer {
  * 조금씩 0으로 끌어당긴다(leaky integrator). 결과가 작아져 3.5배로 보정.
  */
 function brownBuffer(ctx: AudioContext): AudioBuffer {
-  const len = Math.floor(ctx.sampleRate * 2);
+  const len = Math.floor(ctx.sampleRate * 8);
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
   const d = buf.getChannelData(0);
   let last = 0;
