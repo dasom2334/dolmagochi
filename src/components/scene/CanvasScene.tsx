@@ -174,11 +174,14 @@ function sceneOf(state: GameState): {
   if (state.session.wetness !== 'snowy') off.add('orb-snow');
   // [TODO: 소모품 연출] 세션 supply(도시락 변형 등)는 옛 SupplyProp 이 그리던 것 —
   // 캔버스 씬에는 아직 자리가 없다. 산책 씬에 바구니 레이어를 붙일 때 함께.
+  // 부재면 orb='none' — 렌더러 visible() 이 돌·새싹을 스스로 끄고,
+  // **눌린 자국(rug-mark)이 드러난다** (돌이 자리를 비웠을 때만 보이는 레이어).
+  if (!present) off.add('p-blanket-wrap');   // 돌 없는 바닥에 목도리만 남았었다
   return {
     render: renderLiving as RenderFn,
     st: {
       ...base,
-      orb: sceneId === 'sun' ? 'sill' : 'rug',
+      orb: !present ? 'none' : sceneId === 'sun' ? 'sill' : 'rug',
       tree: 'v1',
       window: 'closed',
       cup: 'empty',
@@ -188,7 +191,7 @@ function sceneOf(state: GameState): {
           ? treeStage(state.plantedAt, state.treeBondDays, nowMs)
           : 'none',
     },
-    off: present ? off : off.add('orb').add('orb-rug'),
+    off,
   };
 }
 
