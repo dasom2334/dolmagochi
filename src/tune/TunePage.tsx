@@ -38,6 +38,37 @@ const TRACK_NOTE: Record<Track, string> = {
 const SOAK_SEC = 25 * 60;
 
 /**
+ * 상황 프리셋 — 조합표(집중: 베드1+질감≤2 / 휴식: +장식≤3)를 버튼 한 번으로.
+ * 누르면 재생 목록을 그 조합으로 교체한다. 아이템 조건부(벽난로·담요 등)는
+ * 프리셋을 켠 뒤 개별 토글로 얹어 본다.
+ */
+const PRESETS: readonly { group: string; name: string; ids: readonly string[] }[] = [
+  { group: '집중', name: '누워있기·병간호', ids: ['roomBase'] },
+  { group: '집중', name: '책읽기', ids: ['roomBase', 'pageTurn'] },
+  { group: '집중', name: '책읽기+담요', ids: ['roomBase', 'pageTurn', 'blanket'] },
+  { group: '집중', name: '햇빛쬐기', ids: ['roomBase', 'wind'] },
+  { group: '집중', name: '산책', ids: ['wind', 'footsteps'] },
+  { group: '집중', name: '자유행동(책상)', ids: ['roomBase', 'pageWriting'] },
+  { group: '집중', name: '자유행동(랩탑)', ids: ['roomBase', 'typing'] },
+  { group: '집중', name: '요리', ids: ['roomBase', 'cooking'] },
+  { group: '집중', name: '집안일', ids: ['roomBase', 'sweeping'] },
+  { group: '집중', name: '비 오는 실내', ids: ['rainSoft'] },
+  { group: '집중', name: '빗속 산책', ids: ['rainHard', 'footsteps'] },
+  { group: '집중', name: '우산 산책', ids: ['umbrellaRain', 'footsteps'] },
+  { group: '집중', name: '눈+벽난로', ids: ['snowHush', 'fireplace'] },
+  { group: '집중', name: '여름 낮', ids: ['roomBase', 'cicadas'] },
+  { group: '집중', name: '겨울', ids: ['roomBase', 'winterDraft'] },
+  { group: '집중', name: '여름+선풍기', ids: ['roomBase', 'cicadas', 'fan'] },
+  { group: '휴식', name: '아침', ids: ['roomBase', 'dawnBirds'] },
+  { group: '휴식', name: '낮', ids: ['roomBase', 'birds', 'feederPecks'] },
+  { group: '휴식', name: '여름 낮', ids: ['roomBase', 'cicadas', 'birds'] },
+  { group: '휴식', name: '밤', ids: ['roomBase', 'crickets'] },
+  { group: '휴식', name: '밤·비 갠 뒤', ids: ['roomBase', 'frogs', 'eaveDrips'] },
+  { group: '휴식', name: '밤·램프', ids: ['roomBase', 'crickets', 'mothTaps'] },
+  { group: '휴식', name: '풍경과 차', ids: ['roomBase', 'windchime', 'teaClink', 'teaPour'] },
+];
+
+/**
  * 녹음 후보 (sound-candidates/, gitignore) — CC0, 출처는 폴더의 LICENSES.md.
  * 루프 둘을 동시에 켜면(예: 비 27초+45초) 서로소 길이 겹치기의 반복 은폐를
  * 그대로 들어볼 수 있다. 게인 기본값은 합성 기준선(roomBase ≈ −38dB) 근처로 낮게.
@@ -545,6 +576,35 @@ export function TunePage() {
         >
           전부 정지
         </button>
+      </div>
+
+      {/* 상황 프리셋 — 조합표를 버튼으로 */}
+      <div style={{ ...panel, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {['집중', '휴식'].map((grp) => (
+          <div
+            key={grp}
+            style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}
+          >
+            <span style={{ fontSize: 11, color: 'var(--hint)', width: 34, flex: 'none' }}>
+              {grp}
+            </span>
+            {PRESETS.filter((p) => p.group === grp).map((p) => {
+              const active =
+                playing.length === p.ids.length &&
+                p.ids.every((id) => playing.includes(id));
+              return (
+                <button
+                  key={p.name}
+                  style={btn(active)}
+                  title={p.ids.join(' + ')}
+                  onClick={() => setPlaying([...p.ids])}
+                >
+                  {p.name}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       <div
