@@ -303,25 +303,49 @@ function Meter() {
 function ModelPanel({
   model,
   index,
+  muted,
   onField,
+  onMute,
+  onSolo,
 }: {
   model: Model;
   index: number;
+  muted: boolean;
   onField: (key: string, v: number | string | boolean) => void;
+  onMute: () => void;
+  onSolo: () => void;
 }) {
   const fields = MODEL_FIELDS[model.kind];
   const b = bag(model);
   return (
-    <div style={{ ...panel, background: 'var(--panel-2)' }}>
-      <p
+    <div
+      style={{
+        ...panel,
+        background: 'var(--panel-2)',
+        opacity: muted ? 0.45 : 1,
+      }}
+    >
+      <div
         style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           margin: '0 0 8px',
-          fontSize: 11,
-          color: 'var(--accent)',
         }}
       >
-        * 모델 {index + 1} — {model.kind}
-      </p>
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--accent)' }}>
+          * 모델 {index + 1} — {model.kind}
+          {muted && <span style={{ color: 'var(--hint)' }}> (꺼짐)</span>}
+        </p>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button style={btn(false)} onClick={onSolo} title="이 모델만 듣기">
+            이것만
+          </button>
+          <button style={btn(muted)} onClick={onMute}>
+            {muted ? '켜기' : '끄기'}
+          </button>
+        </div>
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {fields.map((f) => {
           if (f.kind === 'num')
@@ -421,6 +445,9 @@ export function TunePage() {
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
   const [samplePlaying, setSamplePlaying] = useState<readonly string[]>([]);
+  // 모델별 끄기 — 키는 `${layerId}:${modelIndex}`. 여러 모델이 합쳐진 레이어에서
+  // 한 모델만 골라 듣기 위한 것 (재생에도 반영된다)
+  const [mutedModels, setMutedModels] = useState<Record<string, boolean>>({});
   const [mirror, setMirror] = useState<MirrorState>({
     action: null,
     time: 'day',
@@ -504,14 +531,15 @@ export function TunePage() {
         }
       }
       for (const id of playing) {
-        const sig = JSON.stringify([params[id], opts]);
+        const audible = params[id].filter((_, i) => !mutedModels[`${id}:${i}`]);
+        const sig = JSON.stringify([audible, opts]);
         if (sigRef.current.get(id) === sig) continue;
-        rig.play(id, params[id], opts);
+        rig.play(id, audible, opts);
         sigRef.current.set(id, sig);
       }
     }, 150);
     return () => clearTimeout(t);
-  }, [playing, params, quantVol, scaleRoot]);
+  }, [playing, params, quantVol, scaleRoot, mutedModels]);
 
   useEffect(() => rig.setMasterGain(masterVol), [masterVol]);
   useEffect(() => rig.setFogCutoff(fogHz), [fogHz]);
@@ -961,7 +989,23 @@ export function TunePage() {
               key={`${selected}:${i}`}
               model={m}
               index={i}
+              muted={Boolean(mutedModels[`${selected}:${i}`])}
               onField={(k, v) => setField(i, k, v)}
+              onMute={() =>
+                setMutedModels((mm) => ({
+                  ...mm,
+                  [`${selected}:${i}`]: !mm[`${selected}:${i}`],
+                }))
+              }
+              onSolo={() =>
+                setMutedModels((mm) => {
+                  const next = { ...mm };
+                  models.forEach((_, j) => {
+                    next[`${selected}:${j}`] = j !== i;
+                  });
+                  return next;
+                })
+              }
             />
           ))}
         </div>
