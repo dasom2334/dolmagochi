@@ -51,6 +51,12 @@ const BD_LAYER: Record<string, string[]> = {
   bed: ['bd-bed'],
   pillow: ['bd-pillow'],
 };
+/** 카페인 종류 → 침실 렌더러 음료 그림. 붉은 황소=캔 / 3샷=테이크아웃 / 아아=아이스 */
+const DRINK_OF: Record<string, string> = {
+  energy: 'redbull',
+  triple: 'coffee',
+  iced: 'iced',
+};
 
 /** 새싹 — 게임 SproutStage → 렌더러 (stage, wither).
  *  숫자(동거 시듦 단계)는 "무성한 싹이 그만큼 시든 것"이다. */
@@ -102,6 +108,12 @@ function sceneOf(state: GameState): {
   };
   const base = { time, season, weather, sprout, wither };
 
+  // 소모품 연출(구 SupplyProp) — **재고가 있거나 지금 쓰는 중**이면 그림이 나온다.
+  // (재고는 세션 시작에 소진되고 session.supply 로 옮겨가므로 둘 다 봐야 한다.)
+  // 잔만 사 두고 김 나는 차가 담겨 있으면 차를 사는 의미가 없다 — 는 규칙의 역방향.
+  const stocked = (id: string) =>
+    (state.supplies[id] ?? 0) > 0 || state.session.supply?.itemId === id;
+
   // 산책 — 야외. 실내 소품은 없다(rooms.ts focusRoomOf = null).
   if (room === null) {
     const day = Math.floor(nowMs / 86_400_000);
@@ -112,6 +124,11 @@ function sceneOf(state: GameState): {
         scene: WALK_SCENES[day % WALK_SCENES.length],
         orb: present ? 'path' : 'none',
         umbrella: state.session.umbrella ? 'on' : 'off',
+        // 도시락을 싸 온 산책 — 돌 곁 피크닉 바구니, 천 색이 내용물(종류)
+        basket:
+          state.session.supply?.itemId === 'lunchbox'
+            ? state.session.supply.variant
+            : 'off',
       },
       off: new Set<string>(),
     };
@@ -142,6 +159,10 @@ function sceneOf(state: GameState): {
     const off = new Set<string>([...(BD_SHOP as string[]), 'bd-pillow']);
     for (const [gameId, layers] of Object.entries(BD_LAYER))
       if (show(gameId)) for (const l of layers) off.delete(l);
+    // 소모품 — 카페인은 책상 위 음료(책상이 있어야 놓인다), 잠자리 음료는
+    // 협탁+머그(김 애니 포함). 렌더러 SHOP_PROPS 라 기본 off, 여기서만 켠다.
+    if (stocked('caffeine') && show('desk')) off.delete('bd-deskplant');
+    if (stocked('nightdrink')) off.delete('bd-nightstand');
     return {
       render: renderBedroom as RenderFn,
       st: {
@@ -157,7 +178,13 @@ function sceneOf(state: GameState): {
               ? 'bed'
               : 'rug',
         lamp: time === 'night' ? 'on' : 'off',
-        drink: 'coffee',
+        // 이번 카페인의 종류가 그림을 정한다 — 쓰는 중이면 그 종류, 아니면 재고 종류
+        drink:
+          DRINK_OF[
+            (state.session.supply?.itemId === 'caffeine'
+              ? state.session.supply.variant
+              : state.supplyVariants['caffeine']) ?? ''
+          ] ?? 'coffee',
         window: 'closed',
       },
       off,
@@ -172,8 +199,6 @@ function sceneOf(state: GameState): {
   // 비 산책에서 젖어 돌아온 돌 — 'wet' 은 물기, 'snowy' 는 눈 얹힘
   if (state.session.wetness !== 'wet') off.add('orb-wet');
   if (state.session.wetness !== 'snowy') off.add('orb-snow');
-  // [TODO: 소모품 연출] 세션 supply(도시락 변형 등)는 옛 SupplyProp 이 그리던 것 —
-  // 캔버스 씬에는 아직 자리가 없다. 산책 씬에 바구니 레이어를 붙일 때 함께.
   // 부재면 orb='none' — 렌더러 visible() 이 돌·새싹을 스스로 끄고,
   // **눌린 자국(rug-mark)이 드러난다** (돌이 자리를 비웠을 때만 보이는 레이어).
   if (!present) off.add('p-blanket-wrap');   // 돌 없는 바닥에 목도리만 남았었다
@@ -184,7 +209,9 @@ function sceneOf(state: GameState): {
       orb: !present ? 'none' : sceneId === 'sun' ? 'sill' : 'rug',
       tree: 'v1',
       window: 'closed',
-      cup: 'empty',
+      // 잔에 차가 담기는 건 차(소모품)가 있을 때만 — 잔은 잔대로 사는 물건이다.
+      // (렌더러는 cup==='full' 로 차·김만 더 그리고 잔 유무는 안 본다 → 여기서 게이트)
+      cup: show('cup') && stocked('tea') ? 'full' : 'empty',
       readBook: sceneId === 'read' || show('book') ? 1 : 0,
       ptree:
         state.planted && state.plantedAt !== null

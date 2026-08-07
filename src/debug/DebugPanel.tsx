@@ -371,6 +371,26 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
         ...Object.fromEntries(bedroomItems.map((id) => [id, { placed }])),
       },
     }));
+  // 소모품 재고 — 종류가 그림을 정하므로(카페인 캔/컵/아이스, 바구니 천 색)
+  // 없음→종류1→…→없음 으로 도는 순환 버튼을 준다.
+  const consumables = gameData.shop.filter((i) => i.consumable);
+  const cycleSupply = (id: string) =>
+    patch((s) => {
+      const vs =
+        gameData.shop.find((i) => i.id === id)?.consumable?.variants ?? [];
+      const cur =
+        (s.supplies[id] ?? 0) > 0
+          ? vs.findIndex((v) => v.key === s.supplyVariants[id])
+          : -1;
+      const next = cur + 1 >= vs.length ? -1 : cur + 1;
+      return {
+        supplies: { ...s.supplies, [id]: next < 0 ? 0 : 1 },
+        supplyVariants:
+          next < 0
+            ? s.supplyVariants
+            : { ...s.supplyVariants, [id]: vs[next].key },
+      };
+    });
   // 책장 2번째 칸은 일회용 책의 **누적 구매 수**를 따라간다 (supplies 로는 못 센다)
   const setReadbooks = (n: number) =>
     patch((s) => ({
@@ -479,6 +499,20 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
         <button className="hv" style={btnSmall} onClick={() => setKitchenItems(false)}>
           전부 해제
         </button>
+        <span style={dim}>소모품 재고</span>
+        {consumables.map((i) => (
+          <button
+            key={i.id}
+            className="hv"
+            style={(state.supplies[i.id] ?? 0) > 0 ? btnOn : btnSmall}
+            onClick={() => cycleSupply(i.id)}
+          >
+            {i.id}:
+            {(state.supplies[i.id] ?? 0) > 0
+              ? (state.supplyVariants[i.id] ?? '?')
+              : '—'}
+          </button>
+        ))}
         <span style={dim}>일회용 책 누적</span>
         {[0, 1, 2, 3, 4].map((n) => (
           <button

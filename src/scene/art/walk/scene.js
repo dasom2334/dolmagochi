@@ -285,6 +285,28 @@ const LAYERED = {
 };
 const WEATHER_GROUP = { rain: 'rain', downpour: 'downpour', snow: 'snow', petals: 'pt-petals' };
 
+// ── 피크닉 바구니 — 도시락을 싸 온 산책(state.basket = 내용물 key | 'off').
+// 돌 왼쪽에 나란히(주방 바구니와 같은 문법 — "같이 나가자"). 손잡이 아치가
+// "들고 나온 것"으로 읽히게 하는 결정타고, 뚜껑 밑으로 삐져나온 천 조각의
+// 색이 이번 내용물을 말한다(주먹밥 김 / 샌드위치 / 과일).
+const BASKET_FILL = { riceball: '#2a2a3a', sandwich: '#a05a3a', fruit: '#d85a4a' };
+function basketArt(bx, gy, kind) {
+  const fill = BASKET_FILL[kind] || '#b0453e';
+  return [
+    // 손잡이 아치
+    R(bx + 3, gy - 8, 3, 1, '#875f3c'),
+    R(bx + 2, gy - 7, 1, 1, '#875f3c'), R(bx + 6, gy - 7, 1, 1, '#875f3c'),
+    R(bx + 1, gy - 6, 1, 2, '#65442a'), R(bx + 7, gy - 6, 1, 2, '#65442a'),
+    // 천 — 내용물 색
+    R(bx + 2, gy - 5, 5, 1, '#d8cfc4'), R(bx + 4, gy - 5, 2, 1, fill),
+    // 몸통(고리버들) — 야외 흙빛에 뜨지 않게 주방 바구니보다 한 단계 낮은 톤
+    R(bx, gy - 4, 9, 1, '#a8853f'), R(bx, gy - 3, 9, 1, '#8f7030'),
+    R(bx + 1, gy - 2, 7, 3, '#7d6029'),
+    R(bx + 1, gy - 2, 1, 3, '#5c4419'), R(bx + 7, gy - 2, 1, 3, '#9c7c3a'),
+    R(bx + 2, gy - 1, 5, 1, '#665020'),                       // 엮은 결
+  ];
+}
+
 export function render(cv, state, off = new Set(), t = 0) {
   const ctx = cv.getContext('2d');
   const pal = { ...resolve(state, ROOM_DATA.palette), ...(state.override || {}) };
@@ -330,6 +352,20 @@ export function render(cv, state, off = new Set(), t = 0) {
     paint(ctx, orb.base, pal);
     if (state.sprout && state.sprout !== 'none' && !off.has('sprout'))
       paint(ctx, sproutArt(cx, baseY, w, state.sprout, state.wither ?? 0), pal);
+  }
+
+  // [2.2] 피크닉 바구니 — 도시락을 싸 온 날만. 접지 그림자는 돌과 같은 문법.
+  if (orb && state.basket && state.basket !== 'off' && !off.has('basket')) {
+    const [cx, baseY, w] = sc.orb;
+    const bx = cx - Math.round(w / 2) - 12;                   // 돌 왼쪽, 두 칸 띄고
+    ctx.globalCompositeOperation = 'multiply';
+    for (let j = 0; j < 2; j++) {
+      ctx.globalAlpha = [0.3, 0.15][j];
+      ctx.fillStyle = '#0b0710';
+      ctx.fillRect(bx - j, baseY + 1 + j, 9 + j * 2, 1);
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    paint(ctx, basketArt(bx, baseY, state.basket), pal);
   }
 
   // [2.5] 우산 — 펼쳐진 채 **바짝 기울여**(60도) 돌에 기대 놓아 돌을 가린다.
