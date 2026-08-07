@@ -220,7 +220,10 @@ function visible(id, st) {
     case 'orb-rug': return orb === 'rug';
     // 돌 상태 오버레이는 러그 돌 위에만 얹는다(창턱 돌에는 아직 그림이 없다).
     // 어느 것을 켤지는 게임이 layerOff 로 고른다 — 여기선 자리만 지킨다.
+    // 이끼·젖음·눈은 살아 있는 오버레이다 — 옛 새싹 프롭을 은퇴시킬 때 같은
+    // return 을 나눠 쓰다 함께 꺼졌었다(케이스 라벨이 겹쳐 있던 함정).
     case 'orb-moss': case 'orb-wet': case 'orb-snow':
+      return orb === 'rug';
     case 'orb-sprout-bud': case 'orb-sprout-thrive': case 'orb-sprout-wither':
       // 은퇴 — 단계·시듦 축(sprout.js)이 대체했다. '없음'인데 옛 프롭이 그려져
       // "없음에도 싹이 있다"가 됐고, 자리도 고정 좌표(x44)라 돌(x47)과 어긋났다.
