@@ -33,7 +33,10 @@ export function SceneView({ state }: { state: GameState }) {
       },
     }));
 
-  const caption = isFocus
+  // 집중 캡션은 돌이 실제로 곁에 있을 때만 행동 캡션 — 잠수 중 "돌과 나란히"는
+  // 관찰("돌이 보이지 않는다")과 모순이었다. 부재·심은 뒤엔 방 캡션 체인으로.
+  const beside = present && !state.planted;
+  const caption = isFocus && beside
     ? t(action?.captionId ?? '')
     : state.planted
       ? t(SYS.captions.treeRoom)

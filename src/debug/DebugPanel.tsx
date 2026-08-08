@@ -219,6 +219,8 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       planted: false,
       plantedAt: null,
       sproutGrowth: 99,
+      // 게이트도 다 연 상태로 — 안 열면 다음 정산이 성장을 게이트(85)로 되민다
+      sproutGatesCleared: 3,
       witherLevel: 0,
       bloomSeen: true,
       letGoCount: Math.max(1, s.letGoCount),
