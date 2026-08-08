@@ -200,13 +200,15 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       visitBlockedUntil: null,
     }));
 
-  // 떠날 기색 — 휴식 화면에 붙잡기/보내주기 프롬프트를 띄운다 (사다리 확인용)
+  // 떠날 기색 — 휴식 화면에 붙잡기/보내주기 프롬프트를 띄운다 (사다리 확인용).
+  // endsAt은 0이 아니라 **미래**여야 한다: 사다리 끝의 방문 차단이
+  // rest.endsAt + 7일로 계산되는데, 0이면 차단 만료가 1970년이 되어 무효가 된다.
   const forceLeave = () =>
     patch((s) => ({
       era: 'apart',
       phase: 'rest',
       planted: false,
-      rest: { ...s.rest, endsAt: 0 },
+      rest: { ...s.rest, endsAt: Date.now() + 30 * 60_000 },
       apart: { ...s.apart, visiting: true, leavePending: true },
     }));
 
