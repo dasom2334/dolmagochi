@@ -128,3 +128,31 @@ describe('세션 포크 (M18) — 곁에서/한 발 떨어져', () => {
     expect(s.pendingApproach).toBeNull();
   });
 });
+
+describe('확률적 잠수 판정 — 도달 가능성 (데드패스 방지)', () => {
+  // M18에서 허용치 하한을 2로 올릴 때 최대 친밀도(3)가 따라 오르지 않아
+  // gap 이 RETREAT_GAP(2)에 영원히 못 닿는 데드패스가 있었다.
+  // 강행 선택지를 4로 올려 복원 — 이 정합이 다시 깨지면 여기서 울린다.
+  const choiceMax = Math.max(
+    ...gameData.actions.flatMap((a) =>
+      (a.choices ?? []).flatMap((c) => c.options.map((o) => o.intimacy)),
+    ),
+  );
+  const actionMax = Math.max(...gameData.actions.map((a) => a.intimacy));
+  const allowedMin = 2; // allowedIntimacy 하한 (M18)
+
+  it('강행 선택지는 판정 문턱에 닿는다', () => {
+    expect(choiceMax - allowedMin).toBeGreaterThanOrEqual(BALANCE.RETREAT_GAP);
+  });
+
+  it('기본 행동 로테이션은 문턱 아래다 (M18 의도)', () => {
+    expect(actionMax - allowedMin).toBeLessThan(BALANCE.RETREAT_GAP);
+  });
+
+  it('안정감 바닥 + 강행 선택지 → 잠수가 실제로 발동한다', async () => {
+    const { intimacyOutcome, derivedSecurity } = await import('../security');
+    const oc = intimacyOutcome(0, 100, choiceMax, () => 0, 1, false, true);
+    expect(derivedSecurity(0, 100)).toBe(0);
+    expect(oc.retreat).toBe(true);
+  });
+});

@@ -86,7 +86,7 @@
         "options": [
           {
             "labelId": "act.read.c0.o0.label",
-            "intimacy": 3,
+            "intimacy": 4,
             "outcomes": [
               {
                 "resultId": "act.read.c0.o0.r0",
@@ -125,7 +125,7 @@
         "options": [
           {
             "labelId": "act.read.c1.o0.label",
-            "intimacy": 3,
+            "intimacy": 4,
             "outcomes": [
               {
                 "resultId": "act.read.c1.o0.r0",
@@ -185,7 +185,7 @@
         "options": [
           {
             "labelId": "act.sun.c0.o0.label",
-            "intimacy": 3,
+            "intimacy": 4,
             "outcomes": [
               {
                 "resultId": "act.sun.c0.o0.r0",
@@ -306,7 +306,7 @@
         "options": [
           {
             "labelId": "act.free.c0.o0.label",
-            "intimacy": 3,
+            "intimacy": 4,
             "outcomes": [
               {
                 "resultId": "act.free.c0.o0.r0",
@@ -362,7 +362,7 @@
         "options": [
           {
             "labelId": "act.personalWork.c0.o0.label",
-            "intimacy": 3,
+            "intimacy": 4,
             "outcomes": [
               {
                 "resultId": "act.personalWork.c0.o0.r0",
@@ -401,7 +401,7 @@
         "options": [
           {
             "labelId": "act.personalWork.c1.o0.label",
-            "intimacy": 3,
+            "intimacy": 4,
             "outcomes": [
               {
                 "resultId": "act.personalWork.c1.o0.r0",
