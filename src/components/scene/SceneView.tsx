@@ -1,99 +1,27 @@
-import { useState } from 'react';
+/**
+ * 씬 뷰 — 그림은 CanvasScene(이식한 절차 렌더러)이 전부 그린다.
+ * 여기 남은 것은 그림 밖의 것들: 테두리 상자·캡션·방 페이저(◂ n/m ▸).
+ *
+ * (이전의 SVG 소품 컴포넌트(props/*)와 LivingRoomArt(PNG 실험)는 캔버스 씬으로
+ *  대체됐다 — 파일은 남아 있으나 더는 그리지 않는다. 정리는 별도 커밋에서.)
+ */
 import type { GameState } from '../../game/types';
-import { isRockPresent, itemBonus } from '../../game/stateMachine';
+import { isRockPresent } from '../../game/stateMachine';
 import { gameData } from '../../store/gameStore';
-import { appStore, now, t, tNight } from '../../store/appStore';
+import { appStore, t } from '../../store/appStore';
 import { SYS } from '../../game/text';
-import { Floor } from './Floor';
-import { WindowSprite } from './WindowSprite';
-import { DaySun } from './DaySun';
-import { TimeTint, WeatherFx } from './WeatherFx';
-import { resolveTimeOfDay } from '../../game/timeOfDay';
-import { DEFAULT_ROOM, focusRoomOf, propVisibleInRoom, stepRoom } from '../../game/rooms';
-import { SunPatch } from './SunPatch';
-import { GrassTufts } from './GrassTufts';
-import { RockSprite, RockShadow } from './RockSprite';
-import { TreeSprite } from './TreeSprite';
-import { treeStage } from '../../game/tree';
-import { sproutStageOf } from '../../game/sprout';
-import { PlantProp } from './props/PlantProp';
-import { PillowProp } from './props/PillowProp';
-import { CushionProp } from './props/CushionProp';
-import { ShoesProp } from './props/ShoesProp';
-import { ReadBookProp } from './props/ReadBookProp';
-import { PotProp } from './props/PotProp';
-import { BroomProp } from './props/BroomProp';
-import { BedProp } from './props/BedProp';
-import { UmbrellaProp } from './props/UmbrellaProp';
-import { FireplaceProp } from './props/FireplaceProp';
-import { BlanketProp } from './props/BlanketProp';
-import { BrushProp } from './props/BrushProp';
-import { BoardProp } from './props/BoardProp';
-import { LadleProp } from './props/LadleProp';
-import { DeskProp } from './props/DeskProp';
-import { StationeryProp } from './props/StationeryProp';
-import { LaptopProp } from './props/LaptopProp';
-import { SupplyProp } from './SupplyProp';
-import { StockProp, STOCK_PROP_IDS } from './StockProp';
-import { SodaProp } from './props/SodaProp';
-import { CupProp } from './props/CupProp';
-import { FanProp } from './props/FanProp';
-import { LampProp } from './props/LampProp';
-import { LivingRoomScene, type HotspotId } from './LivingRoomScene';
-import { sceneStateFrom, hiddenLayers } from '../../scene/livingroom/fromGame';
-import { BedroomScene, type BedroomHotspotId } from './BedroomScene';
-import { bedroomSceneFrom, hiddenBedroomLayers } from '../../scene/bedroom/fromGame';
-import { BookProp } from './props/BookProp';
+import { DEFAULT_ROOM, stepRoom } from '../../game/rooms';
+import { CanvasScene } from './CanvasScene';
 
-/** 행동별 풍경 색 (디자인 원본 값 그대로 — cook/chore 씬은 디자인 미정, 방 색으로 폴백) */
-const SCENE_COLORS: Record<string, { bg: string; floor: string; line: string }> = {
-  walk: { bg: '#2e3d49', floor: '#2e4430', line: '#3a5440' },
-  sun: { bg: '#3d3446', floor: '#4a4053', line: '#5a4e66' },
-  read: { bg: '#2b2436', floor: '#3a3145', line: '#453a56' },
-  lie: { bg: '#232030', floor: '#2d2838', line: '#3a3348' },
-  nurse: { bg: '#2a2530', floor: '#37303c', line: '#463c4e' },
-};
-/** 방 팔레트는 rooms.json (개정 v5) — 미묘한 색조 변주만, 시간대는 전역 */
 const roomById = (id: string) =>
   gameData.rooms.find((r) => r.id === id) ?? gameData.rooms[1];
 
 export function SceneView({ state }: { state: GameState }) {
-  // 씬을 눌러서 바꾸는 것들 — 아직 게임 축이 아니라 **씬 조작**이라 뷰가 들고 있는다.
-  //   창문   열면 풍경(윈드차임)이 흔들린다
-  //   벽난로·스탠드  광원 on/off. 소품을 없애는 게 아니라 **불만** 끈다
-  // 게임 축이 생기면 state 로 옮긴다.
-  const [windowOpen, setWindowOpen] = useState(false);
-  const [fireOn, setFireOn] = useState(true);
-  const [lampOn, setLampOn] = useState(true);
-  // 침실 몫 — 방마다 창·등이 따로다(거실 창을 열었다고 침실 창이 열리면 이상하다).
-  // 스탠드와 랩탑 화면은 **따로** 켜고 끈다 — 각자 눌러야 각자 꺼진다.
-  const [bedWindowOpen, setBedWindowOpen] = useState(false);
-  const [bedLampOn, setBedLampOn] = useState(true);
-  const [bedScreenOn, setBedScreenOn] = useState(true);
-  const [bedFanOn, setBedFanOn] = useState(true);
   const isFocus = state.phase === 'focus';
   const action = gameData.actions.find((a) => a.id === state.selectedAction);
-  const sceneId = isFocus ? (action?.sceneId ?? 'free') : 'room';
   const currentRoom = state.settings.lastRoom || DEFAULT_ROOM;
   const present = isRockPresent(state);
 
-  const placed = (id: string) => !!state.items[id]?.placed;
-  // 소품은 그 장면의 방에 속한 것만 — 휴식은 현재 방, 집중은 행동의 방
-  // (walk는 야외 = 실내 소품 없음). 부재 시 신발 숨김은 공통 (v5 §4).
-  const sceneRoom = isFocus
-    ? focusRoomOf(state.selectedAction, gameData.rooms)
-    : currentRoom;
-  // 집중: 행동 풍경 고정 (디자인 미정인 cook/chore·personalWork는 그 장면의 방
-  // 팔레트로 폴백, v5). 휴식: 현재 방 팔레트.
-  const colors = isFocus
-    ? (SCENE_COLORS[sceneId] ?? roomById(sceneRoom ?? DEFAULT_ROOM).palette)
-    : roomById(currentRoom).palette;
-  const show = (id: string) => {
-    if (!placed(id) || sceneRoom === null) return false;
-    const item = gameData.shop.find((i) => i.id === id);
-    if (!item) return false;
-    return propVisibleInRoom(item, gameData.rooms, sceneRoom, present);
-  };
   const setRoom = (dir: 1 | -1) =>
     appStore.setState((prev) => ({
       state: {
@@ -104,70 +32,19 @@ export function SceneView({ state }: { state: GameState }) {
         },
       },
     }));
-  const showWindow = !(isFocus && sceneId === 'walk');
-  // 시간대·날씨 (M12) — 씬 축 (UI 테마와 독립, B23). 창 유리색이 바깥을 비춘다.
-  const tod = resolveTimeOfDay(state.settings, now());
-  const outdoor = isFocus && sceneId === 'walk';
-  const wet = state.weather === 'rain' || state.weather === 'downpour';
-  const glassColor =
-    state.weather === 'snow'
-      ? '#dfe6ee'
-      : wet
-        ? '#9db3c9'
-        : tod === 'night'
-          ? '#8b95c0'
-          : tod === 'twilight'
-            ? '#e8a05c'
-            : isFocus && sceneId === 'sun'
-              ? '#ffd878'
-              : '#c9a86a';
-  const showBook = (isFocus && sceneId === 'read') || show('book');
 
-  // 거실·침실 씬 — design 의 canvas 렌더러.
-  // 휴식이든 집중이든 **그 장면의 방이 거실/침실이면** 새 렌더러로 간다.
-  // sceneRoom 은 집중 중엔 행동의 방(focusRoomOf), 휴식 중엔 지금 보고 있는 방이다.
-  //   거실 = sun(볕쬐기) · read(책읽기) + 계열 밖 행동(free · nurse)
-  //   침실 = lie(누워있기) · personalWork,  주방 = cook · chore,  walk 는 야외(null)
-  // 주방은 아직 이식 전이라 기존 레이어 렌더로 간다.
-  const livingScene = sceneRoom === 'living';
-  const bedroomScene = sceneRoom === 'bedroom';
-  const sceneState = sceneStateFrom(state, now(), windowOpen);
-  const sceneOff = hiddenLayers(state, false, gameData.dialogues);
-  // 광원 끄기 — 소품(벽난로 몸체·스탠드 기둥)은 남기고 불과 그 빛만 끈다.
-  // 안 산 소품은 hiddenLayers 가 이미 통째로 껐으므로 여기선 신경 쓸 게 없다.
-  if (!fireOn) {
-    sceneOff.add('fire');
-    sceneOff.add('lp-fire');
-  }
-  if (!lampOn) {
-    sceneOff.add('lamp-glow');
-    sceneOff.add('lp-lamp');
-  }
-  // 없는 소품은 누를 수도 없어야 한다
-  const hotspots = new Set<HotspotId>(['window']);
-  if (!sceneOff.has('g-fireplace')) hotspots.add('fireplace');
-  if (!sceneOff.has('lamp')) hotspots.add('lamp');
-
-  // 침실 몫 — 창은 늘 누를 수 있고, 스탠드는 사서 놓여 있어야 누를 수 있다
-  const bedState = bedroomSceneFrom(state, now(), bedWindowOpen, bedLampOn, bedScreenOn);
-  const bedOff = hiddenBedroomLayers(state, false);
-  // 선풍기를 눌러 멈추면 날개만 선다(방 전체 애니메이션과 별개)
-  if (!bedFanOn) bedOff.add('anim-fan');
-  // 없는 소품은 누를 수도 없어야 한다
-  const bedHotspots = new Set<BedroomHotspotId>(['window']);
-  if (!bedOff.has('bd-lamp')) bedHotspots.add('lamp');
-  if (!bedOff.has('bd-laptop')) bedHotspots.add('laptop');
-  if (!bedOff.has('bd-fan')) bedHotspots.add('fan');
-
-  const caption = isFocus
-    ? tNight(action?.captionId ?? '', tod)
+  // 집중 캡션은 돌이 실제로 곁에 있을 때만 행동 캡션 — 잠수 중 "돌과 나란히"는
+  // 관찰("돌이 보이지 않는다")과 모순이었다. 부재·심은 뒤엔 방 캡션 체인으로.
+  const beside = present && !state.planted;
+  const caption = isFocus && beside
+    ? t(action?.captionId ?? '')
     : state.planted
       ? t(SYS.captions.treeRoom)
       : state.era === 'apart' && !state.apart.visiting
         ? t(SYS.captions.apartRoom)
-      : present
-        ? t(roomById(currentRoom).captionId)
-        : t(SYS.captions.restRoomAbsent);
+        : present
+          ? t(roomById(currentRoom).captionId)
+          : t(SYS.captions.restRoomAbsent);
 
   return (
     <div
@@ -176,121 +53,21 @@ export function SceneView({ state }: { state: GameState }) {
         width: 480,
         maxWidth: '100%',
         aspectRatio: '320/180',
-        background: colors.bg,
+        background: '#1a1330',
         border: '3px solid #f2ead8',
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}
     >
-      {/* 거실·침실 씬은 새 렌더러로 — 벽·바닥·창·소품·돌을 canvas 한 장이 다 그린다.
-          집중 씬과 주방은 아직 기존 레이어 컴포넌트를 쓴다. */}
-      {livingScene ? (
-        <LivingRoomScene
-          scene={sceneState}
-          off={sceneOff}
-          hotspots={hotspots}
-          onHotspot={(id) => {
-            if (id === 'window') setWindowOpen((v) => !v);
-            else if (id === 'fireplace') setFireOn((v) => !v);
-            else if (id === 'lamp') setLampOn((v) => !v);
-          }}
-        />
-      ) : null}
-      {bedroomScene ? (
-        <BedroomScene
-          scene={bedState}
-          off={bedOff}
-          hotspots={bedHotspots}
-          onHotspot={(id) => {
-            if (id === 'window') setBedWindowOpen((v) => !v);
-            else if (id === 'lamp') setBedLampOn((v) => !v);
-            else if (id === 'laptop') setBedScreenOn((v) => !v);
-            else if (id === 'fan') setBedFanOn((v) => !v);
-          }}
-        />
-      ) : null}
-      {/* 세션 중 쓰는 소모품은 캔버스에 없는 그림이라 위에 겹친다.
-          집중 씬까지 캔버스로 넘기면서 이것까지 사라지면 "뭘 쓰고 있는지" 가 안 보인다. */}
-      {(livingScene || bedroomScene) && isFocus && state.session.supply && (
-        <SupplyProp
-          itemId={state.session.supply.itemId}
-          variant={state.session.supply.variant}
-        />
-      )}
-      {!livingScene && !bedroomScene && (
-        <>
-        {showWindow && <WindowSprite glassColor={glassColor} />}
-        {outdoor && <DaySun variant={tod === 'night' ? 'moon' : 'sun'} />}
-        <Floor bg={colors.floor} line={colors.line} />
-        {isFocus && sceneId === 'sun' && <SunPatch />}
-        {isFocus && sceneId === 'walk' && <GrassTufts />}
-        {state.planted && state.plantedAt !== null ? (
-          // 3차 (M15): 돌의 자리에 나무가 자란다 — 성장은 달력이 정한다
-          <TreeSprite
-            stage={treeStage(state.plantedAt, state.treeBondDays, now())}
-            flowers={itemBonus(state, gameData, 'treeFlowers')}
-          />
-        ) : present ? (
-          <RockSprite
-            moss={placed('moss')}
-            sprout={sproutStageOf(state, gameData.dialogues)}
-            wetness={state.session.wetness}
-          />
-        ) : (
-          <RockShadow />
-        )}
-        {show('cup') && <CupProp />}
-        {showBook && <BookProp />}
-        {show('plant') && <PlantProp />}
-        {show('soda') && <SodaProp />}
-        {show('fan') && <FanProp />}
-        {show('lamp') && <LampProp />}
-        {show('cushion') && <CushionProp />}
-        {show('shoes') && <ShoesProp />}
-        {show('book') && <ReadBookProp />}
-        {show('pot') && <PotProp />}
-        {show('broom') && <BroomProp />}
-        {show('pillow') && <PillowProp />}
-        {show('bed') && <BedProp />}
-        {(show('umbrella') ||
-          (isFocus && sceneId === 'walk' && state.session.umbrella)) && (
-          <UmbrellaProp />
-        )}
-        {show('fireplace') && <FireplaceProp />}
-        {show('blanket') && <BlanketProp />}
-        {show('brush') && <BrushProp />}
-        {show('board') && <BoardProp />}
-        {show('ladle') && <LadleProp />}
-        {show('desk') && <DeskProp />}
-        {show('stationery') && <StationeryProp />}
-        {show('laptop') && <LaptopProp />}
-        {STOCK_PROP_IDS.map((id) =>
-          show(id) && (state.supplies[id] ?? 0) > 0 ? (
-            <StockProp key={id} itemId={id} />
-          ) : null,
-        )}
-        {isFocus && state.session.supply && (
-          <SupplyProp
-            itemId={state.session.supply.itemId}
-            variant={state.session.supply.variant}
-          />
-        )}
-        {/* 입자가 있는 날씨만 — 맑음·흐림·안개는 떨어지는 것이 없다.
-            흐림·안개는 빛으로만 표현된다 (씬 렌더러의 light-cloud/light-fog) */}
-        {outdoor &&
-          state.weather !== 'clear' &&
-          state.weather !== 'cloud' &&
-          state.weather !== 'fog' && <WeatherFx kind={state.weather} />}
-        {outdoor && <TimeTint tod={tod} />}
-        </>
-      )}
+      <CanvasScene state={state} />
       <div
         style={{
           position: 'absolute',
           left: 10,
           bottom: 8,
           fontSize: 10,
-          color: '#55556e',
+          color: '#cfc8e0',
+          textShadow: '0 1px 2px rgba(0,0,0,.6)',
         }}
       >
         {caption}
@@ -305,7 +82,8 @@ export function SceneView({ state }: { state: GameState }) {
             alignItems: 'center',
             gap: 6,
             fontSize: 10,
-            color: '#8a839c',
+            color: '#b9b2cc',
+            textShadow: '0 1px 2px rgba(0,0,0,.6)',
           }}
         >
           <button className="hv" style={pagerBtn} onClick={() => setRoom(-1)}>

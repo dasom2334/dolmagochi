@@ -200,13 +200,15 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       visitBlockedUntil: null,
     }));
 
-  // 떠날 기색 — 휴식 화면에 붙잡기/보내주기 프롬프트를 띄운다 (사다리 확인용)
+  // 떠날 기색 — 휴식 화면에 붙잡기/보내주기 프롬프트를 띄운다 (사다리 확인용).
+  // endsAt은 0이 아니라 **미래**여야 한다: 사다리 끝의 방문 차단이
+  // rest.endsAt + 7일로 계산되는데, 0이면 차단 만료가 1970년이 되어 무효가 된다.
   const forceLeave = () =>
     patch((s) => ({
       era: 'apart',
       phase: 'rest',
       planted: false,
-      rest: { ...s.rest, endsAt: 0 },
+      rest: { ...s.rest, endsAt: Date.now() + 30 * 60_000 },
       apart: { ...s.apart, visiting: true, leavePending: true },
     }));
 
@@ -219,6 +221,8 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
       planted: false,
       plantedAt: null,
       sproutGrowth: 99,
+      // 게이트도 다 연 상태로 — 안 열면 다음 정산이 성장을 게이트(85)로 되민다
+      sproutGatesCleared: 3,
       witherLevel: 0,
       bloomSeen: true,
       letGoCount: Math.max(1, s.letGoCount),
@@ -353,6 +357,17 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
   const bedroomItems = gameData.shop
     .filter((i) => roomOfItem(i, gameData.rooms) === 'bedroom')
     .map((i) => i.id);
+  // 주방도 — 11종(냄비·도마·국자·재료·솔·세척·신발·우산·도시락·찻상·빗자루) 게이팅 확인용
+  const kitchenItems = gameData.shop
+    .filter((i) => roomOfItem(i, gameData.rooms) === 'kitchen')
+    .map((i) => i.id);
+  const setKitchenItems = (placed: boolean) =>
+    patch((s) => ({
+      items: {
+        ...s.items,
+        ...Object.fromEntries(kitchenItems.map((id) => [id, { placed }])),
+      },
+    }));
   const setBedroomItems = (placed: boolean) =>
     patch((s) => ({
       items: {
@@ -360,6 +375,26 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
         ...Object.fromEntries(bedroomItems.map((id) => [id, { placed }])),
       },
     }));
+  // 소모품 재고 — 종류가 그림을 정하므로(카페인 캔/컵/아이스, 바구니 천 색)
+  // 없음→종류1→…→없음 으로 도는 순환 버튼을 준다.
+  const consumables = gameData.shop.filter((i) => i.consumable);
+  const cycleSupply = (id: string) =>
+    patch((s) => {
+      const vs =
+        gameData.shop.find((i) => i.id === id)?.consumable?.variants ?? [];
+      const cur =
+        (s.supplies[id] ?? 0) > 0
+          ? vs.findIndex((v) => v.key === s.supplyVariants[id])
+          : -1;
+      const next = cur + 1 >= vs.length ? -1 : cur + 1;
+      return {
+        supplies: { ...s.supplies, [id]: next < 0 ? 0 : 1 },
+        supplyVariants:
+          next < 0
+            ? s.supplyVariants
+            : { ...s.supplyVariants, [id]: vs[next].key },
+      };
+    });
   // 책장 2번째 칸은 일회용 책의 **누적 구매 수**를 따라간다 (supplies 로는 못 센다)
   const setReadbooks = (n: number) =>
     patch((s) => ({
@@ -458,6 +493,30 @@ function DebugTools({ state, nowMs }: { state: GameState; nowMs: number }) {
         <button className="hv" style={btnSmall} onClick={() => setBedroomItems(false)}>
           전부 해제
         </button>
+        <span style={dim}>
+          주방 소품 {kitchenItems.filter((id) => state.items[id]?.placed).length}/
+          {kitchenItems.length}
+        </span>
+        <button className="hv" style={btnSmall} onClick={() => setKitchenItems(true)}>
+          전부 배치
+        </button>
+        <button className="hv" style={btnSmall} onClick={() => setKitchenItems(false)}>
+          전부 해제
+        </button>
+        <span style={dim}>소모품 재고</span>
+        {consumables.map((i) => (
+          <button
+            key={i.id}
+            className="hv"
+            style={(state.supplies[i.id] ?? 0) > 0 ? btnOn : btnSmall}
+            onClick={() => cycleSupply(i.id)}
+          >
+            {i.id}:
+            {(state.supplies[i.id] ?? 0) > 0
+              ? (state.supplyVariants[i.id] ?? '?')
+              : '—'}
+          </button>
+        ))}
         <span style={dim}>일회용 책 누적</span>
         {[0, 1, 2, 3, 4].map((n) => (
           <button
