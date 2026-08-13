@@ -589,9 +589,22 @@ describe('잠수(부재) 분기', () => {
     s = run(s, [{ type: 'END_FOCUS', nowMs: T0 }, { type: 'REST_END' }], seq([0.9]), data);
     expect(s.presence.state).toBe('absent'); // 고친밀(4) 세션은 카운트 안 됨
 
+    // 저친밀만 카운트되므로 균형까지 free 세션이 2회 필요하다
     s = run(
       s,
       [
+        { type: 'SELECT_ACTION', actionId: 'free' },
+        { type: 'START_FOCUS', nowMs: T0 },
+        { type: 'END_FOCUS', nowMs: T0 },
+      ],
+      seq([0.9]),
+      data,
+    );
+    expect(s.presence.state).toBe('absent'); // 1회로는 아직
+    s = run(
+      s,
+      [
+        { type: 'REST_END' },
         { type: 'SELECT_ACTION', actionId: 'free' },
         { type: 'START_FOCUS', nowMs: T0 },
         { type: 'END_FOCUS', nowMs: T0 },

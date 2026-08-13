@@ -57,10 +57,23 @@ describe('잠수 플로우 (absence)', () => {
     // 고친밀 세션은 복귀 누적에 카운트되지 않아 여전히 부재
     expect(s.presence.state).toBe('absent');
 
-    // 저친밀(free) 세션을 마쳐야 복귀 — "정답은 공부다"
+    // 저친밀(free) 세션을 마쳐야 복귀 — "정답은 공부다".
+    // 고친밀 세션은 수렴에 세지 않으므로, 균형까지 저친밀 세션이 2회 필요하다.
     s = run(
       s,
       [
+        { type: 'SELECT_ACTION', actionId: 'free' },
+        { type: 'START_FOCUS', nowMs: T0 },
+        { type: 'END_FOCUS', nowMs: T0 },
+      ],
+      seq([0.9]),
+      data,
+    );
+    expect(s.presence.state).toBe('absent'); // 1회로는 아직 균형에 못 닿는다
+    s = run(
+      s,
+      [
+        { type: 'REST_END' },
         { type: 'SELECT_ACTION', actionId: 'free' },
         { type: 'START_FOCUS', nowMs: T0 },
         { type: 'END_FOCUS', nowMs: T0 },
@@ -119,5 +132,36 @@ describe('잠수 플로우 (absence)', () => {
       s.rest.talkState!.pages.join('\n'),
     );
     expect(s.milestonesFired).toHaveLength(0);
+  });
+
+  it('부재 세션은 기억을 남기지 않는다 — 혼자 한 산책은 "첫 산책(함께)"이 아니다', () => {
+    const data = riskyData();
+    const absent = run(
+      {
+        ...createInitialState(T0, 'read'),
+        relationTier: BALANCE.ATTACH_ONSET_TIER,
+        items: { book: { placed: false } },
+      },
+      [{ type: 'START_FOCUS', nowMs: T0 }],
+      seq([0.1, 0.0]),
+      data,
+    );
+    expect(absent.presence.state).toBe('absent');
+
+    const after = run(
+      absent,
+      [
+        { type: 'END_FOCUS', nowMs: T0 },
+        { type: 'REST_END' },
+        { type: 'SELECT_ACTION', actionId: 'walk' },
+        { type: 'START_FOCUS', nowMs: T0 },
+        { type: 'END_FOCUS', nowMs: T0 },
+      ],
+      seq([0.9]),
+      data,
+    );
+    // 돌 없이 완료한 세션 — firstAction 마일스톤·엔딩 게이트가 읽는 토큰이 없어야 한다
+    expect(after.memory.walk).toBeUndefined();
+    expect(after.memory.read).toBeUndefined();
   });
 });

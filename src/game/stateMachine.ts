@@ -423,7 +423,16 @@ function applyIntimacy(
   /** 진정 허용 — 세션당 1회(행동 경로)만 걸린다 (M18 과대 적용 수정) */
   allowSoothe = false,
 ): GameState {
-  if (state.era !== 'raising' || state.presence.state === 'absent') return state;
+  // 병간호 중에도 걸리지 않는다 — 여기서 잠수 판정이 통과하면 startAbsence가
+  // sick:false로 덮어써, 회복 문구 한 줄 없이 병간호 아크가 사라지고
+  // crisesWeathered만 이중으로 오른다. (지금은 대사 데이터의 intimacy 값이
+  // 우연히 막고 있을 뿐이라, 고친밀 대사 한 줄이면 열리는 구멍이었다)
+  if (
+    state.era !== 'raising' ||
+    state.presence.state === 'absent' ||
+    state.presence.sick
+  )
+    return state;
   const { abandonment, intimacyThreat } = state.stats;
   const oc = intimacyOutcome(
     abandonment,
@@ -1517,7 +1526,18 @@ function reduce(
       let presence = next.presence;
       let journal = state.session.journal;
       const elapsed = state.session.elapsedSec;
-      if (next.era === 'raising' && (presence.state === 'absent' || presence.sick)) {
+      // 잠수 복귀는 저친밀 행동으로만 앞당겨진다 (기획서: "돌이 잠수 타면 정답은 공부다").
+      // 물러난 돌에게 다시 다가가는 고친밀 행동은 수렴에 세지 않는다 — 세면 행동 종류와
+      // 무관하게 2~3세션이면 돌아와, 기획서가 말한 복귀 조건이 코드에서 사라진다.
+      // 병간호 회복은 행동을 가리지 않는다: 곁에 있어 주는 것 자체가 간호다.
+      const convergeCounts =
+        presence.state !== 'absent' ||
+        action.intimacy <= BALANCE.RETURN_LOW_INTIMACY_MAX;
+      if (
+        next.era === 'raising' &&
+        (presence.state === 'absent' || presence.sick) &&
+        convergeCounts
+      ) {
         const step = convergeStep(stats.abandonment, stats.intimacyThreat);
         stats = {
           ...stats,
@@ -1752,12 +1772,19 @@ function reduce(
 
       // 행동 기억 토큰 — 목격 토큰이 workWitnessed 로 분리(#61)돼 작업행동도
       // 다른 행동처럼 남긴다 (행동 id 토큰과 목격 토큰이 더는 충돌하지 않는다)
-      let memory = remember(
-        next.memory,
-        action.id,
-        BALANCE.MEMORY_WEIGHT_ACTION,
-        event.nowMs,
-      );
+      // 부재 세션은 기억을 남기지 않는다 — firstAction 마일스톤('첫 산책')과
+      // 엔딩 토큰이 "함께 겪었는가"를 이 토큰으로 판정하는데, 혼자 한 세션이 쌓이면
+      // 돌 없이 '함께'의 조건이 채워진다.
+      // (호감도·욕구 적립은 그대로 둔다 — 부재 중 공부는 복귀의 정답이므로
+      //  보상까지 끊으면 "잠수 타면 정답은 공부다"가 성립하지 않는다)
+      let memory = sessionHadRock
+        ? remember(
+            next.memory,
+            action.id,
+            BALANCE.MEMORY_WEIGHT_ACTION,
+            event.nowMs,
+          )
+        : next.memory;
       // 돌이 스스로 한 행동 — 그 행동의 기억을 약하게 강화 (개정 v4-6)
       const via = state.session.freeCareVia;
       if (via && via !== 'self') {
