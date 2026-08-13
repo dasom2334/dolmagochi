@@ -212,7 +212,9 @@ function sceneOf(state: GameState): {
       // 잔에 차가 담기는 건 차(소모품)가 있을 때만 — 잔은 잔대로 사는 물건이다.
       // (렌더러는 cup==='full' 로 차·김만 더 그리고 잔 유무는 안 본다 → 여기서 게이트)
       cup: show('cup') && stocked('tea') ? 'full' : 'empty',
-      readBook: sceneId === 'read' || show('book') ? 1 : 0,
+      // 책을 **읽는 동안만** 펼쳐 놓는다. 소유(show('book'))로 켜면 휴식 중에도
+      // 내내 담요를 두르고 책이 펼쳐져 있었다.
+      readBook: sceneId === 'read' ? 1 : 0,
       ptree:
         state.planted && state.plantedAt !== null
           ? treeStage(state.plantedAt, state.treeBondDays, nowMs)
