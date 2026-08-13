@@ -638,6 +638,11 @@ function exitRest(
     state: {
       ...state,
       apart: { ...state.apart, visiting: false, leavePending: false, held: false },
+      // 이것도 보내준 것이다 — 붙잡지 않았으니 돌은 자유롭게 떠났다.
+      // 여기서 세지 않으면, 떠나려는 기색에 버튼을 안 누르고 다음 세션을 시작하는
+      // 플레이어는 letGoCount가 영원히 0이라 2차 엔딩(심기)이 절대 열리지 않는다.
+      // leavePending이 살아 있을 때만 오는 경로라 명시적 보내주기와 이중으로 세지 않는다.
+      letGoCount: state.letGoCount + 1,
       // 돌이 떠나면 '오늘 돌이 원하는 것'도 함께 사라진다 (리뷰)
       delegate: null,
     },
@@ -877,6 +882,10 @@ function reduce(
         next.era === 'apart' &&
         !next.planted && // 3차(M15): 돌은 나무가 되었다 — 방문 시스템 종료
         !next.apart.visiting &&
+        // 방금 이 이벤트에서 떠나보냈다면 같은 화면에서 다시 부르지 않는다.
+        // exitRest가 visiting을 내린 직후라 추첨이 그대로 통과했고, 그러면 일지에
+        // visitEnd와 visitStart가 나란히 찍혀 작별이 그 자리에서 무효가 됐다.
+        exited.visitEndLine === null &&
         (next.visitBlockedUntil === null || event.nowMs >= next.visitBlockedUntil)
       ) {
         if (rng() < BALANCE.VISIT_PROB + itemBonus(next, data, 'visitBonus')) {
@@ -1663,9 +1672,17 @@ function reduce(
       // 단계 게이트 상한 (피드백5) — 열린 게이트까지만 자란다.
       // 게이트는 '방문 1회'로만 열리므로 방문이 존재하는 apart에서만 건다.
       // 동거는 돌이 늘 곁에 있어 열 수단이 없다 — 걸면 심기가 영원히 막힌다.
+      // 이미 자란 만큼은 캡이 깎지 못한다 — 게이트는 성장을 멈추는 장치지 되감는 장치가 아니다.
+      // 동거는 캡 없이(100) 자라는데 게이트는 방문으로만 열리고 동거에는 방문이 없다.
+      // 그래서 동거에서 90까지 자란 묘목이 빈자리로 넘어오는 순간 Math.min이
+      // 하향 클램프로 돌변해 SPROUT_GATES[0]=50 으로 되감겼다(실측 90→50).
+      // 화면에는 40이 사라진 게 아니라 '성장이 멈췄다'로만 보여 추적도 어려웠다.
       const growthCap =
         next.era === 'apart'
-          ? (BALANCE.SPROUT_GATES[next.sproutGatesCleared] ?? 100)
+          ? Math.max(
+              BALANCE.SPROUT_GATES[next.sproutGatesCleared] ?? 100,
+              sproutGrowth,
+            )
           : 100;
       let gateHeld = false;
       if (!next.planted && next.era === 'apart') {
