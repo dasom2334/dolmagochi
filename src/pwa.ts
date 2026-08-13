@@ -13,6 +13,7 @@
  * 잃는 것이 없다. 그래서 phase(집중 여부) 특수 처리는 두지 않는다.
  */
 import { registerSW } from 'virtual:pwa-register';
+import { flushSave } from './persistence/persist';
 
 /** 이 시간(ms) 안에 발견된 갱신 = "새로 연 것"으로 보고 자동 반영 */
 const FRESH_OPEN_MS = 10_000;
@@ -71,7 +72,12 @@ export function initPWA(): void {
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
-      const applyUpdate = () => void updateSW(true);
+      // 갱신 적용은 곧 새로고침이다 — 마지막 오토세이브 틱(≤1초) 이후의 변경이
+      // 날아가지 않게 먼저 flush한다. 저장이 실패해도 갱신은 그대로 진행한다.
+      // (특히 자동 반영 경로: 앱을 열자마자 집중을 시작하면 그 시작이 유실됐다)
+      const applyUpdate = () => {
+        void flushSave().finally(() => void updateSW(true));
+      };
       if (performance.now() < FRESH_OPEN_MS && !alreadyAutoReloaded()) {
         // 방금 연 화면 → 조용히 최신으로 교체 (세션당 1회로 제한)
         markAutoReloaded();

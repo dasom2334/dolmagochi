@@ -218,7 +218,9 @@ export function SettingsModal({
     a.href = url;
     a.download = 'dol-save.json';
     a.click();
-    URL.revokeObjectURL(url);
+    // 다운로드가 시작되기 전에 URL을 무효화하면 저장이 실패한다(Safari 등).
+    // 한 틱 미뤄 클릭 처리가 끝난 뒤 회수한다.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
     setMsg(t(SYS.toasts.exportOk));
   };
 

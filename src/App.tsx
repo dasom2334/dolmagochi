@@ -127,12 +127,17 @@ export function App() {
       if (document.hidden) void flushSave();
     };
     document.addEventListener('visibilitychange', onHide);
+    // pagehide도 듣는다 — 대개 visibilitychange와 겹치지만, iOS PWA 강제 종료처럼
+    // hidden 전환 없이 문서가 사라지는 경로에서는 이쪽만 뜬다.
+    const onPageHide = () => void flushSave();
+    window.addEventListener('pagehide', onPageHide);
 
     const stop = startAutosave();
     return () => {
       worker.terminate();
       workerRef.current = null;
       document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onPageHide);
       stop();
     };
   }, []);

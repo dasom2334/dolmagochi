@@ -9,6 +9,21 @@ export function restRemainingSec(endsAt: number, nowMs: number): number {
   return Math.max(0, (endsAt - nowMs) / 1000);
 }
 
+/**
+ * 표시용 잔여 — 전체 길이를 넘지 않게 클램프.
+ * nowMs는 휴식 phase에서만 갱신되므로 휴식 진입 직후 첫 렌더에는 낡은(과거) 값이
+ * 들어와 잔여가 totalSec를 넘는다. 진행 바는 restProgressPct가 막아 줬지만
+ * 카운트다운 텍스트는 그대로 노출돼, 2시간 집중 뒤 휴식 진입 순간 "2:20:00" 같은
+ * 값이 한 틱(250ms) 스쳤다.
+ */
+export function restRemainingDisplaySec(
+  endsAt: number,
+  totalSec: number,
+  nowMs: number,
+): number {
+  return Math.min(restRemainingSec(endsAt, nowMs), Math.max(0, totalSec));
+}
+
 /** 휴식이 만료됐는가 (endsAt이 설정돼 있고 현재 시각이 지났음). */
 export function isRestOver(endsAt: number, nowMs: number): boolean {
   return endsAt > 0 && nowMs >= endsAt;
