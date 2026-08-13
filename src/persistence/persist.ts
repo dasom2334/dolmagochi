@@ -59,10 +59,16 @@ let dirty = false;
  * (dirty는 그대로 두어 복원 후 다음 틱에 저장된다)
  */
 export async function flushSave(): Promise<void> {
-  if (!bootComplete) return;
-  dirty = false;
+  // dirty를 쓰기 성공 뒤에 내리므로, 진행 중인 저장과 다음 틱이 겹치지 않게 막는다.
+  // 겹친 사이의 변경은 dirty가 살아 있어 다음 틱이 가져간다.
+  if (!bootComplete || saving) return;
+  saving = true;
   try {
     await saveRaw(wrapSave(appStore.getState().state, Date.now()));
+    // 성공한 뒤에 내린다 — 쓰기 전에 내리면 실패한 변경이 재시도 대상에서
+    // 빠져, 이후 상태 변화가 없는 구간(상점 구매 직후 등)의 결과가 영영
+    // 디스크에 남지 않는다.
+    dirty = false;
     saveWarned = false;
   } catch {
     // 매초 호출되므로 연속 실패는 한 번만 알린다. 조용히 삼키면 몇 시간을 놀고도
@@ -71,10 +77,13 @@ export async function flushSave(): Promise<void> {
       saveWarned = true;
       pushToast(t(SYS.toasts.saveWriteFailed));
     }
+  } finally {
+    saving = false;
   }
 }
 
 let saveWarned = false;
+let saving = false;
 
 let autosave: { unsub: () => void; iv: ReturnType<typeof setInterval> } | null =
   null;

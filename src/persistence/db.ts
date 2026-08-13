@@ -7,6 +7,8 @@ const STORE = 'save';
 const KEY = 'current';
 /** 해석에 실패한 세이브 원본을 옮겨 두는 자리 — 덮어쓰기 전 마지막 사본. */
 const BACKUP_KEY = 'corrupt-backup';
+/** 직전 세이브 — 사고가 나도 한 세대는 되돌릴 수 있게 남긴다. */
+const PREV_KEY = 'prev';
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -31,8 +33,25 @@ export async function loadRaw(): Promise<unknown> {
   return (await getDb()).get(STORE, KEY);
 }
 
+/**
+ * 세이브 1건 쓰기 — 직전 값을 prev 로 밀어내고 current 를 갱신한다.
+ * 슬롯이 하나뿐이면 어떤 덮어쓰기 사고도 복구 불가가 된다. 한 트랜잭션에서
+ * 옮기므로 중간에 끊겨도 두 키가 어긋나지 않는다.
+ * 첫 저장(prev 없음)은 그냥 current 만 쓴다.
+ */
 export async function saveRaw(env: SaveEnvelope): Promise<void> {
-  await (await getDb()).put(STORE, env, KEY);
+  const db = await getDb();
+  const tx = db.transaction(STORE, 'readwrite');
+  const store = tx.objectStore(STORE);
+  const cur = await store.get(KEY);
+  if (cur !== undefined) await store.put(cur, PREV_KEY);
+  await store.put(env, KEY);
+  await tx.done;
+}
+
+/** 직전 세이브(복구용). 없으면 undefined. */
+export async function loadPrevRaw(): Promise<unknown> {
+  return (await getDb()).get(STORE, PREV_KEY);
 }
 
 export async function clearRaw(): Promise<void> {

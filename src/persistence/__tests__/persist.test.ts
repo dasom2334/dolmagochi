@@ -83,6 +83,24 @@ describe('persist — 부트 실패 시 저장 관문', () => {
     expect(db.saveRaw).toHaveBeenCalledOnce();
   });
 
+  it('쓰기가 실패하면 dirty가 남아 다음 틱에 재시도한다', async () => {
+    db.loadRaw.mockResolvedValueOnce(undefined);
+    const { bootRestore, startAutosave, stopAutosave } = await freshPersist();
+    await bootRestore(T0);
+    const { appStore } = await import('../../store/appStore');
+
+    // 상점 구매처럼 한 번 바뀐 뒤 더는 상태 변화가 없는 구간
+    db.saveRaw.mockRejectedValue(new Error('쿼터 초과'));
+    startAutosave(5);
+    appStore.setState((s) => ({ ...s }));
+
+    await new Promise((r) => setTimeout(r, 60));
+    stopAutosave();
+
+    // dirty를 미리 내렸다면 첫 실패 뒤로 재시도가 없다
+    expect(db.saveRaw.mock.calls.length).toBeGreaterThan(1);
+  });
+
   it('저장이 계속 실패해도 알림은 한 번만', async () => {
     db.loadRaw.mockResolvedValueOnce(undefined);
     const { bootRestore, flushSave } = await freshPersist();
