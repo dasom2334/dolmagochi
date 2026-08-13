@@ -8,8 +8,7 @@ import { resolve } from '../livingroom/scene/palette.js';
 import { ROOM_DATA } from '../livingroom/scene/room-data.js';
 import { OVERLAYS, AMBIENT, VIGNETTE } from '../livingroom/scene/lights.js';
 import { ANIM, GROUP_ANIM, TILE_H } from '../livingroom/scene/anim.js';
-import { BD_ART, BD_GLASS } from './geom-art.js';
-import * as PREV from './geom-art-prev.js';   // 이전 버전(오늘 4건 수정 전) 정적 아트 — A/B 비교용
+import { BD_GLASS } from './geom-art.js';
 import { BD3_ART } from './geom-art-v3.js';   // v3 손작화 판 — 무테·두꺼운 색면
 import { ORB_SPOTS, sproutArt, lampArt, lampGlowArt, screenGlowArt, windowPool, groundShadows, bedroomRug,
   bedroomScenery, BD_SUN, BD_MOON, BD_STARS } from './geom.js';
@@ -28,9 +27,6 @@ export const SHOP_PROPS = ['bd-desk', 'bd-chair', 'bd-laptop', 'bd-deskplant',
 // bd-rug 는 추출본을 안 쓰고 절차 러그(bedroomRug)로 대체 → 목록에서 뺀다.
 const Z_FURNITURE = ['bd-frames', 'bd-shelf', 'bd-bed', 'bd-fan', 'bd-nightstand',
   'bd-desk', 'bd-laptop', 'bd-deskplant', 'bd-chair'];
-// 이전 버전 z-순서 — 추출 러그(bd-rug)를 가구로 포함(절차 러그를 안 쓰던 때)
-const Z_FURNITURE_PREV = ['bd-frames', 'bd-shelf', 'bd-bed', 'bd-fan', 'bd-nightstand',
-  'bd-rug', 'bd-desk', 'bd-laptop', 'bd-deskplant', 'bd-chair'];
 
 const slot = (pal, v) => (v[0] === '#' ? v : (pal[v] || '#f0f'));
 function paint(ctx, rects, pal) {
@@ -118,12 +114,9 @@ export function render(cv, state, off = new Set(), t = 0) {
   // state.override: v4 편집 패널의 컬러피커·강도 슬라이더가 특정 슬롯을 덮어쓴다(검수용).
   //   색 슬롯(--rg2 등) 또는 알파 슬롯(--wl-a 창광 세기)을 임시로 바꾼다. 기본은 원본.
   const pal = { ...resolve(state, ROOM_DATA.palette), ...(state.override || {}) };
-  // 버전 토글 — state.variant:
-  //   'current'(기본): 추출 가구 + 절차 바닥·러그 + 전방감쇠 창광
-  //   'v3': 손작화 가구(geom-art-v3) + 절차 바닥·러그 + 전방감쇠 창광
-  //   'prev': 오늘 4건 수정 전 — 추출 바닥·추출(구운) 러그·균일 창광
-  const prev = state.variant === 'prev';
-  const ART = prev ? PREV.BD_ART : state.variant === 'v3' ? BD3_ART : BD_ART;
+  // 시안 확정: v3 손작화 한 벌만 쓴다. 미도달 시안(prev·추출본)은 런타임 삼항이
+  // 참조를 붙잡아 tree-shake도 안 된 채 번들에 실려 나갔다 → 분기째 제거.
+  const ART = BD3_ART;
   ctx.imageSmoothingEnabled = false;
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -167,32 +160,32 @@ export function render(cv, state, off = new Set(), t = 0) {
       paint(ctx, BD3_SASH_OPEN, pal);
     }
   }
-  if (!off.has('g-floor')) paint(ctx, prev ? ART['bd-floor'] : groups['g-floor'], pal);
+  if (!off.has('g-floor')) paint(ctx, groups['g-floor'], pal);
   // 러그 — 현재는 절차 생성(무광원). state.rug = 위치·크기 조절(Phase 2).
   // 이전 버전은 추출 러그를 가구 z에서 그린다.
-  if (!prev && !off.has('bd-rug')) paint(ctx, bedroomRug(state.rug), pal);
+  if (!off.has('bd-rug')) paint(ctx, bedroomRug(state.rug), pal);
 
   // [2.5] 접지 그림자 (multiply) — 소품 밑, SCENE-RULES §3.4. state.shadowK = 세기 배율.
   //       v3 는 가구 발이 바닥 안(y50~52)이라 그늘 기준선도 낮다.
   if (!off.has('shadow')) {
     const shK = state.shadowK ?? 1;
     ctx.globalCompositeOperation = 'multiply';
-    for (const r of groundShadows(off, state.variant === 'v3')) { ctx.globalAlpha = r[5] * shK; ctx.fillStyle = r[4]; ctx.fillRect(r[0], r[1], r[2], r[3]); }
+    for (const r of groundShadows(off, true)) { ctx.globalAlpha = r[5] * shK; ctx.fillStyle = r[4]; ctx.fillRect(r[0], r[1], r[2], r[3]); }
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   }
 
   // [3] 가구 (무광원 알베도 base). 게이팅. state.offset[id]=[dx,dy] 로 위치 조절(Phase 2).
-  for (const id of (prev ? Z_FURNITURE_PREV : Z_FURNITURE)) {
+  for (const id of Z_FURNITURE) {
     if (off.has(id) || !ART[id]) continue;
     // 액자 — 호감도만큼 앞에서부터 n 장(state.frames, 기본 전부). 추억이 쌓이는 벽이다.
-    if (id === 'bd-frames' && !prev && state.variant === 'v3') {
+    if (id === 'bd-frames') {
       const n = state.frames == null ? BD3_FRAME_SHOTS.length : state.frames;
       for (let k = 0; k < Math.min(n, BD3_FRAME_SHOTS.length); k++) paint(ctx, BD3_FRAME_SHOTS[k], pal);
       continue;
     }
     if (state.paintLayer === id && state.paintCells) { drawPaintCells(ctx, state.paintCells); continue; }
     // 카페인 음료 — v3 는 **한 번에 하나만**(state.drink 가 고른다)
-    if (id === 'bd-deskplant' && state.variant === 'v3') {
+    if (id === 'bd-deskplant') {
       paint(ctx, BD3_DRINKS[state.drink] || BD3_DRINKS.coffee, pal);
       continue;
     }
@@ -201,12 +194,12 @@ export function render(cv, state, off = new Set(), t = 0) {
     else paint(ctx, ART[id], pal);
   }
   // 베개 — 침대가 있으면 헤드보드 앞, 없으면 러그 위(베개를 침대보다 먼저 산다)
-  if (!prev && state.variant === 'v3' && !off.has('bd-pillow'))
+  if (!off.has('bd-pillow'))
     paint(ctx, off.has('bd-bed') ? BD3_PILLOW_FLOOR : BD3_PILLOW_BED, pal);
   if (!off.has('bd-lamp')) paint(ctx, lampArt(), pal);
 
   // [3.2] 애니메이션 소품(v3) — 김(나이트드링크)·선풍기 날개. 애니 끄면 0프레임 고정
-  if (!prev && state.variant === 'v3') {
+  {
     const animOn = !off.has('anim');
     if (!off.has('bd-nightstand')) paint(ctx, steamArt(animOn ? Math.floor(t / 450) % 3 : 0), pal);
     if (!off.has('bd-fan')) paint(ctx, fanSpinArt(animOn && !off.has('anim-fan') ? Math.floor(t / 120) % 3 : 0), pal);
@@ -237,8 +230,8 @@ export function render(cv, state, off = new Set(), t = 0) {
   const wet = ['fog', 'rain', 'downpour', 'snow'].includes(state.weather);
   if (!off.has(poolId) && !wet) {
     // off 를 넘겨 **가구 차폐**(POOL_OCC) 활성화. 열린 창은 멀리언 그림자 없음.
-    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a', prev, off, winOpen,
-      state.variant === 'v3' ? state.orb : null);
+    const { rects, alphaSlot } = windowPool(sunOn ? '--wl' : '--ml', sunOn ? '--wl-a' : '--ml-a', false, off, winOpen,
+      state.orb);
     const a = parseFloat(pal[alphaSlot] ?? 0);
     if (a > 0) {
       ctx.globalCompositeOperation = 'screen';
