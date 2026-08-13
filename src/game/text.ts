@@ -155,6 +155,9 @@ export const SYS = {
     importFail: 'sys.toasts.importFail',
     importVersion: 'sys.toasts.importVersion',
     exportOk: 'sys.toasts.exportOk',
+    saveLoadFailed: 'sys.toasts.saveLoadFailed',
+    saveCorrupted: 'sys.toasts.saveCorrupted',
+    saveWriteFailed: 'sys.toasts.saveWriteFailed',
   },
   captions: {
     restRoom: 'sys.captions.restRoom',
