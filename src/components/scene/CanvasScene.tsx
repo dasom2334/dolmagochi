@@ -34,13 +34,16 @@ import { reduceMotion } from '../../scene/art/livingroom/scene/anim.js';
 const GX = 128;
 const GY = 72;
 
-/** 게임 소품 id → 거실 레이어 id (렌더러 SHOP_PROPS 의 부분집합만 게임에 존재) */
-const LIVING_LAYER: Record<string, string> = {
-  cushion: 'p-cushion',
-  cup: 'p-cup',
-  windchime: 'p-windchime',
-  blanket: 'p-blanket',
-  waterglass: 'p-waterglass',
+/** 게임 소품 id → 거실 레이어 id들 (렌더러 SHOP_PROPS 의 부분집합만 게임에 존재) */
+const LIVING_LAYER: Record<string, string[]> = {
+  cushion: ['p-cushion'],
+  cup: ['p-cup'],
+  windchime: ['p-windchime'],
+  blanket: ['p-blanket'],
+  // 벽난로는 몸체와 불을 함께 켠다 — 광원(lp-fire)은 LIGHT_SOURCE가 따라온다
+  fireplace: ['g-fireplace', 'fire'],
+  floorlamp: ['lamp'],
+  birdfeeder: ['p-bird'],
 };
 /** 게임 소품 id → 침실 레이어 id. desk 는 의자와 한 세트로 판다. */
 const BD_LAYER: Record<string, string[]> = {
@@ -78,8 +81,15 @@ type RenderFn = (
   t: number,
 ) => void;
 
-/** 게임 상태 → (렌더러, 렌더 state, off 레이어) */
-function sceneOf(state: GameState): {
+/**
+ * 게임 상태 → (렌더러, 렌더 state, off 레이어)
+ *
+ * export 하는 이유: 여기가 게임(9종 날씨·36종 상품)과 렌더러의 문자열 키를 손으로
+ * 잇는 유일한 경계인데, render를 RenderFn으로 캐스팅하는 순간 타입 검사가 사라져
+ * 키 하나가 빠져도 tsc도 테스트도 아무 말을 안 한다(grass·birdfeeder가 그랬다).
+ * 순수 함수라 스냅샷으로 고정할 수 있다 — __tests__/sceneOf.test.ts 참고.
+ */
+export function sceneOf(state: GameState): {
   render: RenderFn;
   st: Record<string, unknown>;
   off: Set<string>;
@@ -88,7 +98,13 @@ function sceneOf(state: GameState): {
   const tod = resolveTimeOfDay(state.settings, nowMs);
   const time = tod === 'twilight' ? 'sunset' : tod;
   const season = resolveSeason(state.settings, nowMs);
-  const weather = state.weather === 'leaves' ? 'petals' : state.weather;
+  // 흩날리는 것들은 렌더러에서 'petals' 한 종류로 접힌다. grass(풀잎비)가 빠져
+  // 있어서 여름 풀잎비 날에는 입자도 구름도 색감도 안 걸린 완전한 맑음이 그려졌다
+  // — 텍스트와 소리는 풀잎비라고 말하는데 그림만 맑았다.
+  const weather =
+    state.weather === 'leaves' || state.weather === 'grass'
+      ? 'petals'
+      : state.weather;
   const present = isRockPresent(state) && !state.planted;
   const { sprout, wither } = sproutOf(state);
 
@@ -193,8 +209,8 @@ function sceneOf(state: GameState): {
 
   // 거실 (기본). 심은 뒤엔 창밖 나무가 단계대로 자란다(기획서 §180).
   const off = new Set<string>(LIVING_SHOP as string[]);
-  for (const [gameId, layer] of Object.entries(LIVING_LAYER))
-    if (show(gameId)) off.delete(layer);
+  for (const [gameId, layers] of Object.entries(LIVING_LAYER))
+    if (show(gameId)) for (const l of layers) off.delete(l);
   if (!placed('moss')) off.add('orb-moss');
   // 비 산책에서 젖어 돌아온 돌 — 'wet' 은 물기, 'snowy' 는 눈 얹힘
   if (state.session.wetness !== 'wet') off.add('orb-wet');

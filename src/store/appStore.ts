@@ -110,7 +110,9 @@ export function tf(id: string, vars: Record<string, string | number>): string {
   );
 }
 
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   // 개발 편의: 콘솔에서 상태 조작 (프로덕션 번들에서는 제거됨)
+  // typeof 가드는 DOM 없는 환경(vitest environment: 'node') 대비 — 없으면 이 모듈을
+  // 거쳐 가는 테스트가 임포트 단계에서 죽는다.
   (window as unknown as Record<string, unknown>).__game = appStore;
 }

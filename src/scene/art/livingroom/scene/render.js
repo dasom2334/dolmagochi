@@ -52,7 +52,10 @@ function currentPalette(st, t) {
   const k = stateKey(st);
   if (k !== lastKey) {
     fromPal = blended || target;               // 전환 중이면 현재 보간값에서 이어간다
-    if (lastKey) [fromTime, fromWeather] = lastKey.split('|');
+    // stateKey는 time|season|weather 3칸이다. 2칸으로 받으면 fromWeather에 계절이
+    // 들어가 light-${fromWeather} 가 OVERLAYS에 없는 키가 되고, 나가는 쪽 날씨
+    // 오버레이만 즉시 사라져 비→맑음 전환에서 방 밝기가 툭 튀었다.
+    if (lastKey) [fromTime, , fromWeather] = lastKey.split('|');
     lastKey = k;
     transStart = t;
   }
@@ -115,8 +118,13 @@ const Z = [
 ];
 
 /** 상점에서 사기 전까지는 없는 것 — 패널에서 기본으로 꺼 둔다 */
+// 벽난로·플로어램프도 상점 물건이다. 여기 없던 동안엔 off 집합에 절대 들어가지
+// 못해 새 게임 첫 화면부터 불이 붙은 채 그려졌고, 사도 화면이 그대로였다.
+// 화염(fire-body)·전구(lamp-glow)·광원(lp-fire/lp-lamp)은 FIRE_PARTS와
+// LIGHT_SOURCE 연쇄가 알아서 함께 꺼 준다.
 export const SHOP_PROPS = ['p-cushion', 'p-cup', 'p-windchime',
-  'p-blanket', 'p-waterglass', 'p-bird'];
+  'p-blanket', 'p-waterglass', 'p-bird',
+  'g-fireplace', 'fire', 'lamp'];
 
 /** 발광체 — 오버레이 위라 밤에도 어두워지지 않는다 */
 // 향초는 상점에서 '책'으로 교체됐다 → 씬에서 제거(촛대·촛불·촛불광원 전부)
