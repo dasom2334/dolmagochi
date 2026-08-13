@@ -42,6 +42,13 @@ import { StartFocusControl } from './components/StartFocusControl';
 export function App() {
   const state = useGame((s) => s.state);
   const [nowMs, setNowMs] = useState(() => now());
+  // 시간대·계절 전용 시계 — 경계를 넘을 때만 바뀐다(하루 몇 번).
+  // nowMs와 분리한 이유는 아래 250ms 틱의 주석 참고.
+  const [clock, setClock] = useState(() => {
+    const s = appStore.getState().state.settings;
+    const n = now();
+    return { tod: resolveTimeOfDay(s, n), season: resolveSeason(s, n) };
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [booted, setBooted] = useState(false);
   // 오디오 언락 여부 — 첫 사용자 제스처 전까지 소리풍경을 시작하지 않는다.
@@ -159,6 +166,11 @@ export function App() {
   // 상황이 바뀌면(집중 재시작·조기종료·설정 OFF·복귀) 취소돼 엉뚱한 시각 발화를 막는다.
   // '자리 비움'은 userAway() — 포커스도 보므로 창 전환(focus/blur)까지 구독한다.
   useEffect(() => {
+    // 활성 탭만 예약을 만지게 한다. 서비스워커 알림은 오리진 공유 자원이라,
+    // 세이브를 복원하지 않은 읽기전용 둘째 탭이 초기 상태(actionSelect)로 평가하면
+    // restActive=false → cancelRestEnd()로 첫째 탭이 예약해 둔 알림을 지워버린다.
+    // 싱글탭 락이 저장은 막았지만 이 경로는 뚫려 있었다.
+    if (tabRole !== 'active' || !booted) return;
     const evaluate = () => {
       // 리스너가 사는 동안 상태가 바뀔 수 있으므로 스토어에서 최신을 읽는다
       // (클로저의 state를 쓰면 동석 축 문구가 옛 값으로 굳는다).
@@ -185,7 +197,7 @@ export function App() {
       window.removeEventListener('focus', evaluate);
       window.removeEventListener('blur', evaluate);
     };
-  }, [state.phase, state.rest.endsAt, state.settings.notify, booted]);
+  }, [state.phase, state.rest.endsAt, state.settings.notify, booted, tabRole]);
 
   // 시간 진행: 집중 세션만 카운트업. 휴식은 종료 시각 타임스탬프 기준(M3에서 워커로 강화).
   useEffect(() => {
@@ -198,6 +210,15 @@ export function App() {
       // nowMs는 휴식 카운트다운·만료 체크에만 쓰인다 — 그 외 phase에서는
       // 매 틱 리렌더를 유발하지 않도록 rest일 때만 갱신한다.
       if (phase === 'rest') setNowMs(n);
+      // 시간대·계절은 별도로 본다 — nowMs는 rest에서만 흐르므로 여기에 얹으면
+      // 집중 중에는 시계가 얼어 경계(밤이 됨·계절이 바뀜)를 못 넘는다.
+      // 값이 바뀔 때만 올리므로 리렌더는 하루 몇 번뿐이다.
+      const st2 = appStore.getState().state.settings;
+      const tod = resolveTimeOfDay(st2, n);
+      const season = resolveSeason(st2, n);
+      setClock((c) =>
+        c.tod === tod && c.season === season ? c : { tod, season },
+      );
       // 탭이 숨겨졌을 때 멈출지는 설정(pauseOnHide)에 따른다. 끄면 백그라운드에서도 흐른다.
       const blockedByHide = st.state.settings.pauseOnHide && document.hidden;
       if (phase === 'focus' && !st.state.session.paused && !blockedByHide) {
@@ -217,8 +238,10 @@ export function App() {
   const ownedKey = Object.keys(state.items).sort().join(',');
   // 자동 모드의 시간축 — 의존성에 넣어야 실시간 경계(밤이 됨·계절이 바뀜)에서
   // 재생이 따라온다. 없으면 칩 숫자만 줄고 매미는 계속 울었다.
-  const nowSeason = resolveSeason(state.settings, nowMs);
-  const nowTod = resolveTimeOfDay(state.settings, nowMs);
+  // 출처는 nowMs가 아니라 clock 틱이다 — nowMs는 rest에서만 흘러서, 씬(매 프레임
+  // now())과 칩은 밤인데 소리만 낮에 머무는 어긋남이 집중 구간에 남아 있었다.
+  const nowSeason = clock.season;
+  const nowTod = clock.tod;
   useEffect(() => {
     syncSoundscape({
       // 언락 전에는 on:false로 넘긴다 — 레이어는 wanted가 비면 시작되지 않고,
@@ -291,8 +314,15 @@ export function App() {
       ensureAudioContext();
       setAudioReady(true);
     };
+    // keydown도 듣는다 — 키보드로만 조작하면 pointerdown이 영영 안 뜬다.
+    // 효과음은 click 제스처 안에서 컨텍스트가 깨어나 들리는데 audioReady만 false로
+    // 남아, 키보드 사용자에겐 소리풍경이 평생 안 나오고 "설정이 안 먹는다"로 보였다.
     document.addEventListener('pointerdown', unlock, { once: true });
-    return () => document.removeEventListener('pointerdown', unlock);
+    document.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      document.removeEventListener('pointerdown', unlock);
+      document.removeEventListener('keydown', unlock);
+    };
   }, []);
 
   // 집중 구간 알림(25/50/90분) — 문턱을 넘는 순간 1회.
@@ -305,6 +335,14 @@ export function App() {
       return;
     }
     const cur = state.session.elapsedSec;
+    // 부트 전에는 발화하지 않고 기준점만 심는다. App은 초기 상태(actionSelect)로
+    // 먼저 렌더되고 그 뒤 비동기 복원이 phase:'focus', elapsedSec:3000을 주입하므로,
+    // 그대로 두면 prev=0 → 25·50분 문턱이 동시에 참이 되어 이미 지난 알림이
+    // 한꺼번에 뜬다(탭이 뒤에 있으면 OS 알림 2개).
+    if (!booted) {
+      focusMarkRef.current = cur;
+      return;
+    }
     const prev = cur < focusMarkRef.current ? 0 : focusMarkRef.current;
     for (const min of dueFocusMarks(
       prev,
@@ -323,6 +361,7 @@ export function App() {
     state.session.elapsedSec,
     state.settings.notify,
     state.settings.flowtime,
+    booted,
   ]);
 
   // 탭 이탈 시 일시정지 — 설정(pauseOnHide)이 켜져 있을 때만. 집중 세션에만 의미(머신이 phase 가드).
