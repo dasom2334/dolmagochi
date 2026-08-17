@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { sceneOf } from '../CanvasScene';
-import { createInitialState } from '../../../game/stateMachine';
+import {
+  createInitialState,
+  SCENE_TOGGLE_DEFAULTS,
+} from '../../../game/stateMachine';
 import type { GameState, WeatherKind } from '../../../game/types';
 import { BALANCE } from '../../../game/balance';
 
@@ -65,5 +68,46 @@ describe('sceneOf — 게임 상태 → 씬 매핑', () => {
     });
     expect(sceneOf(away).st.orb).toBe('none');
     expect(sceneOf(base()).st.orb).not.toBe('none');
+  });
+});
+
+describe('sceneOf — 눌러서 켜는 자리', () => {
+  const owned = {
+    items: {
+      fireplace: { placed: true },
+      floorlamp: { placed: true },
+    },
+  };
+
+  it('안 산 소품은 누를 수 없다 — 창만 열린다', () => {
+    const ids = sceneOf(base()).hotspots.map((h) => h.id);
+    expect(ids).toEqual(['living-window']);
+  });
+
+  it('산 소품은 누를 수 있다', () => {
+    const ids = sceneOf(base(owned)).hotspots.map((h) => h.id);
+    expect(ids).toContain('living-fire');
+    expect(ids).toContain('living-lamp');
+  });
+
+  it('불을 꺼도 몸체는 남는다 — 다시 켤 수 있어야 하므로', () => {
+    const s = base({
+      ...owned,
+      sceneToggles: { ...SCENE_TOGGLE_DEFAULTS, 'living-fire': false },
+    });
+    const { off, hotspots } = sceneOf(s);
+
+    expect(off.has('fire')).toBe(true); // 불꽃은 꺼지고
+    expect(off.has('lp-fire')).toBe(true); // 불빛도 꺼지고
+    expect(off.has('g-fireplace')).toBe(false); // 벽난로는 그대로 있다
+    expect(hotspots.map((h) => h.id)).toContain('living-fire'); // 다시 켤 수 있다
+  });
+
+  it('창을 열면 렌더러에 open 으로 넘어간다', () => {
+    const s = base({
+      sceneToggles: { ...SCENE_TOGGLE_DEFAULTS, 'living-window': true },
+    });
+    expect(sceneOf(s).st.window).toBe('open');
+    expect(sceneOf(base()).st.window).toBe('closed');
   });
 });
