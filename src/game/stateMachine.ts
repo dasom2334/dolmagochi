@@ -9,6 +9,7 @@ import type {
   NeedId,
   Remembrance,
   TalkState,
+  SceneToggleId,
 } from './types';
 import type { Rng } from './rng';
 import type {
@@ -76,7 +77,21 @@ export interface TransitionCtx {
   data: GameData;
 }
 
-export const SCHEMA_VERSION = 29;
+export const SCHEMA_VERSION = 30;
+
+/**
+ * 눌러서 켜는 자리의 시작값 — 창은 닫혀 있고 나머지는 켜져 있다.
+ * (씬이 삭제되기 전 동작을 그대로 옮긴 값이다)
+ */
+export const SCENE_TOGGLE_DEFAULTS: Record<SceneToggleId, boolean> = {
+  'living-window': false,
+  'living-fire': true,
+  'living-lamp': true,
+  'bed-window': false,
+  'bed-lamp': true,
+  'bed-screen': true,
+  'bed-fan': true,
+};
 
 /**
  * 알림 설정 기본값. 집중 구간 알림(25/50/90)은 기본 off — 사용자가 설정에서 켠다.
@@ -158,6 +173,7 @@ export function createInitialState(
     items: {},
     supplies: {},
     supplyVariants: {},
+    sceneToggles: { ...SCENE_TOGGLE_DEFAULTS },
     pendingPlacement: null,
     flags: [],
     unlockedActions: [],
@@ -2717,6 +2733,18 @@ function reduce(
     }
     case 'SET_SOUND': {
       return { ...state, settings: { ...state.settings, soundOn: event.on } };
+    }
+    case 'TOGGLE_SCENE': {
+      // 방의 물건을 눌러 켜고 끈다. 게이지·서사에 영향 없는 연출 상태지만
+      // 세이브에는 남는다 — 내가 꺼 둔 불은 다음에 와도 꺼져 있어야 한다.
+      // 누를 수 있는 자리인지(=그 소품을 샀는지)는 씬이 판정해 넘긴다.
+      return {
+        ...state,
+        sceneToggles: {
+          ...state.sceneToggles,
+          [event.id]: !state.sceneToggles[event.id],
+        },
+      };
     }
     case 'MARK_NOTIF_ASKED': {
       if (state.settings.notifAsked) return state;

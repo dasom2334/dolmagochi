@@ -1,5 +1,9 @@
 import type { CrisisKind, GameState } from '../game/types';
-import { DEFAULT_NOTIFY_SETTINGS, SCHEMA_VERSION } from '../game/stateMachine';
+import {
+  DEFAULT_NOTIFY_SETTINGS,
+  SCENE_TOGGLE_DEFAULTS,
+  SCHEMA_VERSION,
+} from '../game/stateMachine';
 import { ALL_LAYERS } from '../audio/layers';
 import { cloneFlowtime } from '../game/timer';
 import { BALANCE } from '../game/balance';
@@ -364,6 +368,10 @@ export function migrateState(state: GameState): GameState | null {
       delete mem['personalWork'];
     }
     s = { ...s, schemaVersion: 29, memory: mem };
+  }
+  if (s.schemaVersion === 29) {
+    // 눌러서 켜는 자리(M22b) — 옛 세이브는 시작값으로 연다.
+    s = { ...s, schemaVersion: 30, sceneToggles: { ...SCENE_TOGGLE_DEFAULTS } };
   }
   if (s.schemaVersion !== SCHEMA_VERSION) return null;
   return s;
