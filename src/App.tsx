@@ -65,7 +65,11 @@ export function App() {
       onActive: () => {
         setTabRole('active');
         void (async () => {
-          await bootRestore(Date.now());
+          const boot = await bootRestore(Date.now());
+          // 실패한 부트는 저장이 잠긴 채로 돌아온다 — 화면은 새 게임처럼 보이지만
+          // 세이브는 남아 있다는 뜻이라, 조용히 넘기면 유저가 덮어쓴 줄로 오해한다.
+          if (boot === 'invalid') pushToast(t(SYS.toasts.saveCorrupted));
+          else if (boot === 'error') pushToast(t(SYS.toasts.saveLoadFailed));
           lastRef.current = Date.now();
           setNowMs(Date.now());
           // 복원 시 visibilitychange가 안 뜨므로 현재 실제 가시성으로 paused를 맞춘다

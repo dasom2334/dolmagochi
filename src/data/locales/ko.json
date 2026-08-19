@@ -2403,6 +2403,21 @@
       "세이브를 내보냈다. 돌과의 시간을 어딘가에 적어 둔 셈이다."
     ]
   ],
+  "sys.toasts.saveLoadFailed": [
+    [
+      "기록을 펼치지 못했다. 덮어쓰지 않도록, 오늘은 아무것도 적지 않는다."
+    ]
+  ],
+  "sys.toasts.saveCorrupted": [
+    [
+      "기록이 읽히지 않는다. 원본은 그대로 두었다. 새로고침하면 다시 읽어 본다."
+    ]
+  ],
+  "sys.toasts.saveWriteFailed": [
+    [
+      "지금 일어난 일이 기록되지 않고 있다."
+    ]
+  ],
   "room.kitchen.caption": [
     [
       "주방. 도마와 냄비."
