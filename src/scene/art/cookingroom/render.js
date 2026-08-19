@@ -4,15 +4,13 @@
 //   → [6] 화구 발광 → [7] 비네트
 //
 // **시안 3종을 한 렌더러로 돌린다** — 바뀌는 건 정적 아트뿐이고 방의 구조(창·바닥선)와
-// 광원·그림자는 같기 때문이다. state.variant: 'a' 추출 / 'b' 손작화 / 'c' 추출+손보정.
 import { generateGroups } from '../livingroom/scene/generate.js';
 import { resolve } from '../livingroom/scene/palette.js';
 import { ROOM_DATA } from '../livingroom/scene/room-data.js';
 import { OVERLAYS, AMBIENT } from '../livingroom/scene/lights.js';
 import { ANIM, GROUP_ANIM, TILE_H } from '../livingroom/scene/anim.js';
-import { KT_ART, KT_GLASS } from './geom-art.js';
+import { KT_GLASS } from './geom-art.js';
 import { KT_HAND } from './geom-art-hand.js';
-import { KT_TOUCH } from './geom-art-touch.js';
 import { KT_ITEMS, KT_ITEMS_Z } from './geom-items.js';
 import { ORB_SPOTS, sproutArt, windowPool, propLight, groundShadows, surfaceShadows, kitchenScenery,
   stoveGlowArt, potUnderglow, steamArt, VIGNETTE_KT, FLOOR_Y,
@@ -31,8 +29,8 @@ export const SHOP_PROPS = ['kt-pot', 'kt-broom', ...KT_ITEMS_Z];
 const Z_FURNITURE = ['kt-door', 'kt-sink', 'kt-rack', 'kt-shelf', 'kt-broom',
   'kt-table', 'kt-pot', ...KT_ITEMS_Z];
 
-const ART_OF = { a: KT_ART, b: KT_HAND, c: KT_TOUCH };
-
+// 시안 확정: 손작화(KT_HAND) 한 벌만 쓴다. 미도달 시안 a·c는 런타임 분기가
+// 참조를 붙잡아 tree-shake도 안 된 채 번들에 실려 나갔다 → 분기째 제거.
 const slot = (pal, v) => (v[0] === '#' ? v : (pal[v] || '#f0f'));
 function paint(ctx, rects, pal) {
   for (const r of rects) {
@@ -100,8 +98,7 @@ function orbSprite(state) {
 export function render(cv, state, off = new Set(), t = 0) {
   const ctx = cv.getContext('2d');
   const pal = { ...resolve(state, ROOM_DATA.palette), ...(state.override || {}) };
-  const variant = state.variant || 'a';
-  const ART = ART_OF[variant] || KT_ART;
+  const ART = KT_HAND;
   ctx.imageSmoothingEnabled = false;
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -151,8 +148,8 @@ export function render(cv, state, off = new Set(), t = 0) {
     for (const r of surfaceShadows(off)) { ctx.globalAlpha = r[5] * shK; ctx.fillStyle = r[4]; ctx.fillRect(r[0], r[1], r[2], r[3]); }
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   }
-  // 김 — 시안 A 는 레퍼런스에 김이 **구워져 있다**(kt-pot 박스 안). 겹쳐 그리면 두 겹이 된다.
-  if (variant !== 'a' && !off.has('kt-pot'))
+  // 김 — 손작화 판은 김이 안 구워져 있으므로 겹쳐 그린다.
+  if (!off.has('kt-pot'))
     paint(ctx, steamArt(!off.has('anim') ? Math.floor(t / 450) % 3 : 0), pal);
 
   // [3.5] 돌 base
