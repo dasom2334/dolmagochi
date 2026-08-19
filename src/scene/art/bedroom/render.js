@@ -134,10 +134,15 @@ export function render(cv, state, off = new Set(), t = 0) {
   //     개구부로만 보인다. 해/달은 창 안(x49,y13) — 시간이 가른다. 별은 밤에만.
   const sunUp = state.time !== 'night';
   if (!off.has('base-scenery')) paint(ctx, SCN, pal);
-  if (sunUp) { if (!off.has('sun')) paint(ctx, BD_SUN, pal); }
-  else {
-    if (!off.has('stars')) paint(ctx, BD_STARS, pal);
-    if (!off.has('moon')) paint(ctx, BD_MOON, pal);
+  // 비·폭우·눈·안개엔 해·달·별이 안 보인다 (거실 SUN_HIDDEN·주방과 같은 규칙).
+  // 침실만 이 조건이 빠져 있어, 눈 내리는 밤 창밖에 별이 총총했다 — 별은 전폭에
+  // 뿌려지고 구름은 일부만 덮으므로 가려지지도 않았다. 낮 비에는 해가 유리 한복판에.
+  if (!['fog', 'rain', 'downpour', 'snow'].includes(state.weather)) {
+    if (sunUp) { if (!off.has('sun')) paint(ctx, BD_SUN, pal); }
+    else {
+      if (!off.has('stars')) paint(ctx, BD_STARS, pal);
+      if (!off.has('moon')) paint(ctx, BD_MOON, pal);
+    }
   }
   // 구름은 **흐린 계열 날씨에만** — 맑음에 뜨던 버그 수정
   const cloudy = ['cloud', 'rain', 'downpour', 'snow'].includes(state.weather)
