@@ -1,6 +1,9 @@
 import type { GameState } from '../game/types';
 import { formatElapsed } from '../game/timer';
-import { restProgressPct, restRemainingSec } from '../persistence/restClock';
+import {
+  restProgressPct,
+  restRemainingDisplaySec,
+} from '../persistence/restClock';
 import { dispatch, now, t, tf } from '../store/appStore';
 import { SYS, UI } from '../game/text';
 import { btnSmall } from './ui';
@@ -16,7 +19,11 @@ export function TimerCard({
 }) {
   const isFocus = state.phase === 'focus';
   const isRest = state.phase === 'rest';
-  const restLeft = restRemainingSec(state.rest.endsAt, nowMs);
+  const restLeft = restRemainingDisplaySec(
+    state.rest.endsAt,
+    state.rest.totalSec,
+    nowMs,
+  );
   const restPct = restProgressPct(state.rest.endsAt, state.rest.totalSec, nowMs);
   const timerText = isFocus
     ? formatElapsed(state.session.elapsedSec)

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isRestOver, restProgressPct, restRemainingSec } from '../restClock';
+import {
+  isRestOver,
+  restProgressPct,
+  restRemainingDisplaySec,
+  restRemainingSec,
+} from '../restClock';
 
 const T0 = 1_800_000_000_000;
 
@@ -35,5 +40,16 @@ describe('restClock — endsAt 타임스탬프 기준', () => {
     const endsAt = T0 + 600_000; // 10분 뒤 종료(총 600초)
     const staleNow = T0 - 300_000; // 5분 과거 → 잔여 900초 > 600초
     expect(restProgressPct(endsAt, 600, staleNow)).toBe(100);
+  });
+
+  it('표시용 잔여: 전체 길이 상한 클램프 — 진입 직후 낡은 nowMs 방어', () => {
+    const endsAt = T0 + 600_000; // 10분 뒤 종료(총 600초)
+    // 2시간 집중 뒤 휴식 진입 순간: nowMs가 아직 과거라 잔여가 8400초로 계산된다
+    const staleNow = T0 - 7_800_000;
+    expect(restRemainingSec(endsAt, staleNow)).toBeGreaterThan(600); // 원본은 넘친다
+    expect(restRemainingDisplaySec(endsAt, 600, staleNow)).toBe(600); // 표시는 상한
+    // 정상 구간은 그대로 통과
+    expect(restRemainingDisplaySec(endsAt, 600, T0 + 300_000)).toBe(300);
+    expect(restRemainingDisplaySec(endsAt, 0, staleNow)).toBe(0); // 전체 0 방어
   });
 });
