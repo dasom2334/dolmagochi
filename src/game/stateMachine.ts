@@ -423,7 +423,16 @@ function applyIntimacy(
   /** 진정 허용 — 세션당 1회(행동 경로)만 걸린다 (M18 과대 적용 수정) */
   allowSoothe = false,
 ): GameState {
-  if (state.era !== 'raising' || state.presence.state === 'absent') return state;
+  // 병간호 중에도 걸리지 않는다 — 여기서 잠수 판정이 통과하면 startAbsence가
+  // sick:false로 덮어써, 회복 문구 한 줄 없이 병간호 아크가 사라지고
+  // crisesWeathered만 이중으로 오른다. (지금은 대사 데이터의 intimacy 값이
+  // 우연히 막고 있을 뿐이라, 고친밀 대사 한 줄이면 열리는 구멍이었다)
+  if (
+    state.era !== 'raising' ||
+    state.presence.state === 'absent' ||
+    state.presence.sick
+  )
+    return state;
   const { abandonment, intimacyThreat } = state.stats;
   const oc = intimacyOutcome(
     abandonment,
@@ -629,6 +638,11 @@ function exitRest(
     state: {
       ...state,
       apart: { ...state.apart, visiting: false, leavePending: false, held: false },
+      // 이것도 보내준 것이다 — 붙잡지 않았으니 돌은 자유롭게 떠났다.
+      // 여기서 세지 않으면, 떠나려는 기색에 버튼을 안 누르고 다음 세션을 시작하는
+      // 플레이어는 letGoCount가 영원히 0이라 2차 엔딩(심기)이 절대 열리지 않는다.
+      // leavePending이 살아 있을 때만 오는 경로라 명시적 보내주기와 이중으로 세지 않는다.
+      letGoCount: state.letGoCount + 1,
       // 돌이 떠나면 '오늘 돌이 원하는 것'도 함께 사라진다 (리뷰)
       delegate: null,
     },
@@ -868,6 +882,10 @@ function reduce(
         next.era === 'apart' &&
         !next.planted && // 3차(M15): 돌은 나무가 되었다 — 방문 시스템 종료
         !next.apart.visiting &&
+        // 방금 이 이벤트에서 떠나보냈다면 같은 화면에서 다시 부르지 않는다.
+        // exitRest가 visiting을 내린 직후라 추첨이 그대로 통과했고, 그러면 일지에
+        // visitEnd와 visitStart가 나란히 찍혀 작별이 그 자리에서 무효가 됐다.
+        exited.visitEndLine === null &&
         (next.visitBlockedUntil === null || event.nowMs >= next.visitBlockedUntil)
       ) {
         if (rng() < BALANCE.VISIT_PROB + itemBonus(next, data, 'visitBonus')) {
@@ -1517,7 +1535,18 @@ function reduce(
       let presence = next.presence;
       let journal = state.session.journal;
       const elapsed = state.session.elapsedSec;
-      if (next.era === 'raising' && (presence.state === 'absent' || presence.sick)) {
+      // 잠수 복귀는 저친밀 행동으로만 앞당겨진다 (기획서: "돌이 잠수 타면 정답은 공부다").
+      // 물러난 돌에게 다시 다가가는 고친밀 행동은 수렴에 세지 않는다 — 세면 행동 종류와
+      // 무관하게 2~3세션이면 돌아와, 기획서가 말한 복귀 조건이 코드에서 사라진다.
+      // 병간호 회복은 행동을 가리지 않는다: 곁에 있어 주는 것 자체가 간호다.
+      const convergeCounts =
+        presence.state !== 'absent' ||
+        action.intimacy <= BALANCE.RETURN_LOW_INTIMACY_MAX;
+      if (
+        next.era === 'raising' &&
+        (presence.state === 'absent' || presence.sick) &&
+        convergeCounts
+      ) {
         const step = convergeStep(stats.abandonment, stats.intimacyThreat);
         stats = {
           ...stats,
@@ -1643,9 +1672,17 @@ function reduce(
       // 단계 게이트 상한 (피드백5) — 열린 게이트까지만 자란다.
       // 게이트는 '방문 1회'로만 열리므로 방문이 존재하는 apart에서만 건다.
       // 동거는 돌이 늘 곁에 있어 열 수단이 없다 — 걸면 심기가 영원히 막힌다.
+      // 이미 자란 만큼은 캡이 깎지 못한다 — 게이트는 성장을 멈추는 장치지 되감는 장치가 아니다.
+      // 동거는 캡 없이(100) 자라는데 게이트는 방문으로만 열리고 동거에는 방문이 없다.
+      // 그래서 동거에서 90까지 자란 묘목이 빈자리로 넘어오는 순간 Math.min이
+      // 하향 클램프로 돌변해 SPROUT_GATES[0]=50 으로 되감겼다(실측 90→50).
+      // 화면에는 40이 사라진 게 아니라 '성장이 멈췄다'로만 보여 추적도 어려웠다.
       const growthCap =
         next.era === 'apart'
-          ? (BALANCE.SPROUT_GATES[next.sproutGatesCleared] ?? 100)
+          ? Math.max(
+              BALANCE.SPROUT_GATES[next.sproutGatesCleared] ?? 100,
+              sproutGrowth,
+            )
           : 100;
       let gateHeld = false;
       if (!next.planted && next.era === 'apart') {
@@ -1752,12 +1789,19 @@ function reduce(
 
       // 행동 기억 토큰 — 목격 토큰이 workWitnessed 로 분리(#61)돼 작업행동도
       // 다른 행동처럼 남긴다 (행동 id 토큰과 목격 토큰이 더는 충돌하지 않는다)
-      let memory = remember(
-        next.memory,
-        action.id,
-        BALANCE.MEMORY_WEIGHT_ACTION,
-        event.nowMs,
-      );
+      // 부재 세션은 기억을 남기지 않는다 — firstAction 마일스톤('첫 산책')과
+      // 엔딩 토큰이 "함께 겪었는가"를 이 토큰으로 판정하는데, 혼자 한 세션이 쌓이면
+      // 돌 없이 '함께'의 조건이 채워진다.
+      // (호감도·욕구 적립은 그대로 둔다 — 부재 중 공부는 복귀의 정답이므로
+      //  보상까지 끊으면 "잠수 타면 정답은 공부다"가 성립하지 않는다)
+      let memory = sessionHadRock
+        ? remember(
+            next.memory,
+            action.id,
+            BALANCE.MEMORY_WEIGHT_ACTION,
+            event.nowMs,
+          )
+        : next.memory;
       // 돌이 스스로 한 행동 — 그 행동의 기억을 약하게 강화 (개정 v4-6)
       const via = state.session.freeCareVia;
       if (via && via !== 'self') {
