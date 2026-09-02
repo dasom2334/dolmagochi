@@ -442,7 +442,10 @@ function RestShop({ state }: { state: GameState }) {
         )}
         {items.map((it) => {
           if (sub === 'owned') {
-            // 소장품: 배치/보관 조절 (소모품 포함 — 재고가 방에 보인다)
+            // 소장품: 비소모품은 배치/보관 조절. 소모품은 재고가 있으면 늘 방에
+            // 보이므로(기획서 §171 "스톡은 소속 방의 자리에 표시", 씬도 재고만
+            // 본다) 토글을 주지 않는다 — 주면 '보관'을 눌러도 그림은 그대로인데
+            // 라벨만 '배치하기'로 바뀌어 버그처럼 보였다.
             const isPlaced = !!state.items[it.id]?.placed;
             return (
               <div key={it.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -458,19 +461,25 @@ function RestShop({ state }: { state: GameState }) {
                   {t(it.nameId)}{' '}
                   <span style={{ color: 'var(--hint)' }}>{t(it.descId)}</span>
                 </div>
-                <button
-                  className="hv"
-                  style={btnSmall}
-                  onClick={() =>
-                    dispatch({
-                      type: 'SET_PLACEMENT',
-                      itemId: it.id,
-                      placed: !isPlaced,
-                    })
-                  }
-                >
-                  {t(isPlaced ? UI.shop.stash : UI.shop.place)}
-                </button>
+                {it.consumable ? (
+                  <span style={{ fontSize: 11, color: 'var(--hint)' }}>
+                    {t(UI.shop.stocked)}
+                  </span>
+                ) : (
+                  <button
+                    className="hv"
+                    style={btnSmall}
+                    onClick={() =>
+                      dispatch({
+                        type: 'SET_PLACEMENT',
+                        itemId: it.id,
+                        placed: !isPlaced,
+                      })
+                    }
+                  >
+                    {t(isPlaced ? UI.shop.stash : UI.shop.place)}
+                  </button>
+                )}
               </div>
             );
           }

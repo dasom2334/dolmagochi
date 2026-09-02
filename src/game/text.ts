@@ -423,6 +423,7 @@ export const UI = {
     price: 'ui.shop.price', // {price}
     place: 'ui.shop.place',
     stash: 'ui.shop.stash',
+    stocked: 'ui.shop.stocked', // 소장품의 소모품 — 재고가 방에 있다 (토글 없음)
   },
   tabs: ['ui.tabs.journal', 'ui.tabs.talk', 'ui.tabs.select', 'ui.tabs.shop'],
 } as const;
