@@ -29,7 +29,11 @@ import {
 import { render as renderKitchen } from '../../scene/art/cookingroom/render.js';
 import { ITEM_LAYER as KT_ITEM_LAYER } from '../../scene/art/cookingroom/geom-items.js';
 import { render as renderWalk } from '../../scene/art/walk/scene.js';
-import { reduceMotion } from '../../scene/art/livingroom/scene/anim.js';
+import {
+  ANIM,
+  FLAME_MS,
+  reduceMotion,
+} from '../../scene/art/livingroom/scene/anim.js';
 
 const GX = 128;
 const GY = 72;
@@ -41,6 +45,35 @@ const GY = 72;
  * 약한 노트북에서 페이지 전체를 굼뜨게 했다(플레이테스트 제보).
  */
 const DRAW_INTERVAL_MS = 100;
+
+/** 날씨 → 지금 떨어지고 있는 입자 층의 계단식 애니 (렌더러 props.js 의 layer.anim) */
+const PARTICLE_ANIM: Record<string, string[]> = {
+  rain: ['rain-fall'],
+  downpour: ['rain-heavy'],
+  snow: ['snow-fall-a', 'snow-fall-b'],
+  petals: ['drift-a', 'drift-b'],
+};
+type StepAnim = (t: number) => { dy?: number };
+
+/**
+ * 계단식 애니(입자 낙하·찻잔 김·불꽃 프레임)가 칸을 옮기는 시점의 키. 키가 바뀐
+ * 프레임은 간격과 무관하게 그린다 — 10fps 고정만으로는 그리기 주기(117ms)와 눈 낙하
+ * 주기(127ms)가 겹쳐 1~2초마다 한 칸이 밀리거나 두 칸이 한 번에 갔다. 60fps 땐
+ * 오차가 17ms라 안 보였던 것. **켜진 층만 본다** — 안 보이는 애니까지 넣으면 폭우
+ * 23회/초에 맞춰 늘 그리게 된다.
+ */
+export function stepKey(
+  st: Record<string, unknown>,
+  fireOn: boolean,
+  t: number,
+): string {
+  const names = [...(PARTICLE_ANIM[st.weather as string] ?? [])];
+  if (st.cup === 'full') names.push('steam-rise');
+  let key = fireOn ? String(Math.floor(t / FLAME_MS)) : '';
+  for (const n of names)
+    key += `|${(ANIM as Record<string, StepAnim>)[n](t).dy}`;
+  return key;
+}
 
 /** 게임 소품 id → 거실 레이어 id들 (렌더러 SHOP_PROPS 의 부분집합만 게임에 존재) */
 const LIVING_LAYER: Record<string, string[]> = {
@@ -273,17 +306,22 @@ export function CanvasScene({ state }: { state: GameState }) {
     io?.observe(cv);
     const draw = (nowT: number) => {
       raf = requestAnimationFrame(draw);
-      if (!onScreen || nowT - lastDraw < DRAW_INTERVAL_MS) return;
+      if (!onScreen) return;
+      const t = nowT - t0;
       const { render, st, off } = sceneOf(latest.current);
       if (still) off.add('anim');
-      // 모션 감소면 시간이 흘러도 그림이 안 변한다 — 상태가 그대로면 건너뛴다
-      if (still) {
-        const key = JSON.stringify(st) + [...off].sort().join();
-        if (key === lastKey) return;
-        lastKey = key;
-      }
+      // 그릴 이유 셋: 간격이 찼다 / 계단 애니가 칸을 옮겼다 / (모션 감소) 상태가 바뀌었다.
+      // 모션 감소면 시간이 흘러도 그림이 안 변하므로 상태 키만 본다.
+      const key = still
+        ? JSON.stringify(st) + [...off].sort().join()
+        : stepKey(st, render === renderLiving && !off.has('fire'), t);
+      const due = still
+        ? key !== lastKey
+        : nowT - lastDraw >= DRAW_INTERVAL_MS || key !== lastKey;
+      if (!due) return;
+      lastKey = key;
       lastDraw = nowT;
-      render(cv, st, off, nowT - t0);
+      render(cv, st, off, t);
     };
     raf = requestAnimationFrame(draw);
     return () => {
