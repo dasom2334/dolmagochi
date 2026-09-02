@@ -3132,6 +3132,11 @@
       "배치하지 않기"
     ]
   ],
+  "ui.shop.stocked": [
+    [
+      "재고 있음"
+    ]
+  ],
   "sys.placement.prompt": [
     [
       "방금 들여온 {item}을(를) 지금 방에 놓을까?"
