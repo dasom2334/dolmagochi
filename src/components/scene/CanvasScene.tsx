@@ -29,10 +29,51 @@ import {
 import { render as renderKitchen } from '../../scene/art/cookingroom/render.js';
 import { ITEM_LAYER as KT_ITEM_LAYER } from '../../scene/art/cookingroom/geom-items.js';
 import { render as renderWalk } from '../../scene/art/walk/scene.js';
-import { reduceMotion } from '../../scene/art/livingroom/scene/anim.js';
+import {
+  ANIM,
+  FLAME_MS,
+  reduceMotion,
+} from '../../scene/art/livingroom/scene/anim.js';
 
 const GX = 128;
 const GY = 72;
+
+/**
+ * 그리는 최소 간격(ms) = 10fps. 렌더러는 호출마다 캔버스 전체를 다시 칠하는데
+ * (프레임당 fillRect 최대 6,700회), 씬 애니는 전부 계단식·저주기(비 낙하 640ms,
+ * 구름 68s)라 60fps로 그려도 화면은 그만큼 자주 안 바뀐다. 60fps 전체 재그리기가
+ * 약한 노트북에서 페이지 전체를 굼뜨게 했다(플레이테스트 제보).
+ */
+const DRAW_INTERVAL_MS = 100;
+
+/** 날씨 → 지금 떨어지고 있는 입자 층의 계단식 애니 (렌더러 props.js 의 layer.anim) */
+const PARTICLE_ANIM: Record<string, string[]> = {
+  rain: ['rain-fall'],
+  downpour: ['rain-heavy'],
+  snow: ['snow-fall-a', 'snow-fall-b'],
+  petals: ['drift-a', 'drift-b'],
+};
+type StepAnim = (t: number) => { dy?: number };
+
+/**
+ * 계단식 애니(입자 낙하·찻잔 김·불꽃 프레임)가 칸을 옮기는 시점의 키. 키가 바뀐
+ * 프레임은 간격과 무관하게 그린다 — 10fps 고정만으로는 그리기 주기(117ms)와 눈 낙하
+ * 주기(127ms)가 겹쳐 1~2초마다 한 칸이 밀리거나 두 칸이 한 번에 갔다. 60fps 땐
+ * 오차가 17ms라 안 보였던 것. **켜진 층만 본다** — 안 보이는 애니까지 넣으면 폭우
+ * 23회/초에 맞춰 늘 그리게 된다.
+ */
+export function stepKey(
+  st: Record<string, unknown>,
+  fireOn: boolean,
+  t: number,
+): string {
+  const names = [...(PARTICLE_ANIM[st.weather as string] ?? [])];
+  if (st.cup === 'full') names.push('steam-rise');
+  let key = fireOn ? String(Math.floor(t / FLAME_MS)) : '';
+  for (const n of names)
+    key += `|${(ANIM as Record<string, StepAnim>)[n](t).dy}`;
+  return key;
+}
 
 /** 게임 소품 id → 거실 레이어 id들 (렌더러 SHOP_PROPS 의 부분집합만 게임에 존재) */
 const LIVING_LAYER: Record<string, string[]> = {
@@ -249,16 +290,44 @@ export function CanvasScene({ state }: { state: GameState }) {
     const cv = ref.current;
     if (!cv) return;
     let raf = 0;
+    let lastDraw = -Infinity;
+    let lastKey = '';
+    let onScreen = true;
     const t0 = performance.now();
     const still = reduceMotion();
+    // 화면 밖이면 안 그린다 — 폰에서 상점·일지로 스크롤해 내려가면 씬은 보이지 않는데
+    // 그리기는 계속됐다. (숨긴 탭은 브라우저가 rAF 자체를 멈추므로 여기서 안 본다)
+    const io =
+      typeof IntersectionObserver === 'function'
+        ? new IntersectionObserver(([e]) => {
+            onScreen = e.isIntersecting;
+          })
+        : null;
+    io?.observe(cv);
     const draw = (nowT: number) => {
+      raf = requestAnimationFrame(draw);
+      if (!onScreen) return;
+      const t = nowT - t0;
       const { render, st, off } = sceneOf(latest.current);
       if (still) off.add('anim');
-      render(cv, st, off, nowT - t0);
-      raf = requestAnimationFrame(draw);
+      // 그릴 이유 셋: 간격이 찼다 / 계단 애니가 칸을 옮겼다 / (모션 감소) 상태가 바뀌었다.
+      // 모션 감소면 시간이 흘러도 그림이 안 변하므로 상태 키만 본다.
+      const key = still
+        ? JSON.stringify(st) + [...off].sort().join()
+        : stepKey(st, render === renderLiving && !off.has('fire'), t);
+      const due = still
+        ? key !== lastKey
+        : nowT - lastDraw >= DRAW_INTERVAL_MS || key !== lastKey;
+      if (!due) return;
+      lastKey = key;
+      lastDraw = nowT;
+      render(cv, st, off, t);
     };
     raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      io?.disconnect();
+    };
   }, []);
 
   return (
