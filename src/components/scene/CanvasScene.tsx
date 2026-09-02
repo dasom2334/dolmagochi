@@ -8,10 +8,10 @@
  *
  * 시간대 이름만 서로 다르다: 게임 twilight = 렌더러 sunset.
  */
-import { useEffect, useRef } from 'react';
-import type { GameState } from '../../game/types';
+import { useEffect, useRef, useState } from 'react';
+import type { GameState, SceneToggleId } from '../../game/types';
 import { gameData } from '../../store/gameStore';
-import { now } from '../../store/appStore';
+import { dispatch, now } from '../../store/appStore';
 import { isRockPresent } from '../../game/stateMachine';
 import { resolveTimeOfDay, resolveSeason } from '../../game/timeOfDay';
 import { sproutStageOf } from '../../game/sprout';
@@ -131,6 +131,8 @@ type RenderFn = (
  * 순수 함수라 스냅샷으로 고정할 수 있다 — __tests__/sceneOf.test.ts 참고.
  */
 export function sceneOf(state: GameState): {
+  /** 지금 누를 수 있는 자리 — 안 산 소품은 빠진다 */
+  hotspots: { id: SceneToggleId; x: number; y: number; w: number; h: number }[];
   render: RenderFn;
   st: Record<string, unknown>;
   off: Set<string>;
@@ -147,6 +149,7 @@ export function sceneOf(state: GameState): {
       ? 'petals'
       : state.weather;
   const present = isRockPresent(state) && !state.planted;
+  const tog = state.sceneToggles;
   const { sprout, wither } = sproutOf(state);
 
   const isFocus = state.phase === 'focus';
@@ -188,6 +191,7 @@ export function sceneOf(state: GameState): {
             : 'off',
       },
       off: new Set<string>(),
+      hotspots: [],
     };
   }
 
@@ -207,6 +211,7 @@ export function sceneOf(state: GameState): {
         stove: isFocus && sceneId === 'cook' && show('pot') ? 'on' : 'off',
       },
       off,
+      hotspots: [],
     };
   }
 
@@ -220,6 +225,8 @@ export function sceneOf(state: GameState): {
     // 협탁+머그(김 애니 포함). 렌더러 SHOP_PROPS 라 기본 off, 여기서만 켠다.
     if (stocked('caffeine') && show('desk')) off.delete('bd-deskplant');
     if (stocked('nightdrink')) off.delete('bd-nightstand');
+    // 눌러 멈춘 선풍기 — 날개만 선다(방 전체 애니메이션과 별개)
+    if (!tog['bed-fan']) off.add('anim-fan');
     return {
       render: renderBedroom as RenderFn,
       st: {
@@ -234,7 +241,9 @@ export function sceneOf(state: GameState): {
             : sceneId === 'lie' && show('bed')
               ? 'bed'
               : 'rug',
-        lamp: time === 'night' ? 'on' : 'off',
+        // 밤이 켤 조건을 만들고, 눌러서 끌 수 있다 — 낮에 스탠드가 혼자 빛나지 않는다
+        lamp: time === 'night' && tog['bed-lamp'] ? 'on' : 'off',
+        screen: tog['bed-screen'] ? 'on' : 'off',
         // 이번 카페인의 종류가 그림을 정한다 — 쓰는 중이면 그 종류, 아니면 재고 종류
         drink:
           DRINK_OF[
@@ -242,9 +251,17 @@ export function sceneOf(state: GameState): {
               ? state.session.supply.variant
               : state.supplyVariants['caffeine']) ?? ''
           ] ?? 'coffee',
-        window: 'closed',
+        window: tog['bed-window'] ? 'open' : 'closed',
       },
       off,
+      // 창은 늘 누를 수 있고, 나머지는 사서 놓여 있어야 누를 수 있다
+      hotspots: HOTSPOTS.bedroom.filter(
+        (h) =>
+          h.id === 'bed-window' ||
+          (h.id === 'bed-lamp' && !off.has('bd-lamp')) ||
+          (h.id === 'bed-screen' && !off.has('bd-laptop')) ||
+          (h.id === 'bed-fan' && !off.has('bd-fan')),
+      ),
     };
   }
 
@@ -259,13 +276,16 @@ export function sceneOf(state: GameState): {
   // 부재면 orb='none' — 렌더러 visible() 이 돌·새싹을 스스로 끄고,
   // **눌린 자국(rug-mark)이 드러난다** (돌이 자리를 비웠을 때만 보이는 레이어).
   if (!present) off.add('p-blanket-wrap');   // 돌 없는 바닥에 목도리만 남았었다
+  // 눌러서 끈 불 — 몸체는 남기고 불꽃·불빛만 끈다(꺼진 벽난로가 사라지면 안 된다)
+  if (!tog['living-fire']) { off.add('fire'); off.add('lp-fire'); }
+  if (!tog['living-lamp']) { off.add('lamp-glow'); off.add('lp-lamp'); }
   return {
     render: renderLiving as RenderFn,
     st: {
       ...base,
       orb: !present ? 'none' : sceneId === 'sun' ? 'sill' : 'rug',
       tree: 'v1',
-      window: 'closed',
+      window: tog['living-window'] ? 'open' : 'closed',
       // 잔에 차가 담기는 건 차(소모품)가 있을 때만 — 잔은 잔대로 사는 물건이다.
       // (렌더러는 cup==='full' 로 차·김만 더 그리고 잔 유무는 안 본다 → 여기서 게이트)
       cup: show('cup') && stocked('tea') ? 'full' : 'empty',
@@ -278,7 +298,57 @@ export function sceneOf(state: GameState): {
           : 'none',
     },
     off,
+    // 창은 늘 누를 수 있다. 벽난로·스탠드는 **몸체가 놓여 있을 때만**(=샀을 때만) —
+    // 불만 꺼 둔 상태에서도 다시 켤 수 있어야 하므로 몸체 레이어로 판정한다.
+    hotspots: HOTSPOTS.living.filter(
+      (h) =>
+        h.id === 'living-window' ||
+        (h.id === 'living-fire' && !off.has('g-fireplace')) ||
+        (h.id === 'living-lamp' && !off.has('lamp')),
+    ),
   };
+}
+
+/**
+ * 눌러서 반응하는 자리 — 방별. 좌표는 씬 그룹의 bbox 를 잰 값이라
+ * 지오메트리를 옮기면 여기도 같이 고쳐야 한다.
+ */
+const HOTSPOTS: Record<
+  string,
+  { id: SceneToggleId; x: number; y: number; w: number; h: number }[]
+> = {
+  living: [
+    { id: 'living-window', x: 43, y: 4, w: 40, h: 30 }, // lights.js GLASS_RECT
+    { id: 'living-fire', x: 5, y: 31, w: 33, h: 23 }, // g-fireplace
+    { id: 'living-lamp', x: 86, y: 33, w: 8, h: 18 }, // lamp (갓+기둥+받침)
+  ],
+  bedroom: [
+    { id: 'bed-window', x: 22, y: 7, w: 33, h: 25 }, // BD_GLASS 바깥 사각
+    { id: 'bed-lamp', x: 96, y: 30, w: 10, h: 22 },
+    { id: 'bed-screen', x: 62, y: 36, w: 14, h: 10 }, // 랩탑 화면
+    { id: 'bed-fan', x: 12, y: 30, w: 12, h: 22 },
+  ],
+};
+
+/**
+ * 클릭 좌표 → 눌린 자리. 캔버스는 CSS 로 확대돼 있으니 화면 크기로 나눈다.
+ * 레이아웃 전이거나 탭이 가려져 있으면 rect 가 0×0 이라 나누면 NaN 이 되고,
+ * 비교가 조용히 전부 false 가 된다 — 눌러도 아무 일이 없어 원인을 찾기 어렵다.
+ */
+function hotspotAt(
+  cv: HTMLCanvasElement,
+  clientX: number,
+  clientY: number,
+  enabled: readonly { id: SceneToggleId; x: number; y: number; w: number; h: number }[],
+): SceneToggleId | null {
+  const r = cv.getBoundingClientRect();
+  if (!r.width || !r.height) return null;
+  const x = ((clientX - r.left) / r.width) * GX;
+  const y = ((clientY - r.top) / r.height) * GY;
+  // 겹치면 좁은 쪽이 이긴다 — 큰 창 위에 작은 소품이 얹혀도 소품이 눌린다
+  for (const h of [...enabled].sort((a, b) => a.w * a.h - b.w * b.h))
+    if (x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h) return h.id;
+  return null;
 }
 
 export function CanvasScene({ state }: { state: GameState }) {
@@ -330,17 +400,33 @@ export function CanvasScene({ state }: { state: GameState }) {
     };
   }, []);
 
+  // 누를 수 있는 자리는 상태에 따라 달라진다(방·보유 소품) — 렌더 시점에 다시 잰다.
+  const hotspots = sceneOf(state).hotspots;
+  const [hover, setHover] = useState<SceneToggleId | null>(null);
+
+  const at = (e: React.PointerEvent<HTMLCanvasElement>) =>
+    ref.current ? hotspotAt(ref.current, e.clientX, e.clientY, hotspots) : null;
+
   return (
     <canvas
       ref={ref}
       width={GX}
       height={GY}
+      // 눌러서 켜고 끈다 — 창을 열고, 벽난로·스탠드 불을 여닫는다.
+      onPointerDown={(e) => {
+        const id = at(e);
+        if (id) dispatch({ type: 'TOGGLE_SCENE', id });
+      }}
+      // 어디가 눌리는지 알려야 한다 — 누를 수 있는 자리 위에서만 손가락 커서
+      onPointerMove={(e) => setHover(at(e))}
+      onPointerLeave={() => setHover(null)}
       style={{
         position: 'absolute',
         inset: 0,
         width: '100%',
         height: '100%',
         imageRendering: 'pixelated',
+        cursor: hover ? 'pointer' : 'default',
       }}
     />
   );

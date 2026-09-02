@@ -9,6 +9,18 @@ export type Era = 'raising' | 'cohabit' | 'apart';
 /** 보장 위기 아크 종류 (개정 v4-8) — 잠수(3티어)·성장통 병간호(5티어) */
 export type CrisisKind = 'retreat' | 'sick';
 export type Presence = 'present' | 'absent';
+/**
+ * 씬에서 눌러 켜고 끄는 자리 (M22b) — 방-소품 조합.
+ * 창은 늘 누를 수 있고, 나머지는 그 소품을 사서 놓여 있을 때만 누를 수 있다.
+ */
+export type SceneToggleId =
+  | 'living-window'
+  | 'living-fire'
+  | 'living-lamp'
+  | 'bed-window'
+  | 'bed-lamp'
+  | 'bed-screen'
+  | 'bed-fan';
 /** 날씨 (M12) — 게이지 무영향(개정 v4-13): 연출·소리·대사 조건만.
  * 사계절 공통: clear·cloud(흐림)·fog(안개)·rain·downpour.
  * 계절 전용: petals(꽃잎비)=봄, grass(풀잎비)=여름, leaves(낙엽비)=가을, snow=겨울.
@@ -351,6 +363,11 @@ export interface GameState {
   supplies: Record<ItemId, number>;
   /** 재고의 확정 종류 — 구매 시 진열 종류가 고정된다 (소모 시 이 종류 사용) */
   supplyVariants: Record<ItemId, string>;
+  /**
+   * 눌러서 켜고 끄는 씬 소품 — 방마다 자리별 on/off. 세이브에 남아 다음 세션에도
+   * 그대로다("내가 꺼 둔 불은 꺼져 있다"). 안 산 소품 자리는 애초에 눌리지 않는다.
+   */
+  sceneToggles: Record<SceneToggleId, boolean>;
   /** 방금 구매해 배치/보관 선택 대기 중인 물품 */
   pendingPlacement: ItemId | null;
   /** 트리거 플래그 */
@@ -444,6 +461,7 @@ export type GameEvent =
   | { type: 'SET_THEME'; theme: 'auto' | 'light' | 'dark' }
   | { type: 'SET_WEATHER'; weather: WeatherKind; nowMs: number }
   | { type: 'SET_TIME_OF_DAY'; mode: 'auto' | TimeOfDay; nowMs: number }
+  | { type: 'TOGGLE_SCENE'; id: SceneToggleId }
   | { type: 'SET_SEASON'; mode: 'auto' | Season; nowMs: number }
   | { type: 'SET_NOTIFY'; key: 'enabled' | 'restEnd'; on: boolean }
   | { type: 'SET_FOCUS_NOTIFY'; index: number; on: boolean }

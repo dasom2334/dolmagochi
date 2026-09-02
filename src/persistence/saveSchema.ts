@@ -1,5 +1,9 @@
 import type { GameState, NotifySettings } from '../game/types';
-import { PERSONAL_WORK_ACTION, SCHEMA_VERSION } from '../game/stateMachine';
+import {
+  PERSONAL_WORK_ACTION,
+  SCENE_TOGGLE_DEFAULTS,
+  SCHEMA_VERSION,
+} from '../game/stateMachine';
 import { normalizeFlowtime } from '../game/timer';
 import { BALANCE } from '../game/balance';
 import { derivedSecurity } from '../game/security';
@@ -182,6 +186,8 @@ function normalizeState(state: GameState): GameState {
     // 소모품 진열/종류 필드 방어 — 구 v10 세이브 백필
     rest: { ...state.rest, offers: state.rest?.offers ?? {} },
     supplyVariants: state.supplyVariants ?? {},
+    // 손으로 고친 임포트 등으로 자리가 통째로 비어도 씬이 깨지지 않게
+    sceneToggles: { ...SCENE_TOGGLE_DEFAULTS, ...(state.sceneToggles ?? {}) },
     // 병간호 필드 방어 — 구 v9 세이브엔 없을 수 있어 기본값을 채운다(크래시 방지)
     presence: {
       ...state.presence,
