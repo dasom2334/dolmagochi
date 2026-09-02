@@ -34,6 +34,14 @@ import { reduceMotion } from '../../scene/art/livingroom/scene/anim.js';
 const GX = 128;
 const GY = 72;
 
+/**
+ * 그리는 최소 간격(ms) = 10fps. 렌더러는 호출마다 캔버스 전체를 다시 칠하는데
+ * (프레임당 fillRect 최대 6,700회), 씬 애니는 전부 계단식·저주기(비 낙하 640ms,
+ * 구름 68s)라 60fps로 그려도 화면은 그만큼 자주 안 바뀐다. 60fps 전체 재그리기가
+ * 약한 노트북에서 페이지 전체를 굼뜨게 했다(플레이테스트 제보).
+ */
+const DRAW_INTERVAL_MS = 100;
+
 /** 게임 소품 id → 거실 레이어 id들 (렌더러 SHOP_PROPS 의 부분집합만 게임에 존재) */
 const LIVING_LAYER: Record<string, string[]> = {
   cushion: ['p-cushion'],
@@ -249,16 +257,39 @@ export function CanvasScene({ state }: { state: GameState }) {
     const cv = ref.current;
     if (!cv) return;
     let raf = 0;
+    let lastDraw = -Infinity;
+    let lastKey = '';
+    let onScreen = true;
     const t0 = performance.now();
     const still = reduceMotion();
+    // 화면 밖이면 안 그린다 — 폰에서 상점·일지로 스크롤해 내려가면 씬은 보이지 않는데
+    // 그리기는 계속됐다. (숨긴 탭은 브라우저가 rAF 자체를 멈추므로 여기서 안 본다)
+    const io =
+      typeof IntersectionObserver === 'function'
+        ? new IntersectionObserver(([e]) => {
+            onScreen = e.isIntersecting;
+          })
+        : null;
+    io?.observe(cv);
     const draw = (nowT: number) => {
+      raf = requestAnimationFrame(draw);
+      if (!onScreen || nowT - lastDraw < DRAW_INTERVAL_MS) return;
       const { render, st, off } = sceneOf(latest.current);
       if (still) off.add('anim');
+      // 모션 감소면 시간이 흘러도 그림이 안 변한다 — 상태가 그대로면 건너뛴다
+      if (still) {
+        const key = JSON.stringify(st) + [...off].sort().join();
+        if (key === lastKey) return;
+        lastKey = key;
+      }
+      lastDraw = nowT;
       render(cv, st, off, nowT - t0);
-      raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      io?.disconnect();
+    };
   }, []);
 
   return (
