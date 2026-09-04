@@ -40,6 +40,25 @@ npm run validate  # 게임 데이터·문구 참조 검증
 npm run build     # 프로덕션 빌드
 ```
 
+### 소리 튜닝 페이지
+
+`npm run dev` 후 <http://localhost:5173/tune.html>. 개발 전용이라 프로덕션 빌드에는
+들어가지 않는다(빌드 입력은 `index.html` 하나뿐).
+
+레이어의 대역·간격·게인을 슬라이더로 바꾸면서 **바로 듣는 화면**이다. 게임을 그 상황까지
+진행하지 않아도 되고, 여러 레이어를 겹쳐 들으며 상대 음량을 맞출 수 있다(레벨 미터 포함).
+찾은 값은 [코드 복사]로 [`src/audio/params.ts`](src/audio/params.ts)에 그대로 옮긴다.
+
+소리는 코드가 아니라 데이터다:
+
+| 파일 | 역할 |
+| --- | --- |
+| [`src/audio/params.ts`](src/audio/params.ts) | 레이어별 파라미터 + UI 스키마 |
+| [`src/audio/models.ts`](src/audio/models.ts) | 데이터를 읽어 소리를 내는 엔진 (모델 7종) |
+| [`src/audio/dsp.ts`](src/audio/dsp.ts) | 노이즈 소스, 듀티 펄스, 칩튠 양자화, 음계 스냅 |
+
+튜닝 페이지와 게임이 같은 테이블·같은 엔진을 쓰므로 두 벌로 갈라지지 않는다.
+
 ## 업데이트 예정
 
 - BGM (LP/mp3)
